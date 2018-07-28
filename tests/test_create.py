@@ -55,6 +55,23 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(fresh_db):
         {"name": "one_id", "type": "INTEGER"},
         {"name": "two_id", "type": "INTEGER"},
     ] == [{"name": col.name, "type": col.type} for col in fresh_db["m2m"].columns]
+    assert sorted(
+        [
+            {"column": "one_id", "other_table": "one", "other_column": "id"},
+            {"column": "two_id", "other_table": "two", "other_column": "id"},
+        ],
+        key=lambda s: repr(s),
+    ) == sorted(
+        [
+            {
+                "column": fk.column,
+                "other_table": fk.other_table,
+                "other_column": fk.other_column,
+            }
+            for fk in fresh_db["m2m"].foreign_keys
+        ],
+        key=lambda s: repr(s),
+    )
 
 
 @pytest.mark.parametrize(

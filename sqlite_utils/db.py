@@ -5,6 +5,9 @@ import json
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
 )
+ForeignKey = namedtuple(
+    "ForeignKey", ("table", "column", "other_table", "other_column")
+)
 
 
 class Database:
@@ -42,7 +45,7 @@ class Database:
                 }[col_type],
                 primary_key=" PRIMARY KEY" if (pk == col_name) else "",
                 references=(
-                    " REFERENCES [{other_table}({other_column})]".format(
+                    " REFERENCES [{other_table}]([{other_column}])".format(
                         other_table=foreign_keys_by_name[col_name][2],
                         other_column=foreign_keys_by_name[col_name][3],
                     )
@@ -76,6 +79,24 @@ class Table:
             "PRAGMA table_info([{}])".format(self.name)
         ).fetchall()
         return [Column(*row) for row in rows]
+
+    @property
+    def foreign_keys(self):
+        fks = []
+        for row in self.db.conn.execute(
+            "PRAGMA foreign_key_list([{}])".format(self.name)
+        ).fetchall():
+            if row is not None:
+                id, seq, table_name, from_, to_, on_update, on_delete, match = row
+                fks.append(
+                    ForeignKey(
+                        table=self.name,
+                        column=from_,
+                        other_table=table_name,
+                        other_column=to_,
+                    )
+                )
+        return fks
 
     def create(self, columns, pk=None, foreign_keys=None):
         columns = {name: value for (name, value) in columns.items()}
