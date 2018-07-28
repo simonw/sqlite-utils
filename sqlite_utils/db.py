@@ -1,5 +1,6 @@
 import sqlite3
 from collections import namedtuple
+import json
 
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
@@ -29,7 +30,7 @@ class Database:
         foreign_keys = foreign_keys or []
         foreign_keys_by_name = {fk[0]: fk for fk in foreign_keys}
         extra = ""
-        columns = ",\n".join(
+        columns_sql = ",\n".join(
             "   {col_name} {col_type} {primary_key} {references}".format(
                 col_name=col_name,
                 col_type={
@@ -52,10 +53,10 @@ class Database:
             for col_name, col_type in columns.items()
         )
         sql = """CREATE TABLE {table} (
-            {columns}
+            {columns_sql}
         ){extra};
         """.format(
-            table=name, columns=columns, extra=extra
+            table=name, columns_sql=columns_sql, extra=extra
         )
         self.conn.execute(sql)
         return self[name]
@@ -108,6 +109,10 @@ class Table:
         for key, types in all_column_types.items():
             if len(types) == 1:
                 t = list(types)[0]
+                # But if it's list / tuple / dict, use str instead as we
+                # will be storing it as JSON in the table
+                if t in (list, tuple, dict):
+                    t = str
             elif {int, bool}.issuperset(types):
                 t = int
             elif {int, float, bool}.issuperset(types):
@@ -154,7 +159,9 @@ class Table:
             )
             values = []
             for record in chunk:
-                values.extend(record.get(key, None) for key in all_columns)
+                values.extend(
+                    jsonify_if_needed(record.get(key, None)) for key in all_columns
+                )
             result = self.db.conn.execute(sql, values)
             self.db.conn.commit()
         return result
@@ -169,3 +176,10 @@ class Table:
 def chunks(sequence, size):
     for i in range(0, len(sequence), size):
         yield sequence[i : i + size]
+
+
+def jsonify_if_needed(value):
+    if isinstance(value, (dict, list, tuple)):
+        return json.dumps(value)
+    else:
+        return value

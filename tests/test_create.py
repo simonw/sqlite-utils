@@ -1,4 +1,5 @@
 from sqlite_utils import db
+import json
 import sqlite3
 import pytest
 
@@ -54,3 +55,20 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(fresh_db):
         {"name": "one_id", "type": "INTEGER"},
         {"name": "two_id", "type": "INTEGER"},
     ] == [{"name": col.name, "type": col.type} for col in fresh_db["m2m"].columns]
+
+
+@pytest.mark.parametrize(
+    "data_structure",
+    (
+        ["list with one item"],
+        ["list with", "two items"],
+        {"dictionary": "simple"},
+        {"dictionary": {"nested": "complex"}},
+        [{"list": "of"}, {"two": "dicts"}],
+    ),
+)
+def test_insert_dictionaries_and_lists_as_json(fresh_db, data_structure):
+    fresh_db["test"].insert({"id": 1, "data": data_structure}, pk="id")
+    row = fresh_db.conn.execute("select id, data from test").fetchone()
+    assert row[0] == 1
+    assert data_structure == json.loads(row[1])
