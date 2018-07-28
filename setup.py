@@ -22,7 +22,7 @@ setup(
     packages=find_packages(),
     install_requires=["click==6.7"],
     setup_requires=["pytest-runner"],
-    tests_require=["pytest==3.2.3"],
+    tests_require=["pytest==3.2.3", "black==18.6b4"],
     entry_points="""
         [console_scripts]
         sqlite-utils=sqlite_utils.cli:cli
