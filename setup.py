@@ -17,16 +17,17 @@ setup(
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
     author="Simon Willison",
-    version="0.1",
+    version="0.2",
     license="Apache License, Version 2.0",
     packages=find_packages(),
     install_requires=["click==6.7"],
     setup_requires=["pytest-runner"],
-    tests_require=["pytest==3.2.3", "black==18.6b4"],
+    extras_require={"test": ["pytest==3.6.0", "black==18.6b4"]},
     entry_points="""
         [console_scripts]
         sqlite-utils=sqlite_utils.cli:cli
     """,
+    tests_require=["sqlite-utils[test]"],
     url="https://github.com/simonw/sqlite-utils",
     classifiers=[
         "Development Status :: 3 - Alpha",
