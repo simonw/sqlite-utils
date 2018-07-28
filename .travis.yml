@@ -1,0 +1,15 @@
+language: python
+
+# 3.6 is listed first so it gets used for the later build stages
+python:
+  - "3.6"
+  - "3.7-dev"
+
+script:
+  - pip install -U pip wheel
+  - pip install .[test]
+  - pytest
+
+cache:
+    directories:
+      - $HOME/.cache/pip
