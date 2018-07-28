@@ -38,3 +38,19 @@ def test_create_table_from_example(fresh_db, example, expected_columns):
     assert expected_columns == [
         {"name": col.name, "type": col.type} for col in fresh_db["people"].columns
     ]
+
+
+def test_create_table_works_for_m2m_with_only_foreign_keys(fresh_db):
+    fresh_db["one"].insert({"id": 1}, pk="id")
+    fresh_db["two"].insert({"id": 1}, pk="id")
+    fresh_db["m2m"].insert(
+        {"one_id": 1, "two_id": 1},
+        foreign_keys=(
+            ("one_id", "INTEGER", "one", "id"),
+            ("two_id", "INTEGER", "two", "id"),
+        ),
+    )
+    assert [
+        {"name": "one_id", "type": "INTEGER"},
+        {"name": "two_id", "type": "INTEGER"},
+    ] == [{"name": col.name, "type": col.type} for col in fresh_db["m2m"].columns]

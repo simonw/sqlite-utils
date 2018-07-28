@@ -25,26 +25,37 @@ class Database:
             ).fetchall()
         ]
 
-    def create_table(self, name, columns, pk=None):
+    def create_table(self, name, columns, pk=None, foreign_keys=None):
+        foreign_keys = foreign_keys or []
+        foreign_keys_by_name = {fk[0]: fk for fk in foreign_keys}
+        extra = ""
+        columns = ",\n".join(
+            "   {col_name} {col_type} {primary_key} {references}".format(
+                col_name=col_name,
+                col_type={
+                    float: "FLOAT",
+                    int: "INTEGER",
+                    bool: "INTEGER",
+                    str: "TEXT",
+                    None.__class__: "TEXT",
+                }[col_type],
+                primary_key=" PRIMARY KEY" if (pk == col_name) else "",
+                references=(
+                    " REFERENCES [{other_table}({other_column})]".format(
+                        other_table=foreign_keys_by_name[col_name][2],
+                        other_column=foreign_keys_by_name[col_name][3],
+                    )
+                    if col_name in foreign_keys_by_name
+                    else ""
+                ),
+            )
+            for col_name, col_type in columns.items()
+        )
         sql = """CREATE TABLE {table} (
             {columns}
-        );
+        ){extra};
         """.format(
-            table=name,
-            columns=",\n".join(
-                "   {col_name} {col_type} {primary_key}".format(
-                    col_name=col_name,
-                    col_type={
-                        float: "FLOAT",
-                        int: "INTEGER",
-                        bool: "INTEGER",
-                        str: "TEXT",
-                        None.__class__: "TEXT",
-                    }[col_type],
-                    primary_key=" PRIMARY KEY" if (pk == col_name) else "",
-                )
-                for col_name, col_type in columns.items()
-            ),
+            table=name, columns=columns, extra=extra
         )
         self.conn.execute(sql)
         return self[name]
@@ -66,16 +77,8 @@ class Table:
         return [Column(*row) for row in rows]
 
     def create(self, columns, pk=None, foreign_keys=None):
-        # Ignore columns in foreign_keys list
-        columns = {
-            name: value
-            for name, value in columns.items()
-            if name not in {fk[0] for fk in (foreign_keys or [])}
-        }
-        self.db.create_table(self.name, columns, pk=pk)
-        if foreign_keys:
-            for args in foreign_keys:
-                self.add_foreign_key(*args)
+        columns = {name: value for (name, value) in columns.items()}
+        self.db.create_table(self.name, columns, pk=pk, foreign_keys=foreign_keys)
         self.exists = True
 
     def drop(self):
