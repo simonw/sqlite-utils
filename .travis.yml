@@ -13,3 +13,21 @@ script:
 cache:
     directories:
       - $HOME/.cache/pip
+
+jobs:
+  include:
+    - stage: release tagged version
+      if: tag IS present
+      language: python
+      python: 3.6
+      script:
+        - pip install -U pip wheel
+      deploy:
+        - provider: pypi
+          user: simonw
+          distributions: bdist_wheel
+          password: ${PYPI_PASSWORD}
+          on:
+            branch: master
+            tags: true
+            repo: simonw/sqlite-utils
