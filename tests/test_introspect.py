@@ -1,11 +1,11 @@
-from sqlite_utils import db
+from sqlite_utils import Database
 import sqlite3
 import pytest
 
 
 @pytest.fixture
 def existing_db():
-    database = db.Database(sqlite3.connect(":memory:"))
+    database = Database(sqlite3.connect(":memory:"))
     database.conn.executescript(
         """
         CREATE TABLE foo (text TEXT);

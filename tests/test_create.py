@@ -1,4 +1,4 @@
-from sqlite_utils import db
+from sqlite_utils import Database
 import json
 import sqlite3
 import pytest
@@ -6,7 +6,7 @@ import pytest
 
 @pytest.fixture
 def fresh_db():
-    return db.Database(sqlite3.connect(":memory:"))
+    return Database(sqlite3.connect(":memory:"))
 
 
 def test_create_table(fresh_db):

@@ -16,11 +16,11 @@ Contents
 
    table
 
-While the documentation is being constructed, enjoy an example instead:
+While the full documentation is being constructed, enjoy an example:
 
 .. code-block:: python
 
-    from sqlite_utils import db
+    from sqlite_utils import Database
     import sqlite3
     import requests
     import hashlib
@@ -76,15 +76,16 @@ While the documentation is being constructed, enjoy an example instead:
     def hash_id(s):
         return hashlib.md5(s.encode("utf8")).hexdigest()[:5]
 
-    database = db.Database(sqlite3.connect("/tmp/ads3.db"))
+    database = Database(sqlite3.connect("/tmp/ads3.db"))
 
     ads = database["ads"]
     targets = database["targets"]
     ad_targets = database["ad_targets"]
 
     for ad in raw_ads:
+        ad_id = int(ad["file"].split(')')[-1].split(".")[0])
         record = {
-            "id": ad["id"],
+            "id": ad_id,
             "file": ad["file"],
             "clicks": ad["clicks"],
             "impressions": ad["impressions"],
@@ -107,7 +108,7 @@ While the documentation is being constructed, enjoy an example instead:
             )
             ad_targets.insert({
                 "target_id": target_id,
-                "ad_id": ad["id"],
+                "ad_id": ad_id,
             }, foreign_keys=(
                 ("ad_id", "INTEGER", "ads", "id"),
                 ("target_id", "TEXT", "targets", "id"),
