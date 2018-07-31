@@ -1,12 +1,6 @@
-from sqlite_utils import Database
-import json
-import sqlite3
+from .fixtures import fresh_db
 import pytest
-
-
-@pytest.fixture
-def fresh_db():
-    return Database(sqlite3.connect(":memory:"))
+import json
 
 
 def test_create_table(fresh_db):
