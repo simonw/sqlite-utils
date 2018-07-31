@@ -8,7 +8,15 @@ This library aims to make creating a SQLite database from a collection of data a
 
 It is not intended to be a full ORM: the focus is utility helpers to make creating the initial database and populating it with data as productive as possible.
 
-In lieu of detailed documentation (coming soon), enjoy an example instead:
+Contents
+--------
+
+.. toctree::
+   :maxdepth: 2
+
+   table
+
+While the documentation is being constructed, enjoy an example instead:
 
 .. code-block:: python
 

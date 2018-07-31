@@ -72,6 +72,12 @@ class Table:
         self.exists = self.name in self.db.tables
 
     @property
+    def count(self):
+        return self.db.conn.execute(
+            "select count(*) from [{}]".format(self.name)
+        ).fetchone()[0]
+
+    @property
     def columns(self):
         if not self.exists:
             return []
