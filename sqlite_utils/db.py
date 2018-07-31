@@ -104,6 +104,12 @@ class Table:
                 )
         return fks
 
+    @property
+    def schema(self):
+        return self.db.conn.execute(
+            "select sql from sqlite_master where name = ?", (self.name,)
+        ).fetchone()[0]
+
     def create(self, columns, pk=None, foreign_keys=None):
         columns = {name: value for (name, value) in columns.items()}
         self.db.create_table(self.name, columns, pk=pk, foreign_keys=foreign_keys)
