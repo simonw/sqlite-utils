@@ -133,6 +133,28 @@ class Table:
         self.db.conn.commit()
         return result
 
+    def enable_fts(self, columns):
+        "Enables FTS on the specified columns"
+        sql = """
+            CREATE VIRTUAL TABLE "{table}_fts" USING FTS4 (
+                {columns},
+                content="{table}"
+            );
+        """.format(
+            table=self.name, columns=", ".join(columns)
+        )
+        self.db.conn.executescript(sql)
+        self.populate_fts(columns)
+
+    def populate_fts(self, columns):
+        sql = """
+            INSERT INTO "{table}_fts" (rowid, {columns})
+                SELECT rowid, {columns} FROM {table};
+        """.format(
+            table=self.name, columns=", ".join(columns)
+        )
+        self.db.conn.executescript(sql)
+
     def detect_column_types(self, records):
         all_column_types = {}
         for record in records:
@@ -154,6 +176,18 @@ class Table:
                 t = str
             column_types[key] = t
         return column_types
+
+    def search(self, q):
+        sql = """
+            select * from {table} where rowid in (
+                select rowid from [{table}_fts]
+                where [{table}_fts] match :search
+            )
+            order by rowid
+        """.format(
+            table=self.name
+        )
+        return self.db.conn.execute(sql, (q,)).fetchall()
 
     def insert(self, record, pk=None, foreign_keys=None, upsert=False):
         return self.insert_all(

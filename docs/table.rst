@@ -116,3 +116,31 @@ The ``.schema`` property outputs the table's schema as a SQL string::
         FOREIGN KEY ("qSiteInfo") REFERENCES [qSiteInfo](id),
         FOREIGN KEY ("qCareAssistant") REFERENCES [qCareAssistant](id),
         FOREIGN KEY ("qLegalStatus") REFERENCES [qLegalStatus](id))
+
+Enabling full-text search
+=========================
+
+You can enable full-text search on a table using ``.enable_fts(columns)``:
+
+.. code-block:: python
+
+    dogs.enable_fts(["name", "twitter"])
+
+You can then run searches using the ``.search()`` method:
+
+.. code-block:: python
+
+    rows = dogs.search("cleo")
+
+If you insert additioal records into the table you will need to refresh the search index using ``populate_fts()``:
+
+.. code-block:: python
+
+    dogs.insert({
+        "id": 2,
+        "name": "Marnie",
+        "twitter": "MarnieTheDog",
+        "age": 16,
+        "is_good_dog": True,
+    }, pk="id")
+    dogs.populate_fts(["name", "twitter"])
