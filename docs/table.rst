@@ -192,7 +192,7 @@ You can then run searches using the ``.search()`` method:
 
     rows = dogs.search("cleo")
 
-If you insert additioal records into the table you will need to refresh the search index using ``populate_fts()``:
+If you insert additional records into the table you will need to refresh the search index using ``populate_fts()``:
 
 .. code-block:: python
 
