@@ -125,13 +125,13 @@ class Table:
 
     @property
     def indexes(self):
-        sql = "select * from pragma_index_list(?)"
+        sql = 'PRAGMA index_list("{}")'.format(self.name)
         indexes = []
-        for row in list(self.db.conn.execute(sql, (self.name,)).fetchall()):
-            column_sql = "select name from pragma_index_info(?) order by seqno"
-            columns = [
-                r[0] for r in self.db.conn.execute(column_sql, (row[1],)).fetchall()
-            ]
+        for row in list(self.db.conn.execute(sql).fetchall()):
+            column_sql = 'PRAGMA index_info("{}")'.format(row[1])
+            columns = []
+            for seqno, cid, name in self.db.conn.execute(column_sql).fetchall():
+                columns.append(name)
             indexes.append(Index(*(row + (columns,))))
         return indexes
 
