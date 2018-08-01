@@ -1,4 +1,5 @@
-from .fixtures import existing_db
+from .fixtures import existing_db, fresh_db
+from sqlite_utils.db import Index
 
 
 def test_table_names(existing_db):
@@ -27,3 +28,24 @@ def test_schema(existing_db):
 
 def test_table_repr(existing_db):
     assert "<Table foo>" == repr(existing_db["foo"])
+
+
+def test_indexes(fresh_db):
+    fresh_db.conn.executescript(
+        """
+        create table Gosh (c1 text, c2 text, c3 text);
+        create index Gosh_c1 on Gosh(c1);
+        create index Gosh_c2c3 on Gosh(c2, c3);
+    """
+    )
+    assert [
+        Index(
+            seq=0,
+            name="Gosh_c2c3",
+            unique=0,
+            origin="c",
+            partial=0,
+            columns=["c2", "c3"],
+        ),
+        Index(seq=1, name="Gosh_c1", unique=0, origin="c", partial=0, columns=["c1"]),
+    ] == fresh_db["Gosh"].indexes

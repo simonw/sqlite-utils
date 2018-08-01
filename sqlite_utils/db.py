@@ -8,6 +8,7 @@ Column = namedtuple(
 ForeignKey = namedtuple(
     "ForeignKey", ("table", "column", "other_table", "other_column")
 )
+Index = namedtuple("Index", ("seq", "name", "unique", "origin", "partial", "columns"))
 
 
 class Database:
@@ -121,6 +122,18 @@ class Table:
         return self.db.conn.execute(
             "select sql from sqlite_master where name = ?", (self.name,)
         ).fetchone()[0]
+
+    @property
+    def indexes(self):
+        sql = "select * from pragma_index_list(?)"
+        indexes = []
+        for row in list(self.db.conn.execute(sql, (self.name,)).fetchall()):
+            column_sql = "select name from pragma_index_info(?) order by seqno"
+            columns = [
+                r[0] for r in self.db.conn.execute(column_sql, (row[1],)).fetchall()
+            ]
+            indexes.append(Index(*(row + (columns,))))
+        return indexes
 
     def create(self, columns, pk=None, foreign_keys=None):
         columns = {name: value for (name, value) in columns.items()}
