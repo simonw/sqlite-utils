@@ -204,3 +204,21 @@ If you insert additional records into the table you will need to refresh the sea
         "is_good_dog": True,
     }, pk="id")
     dogs.populate_fts(["name", "twitter"])
+
+Creating indexes
+================
+
+You can create an index on a table using the ``.create_index(columns)`` method. The method takes a list of columns:
+
+.. code-block:: python
+
+    dogs.create_index(["is_good_dog"])
+
+By default the index will be named ``idx_{table-name}_{columns}`` - if you want to customize the name of the created index you can pass the ``index_name`` parameter::]
+
+.. code-block:: python
+
+    dogs.create_index(
+        ["is_good_dog", "age"],
+        index_name="good_dogs_by_age"
+    )

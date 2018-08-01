@@ -140,6 +140,19 @@ class Table:
         self.db.create_table(self.name, columns, pk=pk, foreign_keys=foreign_keys)
         self.exists = True
 
+    def create_index(self, columns, index_name=None):
+        if index_name is None:
+            index_name = "idx_{}_{}".format(
+                self.name.replace(" ", "_"), "_".join(columns)
+            )
+        sql = """
+            CREATE INDEX {index_name}
+                ON {table_name} ({columns});
+        """.format(
+            index_name=index_name, table_name=self.name, columns=", ".join(columns)
+        )
+        self.db.conn.execute(sql)
+
     def drop(self):
         return self.db.conn.execute("DROP TABLE {}".format(self.name))
 

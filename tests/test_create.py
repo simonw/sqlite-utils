@@ -1,4 +1,5 @@
 from .fixtures import fresh_db
+from sqlite_utils.db import Index
 import pytest
 import json
 
@@ -66,6 +67,55 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(fresh_db):
         ],
         key=lambda s: repr(s),
     )
+
+
+@pytest.mark.parametrize(
+    "columns,index_name,expected_index",
+    (
+        (
+            ["is_good_dog"],
+            None,
+            Index(
+                seq=0,
+                name="idx_dogs_is_good_dog",
+                unique=0,
+                origin="c",
+                partial=0,
+                columns=["is_good_dog"],
+            ),
+        ),
+        (
+            ["is_good_dog", "age"],
+            None,
+            Index(
+                seq=0,
+                name="idx_dogs_is_good_dog_age",
+                unique=0,
+                origin="c",
+                partial=0,
+                columns=["is_good_dog", "age"],
+            ),
+        ),
+        (
+            ["age"],
+            "age_index",
+            Index(
+                seq=0,
+                name="age_index",
+                unique=0,
+                origin="c",
+                partial=0,
+                columns=["age"],
+            ),
+        ),
+    ),
+)
+def test_create_index(fresh_db, columns, index_name, expected_index):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is_good_dog": True})
+    assert [] == dogs.indexes
+    dogs.create_index(columns, index_name)
+    assert expected_index == dogs.indexes[0]
 
 
 @pytest.mark.parametrize(
