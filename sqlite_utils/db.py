@@ -20,14 +20,21 @@ class Database:
     def __getitem__(self, table_name):
         return Table(self, table_name)
 
+    def __repr__(self):
+        return "<Database {}>".format(self.conn)
+
     @property
-    def tables(self):
+    def table_names(self):
         return [
             r[0]
             for r in self.conn.execute(
                 "select name from sqlite_master where type = 'table'"
             ).fetchall()
         ]
+
+    @property
+    def tables(self):
+        return [self[name] for name in self.table_names]
 
     def create_table(self, name, columns, pk=None, foreign_keys=None):
         foreign_keys = foreign_keys or []
@@ -69,7 +76,12 @@ class Table:
     def __init__(self, db, name):
         self.db = db
         self.name = name
-        self.exists = self.name in self.db.tables
+        self.exists = self.name in self.db.table_names
+
+    def __repr__(self):
+        return "<Table {}{}>".format(
+            self.name, " (does not exist yet)" if not self.exists else ""
+        )
 
     @property
     def count(self):

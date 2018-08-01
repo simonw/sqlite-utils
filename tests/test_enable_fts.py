@@ -10,7 +10,7 @@ search_records = [
 def test_enable_fts(fresh_db):
     table = fresh_db["searchable"]
     table.insert_all(search_records)
-    assert ["searchable"] == fresh_db.tables
+    assert ["searchable"] == fresh_db.table_names
     table.enable_fts(["text", "country"])
     assert [
         "searchable",
@@ -19,7 +19,7 @@ def test_enable_fts(fresh_db):
         "searchable_fts_segdir",
         "searchable_fts_docsize",
         "searchable_fts_stat",
-    ] == fresh_db.tables
+    ] == fresh_db.table_names
     assert [("tanuki are tricksters", "Japan", "foo")] == table.search("tanuki")
     assert [("racoons are trash pandas", "USA", "bar")] == table.search("usa")
     assert [] == table.search("bar")

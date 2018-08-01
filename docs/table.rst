@@ -1,8 +1,8 @@
-=======
- Table
-=======
+======================
+ Databases and Tables
+======================
 
-Tables are accessed using the indexing operator, like so:
+Database objects are constructed by passing in a SQLite3 database connection:
 
 .. code-block:: python
 
@@ -10,9 +10,27 @@ Tables are accessed using the indexing operator, like so:
     import sqlite3
 
     db = Database(sqlite3.connect("my_database.db"))
+
+Tables are accessed using the indexing operator, like so:
+
+.. code-block:: python
+
     table = db["my_table"]
 
 If the table does not yet exist, it will be created the first time you attempt to insert or upsert data into it.
+
+Listing tables
+==============
+
+You can list the names of tables in a database using the ``.table_names`` property::
+
+    >>> db.table_names
+    ['dogs']
+
+You can also iterate through the table objects themselves using ``.tables``::
+
+    >>> db.tables
+    [<Table dogs>]
 
 Creating tables
 ===============
