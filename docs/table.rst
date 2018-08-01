@@ -74,6 +74,38 @@ You can also specify a primary key by passing the ``pk=`` parameter to the ``.in
         "is_good_dog": True,
     }, pk="id")
 
+Storing JSON
+============
+
+SQLite has `excellent JSON support <https://www.sqlite.org/json1.html>`_, and ``sqlite-utils`` can help you take advantage of this: if you attempt to insert a value that can be represented as a JSON list or dictionary, ``sqlite-utils`` will create TEXT column and store your data as serialized JSON. This means you can quickly store even complex data structures in SQLite and query them using JSON features.
+
+For example:
+
+.. code-block:: python
+
+    db["niche_museums"].insert({
+        "name": "The Bigfoot Discovery Museum",
+        "url": "http://bigfootdiscoveryproject.com/"
+        "hours": {
+            "Monday": [11, 18],
+            "Wednesday": [11, 18],
+            "Thursday": [11, 18],
+            "Friday": [11, 18],
+            "Saturday": [11, 18],
+            "Sunday": [11, 18]
+        },
+        "address": {
+            "streetAddress": "5497 Highway 9",
+            "addressLocality": "Felton, CA",
+            "postalCode": "95018"
+        }
+    })
+    db.conn.execute("""
+        select json_extract(address, '$.addressLocality')
+        from niche_museums
+    """).fetchall()
+    # Returns [('Felton, CA',)]
+
 Introspection
 =============
 
