@@ -144,6 +144,10 @@ class Table:
             for seqno, cid, name in self.db.conn.execute(column_sql).fetchall():
                 columns.append(name)
             row["columns"] = columns
+            # These coluns may be missing on older SQLite versions:
+            for key in ("origin", "partial"):
+                if key not in row:
+                    row[key] = None
             indexes.append(Index(**row))
         return indexes
 
