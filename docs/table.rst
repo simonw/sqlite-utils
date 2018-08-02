@@ -74,6 +74,17 @@ You can also specify a primary key by passing the ``pk=`` parameter to the ``.in
         "is_good_dog": True,
     }, pk="id")
 
+Creating views
+==============
+
+The ``.create_view()`` method on the database class can be used to create a view:
+
+.. code-block:: python
+
+    db.create_view("good_dogs", """
+        select * from dogs where is_good_dog = 1
+    """)
+
 Storing JSON
 ============
 
