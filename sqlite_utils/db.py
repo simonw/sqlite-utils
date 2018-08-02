@@ -37,6 +37,11 @@ class Database:
     def tables(self):
         return [self[name] for name in self.table_names]
 
+    def execute_returning_dicts(self, sql, params=None):
+        cursor = self.conn.execute(sql, params or tuple())
+        keys = [d[0] for d in cursor.description]
+        return [dict(zip(keys, row)) for row in cursor.fetchall()]
+
     def create_table(self, name, columns, pk=None, foreign_keys=None):
         foreign_keys = foreign_keys or []
         foreign_keys_by_name = {fk[0]: fk for fk in foreign_keys}
@@ -127,12 +132,19 @@ class Table:
     def indexes(self):
         sql = 'PRAGMA index_list("{}")'.format(self.name)
         indexes = []
-        for row in list(self.db.conn.execute(sql).fetchall()):
-            column_sql = 'PRAGMA index_info("{}")'.format(row[1])
+        for row in self.db.execute_returning_dicts(sql):
+            index_name = row["name"]
+            index_name_quoted = (
+                '"{}"'.format(index_name)
+                if not index_name.startswith('"')
+                else index_name
+            )
+            column_sql = "PRAGMA index_info({})".format(index_name_quoted)
             columns = []
             for seqno, cid, name in self.db.conn.execute(column_sql).fetchall():
                 columns.append(name)
-            indexes.append(Index(*(row + (columns,))))
+            row["columns"] = columns
+            indexes.append(Index(**row))
         return indexes
 
     def create(self, columns, pk=None, foreign_keys=None):
