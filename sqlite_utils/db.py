@@ -145,9 +145,9 @@ class Table:
                 columns.append(name)
             row["columns"] = columns
             # These coluns may be missing on older SQLite versions:
-            for key in ("origin", "partial"):
+            for key, default in {"origin": "c", "partial": 0}.items():
                 if key not in row:
-                    row[key] = None
+                    row[key] = default
             indexes.append(Index(**row))
         return indexes
 
