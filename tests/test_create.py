@@ -133,3 +133,10 @@ def test_insert_dictionaries_and_lists_as_json(fresh_db, data_structure):
     row = fresh_db.conn.execute("select id, data from test").fetchone()
     assert row[0] == 1
     assert data_structure == json.loads(row[1])
+
+
+def test_create_view(fresh_db):
+    fresh_db["data"].insert({"foo": "foo", "bar": "bar"})
+    fresh_db.create_view("bar", "select bar from data")
+    rows = fresh_db.conn.execute("select * from bar").fetchall()
+    assert [("bar",)] == rows

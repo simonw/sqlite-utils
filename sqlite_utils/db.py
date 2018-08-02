@@ -77,6 +77,15 @@ class Database:
         self.conn.execute(sql)
         return self[name]
 
+    def create_view(self, name, sql):
+        self.conn.execute(
+            """
+            CREATE VIEW {name} AS {sql}
+        """.format(
+                name=name, sql=sql
+            )
+        )
+
 
 class Table:
     def __init__(self, db, name):
