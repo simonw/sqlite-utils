@@ -164,6 +164,7 @@ class Table:
         columns = {name: value for (name, value) in columns.items()}
         self.db.create_table(self.name, columns, pk=pk, foreign_keys=foreign_keys)
         self.exists = True
+        return self
 
     def create_index(self, columns, index_name=None):
         if index_name is None:
@@ -177,6 +178,7 @@ class Table:
             index_name=index_name, table_name=self.name, columns=", ".join(columns)
         )
         self.db.conn.execute(sql)
+        return self
 
     def drop(self):
         return self.db.conn.execute("DROP TABLE {}".format(self.name))
@@ -192,9 +194,9 @@ class Table:
             other_table=other_table,
             other_column=other_column,
         )
-        result = self.db.conn.execute(sql)
+        self.db.conn.execute(sql)
         self.db.conn.commit()
-        return result
+        return self
 
     def enable_fts(self, columns):
         "Enables FTS on the specified columns"
@@ -208,6 +210,7 @@ class Table:
         )
         self.db.conn.executescript(sql)
         self.populate_fts(columns)
+        return self
 
     def populate_fts(self, columns):
         sql = """
@@ -217,6 +220,7 @@ class Table:
             table=self.name, columns=", ".join(columns)
         )
         self.db.conn.executescript(sql)
+        return self
 
     def detect_column_types(self, records):
         all_column_types = {}
@@ -294,7 +298,8 @@ class Table:
                 )
             result = self.db.conn.execute(sql, values)
             self.db.conn.commit()
-        return result
+            self.last_id = result.lastrowid
+        return self
 
     def upsert(self, record, pk=None, foreign_keys=None):
         return self.insert(record, pk=pk, foreign_keys=foreign_keys, upsert=True)
