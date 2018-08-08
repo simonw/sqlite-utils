@@ -74,6 +74,22 @@ You can also specify a primary key by passing the ``pk=`` parameter to the ``.in
         "is_good_dog": True,
     }, pk="id")
 
+The order of the columns in the table will be derived from the order of the keys in the dictionary, provided you are using Python 3.6 or later.
+
+If you want to explicitly set the order of the columns you can do so using the ``column_order=`` parameter:
+
+.. code-block:: python
+
+    dogs.insert({
+        "id": 1,
+        "name": "Cleo",
+        "twitter": "cleopaws",
+        "age": 3,
+        "is_good_dog": True,
+    }, pk="id", column_order=("id", "twitter", "name"))
+
+You don't need to pass all of the columns to the ``column_order`` parameter. If you only pass a subset of the columns the remaining columns will be ordered based on the key order of the dictionary.
+
 Creating views
 ==============
 

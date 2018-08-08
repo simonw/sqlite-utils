@@ -42,12 +42,19 @@ class Database:
         keys = [d[0] for d in cursor.description]
         return [dict(zip(keys, row)) for row in cursor.fetchall()]
 
-    def create_table(self, name, columns, pk=None, foreign_keys=None):
+    def create_table(
+        self, name, columns, pk=None, foreign_keys=None, column_order=None
+    ):
         foreign_keys = foreign_keys or []
         foreign_keys_by_name = {fk[0]: fk for fk in foreign_keys}
+        column_items = list(columns.items())
+        if column_order is not None:
+            column_items.sort(
+                key=lambda p: column_order.index(p[0]) if p[0] in column_order else 999
+            )
         extra = ""
         columns_sql = ",\n".join(
-            "   {col_name} {col_type} {primary_key} {references}".format(
+            "   [{col_name}] {col_type} {primary_key} {references}".format(
                 col_name=col_name,
                 col_type={
                     float: "FLOAT",
@@ -66,9 +73,9 @@ class Database:
                     else ""
                 ),
             )
-            for col_name, col_type in columns.items()
+            for col_name, col_type in column_items
         )
-        sql = """CREATE TABLE {table} (
+        sql = """CREATE TABLE [{table}] (
             {columns_sql}
         ){extra};
         """.format(
@@ -160,9 +167,15 @@ class Table:
             indexes.append(Index(**row))
         return indexes
 
-    def create(self, columns, pk=None, foreign_keys=None):
+    def create(self, columns, pk=None, foreign_keys=None, column_order=None):
         columns = {name: value for (name, value) in columns.items()}
-        self.db.create_table(self.name, columns, pk=pk, foreign_keys=foreign_keys)
+        self.db.create_table(
+            self.name,
+            columns,
+            pk=pk,
+            foreign_keys=foreign_keys,
+            column_order=column_order,
+        )
         self.exists = True
         return self
 
@@ -256,13 +269,25 @@ class Table:
         )
         return self.db.conn.execute(sql, (q,)).fetchall()
 
-    def insert(self, record, pk=None, foreign_keys=None, upsert=False):
+    def insert(
+        self, record, pk=None, foreign_keys=None, upsert=False, column_order=None
+    ):
         return self.insert_all(
-            [record], pk=pk, foreign_keys=foreign_keys, upsert=upsert
+            [record],
+            pk=pk,
+            foreign_keys=foreign_keys,
+            upsert=upsert,
+            column_order=column_order,
         )
 
     def insert_all(
-        self, records, pk=None, foreign_keys=None, upsert=False, batch_size=100
+        self,
+        records,
+        pk=None,
+        foreign_keys=None,
+        upsert=False,
+        batch_size=100,
+        column_order=None,
     ):
         """
         Like .insert() but takes a list of records and ensures that the table
@@ -270,14 +295,19 @@ class Table:
         data
         """
         if not self.exists:
-            self.create(self.detect_column_types(records), pk, foreign_keys)
+            self.create(
+                self.detect_column_types(records),
+                pk,
+                foreign_keys,
+                column_order=column_order,
+            )
         all_columns = set()
         for record in records:
             all_columns.update(record.keys())
         all_columns = list(sorted(all_columns))
         for chunk in chunks(records, batch_size):
             sql = """
-                INSERT {upsert} INTO {table} ({columns}) VALUES {rows};
+                INSERT {upsert} INTO [{table}] ({columns}) VALUES {rows};
             """.format(
                 upsert="OR REPLACE" if upsert else "",
                 table=self.name,
@@ -301,11 +331,23 @@ class Table:
             self.last_id = result.lastrowid
         return self
 
-    def upsert(self, record, pk=None, foreign_keys=None):
-        return self.insert(record, pk=pk, foreign_keys=foreign_keys, upsert=True)
+    def upsert(self, record, pk=None, foreign_keys=None, column_order=None):
+        return self.insert(
+            record,
+            pk=pk,
+            foreign_keys=foreign_keys,
+            upsert=True,
+            column_order=column_order,
+        )
 
-    def upsert_all(self, records, pk=None, foreign_keys=None):
-        return self.insert_all(records, pk=pk, foreign_keys=foreign_keys, upsert=True)
+    def upsert_all(self, records, pk=None, foreign_keys=None, column_order=None):
+        return self.insert_all(
+            records,
+            pk=pk,
+            foreign_keys=foreign_keys,
+            upsert=True,
+            column_order=column_order,
+        )
 
 
 def chunks(sequence, size):

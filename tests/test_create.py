@@ -1,5 +1,6 @@
 from .fixtures import fresh_db
 from sqlite_utils.db import Index
+import collections
 import pytest
 import json
 
@@ -34,6 +35,28 @@ def test_create_table_from_example(fresh_db, example, expected_columns):
     assert expected_columns == [
         {"name": col.name, "type": col.type} for col in fresh_db["people"].columns
     ]
+
+
+def test_create_table_column_order(fresh_db):
+    fresh_db["table"].insert(
+        collections.OrderedDict(
+            (
+                ("zzz", "third"),
+                ("abc", "first"),
+                ("ccc", "second"),
+                ("bbb", "second-to-last"),
+                ("aaa", "last"),
+            )
+        ),
+        column_order=("abc", "ccc", "zzz"),
+    )
+    assert [
+        {"name": "abc", "type": "TEXT"},
+        {"name": "ccc", "type": "TEXT"},
+        {"name": "zzz", "type": "TEXT"},
+        {"name": "bbb", "type": "TEXT"},
+        {"name": "aaa", "type": "TEXT"},
+    ] == [{"name": col.name, "type": col.type} for col in fresh_db["table"].columns]
 
 
 def test_create_table_works_for_m2m_with_only_foreign_keys(fresh_db):
