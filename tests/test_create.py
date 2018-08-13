@@ -1,4 +1,3 @@
-from .fixtures import fresh_db
 from sqlite_utils.db import Index
 import collections
 import pytest

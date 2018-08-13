@@ -1,4 +1,3 @@
-from .fixtures import existing_db, fresh_db
 from sqlite_utils.db import Index
 
 

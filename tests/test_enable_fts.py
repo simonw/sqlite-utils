@@ -1,6 +1,3 @@
-from .fixtures import fresh_db
-import pytest
-
 search_records = [
     {"text": "tanuki are tricksters", "country": "Japan", "not_searchable": "foo"},
     {"text": "racoons are trash pandas", "country": "USA", "not_searchable": "bar"},
