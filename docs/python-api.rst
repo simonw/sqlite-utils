@@ -2,14 +2,30 @@
  Python API
 ============
 
-Database objects are constructed by passing in a SQLite3 database connection:
+Connecting to or creating a database
+====================================
+
+Database objects are constructed by passing in either a path to a file on disk or an existing SQLite3 database connection:
 
 .. code-block:: python
 
     from sqlite_utils import Database
+
+    db = Database("my_database.py")
+
+This will create ``my_database.py`` if it does not already exist. You can also pass in an existing SQLite connection:
+
+.. code-block:: python
+
     import sqlite3
 
     db = Database(sqlite3.connect("my_database.db"))
+
+If you want to create an in-memory database, you con do so like this:
+
+.. code-block:: python
+
+    db = Database(sqlite3.connect(":memory:"))
 
 Tables are accessed using the indexing operator, like so:
 
