@@ -5,6 +5,13 @@ python:
   - "3.6"
   - "3.7-dev"
 
+addons:
+  apt:
+    sources:
+      - travis-ci/sqlite3
+    packages:
+      - sqlite3
+
 script:
   - pip install -U pip wheel
   - pip install .[test]
