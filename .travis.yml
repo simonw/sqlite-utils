@@ -6,9 +6,12 @@ python:
   - "3.6"
   - "3.7-dev"
 
-script:
+before_install:
   - sudo add-apt-repository -y ppa:jonathonf/backports
-  - sudo apt-get update && sudo apt-get -y install sqlite3
+  - sudo apt-get -y update
+  - sudo apt-get -y install sqlite3
+
+script:
   - pip install -U pip wheel
   - pip install .[test]
   - pytest
