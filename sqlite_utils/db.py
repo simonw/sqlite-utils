@@ -211,15 +211,15 @@ class Table:
         self.db.conn.commit()
         return self
 
-    def enable_fts(self, columns):
+    def enable_fts(self, columns, fts_version="FTS5"):
         "Enables FTS on the specified columns"
         sql = """
-            CREATE VIRTUAL TABLE "{table}_fts" USING FTS4 (
+            CREATE VIRTUAL TABLE "{table}_fts" USING {fts_version} (
                 {columns},
                 content="{table}"
             );
         """.format(
-            table=self.name, columns=", ".join(columns)
+            table=self.name, columns=", ".join(columns), fts_version=fts_version
         )
         self.db.conn.executescript(sql)
         self.populate_fts(columns)

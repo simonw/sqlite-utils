@@ -15,10 +15,10 @@ def test_enable_fts(fresh_db):
     assert [
         "searchable",
         "searchable_fts",
-        "searchable_fts_segments",
-        "searchable_fts_segdir",
+        "searchable_fts_data",
+        "searchable_fts_idx",
         "searchable_fts_docsize",
-        "searchable_fts_stat",
+        "searchable_fts_config",
     ] == fresh_db.table_names
     assert [("tanuki are tricksters", "Japan", "foo")] == table.search("tanuki")
     assert [("racoons are trash pandas", "USA", "bar")] == table.search("usa")
