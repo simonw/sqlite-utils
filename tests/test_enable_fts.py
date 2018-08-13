@@ -25,7 +25,7 @@ def test_enable_fts(fresh_db):
 def test_populate_fts(fresh_db):
     table = fresh_db["populatable"]
     table.insert(search_records[0])
-    table.enable_fts(["text", "country"])
+    table.enable_fts(["text", "country"], fts_version="FTS4")
     assert [] == table.search("trash pandas")
     table.insert(search_records[1])
     assert [] == table.search("trash pandas")
