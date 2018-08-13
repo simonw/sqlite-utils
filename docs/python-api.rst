@@ -1,6 +1,6 @@
-======================
- Databases and Tables
-======================
+============
+ Python API
+============
 
 Database objects are constructed by passing in a SQLite3 database connection:
 
@@ -89,6 +89,52 @@ If you want to explicitly set the order of the columns you can do so using the `
     }, pk="id", column_order=("id", "twitter", "name"))
 
 You don't need to pass all of the columns to the ``column_order`` parameter. If you only pass a subset of the columns the remaining columns will be ordered based on the key order of the dictionary.
+
+Bulk inserts
+============
+
+If you have more than one record to insert, the ``insert_all()`` method is a much more efficient way of inserting them. Just like ``insert()`` it will automatically detect the columns that should be created, but it will inspect the first 100 items to help decide what those column types should be.
+
+Use it like this:
+
+.. code-block:: python
+
+    dogs.insert_all([{
+        "id": 1,
+        "name": "Cleo",
+        "twitter": "cleopaws",
+        "age": 3,
+        "is_good_dog": True,
+    }, {
+        "id": 2,
+        "name": "Marnie",
+        "twitter": "MarnieTheDog",
+        "age": 16,
+        "is_good_dog": True,
+    }], pk="id", column_order=("id", "twitter", "name"))
+
+Upserting data
+==============
+
+Upserting allows you to insert records if they do not exist and update them if they DO exist, based on matching against their primary key.
+
+For example, given the dogs database you could upsert the record for Cleo like so:
+
+.. code-block:: python
+
+    dogs.upsert([{
+        "id": 1,
+        "name": "Cleo",
+        "twitter": "cleopaws",
+        "age": 4,
+        "is_good_dog": True,
+    }, pk="id", column_order=("id", "twitter", "name"))
+
+If a record exists with id=1, it will be updated to match those fields. If it does not exist it will be created.
+
+Note that the ``pk`` and ``column_order`` parameters here are optional if you are certain that the table has already been created. You should pass them if the table may not exist at the time the first upsert is performed.
+
+An ``upsert_all()`` method is also available, which behaves like ``insert_all()`` but performs upserts instead.
 
 Creating views
 ==============
