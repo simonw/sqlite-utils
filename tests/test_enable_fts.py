@@ -4,6 +4,10 @@ search_records = [
 ]
 
 
+def test_sqlite_version(fresh_db):
+    assert False, str(fresh_db.conn.execute("select sqlite_version()").fetchall())
+
+
 def test_enable_fts(fresh_db):
     table = fresh_db["searchable"]
     table.insert_all(search_records)
