@@ -1,18 +1,14 @@
 language: python
+sudo: required
 
 # 3.6 is listed first so it gets used for the later build stages
 python:
   - "3.6"
   - "3.7-dev"
 
-addons:
-  apt:
-    sources:
-      - travis-ci/sqlite3
-    packages:
-      - sqlite3
-
 script:
+  - sudo add-apt-repository ppa:jonathonf/backports
+  - sudo apt-get update && sudo apt-get install sqlite3
   - pip install -U pip wheel
   - pip install .[test]
   - pytest
