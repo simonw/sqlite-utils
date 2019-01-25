@@ -11,6 +11,8 @@ script:
   - sudo apt-get update && sudo apt-get install sqlite3
   - pip install -U pip wheel
   - pip install .[test]
+  - echo "Here goes nothing..."
+  - sqlite-utils --help
   - pytest
 
 cache:
