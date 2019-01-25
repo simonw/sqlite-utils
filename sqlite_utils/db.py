@@ -98,6 +98,9 @@ class Database:
             )
         )
 
+    def vacuum(self):
+        self.conn.execute("VACUUM;")
+
 
 class Table:
     def __init__(self, db, name):

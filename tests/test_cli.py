@@ -21,3 +21,8 @@ def db_path(tmpdir):
 def test_table_names(db_path):
     result = CliRunner().invoke(cli.cli, ["table_names", db_path])
     assert "Gosh\nGosh2" == result.output.strip()
+
+
+def test_vacuum(db_path):
+    result = CliRunner().invoke(cli.cli, ["vacuum", db_path])
+    assert 0 == result.exit_code

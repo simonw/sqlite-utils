@@ -313,3 +313,12 @@ By default the index will be named ``idx_{table-name}_{columns}`` - if you want 
         ["is_good_dog", "age"],
         index_name="good_dogs_by_age"
     )
+
+Vacuum
+======
+
+You can optimize your database by running VACUUM against it like so:
+
+.. code-block:: python
+
+    Database("my_database.py").vacuum()

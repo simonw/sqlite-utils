@@ -15,3 +15,10 @@ You can list the names of tables in a database using the ``table_names`` subcomm
     dogs
     cats
     chickens
+
+Vacuum
+======
+
+You can run VACUUM to optimize your database like so::
+
+    $ sqlite-utils vacuum mydb.db

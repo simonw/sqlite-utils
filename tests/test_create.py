@@ -176,3 +176,8 @@ def test_create_view(fresh_db):
     fresh_db.create_view("bar", "select bar from data")
     rows = fresh_db.conn.execute("select * from bar").fetchall()
     assert [("bar",)] == rows
+
+
+def test_vacuum(fresh_db):
+    fresh_db["data"].insert({"foo": "foo", "bar": "bar"})
+    fresh_db.vacuum()
