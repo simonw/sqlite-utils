@@ -13,7 +13,7 @@ You can execute a SQL query against a database and get the results back as CSV l
 
     $ sqlite-utils csv docs.db "select id, title, author from documents"
 
-This will default to including the column names as a header row. To exclude the headers, use ``--no-headers``:
+This will default to including the column names as a header row. To exclude the headers, use ``--no-headers``::
 
     $ sqlite-utils csv docs.db "select id, title, author from documents" --no-headers
 
