@@ -7,8 +7,11 @@ def test_table_names(existing_db):
 
 def test_table_names_fts4(existing_db):
     existing_db["woo"].insert({"title": "Hello"})
+    existing_db["woo2"].insert({"title": "Hello"})
     existing_db["woo"].enable_fts(["title"], fts_version="FTS4")
+    existing_db["woo2"].enable_fts(["title"], fts_version="FTS5")
     assert ["woo_fts"] == existing_db.table_names(fts4=True)
+    assert ["woo2_fts"] == existing_db.table_names(fts5=True)
 
 
 def test_tables(existing_db):
