@@ -22,9 +22,9 @@ setup(
     version=VERSION,
     license="Apache License, Version 2.0",
     packages=find_packages(),
-    install_requires=["click==6.7"],
+    install_requires=["click"],
     setup_requires=["pytest-runner"],
-    extras_require={"test": ["pytest==3.6.0", "black==18.6b4"]},
+    extras_require={"test": ["pytest", "black"]},
     entry_points="""
         [console_scripts]
         sqlite-utils=sqlite_utils.cli:cli
