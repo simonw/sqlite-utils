@@ -20,20 +20,20 @@ def db_path(tmpdir):
     return path
 
 
-def test_table_names(db_path):
-    result = CliRunner().invoke(cli.cli, ["table_names", db_path])
+def test_tables(db_path):
+    result = CliRunner().invoke(cli.cli, ["tables", db_path])
     assert "Gosh\nGosh2" == result.output.strip()
 
 
-def test_table_names_fts4(db_path):
+def test_tables_fts4(db_path):
     Database(db_path)["Gosh"].enable_fts(["c2"], fts_version="FTS4")
-    result = CliRunner().invoke(cli.cli, ["table_names", "--fts4", db_path])
+    result = CliRunner().invoke(cli.cli, ["tables", "--fts4", db_path])
     assert "Gosh_fts" == result.output.strip()
 
 
-def test_table_names_fts5(db_path):
+def test_tables_fts5(db_path):
     Database(db_path)["Gosh"].enable_fts(["c2"], fts_version="FTS5")
-    result = CliRunner().invoke(cli.cli, ["table_names", "--fts5", db_path])
+    result = CliRunner().invoke(cli.cli, ["tables", "--fts5", db_path])
     assert "Gosh_fts" == result.output.strip()
 
 

@@ -9,9 +9,9 @@
 
 This release implements the ``sqlite-utils`` command-line tool with a number of useful subcommands.
 
-- ``sqlite-utils table_names demo.db`` lists the tables in the database
-- ``sqlite-utils table_names demo.db --fts4`` shows just the FTS4 tables
-- ``sqlite-utils table_names demo.db --fts5`` shows just the FTS5 tables
+- ``sqlite-utils tables demo.db`` lists the tables in the database
+- ``sqlite-utils tables demo.db --fts4`` shows just the FTS4 tables
+- ``sqlite-utils tables demo.db --fts5`` shows just the FTS5 tables
 - ``sqlite-utils vacuum demo.db`` runs VACUUM against the database
 - ``sqlite-utils optimize demo.db`` runs OPTIMIZE against all FTS tables, then VACUUM
 - ``sqlite-utils optimize demo.db --no-vacuum`` runs OPTIMIZE but skips VACUUM

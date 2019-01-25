@@ -9,16 +9,16 @@ The ``sqlite-utils`` command-line tool can be used to manipulate SQLite database
 Listing tables
 ==============
 
-You can list the names of tables in a database using the ``table_names`` subcommand::
+You can list the names of tables in a database using the ``tables`` subcommand::
 
-    $ sqlite-utils table_names mydb.db
+    $ sqlite-utils tables mydb.db
     dogs
     cats
     chickens
 
 If you just want to see the FTS4 tables, you can use ``--fts4`` (or ``--fts5`` for FTS5 tables)::
 
-    $ sqlite-utils table_names --fts4 docs.db
+    $ sqlite-utils tables --fts4 docs.db
     docs_fts
 
 .. _cli_inserting_data:

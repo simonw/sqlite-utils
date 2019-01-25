@@ -22,7 +22,7 @@ def cli():
 @click.option(
     "--fts5", help="Just show FTS5 enabled tables", default=False, is_flag=True
 )
-def table_names(path, fts4, fts5):
+def tables(path, fts4, fts5):
     """List the tables in the database"""
     db = sqlite_utils.Database(path)
     for name in db.table_names(fts4=fts4, fts5=fts5):
