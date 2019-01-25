@@ -1,5 +1,6 @@
 import sqlite3
 from collections import namedtuple
+import datetime
 import json
 
 Column = namedtuple(
@@ -53,16 +54,20 @@ class Database:
                 key=lambda p: column_order.index(p[0]) if p[0] in column_order else 999
             )
         extra = ""
+        col_type_mapping = {
+            float: "FLOAT",
+            int: "INTEGER",
+            bool: "INTEGER",
+            str: "TEXT",
+            bytes.__class__: "BLOB",
+            bytes: "BLOB",
+            datetime.datetime: "TEXT",
+            None.__class__: "TEXT",
+        }
         columns_sql = ",\n".join(
             "   [{col_name}] {col_type} {primary_key} {references}".format(
                 col_name=col_name,
-                col_type={
-                    float: "FLOAT",
-                    int: "INTEGER",
-                    bool: "INTEGER",
-                    str: "TEXT",
-                    None.__class__: "TEXT",
-                }[col_type],
+                col_type=col_type_mapping[col_type],
                 primary_key=" PRIMARY KEY" if (pk == col_name) else "",
                 references=(
                     " REFERENCES [{other_table}]([{other_column}])".format(
@@ -252,6 +257,8 @@ class Table:
                 t = int
             elif {int, float, bool}.issuperset(types):
                 t = float
+            elif {bytes, str}.issuperset(types):
+                t = bytes
             else:
                 t = str
             column_types[key] = t

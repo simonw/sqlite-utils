@@ -1,5 +1,6 @@
 from sqlite_utils.db import Index
 import collections
+import datetime
 import pytest
 import json
 
@@ -8,7 +9,14 @@ def test_create_table(fresh_db):
     assert [] == fresh_db.table_names
     table = fresh_db.create_table(
         "test_table",
-        {"text_col": str, "float_col": float, "int_col": int, "bool_col": bool},
+        {
+            "text_col": str,
+            "float_col": float,
+            "int_col": int,
+            "bool_col": bool,
+            "bytes_col": bytes,
+            "datetime_col": datetime.datetime,
+        },
     )
     assert ["test_table"] == fresh_db.table_names
     assert [
@@ -16,6 +24,8 @@ def test_create_table(fresh_db):
         {"name": "float_col", "type": "FLOAT"},
         {"name": "int_col", "type": "INTEGER"},
         {"name": "bool_col", "type": "INTEGER"},
+        {"name": "bytes_col", "type": "BLOB"},
+        {"name": "datetime_col", "type": "TEXT"},
     ] == [{"name": col.name, "type": col.type} for col in table.columns]
 
 
