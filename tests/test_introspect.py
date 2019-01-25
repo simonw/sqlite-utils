@@ -2,7 +2,13 @@ from sqlite_utils.db import Index
 
 
 def test_table_names(existing_db):
-    assert ["foo"] == existing_db.table_names
+    assert ["foo"] == existing_db.table_names()
+
+
+def test_table_names_fts4(existing_db):
+    existing_db["woo"].insert({"title": "Hello"})
+    existing_db["woo"].enable_fts(["title"], fts_version="FTS4")
+    assert ["woo_fts"] == existing_db.table_names(fts4=True)
 
 
 def test_tables(existing_db):

@@ -25,18 +25,18 @@ class Database:
     def __repr__(self):
         return "<Database {}>".format(self.conn)
 
-    @property
-    def table_names(self):
-        return [
-            r[0]
-            for r in self.conn.execute(
-                "select name from sqlite_master where type = 'table'"
-            ).fetchall()
-        ]
+    def table_names(self, fts4=False, fts5=False):
+        where = ["type = 'table'"]
+        if fts4:
+            where.append("sql like '%FTS4%'")
+        if fts5:
+            where.append("sql like '%FTS5%'")
+        sql = "select name from sqlite_master where {}".format(" AND ".join(where))
+        return [r[0] for r in self.conn.execute(sql).fetchall()]
 
     @property
     def tables(self):
-        return [self[name] for name in self.table_names]
+        return [self[name] for name in self.table_names()]
 
     def execute_returning_dicts(self, sql, params=None):
         cursor = self.conn.execute(sql, params or tuple())
@@ -106,7 +106,7 @@ class Table:
     def __init__(self, db, name):
         self.db = db
         self.name = name
-        self.exists = self.name in self.db.table_names
+        self.exists = self.name in self.db.table_names()
 
     def __repr__(self):
         return "<Table {}{}>".format(

@@ -40,12 +40,14 @@ If the table does not yet exist, it will be created the first time you attempt t
 Listing tables
 ==============
 
-You can list the names of tables in a database using the ``.table_names`` property::
+You can list the names of tables in a database using the ``.table_names()`` method::
 
-    >>> db.table_names
+    >>> db.table_names()
     ['dogs']
 
-You can also iterate through the table objects themselves using ``.tables``::
+To see just the FTS4 tables, use ``.table_names(fts4=True)``. For FTS5, use ``.table_names(fts5=True)``.
+
+You can also iterate through the table objects themselves using the ``.tables`` property::
 
     >>> db.tables
     [<Table dogs>]

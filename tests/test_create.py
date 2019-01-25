@@ -6,7 +6,7 @@ import json
 
 
 def test_create_table(fresh_db):
-    assert [] == fresh_db.table_names
+    assert [] == fresh_db.table_names()
     table = fresh_db.create_table(
         "test_table",
         {
@@ -18,7 +18,7 @@ def test_create_table(fresh_db):
             "datetime_col": datetime.datetime,
         },
     )
-    assert ["test_table"] == fresh_db.table_names
+    assert ["test_table"] == fresh_db.table_names()
     assert [
         {"name": "text_col", "type": "TEXT"},
         {"name": "float_col", "type": "FLOAT"},
@@ -44,7 +44,7 @@ def test_create_table(fresh_db):
 )
 def test_create_table_from_example(fresh_db, example, expected_columns):
     fresh_db["people"].insert(example)
-    assert ["people"] == fresh_db.table_names
+    assert ["people"] == fresh_db.table_names()
     assert expected_columns == [
         {"name": col.name, "type": col.type} for col in fresh_db["people"].columns
     ]
