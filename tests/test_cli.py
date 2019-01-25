@@ -1,5 +1,6 @@
 from sqlite_utils import cli, Database
 from click.testing import CliRunner
+import os
 import pytest
 import sqlite3
 
@@ -38,3 +39,26 @@ def test_table_names_fts5(db_path):
 def test_vacuum(db_path):
     result = CliRunner().invoke(cli.cli, ["vacuum", db_path])
     assert 0 == result.exit_code
+
+
+def test_optimize(db_path):
+    db = Database(db_path)
+    with db.conn:
+        for table in ("Gosh", "Gosh2"):
+            db[table].insert_all(
+                [
+                    {
+                        "c1": "verb{}".format(i),
+                        "c2": "noun{}".format(i),
+                        "c3": "adjective{}".format(i),
+                    }
+                    for i in range(10000)
+                ]
+            )
+        db["Gosh"].enable_fts(["c1", "c2", "c3"], fts_version="FTS4")
+        db["Gosh2"].enable_fts(["c1", "c2", "c3"], fts_version="FTS5")
+    size_before_optimize = os.stat(db_path).st_size
+    result = CliRunner().invoke(cli.cli, ["optimize", db_path])
+    assert 0 == result.exit_code
+    size_after_optimize = os.stat(db_path).st_size
+    assert size_after_optimize < size_before_optimize

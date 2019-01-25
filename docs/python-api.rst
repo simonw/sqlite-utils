@@ -298,6 +298,25 @@ If you insert additional records into the table you will need to refresh the sea
     }, pk="id")
     dogs.populate_fts(["name", "twitter"])
 
+``.enable_fts()`` defaults to using `FTS5 <https://www.sqlite.org/fts5.html>`__. If you wish to use `FTS4 <https://www.sqlite.org/fts3.html>`__ instead, use the following:
+
+.. code-block:: python
+
+    dogs.enable_fts(["name", "twitter"], fts_version="FTS4")
+
+Optimizing a full-text search table
+===================================
+
+Once you have populated a FTS table you can optimize it to dramatically reduce its size like so:
+
+.. code-block:: python
+
+    dogs.optimize()
+
+This runs the following SQL::
+
+    INSERT INTO dogs_fts (dogs_fts) VALUES ("optimize");
+
 Creating indexes
 ================
 

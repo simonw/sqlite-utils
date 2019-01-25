@@ -32,3 +32,19 @@ def test_populate_fts(fresh_db):
     # Now run populate_fts to make this record available
     table.populate_fts(["text", "country"])
     assert [("racoons are trash pandas", "USA", "bar")] == table.search("usa")
+
+
+def test_optimize_fts(fresh_db):
+    for fts_version in ("4", "5"):
+        table_name = "searchable_{}".format(fts_version)
+        table = fresh_db[table_name]
+        table.insert_all(search_records)
+        table.enable_fts(["text", "country"], fts_version="FTS{}".format(fts_version))
+    # You can call optimize successfully against the tables OR their _fts equivalents:
+    for table_name in (
+        "searchable_4",
+        "searchable_5",
+        "searchable_4_fts",
+        "searchable_5_fts",
+    ):
+        fresh_db[table_name].optimize()

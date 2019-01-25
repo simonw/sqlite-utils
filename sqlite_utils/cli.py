@@ -37,3 +37,21 @@ def table_names(path, fts4, fts5):
 def vacuum(path):
     """Run VACUUM against the database"""
     sqlite_utils.Database(path).vacuum()
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.option("--no-vacuum", help="Don't run VACUUM", default=False, is_flag=True)
+def optimize(path, no_vacuum):
+    """Optimize all FTS tables and then run VACUUM - should shrink the database file"""
+    db = sqlite_utils.Database(path)
+    tables = db.table_names(fts4=True) + db.table_names(fts5=True)
+    with db.conn:
+        for table in tables:
+            db[table].optimize()
+    if not no_vacuum:
+        db.vacuum()

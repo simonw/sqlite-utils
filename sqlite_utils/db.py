@@ -243,6 +243,40 @@ class Table:
         self.db.conn.executescript(sql)
         return self
 
+    def detect_fts(self):
+        "Detect if table has a corresponding FTS virtual table and return it"
+        rows = self.db.conn.execute(
+            """
+            SELECT name FROM sqlite_master
+                WHERE rootpage = 0
+                AND (
+                    sql LIKE '%VIRTUAL TABLE%USING FTS%content="{table}"%'
+                    OR (
+                        tbl_name = "{table}"
+                        AND sql LIKE '%VIRTUAL TABLE%USING FTS%'
+                    )
+                )
+        """.format(
+                table=self.name
+            )
+        ).fetchall()
+        if len(rows) == 0:
+            return None
+        else:
+            return rows[0][0]
+
+    def optimize(self):
+        fts_table = self.detect_fts()
+        if fts_table is not None:
+            self.db.conn.execute(
+                """
+                INSERT INTO [{table}] ([{table}]) VALUES ("optimize");
+            """.format(
+                    table=fts_table
+                )
+            )
+        return self
+
     def detect_column_types(self, records):
         all_column_types = {}
         for record in records:

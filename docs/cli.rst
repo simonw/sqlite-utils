@@ -27,3 +27,18 @@ Vacuum
 You can run VACUUM to optimize your database like so::
 
     $ sqlite-utils vacuum mydb.db
+
+Optimize
+========
+
+The optimize command can dramatically reduce the size of your database if you are using SQLite full-text search. It runs OPTIMIZE against all of our FTS4 and FTS5 tables, then runs VACUUM.
+
+If you just want to run OPTIMIZE without the VACUUM, use the ``--no-vacuum`` flag.
+
+::
+
+    # Optimize all FTS tables and then VACUUM
+    $ sqlite-utils optimize mydb.db
+
+    # Optimize but skip the VACUUM
+    $ sqlite-utils optimize --no-vacuum mydb.db
