@@ -100,7 +100,6 @@ def test_insert_multiple_with_primary_key(db_path, tmpdir):
     json_path = str(tmpdir / "dogs.json")
     dogs = [{"id": i, "name": "Cleo {}".format(i), "age": i + 3} for i in range(1, 21)]
     open(json_path, "w").write(json.dumps(dogs))
-    open("/tmp/dogs.json", "w").write(json.dumps(dogs, indent=4))
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
     )
@@ -110,3 +109,24 @@ def test_insert_multiple_with_primary_key(db_path, tmpdir):
     )
     db = Database(db_path)
     assert ["id"] == db["dogs"].pks
+
+
+def test_upsert(db_path, tmpdir):
+    test_insert_multiple_with_primary_key(db_path, tmpdir)
+    json_path = str(tmpdir / "upsert.json")
+    db = Database(db_path)
+    assert 20 == db["dogs"].count
+    upsert_dogs = [
+        {"id": 1, "name": "Upserted 1", "age": 4},
+        {"id": 2, "name": "Upserted 2", "age": 4},
+        {"id": 21, "name": "Fresh insert 21", "age": 6},
+    ]
+    open(json_path, "w").write(json.dumps(upsert_dogs))
+    result = CliRunner().invoke(
+        cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id"]
+    )
+    assert 0 == result.exit_code
+    assert 21 == db["dogs"].count
+    assert upsert_dogs == db.execute_returning_dicts(
+        "select * from dogs where id in (1, 2, 21) order by id"
+    )

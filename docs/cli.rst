@@ -26,7 +26,7 @@ Inserting data
 
 If you have data as JSON, you can use ``sqlite-utils insert tablename`` to insert it into a database. The table will be created with the correct (automatically detected) columns if it does not already exist.
 
-You can pass in a single JSON object or a list of JSON objects, either as a filename or piped directly to standard-in.
+You can pass in a single JSON object or a list of JSON objects, either as a filename or piped directly to standard-in (by using ``-`` as the filename).
 
 Here's the simplest possible example::
 
@@ -56,7 +56,20 @@ If you feed it a JSON list it will insert multiple records. For example, if ``do
 
 You can import all three records into an automatically created ``dogs`` table and set the ``id`` column as the primary key like so::
 
-    $ sqlite-utils insert dogs.db dogs.json --pk=id
+    $ sqlite-utils insert dogs.db dogs dogs.json --pk=id
+
+
+Upserting data
+==============
+
+Upserting works exactly like inserting, with the exception that if your data has a primary key that matches an already exsting record that record will be replaced with the new data.
+
+After running the above ``dogs.json`` example, try running this::
+
+    $ echo '{"id": 2, "name": "Pancakes", "age": 3}' | \
+        sqlite-utils upsert dogs.db dogs - --pk=id
+
+This will replace the record for id=2 (Pancakes) with a new record with an updated age.
 
 Vacuum
 ======
