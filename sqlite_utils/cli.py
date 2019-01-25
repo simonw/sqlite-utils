@@ -1,5 +1,6 @@
 import click
 import sqlite_utils
+import json
 
 
 @click.group()
@@ -55,3 +56,20 @@ def optimize(path, no_vacuum):
             db[table].optimize()
     if not no_vacuum:
         db.vacuum()
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.argument("json_file", type=click.File(), required=True)
+@click.option("--pk", help="Column to use as the primary key, e.g. id")
+def insert(path, table, json_file, pk):
+    db = sqlite_utils.Database(path)
+    docs = json.load(json_file)
+    if isinstance(docs, dict):
+        docs = [docs]
+    db[table].insert_all(docs, pk=pk)

@@ -21,6 +21,43 @@ If you just want to see the FTS4 tables, you can use ``--fts4`` (or ``--fts5`` f
     $ sqlite-utils table_names --fts4 docs.db
     docs_fts
 
+Inserting data
+==============
+
+If you have data as JSON, you can use ``sqlite-utils insert tablename`` to insert it into a database. The table will be created with the correct (automatically detected) columns if it does not already exist.
+
+You can pass in a single JSON object or a list of JSON objects, either as a filename or piped directly to standard-in.
+
+Here's the simplest possible example::
+
+    $ echo '{"name": "Cleo", "age": 4}' | sqlite-utils insert dogs.db dogs -
+
+To specify a column as the primary key, use ``--pk=column_name``.
+
+If you feed it a JSON list it will insert multiple records. For example, if ``dogs.json`` looks like this::
+
+    [
+        {
+            "id": 1,
+            "name": "Cleo",
+            "age": 4
+        },
+        {
+            "id": 2,
+            "name": "Pancakes",
+            "age": 2
+        },
+        {
+            "id": 3,
+            "name": "Toby",
+            "age": 6
+        }
+    ]
+
+You can import all three records into an automatically created ``dogs`` table and set the ``id`` column as the primary key like so::
+
+    $ sqlite-utils insert dogs.db dogs.json --pk=id
+
 Vacuum
 ======
 

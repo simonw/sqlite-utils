@@ -129,6 +129,10 @@ class Table:
         return [Column(*row) for row in rows]
 
     @property
+    def pks(self):
+        return [column.name for column in self.columns if column.is_pk]
+
+    @property
     def foreign_keys(self):
         fks = []
         for row in self.db.conn.execute(
