@@ -36,6 +36,10 @@ def test_create_table(fresh_db):
             {"name": "Ravi", "age": 63},
             [{"name": "name", "type": "TEXT"}, {"name": "age", "type": "INTEGER"}],
         ),
+        (
+            {"create": "Reserved word", "table": "Another"},
+            [{"name": "create", "type": "TEXT"}, {"name": "table", "type": "TEXT"}],
+        ),
     ),
 )
 def test_create_table_from_example(fresh_db, example, expected_columns):

@@ -318,7 +318,7 @@ class Table:
             """.format(
                 upsert="OR REPLACE" if upsert else "",
                 table=self.name,
-                columns=", ".join(all_columns),
+                columns=", ".join("[{}]".format(c) for c in all_columns),
                 rows=", ".join(
                     """
                     ({placeholders})
