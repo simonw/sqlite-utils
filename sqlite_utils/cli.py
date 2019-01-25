@@ -1,6 +1,8 @@
 import click
 import sqlite_utils
 import json
+import sys
+import csv as csv_std
 
 
 @click.group()
@@ -92,3 +94,24 @@ def upsert(path, table, json_file, pk):
     if isinstance(docs, dict):
         docs = [docs]
     db[table].upsert_all(docs, pk=pk)
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("sql")
+@click.option(
+    "--no-headers", help="Exclude headers from CSV output", is_flag=True, default=False
+)
+def csv(path, sql, no_headers):
+    "Execute SQL query and return the results as CSV"
+    db = sqlite_utils.Database(path)
+    cursor = db.conn.execute(sql)
+    writer = csv_std.writer(sys.stdout)
+    if not no_headers:
+        writer.writerow([c[0] for c in cursor.description])
+    for row in cursor:
+        writer.writerow(row)

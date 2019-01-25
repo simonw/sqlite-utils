@@ -130,3 +130,24 @@ def test_upsert(db_path, tmpdir):
     assert upsert_dogs == db.execute_returning_dicts(
         "select * from dogs where id in (1, 2, 21) order by id"
     )
+
+
+def test_csv(db_path):
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert_all(
+            [
+                {"id": 1, "age": 4, "name": "Cleo"},
+                {"id": 2, "age": 2, "name": "Pancakes"},
+            ]
+        )
+    result = CliRunner().invoke(
+        cli.cli, ["csv", db_path, "select id, name, age from dogs"]
+    )
+    assert 0 == result.exit_code
+    assert "id,name,age\n1,Cleo,4\n2,Pancakes,2\n" == result.output
+    # Test the no-headers option:
+    result = CliRunner().invoke(
+        cli.cli, ["csv", db_path, "select id, name, age from dogs", "--no-headers"]
+    )
+    assert "1,Cleo,4\n2,Pancakes,2\n" == result.output

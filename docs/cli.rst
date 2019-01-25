@@ -6,6 +6,17 @@
 
 The ``sqlite-utils`` command-line tool can be used to manipulate SQLite databases in a number of different ways.
 
+Running queries and returning CSV
+=================================
+
+You can execute a SQL query against a database and get the results back as CSV like this::
+
+    $ sqlite-utils csv docs.db "select id, title, author from documents"
+
+This will default to including the column names as a header row. To exclude the headers, use ``--no-headers``:
+
+    $ sqlite-utils csv docs.db "select id, title, author from documents" --no-headers
+
 Listing tables
 ==============
 
