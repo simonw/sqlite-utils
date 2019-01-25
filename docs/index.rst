@@ -17,6 +17,7 @@ Contents
    :maxdepth: 2
 
    python-api
+   cli
    changelog
 
 Take a look at `this script <https://github.com/simonw/russian-ira-facebook-ads-datasette/blob/master/fetch_and_build_russian_ads.py>`_ for an example of this library in action.
