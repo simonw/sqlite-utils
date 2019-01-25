@@ -62,3 +62,6 @@ def test_optimize(db_path):
     assert 0 == result.exit_code
     size_after_optimize = os.stat(db_path).st_size
     assert size_after_optimize < size_before_optimize
+    # Sanity check that --no-vacuum doesn't throw errors:
+    result = CliRunner().invoke(cli.cli, ["optimize", "--no-vacuum", db_path])
+    assert 0 == result.exit_code
