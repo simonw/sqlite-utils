@@ -21,6 +21,8 @@ If you just want to see the FTS4 tables, you can use ``--fts4`` (or ``--fts5`` f
     $ sqlite-utils table_names --fts4 docs.db
     docs_fts
 
+.. _cli_inserting_data:
+
 Inserting data
 ==============
 

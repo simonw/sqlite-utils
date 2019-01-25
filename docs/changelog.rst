@@ -2,6 +2,38 @@
  Changelog
 ===========
 
+.. _v0_7:
+
+0.7 (2019-01-24)
+----------------
+
+This release implements the ``sqlite-utils`` command-line tool with a number of useful subcommands.
+
+- ``sqlite-utils table_names demo.db`` lists the tables in the database
+- ``sqlite-utils table_names demo.db --fts4`` shows just the FTS4 tables
+- ``sqlite-utils table_names demo.db --fts5`` shows just the FTS5 tables
+- ``sqlite-utils vacuum demo.db`` runs VACUUM against the database
+- ``sqlite-utils optimize demo.db`` runs OPTIMIZE against all FTS tables, then VACUUM
+- ``sqlite-utils optimize demo.db --no-vacuum`` runs OPTIMIZE but skips VACUUM
+
+The two most useful subcommands are ``upsert`` and ``insert``, which allow you to ingest JSON files with one or more records in them, creating the corresponding table with the correct columns if it does not already exist. See :ref:`cli_inserting_data` for more details.
+
+- ``sqlite-utils insert demo.db dogs dogs.json --pk=id`` inserts new records from ``dogs.json`` into the ``dogs`` table
+- ``sqlite-utils upsert demo.db dogs dogs.json --pk=id`` upserts records, replacing any records with duplicate primary keys
+
+
+One backwards incompatible change: the ``db["table"].table_names`` property is now a method:
+
+- ``db["table"].table_names()`` returns a list of table names
+- ``db["table"].table_names(fts4=True)`` returns a list of just the FTS4 tables
+- ``db["table"].table_names(fts5=True)`` returns a list of just the FTS5 tables
+
+A few other changes:
+
+- Plenty of updated documentation, including full coverage of the new command-line tool
+- Allow column names to be reserved words (use correct SQL escaping)
+- Added automatic column support for bytes and datetime.datetime
+
 .. _v0_6:
 
 0.6 (2018-08-12)
