@@ -1,6 +1,6 @@
 import click
 import sqlite_utils
-from sqlite_utils.utils import iter_pairs
+import itertools
 import json as json_std
 import sys
 import csv as csv_std
@@ -140,11 +140,12 @@ def json(path, sql, nl, arrays):
     # We have to iterate two-at-a-time so we can know if we
     # should output a trailing comma or if we have reached
     # the last row.
-    row = None
+    current_iter, next_iter = itertools.tee(cursor, 2)
+    next(next_iter, None)
     first = True
     headers = [c[0] for c in cursor.description]
-    for row, next_row, is_last in iter_pairs(cursor):
-        # We now reliably have row and next_row
+    for row, next_row in itertools.zip_longest(current_iter, next_iter):
+        is_last = next_row is None
         data = row
         if not arrays:
             data = dict(zip(headers, row))
