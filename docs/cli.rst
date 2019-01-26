@@ -11,11 +11,59 @@ Running queries and returning CSV
 
 You can execute a SQL query against a database and get the results back as CSV like this::
 
-    $ sqlite-utils csv docs.db "select id, title, author from documents"
+    $ sqlite-utils csv dogs.db "select * from dogs"
+    id,age,name
+    1,4,Cleo
+    2,2,Pancakes
 
 This will default to including the column names as a header row. To exclude the headers, use ``--no-headers``::
 
-    $ sqlite-utils csv docs.db "select id, title, author from documents" --no-headers
+    $ sqlite-utils csv dogs.db "select * from dogs" --no-headers
+    1,4,Cleo
+    2,2,Pancakes
+
+Running queries and returning JSON
+==================================
+
+You can execute a SQL query against a database and get the results back as JSON like this::
+
+    $ sqlite-utils json dogs.db "select * from dogs"
+    [{"id": 1, "age": 4, "name": "Cleo"},
+     {"id": 2, "age": 2, "name": "Pancakes"}]
+
+Use ``--nl`` to get back newline-delimited JSON objects::
+
+    $ sqlite-utils json --nl dogs.db "select * from dogs"
+    {"id": 1, "age": 4, "name": "Cleo"}
+    {"id": 2, "age": 2, "name": "Pancakes"}
+
+You can use ``--arrays`` to request ararys instead of objects::
+
+    $ sqlite-utils json --arrays dogs.db "select * from dogs"
+    [[1, 4, "Cleo"],
+     [2, 2, "Pancakes"]]
+
+You can also combine ``--arrays`` and ``--nl``::
+
+    $ sqlite-utils json --arrays --nl dogs.db "select * from dogs"
+    [1, 4, "Cleo"]
+    [2, 2, "Pancakes"]
+
+If you want to pretty-print the output further, you can pipe it through ``python -mjson.tool``::
+
+    $ sqlite-utils json dogs.db "select * from dogs" | python -mjson.tool
+    [
+        {
+            "id": 1,
+            "age": 4,
+            "name": "Cleo"
+        },
+        {
+            "id": 2,
+            "age": 2,
+            "name": "Pancakes"
+        }
+    ]
 
 Listing tables
 ==============
@@ -70,7 +118,6 @@ If you feed it a JSON list it will insert multiple records. For example, if ``do
 You can import all three records into an automatically created ``dogs`` table and set the ``id`` column as the primary key like so::
 
     $ sqlite-utils insert dogs.db dogs dogs.json --pk=id
-
 
 Upserting data
 ==============

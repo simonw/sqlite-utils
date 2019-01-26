@@ -1,8 +1,10 @@
 import click
 import sqlite_utils
-import json
+from sqlite_utils.utils import iter_pairs
+import json as json_std
 import sys
 import csv as csv_std
+import sqlite3
 
 
 @click.group()
@@ -72,7 +74,7 @@ def optimize(path, no_vacuum):
 def insert(path, table, json_file, pk):
     "Insert records from JSON file into the table, create table if it is missing"
     db = sqlite_utils.Database(path)
-    docs = json.load(json_file)
+    docs = json_std.load(json_file)
     if isinstance(docs, dict):
         docs = [docs]
     db[table].insert_all(docs, pk=pk)
@@ -90,7 +92,7 @@ def insert(path, table, json_file, pk):
 def upsert(path, table, json_file, pk):
     "Upsert records based on their primary key"
     db = sqlite_utils.Database(path)
-    docs = json.load(json_file)
+    docs = json_std.load(json_file)
     if isinstance(docs, dict):
         docs = [docs]
     db[table].upsert_all(docs, pk=pk)
@@ -115,3 +117,42 @@ def csv(path, sql, no_headers):
         writer.writerow([c[0] for c in cursor.description])
     for row in cursor:
         writer.writerow(row)
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("sql")
+@click.option("--nl", help="Output newline-delimited JSON", is_flag=True, default=False)
+@click.option(
+    "--arrays",
+    help="Output rows as arrays instead of objects",
+    is_flag=True,
+    default=False,
+)
+def json(path, sql, nl, arrays):
+    "Execute SQL query and return the results as JSON"
+    db = sqlite_utils.Database(path)
+    cursor = iter(db.conn.execute(sql))
+    # We have to iterate two-at-a-time so we can know if we
+    # should output a trailing comma or if we have reached
+    # the last row.
+    row = None
+    first = True
+    headers = [c[0] for c in cursor.description]
+    for row, next_row, is_last in iter_pairs(cursor):
+        # We now reliably have row and next_row
+        data = row
+        if not arrays:
+            data = dict(zip(headers, row))
+        line = "{firstchar}{serialized}{maybecomma}{lastchar}".format(
+            firstchar=("[" if first else " ") if not nl else "",
+            serialized=json_std.dumps(data),
+            maybecomma="," if (not nl and not is_last) else "",
+            lastchar="]" if (is_last and not nl) else "",
+        )
+        click.echo(line)
+        first = False
