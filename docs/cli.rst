@@ -6,6 +6,8 @@
 
 The ``sqlite-utils`` command-line tool can be used to manipulate SQLite databases in a number of different ways.
 
+.. _cli_csv:
+
 Running queries and returning CSV
 =================================
 
@@ -21,6 +23,8 @@ This will default to including the column names as a header row. To exclude the 
     $ sqlite-utils csv dogs.db "select * from dogs" --no-headers
     1,4,Cleo
     2,2,Pancakes
+
+.. _cli_json:
 
 Running queries and returning JSON
 ==================================

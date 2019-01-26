@@ -2,6 +2,36 @@
  Changelog
 ===========
 
+.. _v0_8:
+
+0.8 (2019-01-25)
+----------------
+
+Two new commands: ``sqlite-utils csv`` and ``sqlite-utils json``
+
+These commansd execute a SQL query and return the results as CSV or JSON. See :ref:`cli_csv` and :ref:`cli_json` for more details.
+
+::
+
+    $ sqlite-utils json --help
+    Usage: sqlite-utils json [OPTIONS] PATH SQL
+
+      Execute SQL query and return the results as JSON
+
+    Options:
+      --nl      Output newline-delimited JSON
+      --arrays  Output rows as arrays instead of objects
+      --help    Show this message and exit.
+
+    $ sqlite-utils csv --help
+    Usage: sqlite-utils csv [OPTIONS] PATH SQL
+
+      Execute SQL query and return the results as CSV
+
+    Options:
+      --no-headers  Exclude headers from CSV output
+      --help        Show this message and exit.
+
 .. _v0_7:
 
 0.7 (2019-01-24)
