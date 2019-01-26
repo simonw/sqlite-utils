@@ -5,11 +5,27 @@
 [![Documentation Status](https://readthedocs.org/projects/sqlite-utils/badge/?version=latest)](http://sqlite-utils.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/simonw/sqlite-utils/blob/master/LICENSE)
 
-Python utility functions for manipulating SQLite databases
+Python CLI utility and library for manipulating SQLite databases.
+
+Install it like this:
 
     pip3 install sqlite-utils
 
-Documentation: https://sqlite-utils.readthedocs.io/
+Now you can do things like this:
+
+    $ sqlite-utils tables dogs.db
+    dogs
+
+    $ sqlite-utils csv dogs.db "select * from dogs"
+    id,age,name
+    1,4,Cleo
+    2,2,Pancakes
+
+    $ sqlite-utils json dogs.db "select * from dogs"
+    [{"id": 1, "age": 4, "name": "Cleo"},
+     {"id": 2, "age": 2, "name": "Pancakes"}]
+
+Full documentation: https://sqlite-utils.readthedocs.io/
 
 Related projects:
 
