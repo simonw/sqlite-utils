@@ -153,22 +153,32 @@ def test_csv(db_path):
     assert "1,Cleo,4\n2,Pancakes,2\n" == result.output
 
 
+_all_query = "select id, name, age from dogs"
+_one_query = "select id, name, age from dogs where id = 1"
+
+
 @pytest.mark.parametrize(
-    "args,expected",
+    "sql,args,expected",
     [
         (
+            _all_query,
             [],
             '[{"id": 1, "name": "Cleo", "age": 4},\n {"id": 2, "name": "Pancakes", "age": 2}]',
         ),
         (
+            _all_query,
             ["--nl"],
             '{"id": 1, "name": "Cleo", "age": 4}\n{"id": 2, "name": "Pancakes", "age": 2}',
         ),
-        (["--arrays"], '[[1, "Cleo", 4],\n [2, "Pancakes", 2]]'),
-        (["--arrays", "--nl"], '[1, "Cleo", 4]\n[2, "Pancakes", 2]'),
+        (_all_query, ["--arrays"], '[[1, "Cleo", 4],\n [2, "Pancakes", 2]]'),
+        (_all_query, ["--arrays", "--nl"], '[1, "Cleo", 4]\n[2, "Pancakes", 2]'),
+        (_one_query, [], '[{"id": 1, "name": "Cleo", "age": 4}]'),
+        (_one_query, ["--nl"], '{"id": 1, "name": "Cleo", "age": 4}'),
+        (_one_query, ["--arrays"], '[[1, "Cleo", 4]]'),
+        (_one_query, ["--arrays", "--nl"], '[1, "Cleo", 4]'),
     ],
 )
-def test_json(db_path, args, expected):
+def test_json(db_path, sql, args, expected):
     db = Database(db_path)
     with db.conn:
         db["dogs"].insert_all(
@@ -177,13 +187,5 @@ def test_json(db_path, args, expected):
                 {"id": 2, "age": 2, "name": "Pancakes"},
             ]
         )
-    result = CliRunner().invoke(
-        cli.cli, ["csv", db_path, "select id, name, age from dogs"]
-    )
-    assert 0 == result.exit_code
-    assert "id,name,age\n1,Cleo,4\n2,Pancakes,2\n" == result.output
-    # Test the no-headers option:
-    result = CliRunner().invoke(
-        cli.cli, ["json", db_path, "select id, name, age from dogs"] + args
-    )
+    result = CliRunner().invoke(cli.cli, ["json", db_path, sql] + args)
     assert expected == result.output.strip()
