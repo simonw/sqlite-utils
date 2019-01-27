@@ -2,6 +2,7 @@ import sqlite3
 from collections import namedtuple
 import datetime
 import json
+import pathlib
 
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
@@ -16,6 +17,8 @@ class Database:
     def __init__(self, filename_or_conn):
         if isinstance(filename_or_conn, str):
             self.conn = sqlite3.connect(filename_or_conn)
+        elif isinstance(filename_or_conn, pathlib.Path):
+            self.conn = sqlite3.connect(str(filename_or_conn))
         else:
             self.conn = filename_or_conn
 

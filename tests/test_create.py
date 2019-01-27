@@ -1,6 +1,7 @@
-from sqlite_utils.db import Index
+from sqlite_utils.db import Index, Database
 import collections
 import datetime
+import pathlib
 import pytest
 import json
 
@@ -181,3 +182,10 @@ def test_create_view(fresh_db):
 def test_vacuum(fresh_db):
     fresh_db["data"].insert({"foo": "foo", "bar": "bar"})
     fresh_db.vacuum()
+
+
+def test_works_with_pathlib_path(tmpdir):
+    path = pathlib.Path(tmpdir / "test.db")
+    db = Database(path)
+    db["demo"].insert_all([{"foo": 1}])
+    assert 1 == db["demo"].count
