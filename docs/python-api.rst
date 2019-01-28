@@ -80,8 +80,6 @@ This will automatically create a new table called "dogs" with the following sche
         is_good_dog INTEGER
     )
 
-The column types are automatically derived from the types of the incoming data.
-
 You can also specify a primary key by passing the ``pk=`` parameter to the ``.insert()`` call. This will only be obeyed if the record being inserted causes the table to be created:
 
 .. code-block:: python
@@ -113,7 +111,7 @@ You don't need to pass all of the columns to the ``column_order`` parameter. If 
 Bulk inserts
 ============
 
-If you have more than one record to insert, the ``insert_all()`` method is a much more efficient way of inserting them. Just like ``insert()`` it will automatically detect the columns that should be created, but it will inspect the first 100 items to help decide what those column types should be.
+If you have more than one record to insert, the ``insert_all()`` method is a much more efficient way of inserting them. Just like ``insert()`` it will automatically detect the columns that should be created, but it will inspect the first batch of 100 items to help decide what those column types should be.
 
 Use it like this:
 
@@ -132,6 +130,17 @@ Use it like this:
         "age": 16,
         "is_good_dog": True,
     }], pk="id", column_order=("id", "twitter", "name"))
+
+The column types used in the ``CREATE TABLE`` statement are automatically derived from the types of data in that first batch of rows. Any additional or missing columns in subsequent batches will be ignored.
+
+The function can accept an iterator or generator of rows and will commit them according to the batch size. The default batch size is 100, but you can specify a different size using the ``batch_size`` parameter:
+
+.. code-block:: python
+
+    db["big_table"].insert_all(({
+        "id": 1,
+        "name": "Name {}".format(i),
+    } for i in range(10000)), batch_size=1000)
 
 Upserting data
 ==============

@@ -172,6 +172,25 @@ def test_insert_dictionaries_and_lists_as_json(fresh_db, data_structure):
     assert data_structure == json.loads(row[1])
 
 
+def test_insert_thousands_using_generator(fresh_db):
+    fresh_db["test"].insert_all(
+        {"i": i, "word": "word_{}".format(i)} for i in range(10000)
+    )
+    assert [{"name": "i", "type": "INTEGER"}, {"name": "word", "type": "TEXT"}] == [
+        {"name": col.name, "type": col.type} for col in fresh_db["test"].columns
+    ]
+    assert 10000 == fresh_db["test"].count
+
+
+def test_insert_thousands_ignores_extra_columns_after_first_100(fresh_db):
+    fresh_db["test"].insert_all(
+        [{"i": i, "word": "word_{}".format(i)} for i in range(100)]
+        + [{"i": 101, "extra": "This extra column should cause an exception"}]
+    )
+    rows = fresh_db.execute_returning_dicts("select * from test where i = 101")
+    assert [{"i": 101, "word": None}] == rows
+
+
 def test_create_view(fresh_db):
     fresh_db["data"].insert({"foo": "foo", "bar": "bar"})
     fresh_db.create_view("bar", "select bar from data")

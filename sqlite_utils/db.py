@@ -1,6 +1,7 @@
 import sqlite3
 from collections import namedtuple
 import datetime
+import itertools
 import json
 import pathlib
 
@@ -345,18 +346,24 @@ class Table:
         that it creates (if table does not exist) has columns for ALL of that
         data
         """
-        if not self.exists:
-            self.create(
-                self.detect_column_types(records),
-                pk,
-                foreign_keys,
-                column_order=column_order,
-            )
-        all_columns = set()
-        for record in records:
-            all_columns.update(record.keys())
-        all_columns = list(sorted(all_columns))
+        all_columns = None
+        first = True
         for chunk in chunks(records, batch_size):
+            chunk = list(chunk)
+            if first:
+                if not self.exists:
+                    # Use the first batch to derive the table names
+                    self.create(
+                        self.detect_column_types(chunk),
+                        pk,
+                        foreign_keys,
+                        column_order=column_order,
+                    )
+                all_columns = set()
+                for record in chunk:
+                    all_columns.update(record.keys())
+                all_columns = list(sorted(all_columns))
+            first = False
             sql = """
                 INSERT {upsert} INTO [{table}] ({columns}) VALUES {rows};
             """.format(
@@ -402,8 +409,9 @@ class Table:
 
 
 def chunks(sequence, size):
-    for i in range(0, len(sequence), size):
-        yield sequence[i : i + size]
+    iterator = iter(sequence)
+    for item in iterator:
+        yield itertools.chain([item], itertools.islice(iterator, size - 1))
 
 
 def jsonify_if_needed(value):
