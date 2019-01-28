@@ -185,13 +185,14 @@ class Table:
 
     def create(self, columns, pk=None, foreign_keys=None, column_order=None):
         columns = {name: value for (name, value) in columns.items()}
-        self.db.create_table(
-            self.name,
-            columns,
-            pk=pk,
-            foreign_keys=foreign_keys,
-            column_order=column_order,
-        )
+        with self.db.conn:
+            self.db.create_table(
+                self.name,
+                columns,
+                pk=pk,
+                foreign_keys=foreign_keys,
+                column_order=column_order,
+            )
         self.exists = True
         return self
 
@@ -384,9 +385,9 @@ class Table:
                 values.extend(
                     jsonify_if_needed(record.get(key, None)) for key in all_columns
                 )
-            result = self.db.conn.execute(sql, values)
-            self.db.conn.commit()
-            self.last_id = result.lastrowid
+            with self.db.conn:
+                result = self.db.conn.execute(sql, values)
+                self.last_id = result.lastrowid
         return self
 
     def upsert(self, record, pk=None, foreign_keys=None, column_order=None):
