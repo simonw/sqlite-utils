@@ -2,6 +2,22 @@
  Changelog
 ===========
 
+.. _v0_9:
+
+0.9 (2019-01-27)
+----------------
+
+Improved support for newline-delimited JSON.
+
+``sqlite-utils insert`` has two new command-line options:
+
+* ``--nl`` means "expect newline-delimited JSON". This is an extremely efficient way of loading in large amounts of data, especially if you pipe it into standard input.
+* ``--batch-size=1000`` lets you increase the batch size (default is 100). A commit will be issued every X records. This also control how many initial records are considered when detecting the desired SQL table schema for the data.
+
+In the Python API, the ``table.insert_all(...)`` method can now accept a generator as well as a list of objects. This will be efficiently used to populate the table no matter how many records are produced by the generator.
+
+The ``Database()`` constructor can now accept a ``pathlib.Path`` object in addition to a string or an existing SQLite connection object.
+
 .. _v0_8:
 
 0.8 (2019-01-25)
