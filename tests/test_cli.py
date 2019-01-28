@@ -104,11 +104,23 @@ def test_insert_multiple_with_primary_key(db_path, tmpdir):
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
     )
     assert 0 == result.exit_code
-    assert dogs == Database(db_path).execute_returning_dicts(
-        "select * from dogs order by id"
-    )
     db = Database(db_path)
+    assert dogs == db.execute_returning_dicts("select * from dogs order by id")
     assert ["id"] == db["dogs"].pks
+
+
+def test_insert_newline_delimited(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "from_json_nl", "-", "--nl"],
+        input='{"foo": "bar", "n": 1}\n{"foo": "baz", "n": 2}',
+    )
+    assert 0 == result.exit_code, result.output
+    db = Database(db_path)
+    assert [
+        {"foo": "bar", "n": 1},
+        {"foo": "baz", "n": 2},
+    ] == db.execute_returning_dicts("select foo, n from from_json_nl")
 
 
 def test_upsert(db_path, tmpdir):

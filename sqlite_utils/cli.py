@@ -71,12 +71,17 @@ def optimize(path, no_vacuum):
 @click.argument("table")
 @click.argument("json_file", type=click.File(), required=True)
 @click.option("--pk", help="Column to use as the primary key, e.g. id")
-def insert(path, table, json_file, pk):
+@click.option("--nl", is_flag=True, help="Expect newline-delimited JSON")
+def insert(path, table, json_file, pk, nl):
     "Insert records from JSON file into the table, create table if it is missing"
     db = sqlite_utils.Database(path)
-    docs = json_std.load(json_file)
-    if isinstance(docs, dict):
-        docs = [docs]
+    if nl:
+        # TODO: Use a generator once #7 is solved
+        docs = [json_std.loads(line) for line in json_file]
+    else:
+        docs = json_std.load(json_file)
+        if isinstance(docs, dict):
+            docs = [docs]
     db[table].insert_all(docs, pk=pk)
 
 

@@ -123,6 +123,11 @@ You can import all three records into an automatically created ``dogs`` table an
 
     $ sqlite-utils insert dogs.db dogs dogs.json --pk=id
 
+You can also import newline-delimited JSON using the ``--nl`` option. Since [Datasette](https://datasette.readthedocs.io/) can export newline-delimited JSON, you can combine the two tools like so::
+
+    $ curl -L "https://latest.datasette.io/fixtures/facetable.json?_shape=array&_nl=on" \
+        | sqlite-utils insert nl-demo.db facetable - --pk=id --nl
+
 Upserting data
 ==============
 
