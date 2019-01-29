@@ -72,11 +72,19 @@ def optimize(path, no_vacuum):
 @click.argument("json_file", type=click.File(), required=True)
 @click.option("--pk", help="Column to use as the primary key, e.g. id")
 @click.option("--nl", is_flag=True, help="Expect newline-delimited JSON")
+@click.option("--csv", is_flag=True, help="Expect CSV")
 @click.option("--batch-size", type=int, default=100, help="Commit every X records")
-def insert(path, table, json_file, pk, nl, batch_size):
+def insert(path, table, json_file, pk, nl, csv, batch_size):
     "Insert records from JSON file into the table, create table if it is missing"
     db = sqlite_utils.Database(path)
-    if nl:
+    if nl and csv:
+        click.echo("Use just one of --nl and --csv", err=True)
+        return
+    if csv:
+        reader = csv_std.reader(json_file)
+        headers = next(reader)
+        docs = (dict(zip(headers, row)) for row in reader)
+    elif nl:
         docs = (json_std.loads(line) for line in json_file)
     else:
         docs = json_std.load(json_file)
