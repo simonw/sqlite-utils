@@ -75,7 +75,11 @@ def optimize(path, no_vacuum):
 @click.option("--csv", is_flag=True, help="Expect CSV")
 @click.option("--batch-size", type=int, default=100, help="Commit every X records")
 def insert(path, table, json_file, pk, nl, csv, batch_size):
-    "Insert records from JSON file into the table, create table if it is missing"
+    """
+    Insert records from JSON file into a table, creating the table if it does not already exist.
+
+    Input should be a JSON array of objects, unless --nl or --csv is used.
+    """
     db = sqlite_utils.Database(path)
     if nl and csv:
         click.echo("Use just one of --nl and --csv", err=True)
