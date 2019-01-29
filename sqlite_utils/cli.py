@@ -1,9 +1,9 @@
 import click
 import sqlite_utils
 import itertools
-import json as json_std
+import json
 import sys
-import csv as csv_std
+import csv
 import sqlite3
 
 
@@ -81,13 +81,13 @@ def insert(path, table, json_file, pk, nl, csv, batch_size):
         click.echo("Use just one of --nl and --csv", err=True)
         return
     if csv:
-        reader = csv_std.reader(json_file)
+        reader = csv.reader(json_file)
         headers = next(reader)
         docs = (dict(zip(headers, row)) for row in reader)
     elif nl:
-        docs = (json_std.loads(line) for line in json_file)
+        docs = (json.loads(line) for line in json_file)
     else:
-        docs = json_std.load(json_file)
+        docs = json.load(json_file)
         if isinstance(docs, dict):
             docs = [docs]
     db[table].insert_all(docs, pk=pk, batch_size=batch_size)
@@ -105,13 +105,13 @@ def insert(path, table, json_file, pk, nl, csv, batch_size):
 def upsert(path, table, json_file, pk):
     "Upsert records based on their primary key"
     db = sqlite_utils.Database(path)
-    docs = json_std.load(json_file)
+    docs = json.load(json_file)
     if isinstance(docs, dict):
         docs = [docs]
     db[table].upsert_all(docs, pk=pk)
 
 
-@cli.command()
+@cli.command(name="csv")
 @click.argument(
     "path",
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
@@ -121,18 +121,18 @@ def upsert(path, table, json_file, pk):
 @click.option(
     "--no-headers", help="Exclude headers from CSV output", is_flag=True, default=False
 )
-def csv(path, sql, no_headers):
+def csv_cmd(path, sql, no_headers):
     "Execute SQL query and return the results as CSV"
     db = sqlite_utils.Database(path)
     cursor = db.conn.execute(sql)
-    writer = csv_std.writer(sys.stdout)
+    writer = csv.writer(sys.stdout)
     if not no_headers:
         writer.writerow([c[0] for c in cursor.description])
     for row in cursor:
         writer.writerow(row)
 
 
-@cli.command()
+@cli.command(name="json")
 @click.argument(
     "path",
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
@@ -146,7 +146,7 @@ def csv(path, sql, no_headers):
     is_flag=True,
     default=False,
 )
-def json(path, sql, nl, arrays):
+def json_cmd(path, sql, nl, arrays):
     "Execute SQL query and return the results as JSON"
     db = sqlite_utils.Database(path)
     cursor = iter(db.conn.execute(sql))
@@ -164,7 +164,7 @@ def json(path, sql, nl, arrays):
             data = dict(zip(headers, row))
         line = "{firstchar}{serialized}{maybecomma}{lastchar}".format(
             firstchar=("[" if first else " ") if not nl else "",
-            serialized=json_std.dumps(data),
+            serialized=json.dumps(data),
             maybecomma="," if (not nl and not is_last) else "",
             lastchar="]" if (is_last and not nl) else "",
         )
