@@ -13,9 +13,9 @@ Database objects are constructed by passing in either a path to a file on disk o
 
     from sqlite_utils import Database
 
-    db = Database("my_database.py")
+    db = Database("my_database.db")
 
-This will create ``my_database.py`` if it does not already exist. You can also pass in an existing SQLite connection:
+This will create ``my_database.db`` if it does not already exist. You can also pass in an existing SQLite connection:
 
 .. code-block:: python
 
@@ -351,4 +351,4 @@ You can optimize your database by running VACUUM against it like so:
 
 .. code-block:: python
 
-    Database("my_database.py").vacuum()
+    Database("my_database.db").vacuum()
