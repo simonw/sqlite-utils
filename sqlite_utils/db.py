@@ -66,6 +66,8 @@ class Database:
             bytes.__class__: "BLOB",
             bytes: "BLOB",
             datetime.datetime: "TEXT",
+            datetime.date: "TEXT",
+            datetime.time: "TEXT",
             None.__class__: "TEXT",
         }
         columns_sql = ",\n".join(
