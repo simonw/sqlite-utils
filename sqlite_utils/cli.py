@@ -62,24 +62,31 @@ def optimize(path, no_vacuum):
         db.vacuum()
 
 
-@cli.command()
-@click.argument(
-    "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
-    required=True,
-)
-@click.argument("table")
-@click.argument("json_file", type=click.File(), required=True)
-@click.option("--pk", help="Column to use as the primary key, e.g. id")
-@click.option("--nl", is_flag=True, help="Expect newline-delimited JSON")
-@click.option("--csv", is_flag=True, help="Expect CSV")
-@click.option("--batch-size", type=int, default=100, help="Commit every X records")
-def insert(path, table, json_file, pk, nl, csv, batch_size):
-    """
-    Insert records from JSON file into a table, creating the table if it does not already exist.
+def insert_upsert_options(fn):
+    for decorator in reversed(
+        (
+            click.argument(
+                "path",
+                type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+                required=True,
+            ),
+            click.argument("table"),
+            click.argument("json_file", type=click.File(), required=True),
+            click.option("--pk", help="Column to use as the primary key, e.g. id"),
+            click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
+            click.option("--csv", is_flag=True, help="Expect CSV"),
+            click.option(
+                "--batch-size", type=int, default=100, help="Commit every X records"
+            ),
+        )
+    ):
+        fn = decorator(fn)
+    return fn
 
-    Input should be a JSON array of objects, unless --nl or --csv is used.
-    """
+
+def insert_upsert_implementation(
+    path, table, json_file, pk, nl, csv, batch_size, upsert
+):
     db = sqlite_utils.Database(path)
     if nl and csv:
         click.echo("Use just one of --nl and --csv", err=True)
@@ -94,25 +101,38 @@ def insert(path, table, json_file, pk, nl, csv, batch_size):
         docs = json.load(json_file)
         if isinstance(docs, dict):
             docs = [docs]
-    db[table].insert_all(docs, pk=pk, batch_size=batch_size)
+    if upsert:
+        method = db[table].upsert_all
+    else:
+        method = db[table].insert_all
+    method(docs, pk=pk, batch_size=batch_size)
 
 
 @cli.command()
-@click.argument(
-    "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
-    required=True,
-)
-@click.argument("table")
-@click.argument("json_file", type=click.File(), required=True)
-@click.option("--pk", help="Column to use as the primary key, e.g. id")
-def upsert(path, table, json_file, pk):
-    "Upsert records based on their primary key"
-    db = sqlite_utils.Database(path)
-    docs = json.load(json_file)
-    if isinstance(docs, dict):
-        docs = [docs]
-    db[table].upsert_all(docs, pk=pk)
+@insert_upsert_options
+def insert(path, table, json_file, pk, nl, csv, batch_size):
+    """
+    Insert records from JSON file into a table, creating the table if it
+    does not already exist.
+
+    Input should be a JSON array of objects, unless --nl or --csv is used.
+    """
+    insert_upsert_implementation(
+        path, table, json_file, pk, nl, csv, batch_size, upsert=False
+    )
+
+
+@cli.command()
+@insert_upsert_options
+def upsert(path, table, json_file, pk, nl, csv, batch_size):
+    """
+    Upsert records based on their primary key. Works like 'insert' but if
+    an incoming record has a primary key that matches an existing record
+    the existing record will be replaced.
+    """
+    insert_upsert_implementation(
+        path, table, json_file, pk, nl, csv, batch_size, upsert=True
+    )
 
 
 @cli.command(name="csv")

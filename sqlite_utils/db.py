@@ -401,13 +401,16 @@ class Table:
             column_order=column_order,
         )
 
-    def upsert_all(self, records, pk=None, foreign_keys=None, column_order=None):
+    def upsert_all(
+        self, records, pk=None, foreign_keys=None, column_order=None, batch_size=100
+    ):
         return self.insert_all(
             records,
             pk=pk,
             foreign_keys=foreign_keys,
-            upsert=True,
             column_order=column_order,
+            batch_size=100,
+            upsert=True,
         )
 
 
