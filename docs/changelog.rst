@@ -2,6 +2,18 @@
  Changelog
 ===========
 
+.. _v0_10:
+
+0.10 (2019-02-06)
+-----------------
+
+Handle ``datetime.date`` and ``datetime.time`` values.
+
+New option for efficiently inserting rows from a CSV:
+::
+
+    sqlite-utils insert db.db foo - --csv
+
 .. _v0_9:
 
 0.9 (2019-01-27)
