@@ -169,7 +169,7 @@ This will use SQLite's FTS5 module by default. Use ``--fts4`` if you want to use
 
 The ``enable-fts`` command will populate the new index with all existing documents. If you later add more documents you will need to use ``populate-fts`` to cause them to be indexed as well::
 
-    $ sqlite-utils populatesfts mydb.db documents title summary
+    $ sqlite-utils populate-fts mydb.db documents title summary
 
 Vacuum
 ======
