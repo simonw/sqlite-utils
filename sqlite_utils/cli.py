@@ -77,6 +77,7 @@ def optimize(path, no_vacuum):
     "--fts5", help="Just show FTS5 enabled tables", default=False, is_flag=True
 )
 def enable_fts(path, table, column, fts4, fts5):
+    "Enable FTS for specific table and columns"
     fts_version = "FTS5"
     if fts4 and fts5:
         click.echo("Can only use one of --fts4 or --fts5", err=True)
@@ -97,6 +98,7 @@ def enable_fts(path, table, column, fts4, fts5):
 @click.argument("table")
 @click.argument("column", nargs=-1, required=True)
 def populate_fts(path, table, column):
+    "Re-populate FTS for specific table and columns"
     db = sqlite_utils.Database(path)
     db[table].populate_fts(column)
 
