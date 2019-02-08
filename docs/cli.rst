@@ -154,6 +154,8 @@ After running the above ``dogs.json`` example, try running this::
 
 This will replace the record for id=2 (Pancakes) with a new record with an updated age.
 
+.. _cli_fts:
+
 Configuring full-text search
 ============================
 

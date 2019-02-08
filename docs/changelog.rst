@@ -2,6 +2,17 @@
  Changelog
 ===========
 
+.. _v0_11:
+
+0.11 (2019-02-07)
+-----------------
+
+New commands for enabling FTS against a table and columns::
+
+    sqlite-utils enable-fts db.db mytable col1 col2
+
+See :ref:`cli_fts`.
+
 .. _v0_10:
 
 0.10 (2019-02-06)
