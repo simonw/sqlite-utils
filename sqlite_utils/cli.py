@@ -62,6 +62,45 @@ def optimize(path, no_vacuum):
         db.vacuum()
 
 
+@cli.command(name="enable-fts")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.argument("column", nargs=-1, required=True)
+@click.option(
+    "--fts4", help="Just show FTS4 enabled tables", default=False, is_flag=True
+)
+@click.option(
+    "--fts5", help="Just show FTS5 enabled tables", default=False, is_flag=True
+)
+def enable_fts(path, table, column, fts4, fts5):
+    fts_version = "FTS5"
+    if fts4 and fts5:
+        click.echo("Can only use one of --fts4 or --fts5", err=True)
+        return
+    elif fts4:
+        fts_version = "FTS4"
+
+    db = sqlite_utils.Database(path)
+    db[table].enable_fts(column, fts_version=fts_version)
+
+
+@cli.command(name="populate-fts")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.argument("column", nargs=-1, required=True)
+def populate_fts(path, table, column):
+    db = sqlite_utils.Database(path)
+    db[table].populate_fts(column)
+
+
 def insert_upsert_options(fn):
     for decorator in reversed(
         (

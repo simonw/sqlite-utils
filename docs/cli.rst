@@ -154,6 +154,21 @@ After running the above ``dogs.json`` example, try running this::
 
 This will replace the record for id=2 (Pancakes) with a new record with an updated age.
 
+Configuring full-text search
+============================
+
+You can enable SQLite full-text search on a table and a set of columns like this::
+
+    $ sqlite-utils enable-fts mydb.db documents title summary
+
+This will use SQLite's FTS5 module by default. Use ``--fts4`` if you want to use FTS4::
+
+    $ sqlite-utils enable-fts mydb.db documents title summary --fts4
+
+The ``enable-fts`` command will populate the new index with all existing documents. If you later add more documents you will need to use ``populate-fts`` to cause them to be indexed as well::
+
+    $ sqlite-utils populatesfts mydb.db documents title summary
+
 Vacuum
 ======
 

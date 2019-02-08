@@ -37,6 +37,41 @@ def test_tables_fts5(db_path):
     assert "Gosh_fts" == result.output.strip()
 
 
+def test_enable_fts(db_path):
+    assert None == Database(db_path)["Gosh"].detect_fts()
+    result = CliRunner().invoke(
+        cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"]
+    )
+    assert 0 == result.exit_code
+    assert "Gosh_fts" == Database(db_path)["Gosh"].detect_fts()
+
+
+def test_populate_fts(db_path):
+    Database(db_path)["Gosh"].insert_all([{"c1": "baz"}])
+    exit_code = (
+        CliRunner()
+        .invoke(cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"])
+        .exit_code
+    )
+    assert 0 == exit_code
+
+    def search(q):
+        return (
+            Database(db_path)
+            .conn.execute("select c1 from Gosh_fts where c1 match ?", [q])
+            .fetchall()
+        )
+
+    assert [("baz",)] == search("baz")
+    Database(db_path)["Gosh"].insert_all([{"c1": "martha"}])
+    assert [] == search("martha")
+    exit_code = (
+        CliRunner().invoke(cli.cli, ["populate-fts", db_path, "Gosh", "c1"]).exit_code
+    )
+    assert 0 == exit_code
+    assert [("martha",)] == search("martha")
+
+
 def test_vacuum(db_path):
     result = CliRunner().invoke(cli.cli, ["vacuum", db_path])
     assert 0 == result.exit_code
