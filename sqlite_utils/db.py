@@ -238,7 +238,9 @@ class Table:
                 content="{table}"
             );
         """.format(
-            table=self.name, columns=", ".join(columns), fts_version=fts_version
+            table=self.name,
+            columns=", ".join("[{}]".format(c) for c in columns),
+            fts_version=fts_version,
         )
         self.db.conn.executescript(sql)
         self.populate_fts(columns)
