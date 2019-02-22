@@ -52,6 +52,17 @@ You can also iterate through the table objects themselves using the ``.tables`` 
     >>> db.tables
     [<Table dogs>]
 
+Listing rows
+============
+
+To iterate through dictionaries for each of the rows in a table, use ``.rows``::
+
+    >>> db = sqlite_utils.Database("dogs.db")
+    >>> for row in db["dogs"].rows:
+    ...     print(row)
+    {'id': 1, 'age': 4, 'name': 'Cleo'}
+    {'id': 2, 'age': 2, 'name': 'Pancakes'}
+
 Creating tables
 ===============
 

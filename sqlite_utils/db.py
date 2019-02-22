@@ -135,6 +135,15 @@ class Table:
         return [Column(*row) for row in rows]
 
     @property
+    def rows(self):
+        if not self.exists:
+            return []
+        cursor = self.db.conn.execute("select * from [{}]".format(self.name))
+        columns = [c[0] for c in cursor.description]
+        for row in cursor:
+            yield dict(zip(columns, row))
+
+    @property
     def pks(self):
         return [column.name for column in self.columns if column.is_pk]
 
