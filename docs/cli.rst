@@ -13,9 +13,13 @@ Running queries and returning JSON
 
 You can execute a SQL query against a database and get the results back as JSON like this::
 
-    $ sqlite-utils dogs.db "select * from dogs"
+    $ sqlite-utils query dogs.db "select * from dogs"
     [{"id": 1, "age": 4, "name": "Cleo"},
      {"id": 2, "age": 2, "name": "Pancakes"}]
+
+This is the default subcommand for ``sqlite-utils``, so you can instead use this::
+
+    $ sqlite-utils dogs.db "select * from dogs"
 
 Use ``--nl`` to get back newline-delimited JSON objects::
 
@@ -68,6 +72,19 @@ This will default to including the column names as a header row. To exclude the 
     $ sqlite-utils dogs.db "select * from dogs" --csv --no-headers
     1,4,Cleo
     2,2,Pancakes
+
+.. _cli_rows:
+
+Returning all rows in a table
+=============================
+
+You can return every row in a specified table using the ``rows`` subcommand::
+
+    $ sqlite-utils rows dogs.db dogs
+    [{"id": 1, "age": 4, "name": "Cleo"},
+     {"id": 2, "age": 2, "name": "Pancakes"}]
+
+This command accepts the same output options as ``query`` - so you can pass ``--nl``, ``--csv`` and ``--no-headers``.
 
 Listing tables
 ==============

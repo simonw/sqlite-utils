@@ -236,3 +236,32 @@ def test_query_json(db_path, sql, args, expected):
         )
     result = CliRunner().invoke(cli.cli, [db_path, sql] + args)
     assert expected == result.output.strip()
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (
+            [],
+            '[{"id": 1, "name": "Cleo", "age": 4},\n {"id": 2, "name": "Pancakes", "age": 2}]',
+        ),
+        (
+            ["--nl"],
+            '{"id": 1, "name": "Cleo", "age": 4}\n{"id": 2, "name": "Pancakes", "age": 2}',
+        ),
+        (["--arrays"], '[[1, "Cleo", 4],\n [2, "Pancakes", 2]]'),
+        (["--arrays", "--nl"], '[1, "Cleo", 4]\n[2, "Pancakes", 2]'),
+    ],
+)
+def test_rows(db_path, args, expected):
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert_all(
+            [
+                {"id": 1, "age": 4, "name": "Cleo"},
+                {"id": 2, "age": 2, "name": "Pancakes"},
+            ],
+            column_order=("id", "name", "age"),
+        )
+    result = CliRunner().invoke(cli.cli, ["rows", db_path, "dogs"] + args)
+    assert expected == result.output.strip()

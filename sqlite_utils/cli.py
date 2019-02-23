@@ -208,13 +208,6 @@ def upsert(path, table, json_file, pk, nl, csv, batch_size):
 )
 @click.argument("sql")
 @output_options
-@click.option("--nl", help="Output newline-delimited JSON", is_flag=True, default=False)
-@click.option(
-    "--arrays",
-    help="Output rows as arrays instead of objects",
-    is_flag=True,
-    default=False,
-)
 def query(path, sql, nl, arrays, csv, no_headers):
     "Execute SQL query and return the results as JSON"
     db = sqlite_utils.Database(path)
@@ -229,6 +222,28 @@ def query(path, sql, nl, arrays, csv, no_headers):
     else:
         for line in output_rows(cursor, headers, nl, arrays):
             click.echo(line)
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@output_options
+@click.pass_context
+def rows(ctx, path, table, nl, arrays, csv, no_headers):
+    "Output all rows in the specified table"
+    ctx.invoke(
+        query,
+        path=path,
+        sql="select * from [{}]".format(table),
+        nl=nl,
+        arrays=arrays,
+        csv=csv,
+        no_headers=no_headers,
+    )
 
 
 def output_rows(iterator, headers, nl, arrays):
