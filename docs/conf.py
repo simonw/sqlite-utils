@@ -44,7 +44,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "sqlite-utils"
-copyright = "2018, Simon Willison"
+copyright = "2019, Simon Willison"
 author = "Simon Willison"
 
 # The version info for the project you're documenting, acts as replacement for
