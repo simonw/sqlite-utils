@@ -86,6 +86,8 @@ You can return every row in a specified table using the ``rows`` subcommand::
 
 This command accepts the same output options as ``query`` - so you can pass ``--nl``, ``--csv`` and ``--no-headers``.
 
+.. _cli_tables:
+
 Listing tables
 ==============
 

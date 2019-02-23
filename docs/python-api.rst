@@ -52,6 +52,8 @@ You can also iterate through the table objects themselves using the ``.tables`` 
     >>> db.tables
     [<Table dogs>]
 
+.. _python_api_rows:
+
 Listing rows
 ============
 

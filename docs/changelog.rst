@@ -2,6 +2,16 @@
  Changelog
 ===========
 
+.. _v0_12:
+
+0.12 (2019-02-22)
+-----------------
+
+- Added ``db[table].rows`` iterator - see :ref:`python_api_rows`
+- Replaced ``sqlite-utils json`` and ``sqlite-utils csv`` with a new default subcommand called ``sqlite-utils query`` which defaults to JSON and takes formatting options ``--nl``, ``--csv`` and ``--no-headers`` - see :ref:`cli_query_json` and :ref:`cli_query_csv`
+- New ``sqlite-utils rows data.db name-of-table`` command, see :ref:`cli_rows`
+- ``sqlite-utils table`` command now takes options ``--counts`` and ``--columns`` plus the standard output format options, see :ref:`cli_tables`
+
 .. _v0_11:
 
 0.11 (2019-02-07)
