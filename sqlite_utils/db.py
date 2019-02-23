@@ -71,7 +71,7 @@ class Database:
             None.__class__: "TEXT",
         }
         columns_sql = ",\n".join(
-            "   [{col_name}] {col_type} {primary_key} {references}".format(
+            "   [{col_name}] {col_type}{primary_key}{references}".format(
                 col_name=col_name,
                 col_type=col_type_mapping[col_type],
                 primary_key=" PRIMARY KEY" if (pk == col_name) else "",
@@ -87,8 +87,8 @@ class Database:
             for col_name, col_type in column_items
         )
         sql = """CREATE TABLE [{table}] (
-            {columns_sql}
-        ){extra};
+{columns_sql}
+){extra};
         """.format(
             table=name, columns_sql=columns_sql, extra=extra
         )

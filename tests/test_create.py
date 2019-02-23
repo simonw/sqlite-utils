@@ -28,6 +28,16 @@ def test_create_table(fresh_db):
         {"name": "bytes_col", "type": "BLOB"},
         {"name": "datetime_col", "type": "TEXT"},
     ] == [{"name": col.name, "type": col.type} for col in table.columns]
+    assert (
+        "CREATE TABLE [test_table] (\n"
+        "   [text_col] TEXT,\n"
+        "   [float_col] FLOAT,\n"
+        "   [int_col] INTEGER,\n"
+        "   [bool_col] INTEGER,\n"
+        "   [bytes_col] BLOB,\n"
+        "   [datetime_col] TEXT\n"
+        ")"
+    ) == table.schema
 
 
 @pytest.mark.parametrize(
