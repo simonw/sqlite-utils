@@ -179,7 +179,7 @@ def test_upsert(db_path, tmpdir):
     )
 
 
-def test_csv(db_path):
+def test_query_csv(db_path):
     db = Database(db_path)
     with db.conn:
         db["dogs"].insert_all(
@@ -189,13 +189,13 @@ def test_csv(db_path):
             ]
         )
     result = CliRunner().invoke(
-        cli.cli, ["csv", db_path, "select id, name, age from dogs"]
+        cli.cli, [db_path, "select id, name, age from dogs", "--csv"]
     )
     assert 0 == result.exit_code
     assert "id,name,age\n1,Cleo,4\n2,Pancakes,2\n" == result.output
     # Test the no-headers option:
     result = CliRunner().invoke(
-        cli.cli, ["csv", db_path, "select id, name, age from dogs", "--no-headers"]
+        cli.cli, [db_path, "select id, name, age from dogs", "--no-headers", "--csv"]
     )
     assert "1,Cleo,4\n2,Pancakes,2\n" == result.output
 
@@ -225,7 +225,7 @@ _one_query = "select id, name, age from dogs where id = 1"
         (_one_query, ["--arrays", "--nl"], '[1, "Cleo", 4]'),
     ],
 )
-def test_json(db_path, sql, args, expected):
+def test_query_json(db_path, sql, args, expected):
     db = Database(db_path)
     with db.conn:
         db["dogs"].insert_all(
@@ -234,5 +234,5 @@ def test_json(db_path, sql, args, expected):
                 {"id": 2, "age": 2, "name": "Pancakes"},
             ]
         )
-    result = CliRunner().invoke(cli.cli, ["json", db_path, sql] + args)
+    result = CliRunner().invoke(cli.cli, [db_path, sql] + args)
     assert expected == result.output.strip()

@@ -22,7 +22,7 @@ setup(
     version=VERSION,
     license="Apache License, Version 2.0",
     packages=find_packages(),
-    install_requires=["click"],
+    install_requires=["click", "click-default-group"],
     setup_requires=["pytest-runner"],
     extras_require={"test": ["pytest", "black"]},
     entry_points="""

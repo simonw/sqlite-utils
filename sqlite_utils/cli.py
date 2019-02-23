@@ -1,13 +1,14 @@
 import click
+from click_default_group import DefaultGroup
 import sqlite_utils
 import itertools
 import json
 import sys
-import csv
+import csv as csv_std
 import sqlite3
 
 
-@click.group()
+@click.group(cls=DefaultGroup, default="query", default_if_no_args=True)
 @click.version_option()
 def cli():
     "Commands for interacting with a SQLite database"
@@ -103,6 +104,29 @@ def populate_fts(path, table, column):
     db[table].populate_fts(column)
 
 
+def output_options(fn):
+    for decorator in reversed(
+        (
+            click.option(
+                "--nl",
+                help="Output newline-delimited JSON",
+                is_flag=True,
+                default=False,
+            ),
+            click.option(
+                "--arrays",
+                help="Output rows as arrays instead of objects",
+                is_flag=True,
+                default=False,
+            ),
+            click.option("--csv", is_flag=True, help="Output CSV"),
+            click.option("--no-headers", is_flag=True, help="Omit CSV headers"),
+        )
+    ):
+        fn = decorator(fn)
+    return fn
+
+
 def insert_upsert_options(fn):
     for decorator in reversed(
         (
@@ -133,7 +157,7 @@ def insert_upsert_implementation(
         click.echo("Use just one of --nl and --csv", err=True)
         return
     if csv:
-        reader = csv.reader(json_file)
+        reader = csv_std.reader(json_file)
         headers = next(reader)
         docs = (dict(zip(headers, row)) for row in reader)
     elif nl:
@@ -176,34 +200,14 @@ def upsert(path, table, json_file, pk, nl, csv, batch_size):
     )
 
 
-@cli.command(name="csv")
+@cli.command()
 @click.argument(
     "path",
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("sql")
-@click.option(
-    "--no-headers", help="Exclude headers from CSV output", is_flag=True, default=False
-)
-def csv_cmd(path, sql, no_headers):
-    "Execute SQL query and return the results as CSV"
-    db = sqlite_utils.Database(path)
-    cursor = db.conn.execute(sql)
-    writer = csv.writer(sys.stdout)
-    if not no_headers:
-        writer.writerow([c[0] for c in cursor.description])
-    for row in cursor:
-        writer.writerow(row)
-
-
-@cli.command(name="json")
-@click.argument(
-    "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
-    required=True,
-)
-@click.argument("sql")
+@output_options
 @click.option("--nl", help="Output newline-delimited JSON", is_flag=True, default=False)
 @click.option(
     "--arrays",
@@ -211,17 +215,29 @@ def csv_cmd(path, sql, no_headers):
     is_flag=True,
     default=False,
 )
-def json_cmd(path, sql, nl, arrays):
+def query(path, sql, nl, arrays, csv, no_headers):
     "Execute SQL query and return the results as JSON"
     db = sqlite_utils.Database(path)
     cursor = iter(db.conn.execute(sql))
+    headers = [c[0] for c in cursor.description]
+    if csv:
+        writer = csv_std.writer(sys.stdout)
+        if not no_headers:
+            writer.writerow([c[0] for c in cursor.description])
+        for row in cursor:
+            writer.writerow(row)
+    else:
+        for line in output_rows(cursor, headers, nl, arrays):
+            click.echo(line)
+
+
+def output_rows(iterator, headers, nl, arrays):
     # We have to iterate two-at-a-time so we can know if we
     # should output a trailing comma or if we have reached
     # the last row.
-    current_iter, next_iter = itertools.tee(cursor, 2)
+    current_iter, next_iter = itertools.tee(iterator, 2)
     next(next_iter, None)
     first = True
-    headers = [c[0] for c in cursor.description]
     for row, next_row in itertools.zip_longest(current_iter, next_iter):
         is_last = next_row is None
         data = row
@@ -233,5 +249,5 @@ def json_cmd(path, sql, nl, arrays):
             maybecomma="," if (not nl and not is_last) else "",
             lastchar="]" if (is_last and not nl) else "",
         )
-        click.echo(line)
+        yield line
         first = False

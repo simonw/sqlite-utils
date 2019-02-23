@@ -48,7 +48,7 @@ The ``Database()`` constructor can now accept a ``pathlib.Path`` object in addit
 
 Two new commands: ``sqlite-utils csv`` and ``sqlite-utils json``
 
-These commands execute a SQL query and return the results as CSV or JSON. See :ref:`cli_csv` and :ref:`cli_json` for more details.
+These commands execute a SQL query and return the results as CSV or JSON. See :ref:`cli_query_csv` and :ref:`cli_query_json` for more details.
 
 ::
 

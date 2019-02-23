@@ -6,56 +6,38 @@
 
 The ``sqlite-utils`` command-line tool can be used to manipulate SQLite databases in a number of different ways.
 
-.. _cli_csv:
-
-Running queries and returning CSV
-=================================
-
-You can execute a SQL query against a database and get the results back as CSV like this::
-
-    $ sqlite-utils csv dogs.db "select * from dogs"
-    id,age,name
-    1,4,Cleo
-    2,2,Pancakes
-
-This will default to including the column names as a header row. To exclude the headers, use ``--no-headers``::
-
-    $ sqlite-utils csv dogs.db "select * from dogs" --no-headers
-    1,4,Cleo
-    2,2,Pancakes
-
-.. _cli_json:
+.. _cli_query_json:
 
 Running queries and returning JSON
 ==================================
 
 You can execute a SQL query against a database and get the results back as JSON like this::
 
-    $ sqlite-utils json dogs.db "select * from dogs"
+    $ sqlite-utils dogs.db "select * from dogs"
     [{"id": 1, "age": 4, "name": "Cleo"},
      {"id": 2, "age": 2, "name": "Pancakes"}]
 
 Use ``--nl`` to get back newline-delimited JSON objects::
 
-    $ sqlite-utils json --nl dogs.db "select * from dogs"
+    $ sqlite-utils dogs.db "select * from dogs" --nl
     {"id": 1, "age": 4, "name": "Cleo"}
     {"id": 2, "age": 2, "name": "Pancakes"}
 
 You can use ``--arrays`` to request ararys instead of objects::
 
-    $ sqlite-utils json --arrays dogs.db "select * from dogs"
+    $ sqlite-utils dogs.db "select * from dogs" --arrays
     [[1, 4, "Cleo"],
      [2, 2, "Pancakes"]]
 
 You can also combine ``--arrays`` and ``--nl``::
 
-    $ sqlite-utils json --arrays --nl dogs.db "select * from dogs"
+    $ sqlite-utils dogs.db "select * from dogs" --arrays --nl 
     [1, 4, "Cleo"]
     [2, 2, "Pancakes"]
 
 If you want to pretty-print the output further, you can pipe it through ``python -mjson.tool``::
 
-    $ sqlite-utils json dogs.db "select * from dogs" | python -mjson.tool
+    $ sqlite-utils dogs.db "select * from dogs" | python -mjson.tool
     [
         {
             "id": 1,
@@ -68,6 +50,24 @@ If you want to pretty-print the output further, you can pipe it through ``python
             "name": "Pancakes"
         }
     ]
+
+.. _cli_query_csv:
+
+Running queries and returning CSV
+=================================
+
+You can use the ``--csv`` option to return results as CSV::
+
+    $ sqlite-utils dogs.db "select * from dogs" --csv
+    id,age,name
+    1,4,Cleo
+    2,2,Pancakes
+
+This will default to including the column names as a header row. To exclude the headers, use ``--no-headers``::
+
+    $ sqlite-utils dogs.db "select * from dogs" --csv --no-headers
+    1,4,Cleo
+    2,2,Pancakes
 
 Listing tables
 ==============
