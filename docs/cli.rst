@@ -92,14 +92,37 @@ Listing tables
 You can list the names of tables in a database using the ``tables`` subcommand::
 
     $ sqlite-utils tables mydb.db
+    [{"table": "dogs"},
+     {"table": "cats"},
+     {"table": "chickens"}]
+
+You can output this list in CSV using the ``-csv`` option::
+
+    $ sqlite-utils tables mydb.db --csv --no-headers
     dogs
     cats
     chickens
 
 If you just want to see the FTS4 tables, you can use ``--fts4`` (or ``--fts5`` for FTS5 tables)::
 
-    $ sqlite-utils tables --fts4 docs.db
-    docs_fts
+    $ sqlite-utils tables docs.db --fts4
+    [{"table": "docs_fts"}]
+
+Use ``--counts`` to include a count of the number of rows in each table::
+
+    $ sqlite-utils tables mydb.db --counts
+    [{"table": "dogs", "count": 12},
+     {"table": "cats", "count": 332},
+     {"table": "chickens", "count": 9}]
+
+Use ``--columns`` to include a list of columns in each table::
+
+    $ sqlite-utils tables dogs.db --counts --columns
+    [{"table": "Gosh", "count": 0, "columns": ["c1", "c2", "c3"]},
+     {"table": "Gosh2", "count": 0, "columns": ["c1", "c2", "c3"]},
+     {"table": "dogs", "count": 2, "columns": ["id", "age", "name"]}]
+
+The ``--nl``, ``--csv`` and ``--no-headers`` options are all available.
 
 .. _cli_inserting_data:
 

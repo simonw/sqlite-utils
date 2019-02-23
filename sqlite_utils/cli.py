@@ -8,6 +8,29 @@ import csv as csv_std
 import sqlite3
 
 
+def output_options(fn):
+    for decorator in reversed(
+        (
+            click.option(
+                "--nl",
+                help="Output newline-delimited JSON",
+                is_flag=True,
+                default=False,
+            ),
+            click.option(
+                "--arrays",
+                help="Output rows as arrays instead of objects",
+                is_flag=True,
+                default=False,
+            ),
+            click.option("--csv", is_flag=True, help="Output CSV"),
+            click.option("--no-headers", is_flag=True, help="Omit CSV headers"),
+        )
+    ):
+        fn = decorator(fn)
+    return fn
+
+
 @click.group(cls=DefaultGroup, default="query", default_if_no_args=True)
 @click.version_option()
 def cli():
@@ -27,11 +50,47 @@ def cli():
 @click.option(
     "--fts5", help="Just show FTS5 enabled tables", default=False, is_flag=True
 )
-def tables(path, fts4, fts5):
+@click.option(
+    "--counts", help="Include row counts per table", default=False, is_flag=True
+)
+@output_options
+@click.option(
+    "--columns",
+    help="Include list of columns for each table",
+    is_flag=True,
+    default=False,
+)
+def tables(path, fts4, fts5, counts, nl, arrays, csv, no_headers, columns):
     """List the tables in the database"""
     db = sqlite_utils.Database(path)
-    for name in db.table_names(fts4=fts4, fts5=fts5):
-        print(name)
+    headers = ["table"]
+    if counts:
+        headers.append("count")
+    if columns:
+        headers.append("columns")
+
+    def _iter():
+        for name in db.table_names(fts4=fts4, fts5=fts5):
+            row = [name]
+            if counts:
+                row.append(db[name].count)
+            if columns:
+                cols = [c.name for c in db[name].columns]
+                if csv:
+                    row.append("\n".join(cols))
+                else:
+                    row.append(cols)
+            yield row
+
+    if csv:
+        writer = csv_std.writer(sys.stdout)
+        if not no_headers:
+            writer.writerow(headers)
+        for row in _iter():
+            writer.writerow(row)
+    else:
+        for line in output_rows(_iter(), headers, nl, arrays):
+            click.echo(line)
 
 
 @cli.command()
@@ -102,29 +161,6 @@ def populate_fts(path, table, column):
     "Re-populate FTS for specific table and columns"
     db = sqlite_utils.Database(path)
     db[table].populate_fts(column)
-
-
-def output_options(fn):
-    for decorator in reversed(
-        (
-            click.option(
-                "--nl",
-                help="Output newline-delimited JSON",
-                is_flag=True,
-                default=False,
-            ),
-            click.option(
-                "--arrays",
-                help="Output rows as arrays instead of objects",
-                is_flag=True,
-                default=False,
-            ),
-            click.option("--csv", is_flag=True, help="Output CSV"),
-            click.option("--no-headers", is_flag=True, help="Omit CSV headers"),
-        )
-    ):
-        fn = decorator(fn)
-    return fn
 
 
 def insert_upsert_options(fn):

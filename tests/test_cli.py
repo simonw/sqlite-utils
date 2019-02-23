@@ -22,19 +22,51 @@ def db_path(tmpdir):
 
 def test_tables(db_path):
     result = CliRunner().invoke(cli.cli, ["tables", db_path])
-    assert "Gosh\nGosh2" == result.output.strip()
+    assert '[{"table": "Gosh"},\n {"table": "Gosh2"}]' == result.output.strip()
 
 
 def test_tables_fts4(db_path):
     Database(db_path)["Gosh"].enable_fts(["c2"], fts_version="FTS4")
     result = CliRunner().invoke(cli.cli, ["tables", "--fts4", db_path])
-    assert "Gosh_fts" == result.output.strip()
+    assert '[{"table": "Gosh_fts"}]' == result.output.strip()
 
 
 def test_tables_fts5(db_path):
     Database(db_path)["Gosh"].enable_fts(["c2"], fts_version="FTS5")
     result = CliRunner().invoke(cli.cli, ["tables", "--fts5", db_path])
-    assert "Gosh_fts" == result.output.strip()
+    assert '[{"table": "Gosh_fts"}]' == result.output.strip()
+
+
+def test_tables_counts_and_columns(db_path):
+    db = Database(db_path)
+    with db.conn:
+        db["lots"].insert_all([{"id": i, "age": i + 1} for i in range(30)])
+    result = CliRunner().invoke(cli.cli, ["tables", "--counts", "--columns", db_path])
+    assert (
+        '[{"table": "Gosh", "count": 0, "columns": ["c1", "c2", "c3"]},\n'
+        ' {"table": "Gosh2", "count": 0, "columns": ["c1", "c2", "c3"]},\n'
+        ' {"table": "lots", "count": 30, "columns": ["id", "age"]}]'
+    ) == result.output.strip()
+
+
+def test_tables_counts_and_columns_csv(db_path):
+    db = Database(db_path)
+    with db.conn:
+        db["lots"].insert_all([{"id": i, "age": i + 1} for i in range(30)])
+    result = CliRunner().invoke(
+        cli.cli, ["tables", "--counts", "--columns", "--csv", db_path]
+    )
+    assert (
+        "table,count,columns\n"
+        'Gosh,0,"c1\n'
+        "c2\n"
+        'c3"\n'
+        'Gosh2,0,"c1\n'
+        "c2\n"
+        'c3"\n'
+        'lots,30,"id\n'
+        'age"'
+    ) == result.output.strip()
 
 
 def test_enable_fts(db_path):

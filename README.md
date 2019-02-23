@@ -13,8 +13,8 @@ Install it like this:
 
 Now you can do things like this:
 
-    $ sqlite-utils tables dogs.db
-    dogs
+    $ sqlite-utils tables dogs.db --counts
+    [{"table": "dogs", "count": 2}]
 
     $ sqlite-utils dogs.db "select * from dogs"
     [{"id": 1, "age": 4, "name": "Cleo"},
