@@ -16,14 +16,14 @@ Now you can do things like this:
     $ sqlite-utils tables dogs.db
     dogs
 
-    $ sqlite-utils csv dogs.db "select * from dogs"
+    $ sqlite-utils dogs.db "select * from dogs"
+    [{"id": 1, "age": 4, "name": "Cleo"},
+     {"id": 2, "age": 2, "name": "Pancakes"}]
+
+    $ sqlite-utils dogs.db "select * from dogs" --csv
     id,age,name
     1,4,Cleo
     2,2,Pancakes
-
-    $ sqlite-utils json dogs.db "select * from dogs"
-    [{"id": 1, "age": 4, "name": "Cleo"},
-     {"id": 2, "age": 2, "name": "Pancakes"}]
 
 Full documentation: https://sqlite-utils.readthedocs.io/
 
