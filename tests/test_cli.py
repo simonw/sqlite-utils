@@ -207,7 +207,7 @@ def test_add_column_error_invalid_type(db_path):
         cli.cli, ["add-column", db_path, "dogs", "blah", "badtype"]
     )
     assert 0 != result.exit_code
-    assert 'invalid choice: badtype' in result.output
+    assert "invalid choice: badtype" in result.output
 
 
 def test_enable_fts(db_path):
