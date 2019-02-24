@@ -1,5 +1,5 @@
 from sqlite_utils import cli, Database
-from sqlite_utils.db import Index
+from sqlite_utils.db import Index, ForeignKey
 from click.testing import CliRunner
 import json
 import os
@@ -200,14 +200,46 @@ def test_add_column(db_path, col_name, col_type, expected_schema):
     assert expected_schema == collapse_whitespace(db["dogs"].schema)
 
 
-def test_add_column_error_invalid_type(db_path):
+def test_add_foreign_key(db_path):
     db = Database(db_path)
-    db.create_table("dogs", {"name": str})
+    db["authors"].insert_all(
+        [{"id": 1, "name": "Sally"}, {"id": 2, "name": "Asheesh"}], pk="id"
+    )
+    db["books"].insert_all(
+        [
+            {"title": "Hedgehogs of the world", "author_id": 1},
+            {"title": "How to train your wolf", "author_id": 2},
+        ]
+    )
+    assert (
+        0
+        == CliRunner()
+        .invoke(
+            cli.cli, ["add-foreign-key", db_path, "books", "author_id", "authors", "id"]
+        )
+        .exit_code
+    )
+    assert [
+        ForeignKey(
+            table="books", column="author_id", other_table="authors", other_column="id"
+        )
+    ] == db["books"].foreign_keys
+    # Error if we try to add it twice:
     result = CliRunner().invoke(
-        cli.cli, ["add-column", db_path, "dogs", "blah", "badtype"]
+        cli.cli, ["add-foreign-key", db_path, "books", "author_id", "authors", "id"]
+    )
+
+    assert 0 != result.exit_code
+    assert (
+        "Error: Foreign key already exists for author_id => authors.id"
+        == result.output.strip()
+    )
+    # Error if we try against an invalid cgolumn
+    result = CliRunner().invoke(
+        cli.cli, ["add-foreign-key", db_path, "books", "author_id", "authors", "bad"]
     )
     assert 0 != result.exit_code
-    assert "invalid choice: badtype" in result.output
+    assert "Error: No such column: authors.bad" == result.output.strip()
 
 
 def test_enable_fts(db_path):

@@ -232,6 +232,19 @@ You can add a column using the ``add-column`` command::
 
 The last argument here is the type of the column to be created. You can use one of ``text``, ``integer``, ``float`` or ``blob``.
 
+.. _cli_add_foreign_key:
+
+Adding foreign key constraints
+==============================
+
+The ``add-foreign-key`` command can be used to add new foreign key references to an existing table - something which SQLite's ``ALTER TABLE`` command does not support.
+
+See :ref:`python_api_add_foreign_key` in the Python API documentation for further details and warnings (this could corrupt your database).
+
+To add a foreign key constraint pointing the ``books.author_id`` column to ``authors.id`` in another table, do this::
+
+    $ sqlite-utils add-foreign-key books.db books author_id authors id
+
 .. _cli_create_index:
 
 Creating indexes

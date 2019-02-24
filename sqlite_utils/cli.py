@@ -1,6 +1,7 @@
 import click
 from click_default_group import DefaultGroup
 import sqlite_utils
+from sqlite_utils.db import AlterError
 import itertools
 import json
 import sys
@@ -152,6 +153,31 @@ def add_column(path, table, col_name, col_type):
     "Add a column to the specified table"
     db = sqlite_utils.Database(path)
     db[table].add_column(col_name, col_type)
+
+
+@cli.command(name="add-foreign-key")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.argument("column")
+@click.argument("other_table")
+@click.argument("other_column")
+def add_foreign_key(path, table, column, other_table, other_column):
+    """
+    Add a new foreign key constraint to an existing table. Example usage:
+
+        $ sqlite-utils add-foreign-key my.db books author_id authors id
+
+    WARNING: Could corrupt your database! Back up your database file first.
+    """
+    db = sqlite_utils.Database(path)
+    try:
+        db[table].add_foreign_key(column, other_table, other_column)
+    except AlterError as e:
+        raise click.ClickException(e)
 
 
 @cli.command(name="create-index")
