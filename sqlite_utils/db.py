@@ -1,6 +1,7 @@
 import sqlite3
 from collections import namedtuple
 import datetime
+import hashlib
 import itertools
 import json
 import pathlib
@@ -53,7 +54,7 @@ class Database:
         return [dict(zip(keys, row)) for row in cursor.fetchall()]
 
     def create_table(
-        self, name, columns, pk=None, foreign_keys=None, column_order=None
+        self, name, columns, pk=None, foreign_keys=None, column_order=None, hash_id=None
     ):
         foreign_keys = foreign_keys or []
         foreign_keys_by_name = {fk[0]: fk for fk in foreign_keys}
@@ -62,6 +63,9 @@ class Database:
             column_items.sort(
                 key=lambda p: column_order.index(p[0]) if p[0] in column_order else 999
             )
+        if hash_id:
+            column_items.insert(0, (hash_id, str))
+            pk = hash_id
         extra = ""
         col_type_mapping = {
             float: "FLOAT",
@@ -216,7 +220,9 @@ class Table:
             indexes.append(Index(**row))
         return indexes
 
-    def create(self, columns, pk=None, foreign_keys=None, column_order=None):
+    def create(
+        self, columns, pk=None, foreign_keys=None, column_order=None, hash_id=None
+    ):
         columns = {name: value for (name, value) in columns.items()}
         with self.db.conn:
             self.db.create_table(
@@ -225,6 +231,7 @@ class Table:
                 pk=pk,
                 foreign_keys=foreign_keys,
                 column_order=column_order,
+                hash_id=hash_id,
             )
         self.exists = True
         return self
@@ -358,7 +365,13 @@ class Table:
         return self.db.conn.execute(sql, (q,)).fetchall()
 
     def insert(
-        self, record, pk=None, foreign_keys=None, upsert=False, column_order=None
+        self,
+        record,
+        pk=None,
+        foreign_keys=None,
+        upsert=False,
+        column_order=None,
+        hash_id=None,
     ):
         return self.insert_all(
             [record],
@@ -366,6 +379,7 @@ class Table:
             foreign_keys=foreign_keys,
             upsert=upsert,
             column_order=column_order,
+            hash_id=hash_id,
         )
 
     def insert_all(
@@ -376,12 +390,14 @@ class Table:
         upsert=False,
         batch_size=100,
         column_order=None,
+        hash_id=None,
     ):
         """
         Like .insert() but takes a list of records and ensures that the table
         that it creates (if table does not exist) has columns for ALL of that
         data
         """
+        assert not (hash_id and pk), "Use either pk= or hash_id="
         all_columns = None
         first = True
         for chunk in chunks(records, batch_size):
@@ -394,11 +410,14 @@ class Table:
                         pk,
                         foreign_keys,
                         column_order=column_order,
+                        hash_id=hash_id,
                     )
                 all_columns = set()
                 for record in chunk:
                     all_columns.update(record.keys())
                 all_columns = list(sorted(all_columns))
+                if hash_id:
+                    all_columns.insert(0, hash_id)
             first = False
             sql = """
                 INSERT {upsert} INTO [{table}] ({columns}) VALUES {rows};
@@ -418,24 +437,44 @@ class Table:
             values = []
             for record in chunk:
                 values.extend(
-                    jsonify_if_needed(record.get(key, None)) for key in all_columns
+                    jsonify_if_needed(
+                        record.get(key, None if key != hash_id else _hash(record))
+                    )
+                    for key in all_columns
                 )
             with self.db.conn:
                 result = self.db.conn.execute(sql, values)
-                self.last_id = result.lastrowid
+                self.last_rowid = result.lastrowid
+                self.lash_pk = None
+                if hash_id or pk:
+                    self.last_pk = self.db.conn.execute(
+                        "select [{}] from [{}] where rowid = ?".format(
+                            hash_id or pk, self.name
+                        ),
+                        (self.last_rowid,),
+                    ).fetchone()[0]
         return self
 
-    def upsert(self, record, pk=None, foreign_keys=None, column_order=None):
+    def upsert(
+        self, record, pk=None, foreign_keys=None, column_order=None, hash_id=None
+    ):
         return self.insert(
             record,
             pk=pk,
             foreign_keys=foreign_keys,
             upsert=True,
             column_order=column_order,
+            hash_id=hash_id,
         )
 
     def upsert_all(
-        self, records, pk=None, foreign_keys=None, column_order=None, batch_size=100
+        self,
+        records,
+        pk=None,
+        foreign_keys=None,
+        column_order=None,
+        batch_size=100,
+        hash_id=None,
     ):
         return self.insert_all(
             records,
@@ -444,6 +483,7 @@ class Table:
             column_order=column_order,
             batch_size=100,
             upsert=True,
+            hash_id=hash_id,
         )
 
 
@@ -458,3 +498,9 @@ def jsonify_if_needed(value):
         return json.dumps(value)
     else:
         return value
+
+
+def _hash(record):
+    return hashlib.sha1(
+        json.dumps(record, separators=(",", ":"), sort_keys=True).encode("utf8")
+    ).hexdigest()

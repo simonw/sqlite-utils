@@ -121,6 +121,10 @@ If you want to explicitly set the order of the columns you can do so using the `
 
 You don't need to pass all of the columns to the ``column_order`` parameter. If you only pass a subset of the columns the remaining columns will be ordered based on the key order of the dictionary.
 
+After inserting a row like this, the ``dogs.last_rowid`` property will return the SQLite ``rowid`` assigned to the most recently inserted record.
+
+The ``dogs.last_pk`` property will return the last inserted primary key value, if you specified one. This can be very useful when writing code that creates foreign key or many-to-many relationships.
+
 Bulk inserts
 ============
 
@@ -177,6 +181,31 @@ If a record exists with id=1, it will be updated to match those fields. If it do
 Note that the ``pk`` and ``column_order`` parameters here are optional if you are certain that the table has already been created. You should pass them if the table may not exist at the time the first upsert is performed.
 
 An ``upsert_all()`` method is also available, which behaves like ``insert_all()`` but performs upserts instead.
+
+Setting an ID based on the hash of the row contents
+===================================================
+
+Sometimes you will find yourself working with a dataset that includes rows that do not have a provided obvious ID, but where you would like to assign one so that you can later upsert into that table without creating duplicate records.
+
+In these cases, a useful technique is to create an ID that is derived from the sha1 hash of the row contents.
+
+``sqlite-utils`` can do this for you using the ``hash_id=`` option. For example::
+
+    db = sqlite_utils.Database("dogs.db")
+    db["dogs"].upsert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id")
+    print(list(db["dogs]))
+
+Outputs::
+
+    [{'id': 'f501265970505d9825d8d9f590bfab3519fb20b1', 'name': 'Cleo', 'twitter': 'cleopaws'}]
+
+If you are going to use that ID straight away, you can access it using ``last_pk``::
+
+    dog_id = db["dogs"].upsert({
+        "name": "Cleo",
+        "twitter": "cleopaws"
+    }, hash_id="id").last_pk
+    # dog_id is now "f501265970505d9825d8d9f590bfab3519fb20b1"
 
 Creating views
 ==============

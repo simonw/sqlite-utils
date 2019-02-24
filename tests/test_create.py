@@ -206,6 +206,17 @@ def test_insert_thousands_ignores_extra_columns_after_first_100(fresh_db):
     assert [{"i": 101, "word": None}] == rows
 
 
+def test_insert_hash_id(fresh_db):
+    dogs = fresh_db["dogs"]
+    id = dogs.upsert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id").last_pk
+    assert "f501265970505d9825d8d9f590bfab3519fb20b1" == id
+    assert 1 == dogs.count
+    # Upserting a second time should not create a new row
+    id2 = dogs.upsert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id").last_pk
+    assert "f501265970505d9825d8d9f590bfab3519fb20b1" == id2
+    assert 1 == dogs.count
+
+
 def test_create_view(fresh_db):
     fresh_db["data"].insert({"foo": "foo", "bar": "bar"})
     fresh_db.create_view("bar", "select bar from data")
