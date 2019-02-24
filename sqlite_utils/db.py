@@ -5,6 +5,11 @@ import itertools
 import json
 import pathlib
 
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
 )
@@ -70,6 +75,23 @@ class Database:
             datetime.time: "TEXT",
             None.__class__: "TEXT",
         }
+        # If numpy is available, add more types
+        if np:
+            col_type_mapping.update(
+                {
+                    np.int8: "INTEGER",
+                    np.int16: "INTEGER",
+                    np.int32: "INTEGER",
+                    np.int64: "INTEGER",
+                    np.uint8: "INTEGER",
+                    np.uint16: "INTEGER",
+                    np.uint32: "INTEGER",
+                    np.uint64: "INTEGER",
+                    np.float16: "FLOAT",
+                    np.float32: "FLOAT",
+                    np.float64: "FLOAT",
+                }
+            )
         columns_sql = ",\n".join(
             "   [{col_name}] {col_type}{primary_key}{references}".format(
                 col_name=col_name,

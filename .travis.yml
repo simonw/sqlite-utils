@@ -12,6 +12,8 @@ script:
   - sudo apt-get update && sudo apt-get install sqlite3
   - pip install -U pip wheel
   - pip install .[test]
+  # Only run the numpy/pandas tests on Python 3.7:
+  - python -c "import sys; print(sys.version_info.minor == 7)" | grep True > /dev/null && pip install pandas || true
   - pytest
 
 cache:
