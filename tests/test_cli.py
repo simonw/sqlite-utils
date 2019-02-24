@@ -160,7 +160,7 @@ def test_create_index(db_path):
         )
     ] == db["Gosh2"].indexes
     # Trying to create the same index should fail
-    assert -1 == CliRunner().invoke(cli.cli, create_index_unique_args).exit_code
+    assert 0 != CliRunner().invoke(cli.cli, create_index_unique_args).exit_code
     # ... unless we use --if-not-exists
     assert (
         0
