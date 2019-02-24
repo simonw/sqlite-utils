@@ -60,7 +60,7 @@ If you want to pretty-print the output further, you can pipe it through ``python
 Running queries and returning CSV
 =================================
 
-You can use the ``--csv`` option to return results as CSV::
+You can use the ``--csv`` option (or ``-c`` shortcut) to return results as CSV::
 
     $ sqlite-utils dogs.db "select * from dogs" --csv
     id,age,name
@@ -73,6 +73,31 @@ This will default to including the column names as a header row. To exclude the 
     1,4,Cleo
     2,2,Pancakes
 
+.. _cli_query_table:
+
+Running queries and outputting a table
+======================================
+
+You can use the ``--table`` option (or ``-t`` shortcut) to output query results as a table::
+
+    $ sqlite-utils dogs.db "select * from dogs" --table
+      id    age  name
+    ----  -----  --------
+       1      4  Cleo
+       2      2  Pancakes
+
+You can use the ``--fmt`` (or ``-f``) option to specify different table formats, for example ``rst`` for reStructuredText::
+
+    $ sqlite-utils dogs.db "select * from dogs" --table --fmt rst
+    ====  =====  ========
+      id    age  name
+    ====  =====  ========
+       1      4  Cleo
+       2      2  Pancakes
+    ====  =====  ========
+
+For a full list of table format options, run ``sqlite-utils query --help``.
+
 .. _cli_rows:
 
 Returning all rows in a table
@@ -84,7 +109,7 @@ You can return every row in a specified table using the ``rows`` subcommand::
     [{"id": 1, "age": 4, "name": "Cleo"},
      {"id": 2, "age": 2, "name": "Pancakes"}]
 
-This command accepts the same output options as ``query`` - so you can pass ``--nl``, ``--csv`` and ``--no-headers``.
+This command accepts the same output options as ``query`` - so you can pass ``--nl``, ``--csv``, ``--no-headers``, ``--table`` and ``--fmt``.
 
 .. _cli_tables:
 
@@ -124,7 +149,7 @@ Use ``--columns`` to include a list of columns in each table::
      {"table": "Gosh2", "count": 0, "columns": ["c1", "c2", "c3"]},
      {"table": "dogs", "count": 2, "columns": ["id", "age", "name"]}]
 
-The ``--nl``, ``--csv`` and ``--no-headers`` options are all available.
+The ``--nl``, ``--csv`` and ``--table`` options are all available.
 
 .. _cli_inserting_data:
 

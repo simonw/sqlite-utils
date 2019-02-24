@@ -5,6 +5,7 @@ import itertools
 import json
 import sys
 import csv as csv_std
+import tabulate
 import sqlite3
 
 
@@ -23,8 +24,17 @@ def output_options(fn):
                 is_flag=True,
                 default=False,
             ),
-            click.option("--csv", is_flag=True, help="Output CSV"),
+            click.option("-c", "--csv", is_flag=True, help="Output CSV"),
             click.option("--no-headers", is_flag=True, help="Omit CSV headers"),
+            click.option("-t", "--table", is_flag=True, help="Output as a table"),
+            click.option(
+                "-f",
+                "--fmt",
+                help="Table format - one of {}".format(
+                    ", ".join(tabulate.tabulate_formats)
+                ),
+                default="simple",
+            ),
         )
     ):
         fn = decorator(fn)
@@ -60,7 +70,7 @@ def cli():
     is_flag=True,
     default=False,
 )
-def tables(path, fts4, fts5, counts, nl, arrays, csv, no_headers, columns):
+def tables(path, fts4, fts5, counts, nl, arrays, csv, no_headers, table, fmt, columns):
     """List the tables in the database"""
     db = sqlite_utils.Database(path)
     headers = ["table"]
@@ -82,7 +92,9 @@ def tables(path, fts4, fts5, counts, nl, arrays, csv, no_headers, columns):
                     row.append(cols)
             yield row
 
-    if csv:
+    if table:
+        print(tabulate.tabulate(_iter(), headers=headers, tablefmt=fmt))
+    elif csv:
         writer = csv_std.writer(sys.stdout)
         if not no_headers:
             writer.writerow(headers)
@@ -175,7 +187,7 @@ def insert_upsert_options(fn):
             click.argument("json_file", type=click.File(), required=True),
             click.option("--pk", help="Column to use as the primary key, e.g. id"),
             click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
-            click.option("--csv", is_flag=True, help="Expect CSV"),
+            click.option("-c", "--csv", is_flag=True, help="Expect CSV"),
             click.option(
                 "--batch-size", type=int, default=100, help="Commit every X records"
             ),
@@ -244,12 +256,14 @@ def upsert(path, table, json_file, pk, nl, csv, batch_size):
 )
 @click.argument("sql")
 @output_options
-def query(path, sql, nl, arrays, csv, no_headers):
+def query(path, sql, nl, arrays, csv, no_headers, table, fmt):
     "Execute SQL query and return the results as JSON"
     db = sqlite_utils.Database(path)
     cursor = iter(db.conn.execute(sql))
     headers = [c[0] for c in cursor.description]
-    if csv:
+    if table:
+        print(tabulate.tabulate(list(cursor), headers=headers, tablefmt=fmt))
+    elif csv:
         writer = csv_std.writer(sys.stdout)
         if not no_headers:
             writer.writerow([c[0] for c in cursor.description])
@@ -266,19 +280,21 @@ def query(path, sql, nl, arrays, csv, no_headers):
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
-@click.argument("table")
+@click.argument("dbtable")
 @output_options
 @click.pass_context
-def rows(ctx, path, table, nl, arrays, csv, no_headers):
+def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt):
     "Output all rows in the specified table"
     ctx.invoke(
         query,
         path=path,
-        sql="select * from [{}]".format(table),
+        sql="select * from [{}]".format(dbtable),
         nl=nl,
         arrays=arrays,
         csv=csv,
         no_headers=no_headers,
+        table=table,
+        fmt=fmt,
     )
 
 

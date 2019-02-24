@@ -69,6 +69,53 @@ def test_tables_counts_and_columns_csv(db_path):
     ) == result.output.strip()
 
 
+@pytest.mark.parametrize(
+    "fmt,expected",
+    [
+        (
+            "simple",
+            (
+                "c1     c2     c3\n"
+                "-----  -----  ----------\n"
+                "verb0  noun0  adjective0\n"
+                "verb1  noun1  adjective1\n"
+                "verb2  noun2  adjective2\n"
+                "verb3  noun3  adjective3"
+            ),
+        ),
+        (
+            "rst",
+            (
+                "=====  =====  ==========\n"
+                "c1     c2     c3\n"
+                "=====  =====  ==========\n"
+                "verb0  noun0  adjective0\n"
+                "verb1  noun1  adjective1\n"
+                "verb2  noun2  adjective2\n"
+                "verb3  noun3  adjective3\n"
+                "=====  =====  =========="
+            ),
+        ),
+    ],
+)
+def test_output_table(db_path, fmt, expected):
+    db = Database(db_path)
+    with db.conn:
+        db["rows"].insert_all(
+            [
+                {
+                    "c1": "verb{}".format(i),
+                    "c2": "noun{}".format(i),
+                    "c3": "adjective{}".format(i),
+                }
+                for i in range(4)
+            ]
+        )
+    result = CliRunner().invoke(cli.cli, ["rows", db_path, "rows", "-t", "-f", fmt])
+    assert 0 == result.exit_code
+    assert expected == result.output.strip()
+
+
 def test_enable_fts(db_path):
     assert None == Database(db_path)["Gosh"].detect_fts()
     result = CliRunner().invoke(
