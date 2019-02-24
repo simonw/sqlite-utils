@@ -1,4 +1,5 @@
 from sqlite_utils import cli, Database
+from sqlite_utils.db import Index
 from click.testing import CliRunner
 import json
 import os
@@ -114,6 +115,59 @@ def test_output_table(db_path, fmt, expected):
     result = CliRunner().invoke(cli.cli, ["rows", db_path, "rows", "-t", "-f", fmt])
     assert 0 == result.exit_code
     assert expected == result.output.strip()
+
+
+def test_create_index(db_path):
+    db = Database(db_path)
+    assert [] == db["Gosh"].indexes
+    result = CliRunner().invoke(cli.cli, ["create-index", db_path, "Gosh", "c1"])
+    assert 0 == result.exit_code
+    assert [
+        Index(
+            seq=0, name="idx_Gosh_c1", unique=0, origin="c", partial=0, columns=["c1"]
+        )
+    ] == db["Gosh"].indexes
+    # Try with a custom name
+    result = CliRunner().invoke(
+        cli.cli, ["create-index", db_path, "Gosh", "c2", "--name", "blah"]
+    )
+    assert 0 == result.exit_code
+    assert [
+        Index(seq=0, name="blah", unique=0, origin="c", partial=0, columns=["c2"]),
+        Index(
+            seq=1, name="idx_Gosh_c1", unique=0, origin="c", partial=0, columns=["c1"]
+        ),
+    ] == db["Gosh"].indexes
+    # Try a two-column unique index
+    create_index_unique_args = [
+        "create-index",
+        db_path,
+        "Gosh2",
+        "c1",
+        "c2",
+        "--unique",
+    ]
+    result = CliRunner().invoke(cli.cli, create_index_unique_args)
+    assert 0 == result.exit_code
+    assert [
+        Index(
+            seq=0,
+            name="idx_Gosh2_c1_c2",
+            unique=1,
+            origin="c",
+            partial=0,
+            columns=["c1", "c2"],
+        )
+    ] == db["Gosh2"].indexes
+    # Trying to create the same index should fail
+    assert -1 == CliRunner().invoke(cli.cli, create_index_unique_args).exit_code
+    # ... unless we use --if-not-exists
+    assert (
+        0
+        == CliRunner()
+        .invoke(cli.cli, create_index_unique_args + ["--if-not-exists"])
+        .exit_code
+    )
 
 
 def test_enable_fts(db_path):

@@ -221,6 +221,23 @@ After running the above ``dogs.json`` example, try running this::
 
 This will replace the record for id=2 (Pancakes) with a new record with an updated age.
 
+.. _cli_create_index:
+
+Creating indexes
+================
+
+You can add an index to an existing table using the ``create-index`` subcommand::
+
+    $ sqlite-utils create-index mydb.db mytable col1 [col2...]
+
+This can be used to create indexes against a single column or multiple columns.
+
+The name of the index will be automatically derived from the table and columns. To specify a different name, use ``--name=name_of_index``.
+
+Use the ``--unique`` option to create a unique index.
+
+Use ``--if-not-exists`` to avoid attempting to create the index if one with that name already exists.
+
 .. _cli_fts:
 
 Configuring full-text search

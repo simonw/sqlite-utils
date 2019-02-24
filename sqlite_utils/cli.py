@@ -134,6 +134,30 @@ def optimize(path, no_vacuum):
         db.vacuum()
 
 
+@cli.command(name="create-index")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.argument("column", nargs=-1, required=True)
+@click.option("--name", help="Explicit name for the new index")
+@click.option("--unique", help="Make this a unique index", default=False, is_flag=True)
+@click.option(
+    "--if-not-exists",
+    help="Ignore if index already exists",
+    default=False,
+    is_flag=True,
+)
+def create_index(path, table, column, name, unique, if_not_exists):
+    "Add an index to the specified table covering the specified columns"
+    db = sqlite_utils.Database(path)
+    db[table].create_index(
+        column, index_name=name, unique=unique, if_not_exists=if_not_exists
+    )
+
+
 @cli.command(name="enable-fts")
 @click.argument(
     "path",
