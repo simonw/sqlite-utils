@@ -183,6 +183,7 @@ def test_create_index(db_path):
         ),
         ("float", "FLOAT", "CREATE TABLE [dogs] ( [name] TEXT , [float] FLOAT)"),
         ("blob", "blob", "CREATE TABLE [dogs] ( [name] TEXT , [blob] BLOB)"),
+        ("default", None, "CREATE TABLE [dogs] ( [name] TEXT , [default] TEXT)"),
     ),
 )
 def test_add_column(db_path, col_name, col_type, expected_schema):
@@ -191,12 +192,10 @@ def test_add_column(db_path, col_name, col_type, expected_schema):
     assert "CREATE TABLE [dogs] ( [name] TEXT )" == collapse_whitespace(
         db["dogs"].schema
     )
-    assert (
-        0
-        == CliRunner()
-        .invoke(cli.cli, ["add-column", db_path, "dogs", col_name, col_type])
-        .exit_code
-    )
+    args = ["add-column", db_path, "dogs", col_name]
+    if col_type is not None:
+        args.append(col_type)
+    assert 0 == CliRunner().invoke(cli.cli, args).exit_code
     assert expected_schema == collapse_whitespace(db["dogs"].schema)
 
 

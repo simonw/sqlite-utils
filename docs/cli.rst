@@ -230,7 +230,7 @@ You can add a column using the ``add-column`` command::
 
     $ sqlite-utils add-column mydb.db mytable nameofcolumn text
 
-The last argument here is the type of the column to be created. You can use one of ``text``, ``integer``, ``float`` or ``blob``.
+The last argument here is the type of the column to be created. You can use one of ``text``, ``integer``, ``float`` or ``blob``. If you leave it off, ``text`` will be used.
 
 .. _cli_add_foreign_key:
 

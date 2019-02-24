@@ -148,6 +148,7 @@ def optimize(path, no_vacuum):
     type=click.Choice(
         ["integer", "float", "blob", "text", "INTEGER", "FLOAT", "BLOB", "TEXT"]
     ),
+    required=False,
 )
 def add_column(path, table, col_name, col_type):
     "Add a column to the specified table"

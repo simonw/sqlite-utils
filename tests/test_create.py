@@ -145,6 +145,11 @@ def test_create_error_if_invalid_foreign_keys(fresh_db):
         ),
         ("float", "FLOAT", "CREATE TABLE [dogs] ( [name] TEXT , [float] FLOAT)"),
         ("blob", "blob", "CREATE TABLE [dogs] ( [name] TEXT , [blob] BLOB)"),
+        (
+            "default_str",
+            None,
+            "CREATE TABLE [dogs] ( [name] TEXT , [default_str] TEXT)",
+        ),
     ),
 )
 def test_add_column(fresh_db, col_name, col_type, expected_schema):

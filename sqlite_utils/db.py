@@ -276,7 +276,9 @@ class Table:
         self.db.conn.execute(sql)
         return self
 
-    def add_column(self, col_name, col_type):
+    def add_column(self, col_name, col_type=None):
+        if col_type is None:
+            col_type = str
         sql = "ALTER TABLE [{table}] ADD COLUMN [{col_name}] {col_type};".format(
             table=self.name, col_name=col_name, col_type=COLUMN_TYPE_MAPPING[col_type]
         )
