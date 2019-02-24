@@ -394,6 +394,8 @@ You can create a unique index by passing ``unique=True``::
 
     dogs.create_index(["name"], unique=True)
 
+Use ``if_not_exists=True`` to do nothing if an index with that name already exists.
+
 Vacuum
 ======
 

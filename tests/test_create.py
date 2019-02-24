@@ -1,9 +1,10 @@
 from sqlite_utils.db import Index, Database
 import collections
 import datetime
+import json
 import pathlib
 import pytest
-import json
+import sqlite3
 
 try:
     import pandas as pd
@@ -186,6 +187,17 @@ def test_create_index_unique(fresh_db):
         )
         == dogs.indexes[0]
     )
+
+
+def test_create_index_if_not_exists(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is_good_dog": True})
+    assert [] == dogs.indexes
+    dogs.create_index(["name"])
+    assert 1 == len(dogs.indexes)
+    with pytest.raises(sqlite3.OperationalError):
+        dogs.create_index(["name"])
+    dogs.create_index(["name"], if_not_exists=True)
 
 
 @pytest.mark.parametrize(
