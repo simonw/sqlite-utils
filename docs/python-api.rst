@@ -394,7 +394,6 @@ You can create a unique index by passing ``unique=True``::
 
     dogs.create_index(["name"], unique=True)
 
-
 Vacuum
 ======
 
