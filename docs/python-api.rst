@@ -125,6 +125,43 @@ After inserting a row like this, the ``dogs.last_rowid`` property will return th
 
 The ``dogs.last_pk`` property will return the last inserted primary key value, if you specified one. This can be very useful when writing code that creates foreign key or many-to-many relationships.
 
+Explicitly creating a table
+---------------------------
+
+You can directly create a new table without inserting any data into it using the ``.create()`` method::
+
+    db["cats"].create({
+        "id": int,
+        "name": str,
+        "weight": float,
+    }, pk="id")
+
+The first argument here is a dictionary specifying the columns you would like to create. Each column is paired with a Python type indicating the type of column. See :ref:`python_api_add_column` for full details on how these types work.
+
+This method takes optional arguments ``pk=``, ``column_order=`` and ``foreign_keys=``.
+
+Specifying foreign keys
+-----------------------
+
+Any operation that can create a table (``.create()``, ``.insert()``, ``.insert_all()``, ``.upsert()`` and ``.upsert_all()``) accepts an optional ``foreign_keys=`` argument which can be used to set up foreign key constraints for the table that is being created.
+
+If you are using your database with `Datasette <https://datasette.readthedocs.io/>`__, Datasette will detect these constraints and use them to generate hyperlinks to associated records.
+
+The ``foreign_keys`` argument takes a sequence of three-tuples, each one specifying the column, other table and other column that should be used to create the relationship. For example:
+
+.. code-block:: python
+
+    db["authors"].insert_all([
+        {"id": 1, "name": "Sally"},
+        {"id": 2, "name": "Asheesh"}
+    ], pk="id")
+    db["books"].insert_all([
+        {"title": "Hedgehogs of the world", "author_id": 1},
+        {"title": "How to train your wolf", "author_id": 2},
+    ], foreign_keys=[
+        ("author_id", "authors", "id")
+    ])
+
 Bulk inserts
 ============
 

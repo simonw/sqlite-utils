@@ -109,6 +109,14 @@ class Database:
         if hash_id:
             column_items.insert(0, (hash_id, str))
             pk = hash_id
+        # Sanity check foreign_keys point to existing tables
+        for _, fk_other_table, fk_other_column in foreign_keys:
+            if not any(
+                c for c in self[fk_other_table].columns if c.name == fk_other_column
+            ):
+                raise AlterError(
+                    "No such column: {}.{}".format(fk_other_table, fk_other_column)
+                )
         extra = ""
         columns_sql = ",\n".join(
             "   [{col_name}] {col_type}{primary_key}{references}".format(
@@ -117,8 +125,8 @@ class Database:
                 primary_key=" PRIMARY KEY" if (pk == col_name) else "",
                 references=(
                     " REFERENCES [{other_table}]([{other_column}])".format(
-                        other_table=foreign_keys_by_name[col_name][2],
-                        other_column=foreign_keys_by_name[col_name][3],
+                        other_table=foreign_keys_by_name[col_name][1],
+                        other_column=foreign_keys_by_name[col_name][2],
                     )
                     if col_name in foreign_keys_by_name
                     else ""

@@ -96,10 +96,7 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(fresh_db):
     fresh_db["two"].insert({"id": 1}, pk="id")
     fresh_db["m2m"].insert(
         {"one_id": 1, "two_id": 1},
-        foreign_keys=(
-            ("one_id", "INTEGER", "one", "id"),
-            ("two_id", "INTEGER", "two", "id"),
-        ),
+        foreign_keys=(("one_id", "one", "id"), ("two_id", "two", "id")),
     )
     assert [
         {"name": "one_id", "type": "INTEGER"},
@@ -122,6 +119,15 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(fresh_db):
         ],
         key=lambda s: repr(s),
     )
+
+
+def test_create_error_if_invalid_foreign_keys(fresh_db):
+    with pytest.raises(AlterError):
+        fresh_db["one"].insert(
+            {"id": 1, "ref_id": 3},
+            pk="id",
+            foreign_keys=(("ref_id", "bad_table", "bad_column"),),
+        )
 
 
 @pytest.mark.parametrize(
