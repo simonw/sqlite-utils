@@ -170,6 +170,24 @@ def test_create_index(fresh_db, columns, index_name, expected_index):
     assert expected_index == dogs.indexes[0]
 
 
+def test_create_index_unique(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is_good_dog": True})
+    assert [] == dogs.indexes
+    dogs.create_index(["name"], unique=True)
+    assert (
+        Index(
+            seq=0,
+            name="idx_dogs_name",
+            unique=1,
+            origin="c",
+            partial=0,
+            columns=["name"],
+        )
+        == dogs.indexes[0]
+    )
+
+
 @pytest.mark.parametrize(
     "data_structure",
     (

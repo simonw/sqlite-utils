@@ -388,6 +388,13 @@ By default the index will be named ``idx_{table-name}_{columns}`` - if you want 
         index_name="good_dogs_by_age"
     )
 
+You can create a unique index by passing ``unique=True``::
+
+.. code-block:: python
+
+    dogs.create_index(["name"], unique=True)
+
+
 Vacuum
 ======
 

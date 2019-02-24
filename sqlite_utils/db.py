@@ -236,16 +236,19 @@ class Table:
         self.exists = True
         return self
 
-    def create_index(self, columns, index_name=None):
+    def create_index(self, columns, index_name=None, unique=False):
         if index_name is None:
             index_name = "idx_{}_{}".format(
                 self.name.replace(" ", "_"), "_".join(columns)
             )
         sql = """
-            CREATE INDEX {index_name}
+            CREATE {unique}INDEX {index_name}
                 ON {table_name} ({columns});
         """.format(
-            index_name=index_name, table_name=self.name, columns=", ".join(columns)
+            index_name=index_name,
+            table_name=self.name,
+            columns=", ".join(columns),
+            unique="UNIQUE " if unique else "",
         )
         self.db.conn.execute(sql)
         return self
