@@ -2,6 +2,18 @@
  Changelog
 ===========
 
+.. _v0_13:
+
+0.13 (2019-02-23)
+-----------------
+
+- New ``--table`` and ``--fmt`` options can be used to output query results in a variety of visual table formats, see :ref:`cli_query_table`
+- New ``hash_id=`` argument can now be used for :ref:`python_api_hash`
+- Can now derive correct column types for numpy int, uint and float values
+- ``table.last_id`` has been renamed to ``table.last_rowid``
+- ``table.last_pk`` now contains the last inserted primary key, if ``pk=`` was specified
+- Prettier indentation in the ``CREATE TABLE`` generated schemas
+
 .. _v0_12:
 
 0.12 (2019-02-22)

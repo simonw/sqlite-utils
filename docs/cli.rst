@@ -1,4 +1,4 @@
-.. _python_api:
+.. _cli:
 
 ================================
  sqlite-utils command-line tool

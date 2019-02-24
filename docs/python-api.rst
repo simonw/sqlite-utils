@@ -182,6 +182,8 @@ Note that the ``pk`` and ``column_order`` parameters here are optional if you ar
 
 An ``upsert_all()`` method is also available, which behaves like ``insert_all()`` but performs upserts instead.
 
+.. _python_api_hash:
+
 Setting an ID based on the hash of the row contents
 ===================================================
 
