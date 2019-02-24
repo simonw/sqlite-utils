@@ -445,7 +445,7 @@ class Table:
             with self.db.conn:
                 result = self.db.conn.execute(sql, values)
                 self.last_rowid = result.lastrowid
-                self.lash_pk = None
+                self.last_pk = None
                 if hash_id or pk:
                     self.last_pk = self.db.conn.execute(
                         "select [{}] from [{}] where rowid = ?".format(
