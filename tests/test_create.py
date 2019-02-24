@@ -1,4 +1,4 @@
-from sqlite_utils.db import Index, Database
+from sqlite_utils.db import Index, Database, ForeignKey, AlterError
 import collections
 import datetime
 import json
@@ -148,6 +148,40 @@ def test_add_column(fresh_db, col_name, col_type, expected_schema):
     )
     fresh_db["dogs"].add_column(col_name, col_type)
     assert expected_schema == collapse_whitespace(fresh_db["dogs"].schema)
+
+
+def test_add_foreign_key(fresh_db):
+    fresh_db["authors"].insert_all(
+        [{"id": 1, "name": "Sally"}, {"id": 2, "name": "Asheesh"}], pk="id"
+    )
+    fresh_db["books"].insert_all(
+        [
+            {"title": "Hedgehogs of the world", "author_id": 1},
+            {"title": "How to train your wolf", "author_id": 2},
+        ]
+    )
+    assert [] == fresh_db["books"].foreign_keys
+    fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+    assert [
+        ForeignKey(
+            table="books", column="author_id", other_table="authors", other_column="id"
+        )
+    ] == fresh_db["books"].foreign_keys
+
+
+def test_add_foreign_key_error_if_column_does_not_exist(fresh_db):
+    fresh_db["books"].insert({"title": "Hedgehogs of the world", "author_id": 1})
+    with pytest.raises(AlterError):
+        fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+
+
+def test_add_foreign_key_error_if_already_exists(fresh_db):
+    fresh_db["books"].insert({"title": "Hedgehogs of the world", "author_id": 1})
+    fresh_db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
+    fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+    with pytest.raises(AlterError) as ex:
+        fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+    assert "Foreign key already exists for author_id => authors.id" == ex.value.args[0]
 
 
 @pytest.mark.parametrize(

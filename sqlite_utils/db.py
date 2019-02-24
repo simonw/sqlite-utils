@@ -59,6 +59,10 @@ if np:
     )
 
 
+class AlterError(Exception):
+    pass
+
+
 class Database:
     def __init__(self, filename_or_conn):
         if isinstance(filename_or_conn, str):
@@ -274,20 +278,42 @@ class Table:
     def drop(self):
         return self.db.conn.execute("DROP TABLE {}".format(self.name))
 
-    def add_foreign_key(self, column, column_type, other_table, other_column):
-        sql = """
-            ALTER TABLE {table} ADD COLUMN {column} {column_type}
-            REFERENCES {other_table}({other_column});
-        """.format(
-            table=self.name,
-            column=column,
-            column_type=column_type,
-            other_table=other_table,
-            other_column=other_column,
-        )
-        self.db.conn.execute(sql)
-        self.db.conn.commit()
-        return self
+    def add_foreign_key(self, column, other_table, other_column):
+        # Sanity check that the other column exists
+        if not [c for c in self.db[other_table].columns if c.name == other_column]:
+            raise AlterError("No such column: {}.{}".format(other_table, other_column))
+        # Check we do not already have an existing foreign key
+        if any(
+            fk
+            for fk in self.foreign_keys
+            if fk.column == column
+            and fk.other_table == other_table
+            and fk.other_column == other_column
+        ):
+            raise AlterError(
+                "Foreign key already exists for {} => {}.{}".format(
+                    column, other_table, other_column
+                )
+            )
+        with self.db.conn:
+            cursor = self.db.conn.cursor()
+            schema_version = cursor.execute("PRAGMA schema_version").fetchone()[0]
+            cursor.execute("PRAGMA writable_schema = 1")
+            old_sql = self.schema
+            extra_sql = ",\n   FOREIGN KEY({column}) REFERENCES {other_table}({other_column})\n".format(
+                column=column, other_table=other_table, other_column=other_column
+            )
+            # Stick that bit in at the very end just before the closing ')'
+            last_paren = old_sql.rindex(")")
+            new_sql = old_sql[:last_paren].strip() + extra_sql + old_sql[last_paren:]
+            cursor.execute(
+                "UPDATE sqlite_master SET sql = ? WHERE name = ?", (new_sql, self.name)
+            )
+            cursor.execute("PRAGMA schema_version = %d" % (schema_version + 1))
+            cursor.execute("PRAGMA writable_schema = 0")
+        # Have to VACUUM outside the transaction to ensure .foreign_keys property
+        # can see the newly created foreign key.
+        cursor.execute("VACUUM")
 
     def enable_fts(self, columns, fts_version="FTS5"):
         "Enables FTS on the specified columns"

@@ -182,6 +182,7 @@ Note that the ``pk`` and ``column_order`` parameters here are optional if you ar
 
 An ``upsert_all()`` method is also available, which behaves like ``insert_all()`` but performs upserts instead.
 
+.. _python_api_add_column:
 
 Adding columns
 ==============
@@ -222,6 +223,31 @@ If you pass a Python type, it will be mapped to SQLite types as shown here::
     np.float16: "FLOAT"
     np.float32: "FLOAT"
     np.float64: "FLOAT"
+
+.. _python_api_add_foreign_key:
+
+Adding foreign key constraints
+==============================
+
+The SQLite ``ALTER TABLE`` statement doesn't have the ability to add foreign key references to an existing column.
+
+It's possible to add these references through very careful manipulation of SQLite's ``sqlite_master`` table, using ``PRAGMA writable_schema``.
+
+``sqlite-utils`` can do this for you, though there is a significant risk of data corruption if something goes wrong so it is advisable to create a fresh copy of your database file before attempting this.
+
+Here's an example of this mechanism in action:
+
+.. code-block:: python
+
+    db["authors"].insert_all([
+        {"id": 1, "name": "Sally"},
+        {"id": 2, "name": "Asheesh"}
+    ], pk="id")
+    db["books"].insert_all([
+        {"title": "Hedgehogs of the world", "author_id": 1},
+        {"title": "How to train your wolf", "author_id": 2},
+    ])
+    db["books"].add_foreign_key("author_id", "authors", "id")
 
 .. _python_api_hash:
 
