@@ -4,6 +4,7 @@ import datetime
 import json
 import pathlib
 import pytest
+import re
 import sqlite3
 
 try:
@@ -120,6 +121,32 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(fresh_db):
         ],
         key=lambda s: repr(s),
     )
+
+
+@pytest.mark.parametrize(
+    "col_name,col_type,expected_schema",
+    (
+        (
+            "nickname", str, "CREATE TABLE [dogs] ( [name] TEXT , [nickname] TEXT)"
+        ),
+        (
+            "dob", datetime.date, "CREATE TABLE [dogs] ( [name] TEXT , [dob] TEXT)"
+        ),
+        (
+            "age", int, "CREATE TABLE [dogs] ( [name] TEXT , [age] INTEGER)"
+        ),
+        (
+            "weight", float, "CREATE TABLE [dogs] ( [name] TEXT , [weight] FLOAT)"
+        ),
+    )
+)
+def test_add_column(fresh_db, col_name, col_type, expected_schema):
+    fresh_db.create_table("dogs", {"name": str})
+    assert "CREATE TABLE [dogs] ( [name] TEXT )" == collapse_whitespace(
+        fresh_db["dogs"].schema
+    )
+    fresh_db["dogs"].add_column(col_name, col_type)
+    assert expected_schema == collapse_whitespace(fresh_db["dogs"].schema)
 
 
 @pytest.mark.parametrize(
@@ -337,3 +364,10 @@ def test_create_table_numpy(fresh_db):
             "np.uint8": 8,
         }
     ] == list(fresh_db["types"].rows)
+
+
+COLLAPSE_RE = re.compile("\s+")
+
+
+def collapse_whitespace(s):
+    return COLLAPSE_RE.sub(" ", s)

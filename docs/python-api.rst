@@ -182,6 +182,40 @@ Note that the ``pk`` and ``column_order`` parameters here are optional if you ar
 
 An ``upsert_all()`` method is also available, which behaves like ``insert_all()`` but performs upserts instead.
 
+
+Adding columns
+==============
+
+You can add a new column to a table using the ``.add_column(col_name, col_type)`` method:
+
+.. code-block:: python
+
+    db["dogs"].add_column("dob", datetime.date)
+
+You can pass any of the following Python types as the second argument - ``sqlite-utils`` will create the column using the appropriate SQLite type from this list::
+
+    float: "FLOAT"
+    int: "INTEGER"
+    bool: "INTEGER"
+    str: "TEXT"
+    bytes: "BLOB"
+    datetime.datetime: "TEXT"
+    datetime.date: "TEXT"
+    datetime.time: "TEXT"
+
+    # If numpy is installed
+    np.int8: "INTEGER"
+    np.int16: "INTEGER"
+    np.int32: "INTEGER"
+    np.int64: "INTEGER"
+    np.uint8: "INTEGER"
+    np.uint16: "INTEGER"
+    np.uint32: "INTEGER"
+    np.uint64: "INTEGER"
+    np.float16: "FLOAT"
+    np.float32: "FLOAT"
+    np.float64: "FLOAT"
+
 .. _python_api_hash:
 
 Setting an ID based on the hash of the row contents

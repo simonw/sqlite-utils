@@ -19,6 +19,36 @@ ForeignKey = namedtuple(
 )
 Index = namedtuple("Index", ("seq", "name", "unique", "origin", "partial", "columns"))
 
+COLUMN_TYPE_MAPPING = {
+    float: "FLOAT",
+    int: "INTEGER",
+    bool: "INTEGER",
+    str: "TEXT",
+    bytes.__class__: "BLOB",
+    bytes: "BLOB",
+    datetime.datetime: "TEXT",
+    datetime.date: "TEXT",
+    datetime.time: "TEXT",
+    None.__class__: "TEXT",
+}
+# If numpy is available, add more types
+if np:
+    COLUMN_TYPE_MAPPING.update(
+        {
+            np.int8: "INTEGER",
+            np.int16: "INTEGER",
+            np.int32: "INTEGER",
+            np.int64: "INTEGER",
+            np.uint8: "INTEGER",
+            np.uint16: "INTEGER",
+            np.uint32: "INTEGER",
+            np.uint64: "INTEGER",
+            np.float16: "FLOAT",
+            np.float32: "FLOAT",
+            np.float64: "FLOAT",
+        }
+    )
+
 
 class Database:
     def __init__(self, filename_or_conn):
@@ -67,39 +97,10 @@ class Database:
             column_items.insert(0, (hash_id, str))
             pk = hash_id
         extra = ""
-        col_type_mapping = {
-            float: "FLOAT",
-            int: "INTEGER",
-            bool: "INTEGER",
-            str: "TEXT",
-            bytes.__class__: "BLOB",
-            bytes: "BLOB",
-            datetime.datetime: "TEXT",
-            datetime.date: "TEXT",
-            datetime.time: "TEXT",
-            None.__class__: "TEXT",
-        }
-        # If numpy is available, add more types
-        if np:
-            col_type_mapping.update(
-                {
-                    np.int8: "INTEGER",
-                    np.int16: "INTEGER",
-                    np.int32: "INTEGER",
-                    np.int64: "INTEGER",
-                    np.uint8: "INTEGER",
-                    np.uint16: "INTEGER",
-                    np.uint32: "INTEGER",
-                    np.uint64: "INTEGER",
-                    np.float16: "FLOAT",
-                    np.float32: "FLOAT",
-                    np.float64: "FLOAT",
-                }
-            )
         columns_sql = ",\n".join(
             "   [{col_name}] {col_type}{primary_key}{references}".format(
                 col_name=col_name,
-                col_type=col_type_mapping[col_type],
+                col_type=COLUMN_TYPE_MAPPING[col_type],
                 primary_key=" PRIMARY KEY" if (pk == col_name) else "",
                 references=(
                     " REFERENCES [{other_table}]([{other_column}])".format(
@@ -250,6 +251,15 @@ class Table:
             columns=", ".join(columns),
             unique="UNIQUE " if unique else "",
             if_not_exists="IF NOT EXISTS " if if_not_exists else "",
+        )
+        self.db.conn.execute(sql)
+        return self
+
+    def add_column(self, col_name, col_type):
+        sql = "ALTER TABLE [{table}] ADD COLUMN [{col_name}] {col_type};".format(
+            table=self.name,
+            col_name=col_name,
+            col_type=COLUMN_TYPE_MAPPING[col_type],
         )
         self.db.conn.execute(sql)
         return self
