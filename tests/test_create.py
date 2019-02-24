@@ -4,8 +4,9 @@ import datetime
 import json
 import pathlib
 import pytest
-import re
 import sqlite3
+
+from .utils import collapse_whitespace
 
 try:
     import pandas as pd
@@ -364,10 +365,3 @@ def test_create_table_numpy(fresh_db):
             "np.uint8": 8,
         }
     ] == list(fresh_db["types"].rows)
-
-
-COLLAPSE_RE = re.compile("\s+")
-
-
-def collapse_whitespace(s):
-    return COLLAPSE_RE.sub(" ", s)

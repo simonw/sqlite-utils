@@ -134,6 +134,26 @@ def optimize(path, no_vacuum):
         db.vacuum()
 
 
+@cli.command(name="add-column")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.argument("col_name")
+@click.argument(
+    "col_type",
+    type=click.Choice(
+        ["integer", "float", "blob", "text", "INTEGER", "FLOAT", "BLOB", "TEXT"]
+    ),
+)
+def add_column(path, table, col_name, col_type):
+    "Add a column to the specified table"
+    db = sqlite_utils.Database(path)
+    db[table].add_column(col_name, col_type)
+
+
 @cli.command(name="create-index")
 @click.argument(
     "path",

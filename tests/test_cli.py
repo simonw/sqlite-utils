@@ -6,6 +6,8 @@ import os
 import pytest
 import sqlite3
 
+from .utils import collapse_whitespace
+
 
 CREATE_TABLES = """
 create table Gosh (c1 text, c2 text, c3 text);
@@ -168,6 +170,44 @@ def test_create_index(db_path):
         .invoke(cli.cli, create_index_unique_args + ["--if-not-exists"])
         .exit_code
     )
+
+
+@pytest.mark.parametrize(
+    "col_name,col_type,expected_schema",
+    (
+        ("text", "TEXT", "CREATE TABLE [dogs] ( [name] TEXT , [text] TEXT)"),
+        (
+            "integer",
+            "INTEGER",
+            "CREATE TABLE [dogs] ( [name] TEXT , [integer] INTEGER)",
+        ),
+        ("float", "FLOAT", "CREATE TABLE [dogs] ( [name] TEXT , [float] FLOAT)"),
+        ("blob", "blob", "CREATE TABLE [dogs] ( [name] TEXT , [blob] BLOB)"),
+    ),
+)
+def test_add_column(db_path, col_name, col_type, expected_schema):
+    db = Database(db_path)
+    db.create_table("dogs", {"name": str})
+    assert "CREATE TABLE [dogs] ( [name] TEXT )" == collapse_whitespace(
+        db["dogs"].schema
+    )
+    assert (
+        0
+        == CliRunner()
+        .invoke(cli.cli, ["add-column", db_path, "dogs", col_name, col_type])
+        .exit_code
+    )
+    assert expected_schema == collapse_whitespace(db["dogs"].schema)
+
+
+def test_add_column_error_invalid_type(db_path):
+    db = Database(db_path)
+    db.create_table("dogs", {"name": str})
+    result = CliRunner().invoke(
+        cli.cli, ["add-column", db_path, "dogs", "blah", "badtype"]
+    )
+    assert 0 != result.exit_code
+    assert 'Invalid value for "col_type"' in result.output
 
 
 def test_enable_fts(db_path):

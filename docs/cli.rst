@@ -221,6 +221,17 @@ After running the above ``dogs.json`` example, try running this::
 
 This will replace the record for id=2 (Pancakes) with a new record with an updated age.
 
+.. _cli_add_column:
+
+Adding columns
+==============
+
+You can add a column using the ``add-column`` command::
+
+    $ sqlite-utils add-column mydb.db mytable nameofcolumn text
+
+The last argument here is the type of the column to be created. You can use one of ``text``, ``integer``, ``float`` or ``blob``.
+
 .. _cli_create_index:
 
 Creating indexes
