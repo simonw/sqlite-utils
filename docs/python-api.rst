@@ -190,9 +190,16 @@ You can add a new column to a table using the ``.add_column(col_name, col_type)`
 
 .. code-block:: python
 
+    db["dogs"].add_column("instagram", str)
+    db["dogs"].add_column("weight", float)
     db["dogs"].add_column("dob", datetime.date)
+    db["dogs"].add_column("image", "BLOB")
 
-You can pass any of the following Python types as the second argument - ``sqlite-utils`` will create the column using the appropriate SQLite type from this list::
+You can specify the ``col_type`` argument either using a SQLite type as a string, or by directly passing a Python type e.g. ``str`` or ``float``.
+
+SQLite types you can specify are ``"TEXT"``, ``"INTEGER"``, ``"FLOAT"`` or ``"BLOB"``.
+
+If you pass a Python type, it will be mapped to SQLite types as shown here::
 
     float: "FLOAT"
     int: "INTEGER"

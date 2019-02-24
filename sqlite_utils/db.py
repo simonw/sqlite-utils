@@ -30,6 +30,15 @@ COLUMN_TYPE_MAPPING = {
     datetime.date: "TEXT",
     datetime.time: "TEXT",
     None.__class__: "TEXT",
+    # SQLite explicit types
+    "TEXT": "TEXT",
+    "INTEGER": "INTEGER",
+    "FLOAT": "FLOAT",
+    "BLOB": "BLOB",
+    "text": "TEXT",
+    "integer": "INTEGER",
+    "float": "FLOAT",
+    "blob": "BLOB",
 }
 # If numpy is available, add more types
 if np:

@@ -130,6 +130,14 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(fresh_db):
         ("dob", datetime.date, "CREATE TABLE [dogs] ( [name] TEXT , [dob] TEXT)"),
         ("age", int, "CREATE TABLE [dogs] ( [name] TEXT , [age] INTEGER)"),
         ("weight", float, "CREATE TABLE [dogs] ( [name] TEXT , [weight] FLOAT)"),
+        ("text", "TEXT", "CREATE TABLE [dogs] ( [name] TEXT , [text] TEXT)"),
+        (
+            "integer",
+            "INTEGER",
+            "CREATE TABLE [dogs] ( [name] TEXT , [integer] INTEGER)",
+        ),
+        ("float", "FLOAT", "CREATE TABLE [dogs] ( [name] TEXT , [float] FLOAT)"),
+        ("blob", "blob", "CREATE TABLE [dogs] ( [name] TEXT , [blob] BLOB)"),
     ),
 )
 def test_add_column(fresh_db, col_name, col_type, expected_schema):
