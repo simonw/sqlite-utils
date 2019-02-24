@@ -5,6 +5,11 @@ import pathlib
 import pytest
 import json
 
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
+
 
 def test_create_table(fresh_db):
     assert [] == fresh_db.table_names()
@@ -218,3 +223,76 @@ def test_works_with_pathlib_path(tmpdir):
     db = Database(path)
     db["demo"].insert_all([{"foo": 1}])
     assert 1 == db["demo"].count
+
+
+@pytest.mark.skipif(pd is None, reason="pandas and numpy are not installed")
+def test_create_table_numpy(fresh_db):
+    import numpy as np
+
+    df = pd.DataFrame({"col 1": range(3), "col 2": range(3)})
+    fresh_db["pandas"].insert_all(df.to_dict(orient="records"))
+    assert [
+        {"col 1": 0, "col 2": 0},
+        {"col 1": 1, "col 2": 1},
+        {"col 1": 2, "col 2": 2},
+    ] == list(fresh_db["pandas"].rows)
+    # Now try all the different types
+    df = pd.DataFrame(
+        {
+            "np.int8": [-8],
+            "np.int16": [-16],
+            "np.int32": [-32],
+            "np.int64": [-64],
+            "np.uint8": [8],
+            "np.uint16": [16],
+            "np.uint32": [32],
+            "np.uint64": [64],
+            "np.float16": [16.5],
+            "np.float32": [32.5],
+            "np.float64": [64.5],
+        }
+    )
+    df = df.astype(
+        {
+            "np.int8": "int8",
+            "np.int16": "int16",
+            "np.int32": "int32",
+            "np.int64": "int64",
+            "np.uint8": "uint8",
+            "np.uint16": "uint16",
+            "np.uint32": "uint32",
+            "np.uint64": "uint64",
+            "np.float16": "float16",
+            "np.float32": "float32",
+            "np.float64": "float64",
+        }
+    )
+    assert [
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "uint8",
+        "uint16",
+        "uint32",
+        "uint64",
+        "float16",
+        "float32",
+        "float64",
+    ] == [str(t) for t in df.dtypes]
+    fresh_db["types"].insert_all(df.to_dict(orient="records"))
+    assert [
+        {
+            "np.float16": 16.5,
+            "np.float32": 32.5,
+            "np.float64": 64.5,
+            "np.int16": -16,
+            "np.int32": -32,
+            "np.int64": -64,
+            "np.int8": -8,
+            "np.uint16": 16,
+            "np.uint32": 32,
+            "np.uint64": 64,
+            "np.uint8": 8,
+        }
+    ] == list(fresh_db["types"].rows)
