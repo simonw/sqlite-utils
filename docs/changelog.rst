@@ -2,6 +2,20 @@
  Changelog
 ===========
 
+.. _v0_14:
+
+0.14 (2019-02-24)
+-----------------
+
+- Ability to create unique indexes: ``db["mytable"].create_index(["name"], unique=True)``
+- ``db["mytable"].create_index(["name"], if_not_exists=True)``
+- ``$ sqlite-utils create-index mydb.db mytable col1 [col2...]``, see :ref:`cli_create_index`
+- ``table.add_column(name, type)`` method, see :ref:`python_api_add_column`
+- ``$ sqlite-utils add-column mydb.db mytable nameofcolumn``, see :ref:`cli_add_column` (CLI)
+- ``db["books"].add_foreign_key("author_id", "authors", "id")``, see :ref:`python_api_add_foreign_key`
+- ``$ sqlite-utils add-foreign-key books.db books author_id authors id``, see :ref:`cli_add_foreign_key` (CLI)
+- Improved (but backwards-incompatible) ``foreign_keys=`` argument to various methods, see :ref:`python_api_foreign_keys`
+
 .. _v0_13:
 
 0.13 (2019-02-23)

@@ -140,6 +140,8 @@ The first argument here is a dictionary specifying the columns you would like to
 
 This method takes optional arguments ``pk=``, ``column_order=`` and ``foreign_keys=``.
 
+.. _python_api_foreign_keys:
+
 Specifying foreign keys
 -----------------------
 

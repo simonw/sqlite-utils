@@ -25,6 +25,12 @@ Now you can do things like this:
     1,4,Cleo
     2,2,Pancakes
 
+    $ sqlite-utils dogs.db "select * from dogs" --table
+      id    age  name
+    ----  -----  --------
+       1      4  Cleo
+       2      2  Pancakes
+
 Full documentation: https://sqlite-utils.readthedocs.io/
 
 Related projects:
