@@ -7,6 +7,9 @@
 
 Python CLI utility and library for manipulating SQLite databases.
 
+Read more on my blog: [
+sqlite-utils: a Python library and CLI tool for building SQLite databases](https://simonwillison.net/2019/Feb/25/sqlite-utils/)
+
 Install it like this:
 
     pip3 install sqlite-utils
