@@ -214,10 +214,10 @@ def create_index(path, table, column, name, unique, if_not_exists):
 @click.argument("table")
 @click.argument("column", nargs=-1, required=True)
 @click.option(
-    "--fts4", help="Just show FTS4 enabled tables", default=False, is_flag=True
+    "--fts4", help="Use FTS4", default=False, is_flag=True
 )
 @click.option(
-    "--fts5", help="Just show FTS5 enabled tables", default=False, is_flag=True
+    "--fts5", help="Use FTS5", default=False, is_flag=True
 )
 def enable_fts(path, table, column, fts4, fts5):
     "Enable FTS for specific table and columns"
