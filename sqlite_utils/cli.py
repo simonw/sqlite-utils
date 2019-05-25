@@ -262,6 +262,11 @@ def insert_upsert_options(fn):
             click.option(
                 "--batch-size", type=int, default=100, help="Commit every X records"
             ),
+            click.option(
+                "--alter",
+                is_flag=True,
+                help="Alter existing table to add any missing columns",
+            ),
         )
     ):
         fn = decorator(fn)
@@ -269,7 +274,7 @@ def insert_upsert_options(fn):
 
 
 def insert_upsert_implementation(
-    path, table, json_file, pk, nl, csv, batch_size, upsert
+    path, table, json_file, pk, nl, csv, batch_size, alter, upsert
 ):
     db = sqlite_utils.Database(path)
     if nl and csv:
@@ -289,12 +294,12 @@ def insert_upsert_implementation(
         method = db[table].upsert_all
     else:
         method = db[table].insert_all
-    method(docs, pk=pk, batch_size=batch_size)
+    method(docs, pk=pk, batch_size=batch_size, alter=alter)
 
 
 @cli.command()
 @insert_upsert_options
-def insert(path, table, json_file, pk, nl, csv, batch_size):
+def insert(path, table, json_file, pk, nl, csv, batch_size, alter):
     """
     Insert records from JSON file into a table, creating the table if it
     does not already exist.
@@ -302,20 +307,20 @@ def insert(path, table, json_file, pk, nl, csv, batch_size):
     Input should be a JSON array of objects, unless --nl or --csv is used.
     """
     insert_upsert_implementation(
-        path, table, json_file, pk, nl, csv, batch_size, upsert=False
+        path, table, json_file, pk, nl, csv, batch_size, alter=alter, upsert=False
     )
 
 
 @cli.command()
 @insert_upsert_options
-def upsert(path, table, json_file, pk, nl, csv, batch_size):
+def upsert(path, table, json_file, pk, nl, csv, batch_size, alter):
     """
     Upsert records based on their primary key. Works like 'insert' but if
     an incoming record has a primary key that matches an existing record
     the existing record will be replaced.
     """
     insert_upsert_implementation(
-        path, table, json_file, pk, nl, csv, batch_size, upsert=True
+        path, table, json_file, pk, nl, csv, batch_size, alter=alter, upsert=True
     )
 
 

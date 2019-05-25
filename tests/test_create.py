@@ -196,6 +196,89 @@ def test_add_foreign_key_error_if_already_exists(fresh_db):
 
 
 @pytest.mark.parametrize(
+    "extra_data,expected_new_columns",
+    [
+        ({"species": "squirrels"}, [{"name": "species", "type": "TEXT"}]),
+        (
+            {"species": "squirrels", "hats": 5},
+            [{"name": "species", "type": "TEXT"}, {"name": "hats", "type": "INTEGER"}],
+        ),
+        (
+            {"hats": 5, "rating": 3.5},
+            [{"name": "hats", "type": "INTEGER"}, {"name": "rating", "type": "FLOAT"}],
+        ),
+    ],
+)
+def test_insert_row_alter_table(fresh_db, extra_data, expected_new_columns):
+    table = fresh_db["books"]
+    table.insert({"title": "Hedgehogs of the world", "author_id": 1})
+    assert [
+        {"name": "title", "type": "TEXT"},
+        {"name": "author_id", "type": "INTEGER"},
+    ] == [{"name": col.name, "type": col.type} for col in table.columns]
+    record = {"title": "Squirrels of the world", "author_id": 2}
+    record.update(extra_data)
+    fresh_db["books"].insert(record, alter=True)
+    assert [
+        {"name": "title", "type": "TEXT"},
+        {"name": "author_id", "type": "INTEGER"},
+    ] + expected_new_columns == [
+        {"name": col.name, "type": col.type} for col in table.columns
+    ]
+
+
+def test_upsert_rows_alter_table(fresh_db):
+    table = fresh_db["books"]
+    table.insert({"id": 1, "title": "Hedgehogs of the world", "author_id": 1}, pk="id")
+    table.upsert_all(
+        [
+            {"id": 1, "title": "Hedgedogs of the World", "species": "hedgehogs"},
+            {"id": 2, "title": "Squirrels of the World", "num_species": 200},
+            {
+                "id": 3,
+                "title": "Badgers of the World",
+                "significant_continents": ["Europe", "North America"],
+            },
+        ],
+        alter=True,
+    )
+    assert {
+        "author_id": int,
+        "id": int,
+        "num_species": int,
+        "significant_continents": str,
+        "species": str,
+        "title": str,
+    } == table.columns_dict
+    assert [
+        {
+            "author_id": None,
+            "id": 1,
+            "num_species": None,
+            "significant_continents": None,
+            "species": "hedgehogs",
+            "title": "Hedgedogs of the World",
+        },
+        {
+            "author_id": None,
+            "id": 2,
+            "num_species": 200,
+            "significant_continents": None,
+            "species": None,
+            "title": "Squirrels of the World",
+        },
+        {
+            "author_id": None,
+            "id": 3,
+            "num_species": None,
+            "significant_continents": '["Europe", "North America"]',
+            "species": None,
+            "title": "Badgers of the World",
+        },
+    ] == list(table.rows)
+
+
+@pytest.mark.parametrize(
     "columns,index_name,expected_index",
     (
         (

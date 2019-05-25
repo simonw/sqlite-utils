@@ -232,6 +232,15 @@ You can add a column using the ``add-column`` command::
 
 The last argument here is the type of the column to be created. You can use one of ``text``, ``integer``, ``float`` or ``blob``. If you leave it off, ``text`` will be used.
 
+.. _cli_add_column_alter:
+
+Adding columns automatically on insert/update
+=============================================
+
+You can use the ``--alter`` option to automatically add new columns if the data you are inserting or upserting is of a different shape::
+
+    $ sqlite-utils insert dogs.db dogs new-dogs.json --pk=id --alter
+
 .. _cli_add_foreign_key:
 
 Adding foreign key constraints

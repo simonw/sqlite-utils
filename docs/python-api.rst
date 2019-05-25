@@ -266,6 +266,25 @@ If you pass a Python type, it will be mapped to SQLite types as shown here::
     np.float32: "FLOAT"
     np.float64: "FLOAT"
 
+.. _python_api_add_column_alter:
+
+Adding columns automatically on insert/update
+=============================================
+
+You can insert or update data that includes new columns and have the table automatically altered to fit the new schema using the ``alter=True`` argument. This can be passed to all four of ``.insert()``, ``.upsert()``, ``.insert_all()``and ``.insert_all()``:
+
+.. code-block:: python
+
+    db["new_table"].insert({"name": "Gareth"})
+    # This will throw an exception:
+    db["new_table"].insert({"name": "Gareth", "age": 32})
+    # This will succeed and add a new "age" integer column:
+    db["new_table"].insert({"name": "Gareth", "age": 32}, alter=True)
+    # You can see confirm the new column like so:
+    print(db["new_table"].columns_dict)
+    # Outputs this:
+    # {'name': <class 'str'>, 'age': <class 'int'>}
+
 .. _python_api_add_foreign_key:
 
 Adding foreign key constraints
@@ -381,6 +400,11 @@ The ``.columns`` property shows the columns in the table::
     >>> db["PlantType"].columns
     [Column(cid=0, name='id', type='INTEGER', notnull=0, default_value=None, is_pk=1),
      Column(cid=1, name='value', type='TEXT', notnull=0, default_value=None, is_pk=0)]
+
+The ``.columns_dict`` property returns a dictionary version of this with just the names and types::
+
+    >>> db["PlantType"].columns_dict
+    {'id': <class 'int'>, 'value': <class 'str'>}
 
 The ``.foreign_keys`` property shows if the table has any foreign key relationships::
 

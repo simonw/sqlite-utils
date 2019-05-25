@@ -59,6 +59,14 @@ if np:
     )
 
 
+REVERSE_COLUMN_TYPE_MAPPING = {
+    "TEXT": str,
+    "BLOB": bytes,
+    "INTEGER": int,
+    "FLOAT": float,
+}
+
+
 class AlterError(Exception):
     pass
 
@@ -183,6 +191,14 @@ class Table:
         return [Column(*row) for row in rows]
 
     @property
+    def columns_dict(self):
+        "Returns {column: python-type} dictionary"
+        return {
+            column.name: REVERSE_COLUMN_TYPE_MAPPING[column.type]
+            for column in self.columns
+        }
+
+    @property
     def rows(self):
         if not self.exists:
             return []
@@ -235,7 +251,7 @@ class Table:
             for seqno, cid, name in self.db.conn.execute(column_sql).fetchall():
                 columns.append(name)
             row["columns"] = columns
-            # These coluns may be missing on older SQLite versions:
+            # These columns may be missing on older SQLite versions:
             for key, default in {"origin": "c", "partial": 0}.items():
                 if key not in row:
                     row[key] = default
@@ -429,6 +445,7 @@ class Table:
         upsert=False,
         column_order=None,
         hash_id=None,
+        alter=False,
     ):
         return self.insert_all(
             [record],
@@ -437,6 +454,7 @@ class Table:
             upsert=upsert,
             column_order=column_order,
             hash_id=hash_id,
+            alter=alter,
         )
 
     def insert_all(
@@ -448,6 +466,7 @@ class Table:
         batch_size=100,
         column_order=None,
         hash_id=None,
+        alter=False,
     ):
         """
         Like .insert() but takes a list of records and ensures that the table
@@ -500,7 +519,15 @@ class Table:
                     for key in all_columns
                 )
             with self.db.conn:
-                result = self.db.conn.execute(sql, values)
+                try:
+                    result = self.db.conn.execute(sql, values)
+                except sqlite3.OperationalError as e:
+                    if alter and (" has no column " in e.args[0]):
+                        # Attempt to add any missing columns, then try again
+                        self.add_missing_columns(chunk)
+                        result = self.db.conn.execute(sql, values)
+                    else:
+                        raise
                 self.last_rowid = result.lastrowid
                 self.last_pk = None
                 if hash_id or pk:
@@ -513,7 +540,13 @@ class Table:
         return self
 
     def upsert(
-        self, record, pk=None, foreign_keys=None, column_order=None, hash_id=None
+        self,
+        record,
+        pk=None,
+        foreign_keys=None,
+        column_order=None,
+        hash_id=None,
+        alter=False,
     ):
         return self.insert(
             record,
@@ -522,6 +555,7 @@ class Table:
             upsert=True,
             column_order=column_order,
             hash_id=hash_id,
+            alter=alter,
         )
 
     def upsert_all(
@@ -532,6 +566,7 @@ class Table:
         column_order=None,
         batch_size=100,
         hash_id=None,
+        alter=False,
     ):
         return self.insert_all(
             records,
@@ -541,7 +576,15 @@ class Table:
             batch_size=100,
             upsert=True,
             hash_id=hash_id,
+            alter=alter,
         )
+
+    def add_missing_columns(self, records):
+        needed_columns = self.detect_column_types(records)
+        current_columns = self.columns_dict
+        for col_name, col_type in needed_columns.items():
+            if col_name not in current_columns:
+                self.add_column(col_name, col_type)
 
 
 def chunks(sequence, size):

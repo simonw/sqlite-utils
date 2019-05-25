@@ -383,6 +383,37 @@ def test_upsert(db_path, tmpdir):
     )
 
 
+def test_insert_alter(db_path, tmpdir):
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "from_json_nl", "-", "--nl"],
+        input='{"foo": "bar", "n": 1}\n{"foo": "baz", "n": 2}',
+    )
+    assert 0 == result.exit_code, result.output
+    # Should get an error with incorrect shaped additional data
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "from_json_nl", "-", "--nl"],
+        input='{"foo": "bar", "baz": 5}',
+    )
+    assert 0 != result.exit_code, result.output
+    # If we run it again with --alter it should work correctly
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "from_json_nl", "-", "--nl", "--alter"],
+        input='{"foo": "bar", "baz": 5}',
+    )
+    assert 0 == result.exit_code, result.output
+    # Sanity check the database itself
+    db = Database(db_path)
+    assert {"foo": str, "n": int, "baz": int} == db["from_json_nl"].columns_dict
+    assert [
+        {"foo": "bar", "n": 1, "baz": None},
+        {"foo": "baz", "n": 2, "baz": None},
+        {"foo": "bar", "baz": 5, "n": None},
+    ] == db.execute_returning_dicts("select foo, n, baz from from_json_nl")
+
+
 def test_query_csv(db_path):
     db = Database(db_path)
     with db.conn:
