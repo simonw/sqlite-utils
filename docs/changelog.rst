@@ -2,6 +2,17 @@
  Changelog
 ===========
 
+.. _v1_0:
+
+1.0 (2019-05-24)
+----------------
+
+- Option to automatically add new columns if you attempt to insert or upsert data with extra fields:
+   ``sqlite-utils insert ... --alter`` - see :ref:`Adding columns automatically with the sqlite-utils CLI <cli_add_column_alter>`
+
+   ``db["tablename"].insert(record, alter=True)`` - see :ref:`Adding columns automatically using the Python API <python_api_add_column_alter>`
+- New ``--json-cols`` option for outputting nested JSON, see :ref:`cli_json_values`
+
 .. _v0_14:
 
 0.14 (2019-02-24)
