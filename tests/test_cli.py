@@ -473,6 +473,37 @@ def test_query_json(db_path, sql, args, expected):
     assert expected == result.output.strip()
 
 
+def test_query_json_with_json_cols(db_path):
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert(
+            {
+                "id": 1,
+                "name": "Cleo",
+                "friends": [{"name": "Pancakes"}, {"name": "Bailey"}],
+            }
+        )
+    result = CliRunner().invoke(
+        cli.cli, [db_path, "select id, name, friends from dogs"]
+    )
+    assert (
+        r"""
+    [{"id": 1, "name": "Cleo", "friends": "[{\"name\": \"Pancakes\"}, {\"name\": \"Bailey\"}]"}]
+    """.strip()
+        == result.output.strip()
+    )
+    # With --json-cols:
+    result = CliRunner().invoke(
+        cli.cli, [db_path, "select id, name, friends from dogs", "--json-cols"]
+    )
+    assert (
+        r"""
+    [{"id": 1, "name": "Cleo", "friends": [{"name": "Pancakes"}, {"name": "Bailey"}]}]
+    """.strip()
+        == result.output.strip()
+    )
+
+
 @pytest.mark.parametrize(
     "args,expected",
     [

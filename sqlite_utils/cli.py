@@ -36,6 +36,12 @@ def output_options(fn):
                 ),
                 default="simple",
             ),
+            click.option(
+                "--json-cols",
+                help="Detect JSON cols and output them as JSON, not escaped strings",
+                is_flag=True,
+                default=False,
+            ),
         )
     ):
         fn = decorator(fn)
@@ -71,7 +77,20 @@ def cli():
     is_flag=True,
     default=False,
 )
-def tables(path, fts4, fts5, counts, nl, arrays, csv, no_headers, table, fmt, columns):
+def tables(
+    path,
+    fts4,
+    fts5,
+    counts,
+    nl,
+    arrays,
+    csv,
+    no_headers,
+    table,
+    fmt,
+    columns,
+    json_cols,
+):
     """List the tables in the database"""
     db = sqlite_utils.Database(path)
     headers = ["table"]
@@ -102,7 +121,7 @@ def tables(path, fts4, fts5, counts, nl, arrays, csv, no_headers, table, fmt, co
         for row in _iter():
             writer.writerow(row)
     else:
-        for line in output_rows(_iter(), headers, nl, arrays):
+        for line in output_rows(_iter(), headers, nl, arrays, json_cols):
             click.echo(line)
 
 
@@ -213,12 +232,8 @@ def create_index(path, table, column, name, unique, if_not_exists):
 )
 @click.argument("table")
 @click.argument("column", nargs=-1, required=True)
-@click.option(
-    "--fts4", help="Use FTS4", default=False, is_flag=True
-)
-@click.option(
-    "--fts5", help="Use FTS5", default=False, is_flag=True
-)
+@click.option("--fts4", help="Use FTS4", default=False, is_flag=True)
+@click.option("--fts5", help="Use FTS5", default=False, is_flag=True)
 def enable_fts(path, table, column, fts4, fts5):
     "Enable FTS for specific table and columns"
     fts_version = "FTS5"
@@ -332,7 +347,7 @@ def upsert(path, table, json_file, pk, nl, csv, batch_size, alter):
 )
 @click.argument("sql")
 @output_options
-def query(path, sql, nl, arrays, csv, no_headers, table, fmt):
+def query(path, sql, nl, arrays, csv, no_headers, table, fmt, json_cols):
     "Execute SQL query and return the results as JSON"
     db = sqlite_utils.Database(path)
     cursor = iter(db.conn.execute(sql))
@@ -346,7 +361,7 @@ def query(path, sql, nl, arrays, csv, no_headers, table, fmt):
         for row in cursor:
             writer.writerow(row)
     else:
-        for line in output_rows(cursor, headers, nl, arrays):
+        for line in output_rows(cursor, headers, nl, arrays, json_cols):
             click.echo(line)
 
 
@@ -359,7 +374,7 @@ def query(path, sql, nl, arrays, csv, no_headers, table, fmt):
 @click.argument("dbtable")
 @output_options
 @click.pass_context
-def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt):
+def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt, json_cols):
     "Output all rows in the specified table"
     ctx.invoke(
         query,
@@ -374,7 +389,7 @@ def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt):
     )
 
 
-def output_rows(iterator, headers, nl, arrays):
+def output_rows(iterator, headers, nl, arrays, json_cols):
     # We have to iterate two-at-a-time so we can know if we
     # should output a trailing comma or if we have reached
     # the last row.
@@ -384,8 +399,11 @@ def output_rows(iterator, headers, nl, arrays):
     for row, next_row in itertools.zip_longest(current_iter, next_iter):
         is_last = next_row is None
         data = row
+        if json_cols:
+            # Any value that is a valid JSON string should be treated as JSON
+            data = [maybe_json(value) for value in data]
         if not arrays:
-            data = dict(zip(headers, row))
+            data = dict(zip(headers, data))
         line = "{firstchar}{serialized}{maybecomma}{lastchar}".format(
             firstchar=("[" if first else " ") if not nl else "",
             serialized=json.dumps(data),
@@ -394,3 +412,15 @@ def output_rows(iterator, headers, nl, arrays):
         )
         yield line
         first = False
+
+
+def maybe_json(value):
+    if not isinstance(value, str):
+        return value
+    stripped = value.strip()
+    if not (stripped.startswith("{") or stripped.startswith("[")):
+        return value
+    try:
+        return json.loads(stripped)
+    except ValueError:
+        return value

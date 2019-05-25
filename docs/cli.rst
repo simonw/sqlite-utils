@@ -55,6 +55,40 @@ If you want to pretty-print the output further, you can pipe it through ``python
         }
     ]
 
+.. _cli_json_values:
+
+Nested JSON values
+------------------
+
+If one of your columns contains JSON, by default it will be returned as an escaped string::
+
+    $ sqlite-utils dogs.db "select * from dogs" | python -mjson.tool
+    [
+        {
+            "id": 1,
+            "name": "Cleo",
+            "friends": "[{\"name\": \"Pancakes\"}, {\"name\": \"Bailey\"}]"
+        }
+    ]
+
+You can use the ``--json-cols`` option to automatically detect these JSON columns and output them as nested JSON data::
+
+    $ sqlite-utils dogs.db "select * from dogs" --json-cols | python -mjson.tool
+    [
+        {
+            "id": 1,
+            "name": "Cleo",
+            "friends": [
+                {
+                    "name": "Pancakes"
+                },
+                {
+                    "name": "Bailey"
+                }
+            ]
+        }
+    ]
+
 .. _cli_query_csv:
 
 Running queries and returning CSV
