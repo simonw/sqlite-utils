@@ -232,7 +232,7 @@ def test_upsert_rows_alter_table(fresh_db):
     table.insert({"id": 1, "title": "Hedgehogs of the world", "author_id": 1}, pk="id")
     table.upsert_all(
         [
-            {"id": 1, "title": "Hedgedogs of the World", "species": "hedgehogs"},
+            {"id": 1, "title": "Hedgehogs of the World", "species": "hedgehogs"},
             {"id": 2, "title": "Squirrels of the World", "num_species": 200},
             {
                 "id": 3,
@@ -257,7 +257,7 @@ def test_upsert_rows_alter_table(fresh_db):
             "num_species": None,
             "significant_continents": None,
             "species": "hedgehogs",
-            "title": "Hedgedogs of the World",
+            "title": "Hedgehogs of the World",
         },
         {
             "author_id": None,
