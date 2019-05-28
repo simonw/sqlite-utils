@@ -496,12 +496,13 @@ def test_query_json_with_json_cols(db_path):
     result = CliRunner().invoke(
         cli.cli, [db_path, "select id, name, friends from dogs", "--json-cols"]
     )
-    assert (
-        r"""
+    expected = r"""
     [{"id": 1, "name": "Cleo", "friends": [{"name": "Pancakes"}, {"name": "Bailey"}]}]
     """.strip()
-        == result.output.strip()
-    )
+    assert expected == result.output.strip()
+    # Test rows command too
+    result_rows = CliRunner().invoke(cli.cli, ["rows", db_path, "dogs", "--json-cols"])
+    assert expected == result_rows.output.strip()
 
 
 @pytest.mark.parametrize(

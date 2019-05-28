@@ -386,6 +386,7 @@ def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt, json_cols)
         no_headers=no_headers,
         table=table,
         fmt=fmt,
+        json_cols=json_cols,
     )
 
 
