@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+
+.. _v1_0_1:
+
+1.0.1 (2019-05-27)
+------------------
+
+- ``sqlite-utils rows data.db table --json-cols`` - fixed bug where ``--json-cols`` was not obeyed
+
 .. _v1_0:
 
 1.0 (2019-05-24)
