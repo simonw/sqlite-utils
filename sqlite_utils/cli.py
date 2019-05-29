@@ -289,7 +289,7 @@ def insert_upsert_options(fn):
 
 
 def insert_upsert_implementation(
-    path, table, json_file, pk, nl, csv, batch_size, alter, upsert
+    path, table, json_file, pk, nl, csv, batch_size, alter, upsert, ignore=False
 ):
     db = sqlite_utils.Database(path)
     if nl and csv:
@@ -307,14 +307,19 @@ def insert_upsert_implementation(
             docs = [docs]
     if upsert:
         method = db[table].upsert_all
+        extra_kwargs = {}
     else:
         method = db[table].insert_all
-    method(docs, pk=pk, batch_size=batch_size, alter=alter)
+        extra_kwargs = {"ignore": ignore}
+    method(docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs)
 
 
 @cli.command()
 @insert_upsert_options
-def insert(path, table, json_file, pk, nl, csv, batch_size, alter):
+@click.option(
+    "--ignore", is_flag=True, default=False, help="Ignore records if pk already exists"
+)
+def insert(path, table, json_file, pk, nl, csv, batch_size, alter, ignore):
     """
     Insert records from JSON file into a table, creating the table if it
     does not already exist.
@@ -322,7 +327,16 @@ def insert(path, table, json_file, pk, nl, csv, batch_size, alter):
     Input should be a JSON array of objects, unless --nl or --csv is used.
     """
     insert_upsert_implementation(
-        path, table, json_file, pk, nl, csv, batch_size, alter=alter, upsert=False
+        path,
+        table,
+        json_file,
+        pk,
+        nl,
+        csv,
+        batch_size,
+        alter=alter,
+        upsert=False,
+        ignore=ignore,
     )
 
 

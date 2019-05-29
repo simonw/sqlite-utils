@@ -446,6 +446,7 @@ class Table:
         column_order=None,
         hash_id=None,
         alter=False,
+        ignore=False,
     ):
         return self.insert_all(
             [record],
@@ -455,6 +456,7 @@ class Table:
             column_order=column_order,
             hash_id=hash_id,
             alter=alter,
+            ignore=ignore,
         )
 
     def insert_all(
@@ -467,6 +469,7 @@ class Table:
         column_order=None,
         hash_id=None,
         alter=False,
+        ignore=False,
     ):
         """
         Like .insert() but takes a list of records and ensures that the table
@@ -474,6 +477,9 @@ class Table:
         data
         """
         assert not (hash_id and pk), "Use either pk= or hash_id="
+        assert not (
+            ignore and upsert
+        ), "Use either ignore=True or upsert=True, not both"
         all_columns = None
         first = True
         for chunk in chunks(records, batch_size):
@@ -495,10 +501,15 @@ class Table:
                 if hash_id:
                     all_columns.insert(0, hash_id)
             first = False
+            or_what = ""
+            if upsert:
+                or_what = "OR REPLACE "
+            elif ignore:
+                or_what = "OR IGNORE "
             sql = """
-                INSERT {upsert} INTO [{table}] ({columns}) VALUES {rows};
+                INSERT {or_what}INTO [{table}] ({columns}) VALUES {rows};
             """.format(
-                upsert="OR REPLACE" if upsert else "",
+                or_what=or_what,
                 table=self.name,
                 columns=", ".join("[{}]".format(c) for c in all_columns),
                 rows=", ".join(
@@ -530,7 +541,8 @@ class Table:
                         raise
                 self.last_rowid = result.lastrowid
                 self.last_pk = None
-                if hash_id or pk:
+                # self.last_rowid will be 0 if a "INSERT OR IGNORE" happened
+                if (hash_id or pk) and self.last_rowid:
                     self.last_pk = self.db.conn.execute(
                         "select [{}] from [{}] where rowid = ?".format(
                             hash_id or pk, self.name

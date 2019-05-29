@@ -392,6 +392,18 @@ def test_insert_thousands_ignores_extra_columns_after_first_100(fresh_db):
     assert [{"i": 101, "word": None}] == rows
 
 
+def test_insert_ignore(fresh_db):
+    fresh_db["test"].insert({"id": 1, "bar": 2}, pk="id")
+    # Should raise an error if we try this again
+    with pytest.raises(sqlite3.IntegrityError):
+        fresh_db["test"].insert({"id": 1, "bar": 2}, pk="id")
+    # Using ignore=True should cause our insert to be silently ignored
+    fresh_db["test"].insert({"id": 1, "bar": 3}, pk="id", ignore=True)
+    # Only one row, and it should be bar=2, not bar=3
+    rows = fresh_db.execute_returning_dicts("select * from test")
+    assert [{"id": 1, "bar": 2}] == rows
+
+
 def test_insert_hash_id(fresh_db):
     dogs = fresh_db["dogs"]
     id = dogs.upsert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id").last_pk

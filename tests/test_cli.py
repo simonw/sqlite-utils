@@ -362,6 +362,27 @@ def test_insert_newline_delimited(db_path):
     ] == db.execute_returning_dicts("select foo, n from from_json_nl")
 
 
+def test_insert_ignore(db_path, tmpdir):
+    db = Database(db_path)
+    db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    json_path = str(tmpdir / "dogs.json")
+    open(json_path, "w").write(json.dumps([{"id": 1, "name": "Bailey"}]))
+    # Should raise error without --ignore
+    result = CliRunner().invoke(
+        cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
+    )
+    assert 0 != result.exit_code, result.output
+    # If we use --ignore it should run OK
+    result = CliRunner().invoke(
+        cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id", "--ignore"]
+    )
+    assert 0 == result.exit_code, result.output
+    # ... but it should actually have no effect
+    assert [{"id": 1, "name": "Cleo"}] == db.execute_returning_dicts(
+        "select * from dogs"
+    )
+
+
 def test_upsert(db_path, tmpdir):
     test_insert_multiple_with_primary_key(db_path, tmpdir)
     json_path = str(tmpdir / "upsert.json")
