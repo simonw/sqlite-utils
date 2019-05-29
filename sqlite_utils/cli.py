@@ -169,10 +169,12 @@ def optimize(path, no_vacuum):
     ),
     required=False,
 )
-def add_column(path, table, col_name, col_type):
+@click.option("--fk", type=str, required=False)
+@click.option("--fk-col", type=str, required=False)
+def add_column(path, table, col_name, col_type, fk, fk_col):
     "Add a column to the specified table"
     db = sqlite_utils.Database(path)
-    db[table].add_column(col_name, col_type)
+    db[table].add_column(col_name, col_type, fk=fk, fk_col=fk_col)
 
 
 @cli.command(name="add-foreign-key")

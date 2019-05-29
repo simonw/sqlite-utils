@@ -266,6 +266,16 @@ You can add a column using the ``add-column`` command::
 
 The last argument here is the type of the column to be created. You can use one of ``text``, ``integer``, ``float`` or ``blob``. If you leave it off, ``text`` will be used.
 
+You can add a column that is a foreign key reference to another table using the ``--fk`` option::
+
+    $ sqlite-utils add-column mydb.db dogs species_id --fk species
+
+This will automatically detect the name of the primary key on the species table and use that (and its type) for the new column.
+
+You can explicitly specify the column you wish to reference using ``--fk-col``::
+
+    $ sqlite-utils add-column mydb.db dogs species_id --fk species --fk-col ref
+
 .. _cli_add_column_alter:
 
 Adding columns automatically on insert/update

@@ -233,12 +233,54 @@ def test_add_foreign_key(db_path):
         "Error: Foreign key already exists for author_id => authors.id"
         == result.output.strip()
     )
-    # Error if we try against an invalid cgolumn
+    # Error if we try against an invalid column
     result = CliRunner().invoke(
         cli.cli, ["add-foreign-key", db_path, "books", "author_id", "authors", "bad"]
     )
     assert 0 != result.exit_code
     assert "Error: No such column: authors.bad" == result.output.strip()
+
+
+def test_add_column_foreign_key(db_path):
+    db = Database(db_path)
+    db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
+    db["books"].insert({"title": "Hedgehogs of the world"})
+    # Add an author_id foreign key column to the books table
+    result = CliRunner().invoke(
+        cli.cli, ["add-column", db_path, "books", "author_id", "--fk", "authors"]
+    )
+    assert 0 == result.exit_code, result.output
+    assert (
+        "CREATE TABLE [books] ( [title] TEXT , [author_id] INTEGER, FOREIGN KEY(author_id) REFERENCES authors(id) )"
+        == collapse_whitespace(db["books"].schema)
+    )
+    # Try it again with a custom --fk-col
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "add-column",
+            db_path,
+            "books",
+            "author_name_ref",
+            "--fk",
+            "authors",
+            "--fk-col",
+            "name",
+        ],
+    )
+    assert 0 == result.exit_code, result.output
+    assert (
+        "CREATE TABLE [books] ( [title] TEXT , [author_id] INTEGER, [author_name_ref] TEXT, "
+        "FOREIGN KEY(author_id) REFERENCES authors(id), "
+        "FOREIGN KEY(author_name_ref) REFERENCES authors(name) )"
+        == collapse_whitespace(db["books"].schema)
+    )
+    # Throw an error if the --fk table does not exist
+    result = CliRunner().invoke(
+        cli.cli, ["add-column", db_path, "books", "author_id", "--fk", "bobcats"]
+    )
+    assert 0 != result.exit_code
+    assert "table 'bobcats' does not exist" in str(result.exception)
 
 
 def test_enable_fts(db_path):

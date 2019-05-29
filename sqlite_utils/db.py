@@ -292,13 +292,35 @@ class Table:
         self.db.conn.execute(sql)
         return self
 
-    def add_column(self, col_name, col_type=None):
+    def add_column(self, col_name, col_type=None, fk=None, fk_col=None):
+        fk_col_type = None
+        if fk is not None:
+            # fk must be a valid table
+            if not fk in self.db.table_names():
+                raise AlterError("table '{}' does not exist".format(fk))
+            # if fk_col specified, must be a valid column
+            if fk_col is not None:
+                if fk_col not in self.db[fk].columns_dict:
+                    raise AlterError("table '{}' has no column {}".format(fk, fk_col))
+            else:
+                # automatically set fk_col to first primary_key of fk table
+                pks = [c for c in self.db[fk].columns if c.is_pk]
+                if pks:
+                    fk_col = pks[0].name
+                    fk_col_type = pks[0].type
+                else:
+                    fk_col = "rowid"
+                    fk_col_type = "INTEGER"
         if col_type is None:
             col_type = str
         sql = "ALTER TABLE [{table}] ADD COLUMN [{col_name}] {col_type};".format(
-            table=self.name, col_name=col_name, col_type=COLUMN_TYPE_MAPPING[col_type]
+            table=self.name,
+            col_name=col_name,
+            col_type=fk_col_type or COLUMN_TYPE_MAPPING[col_type],
         )
         self.db.conn.execute(sql)
+        if fk is not None:
+            self.add_foreign_key(col_name, fk, fk_col)
         return self
 
     def drop(self):
@@ -306,7 +328,10 @@ class Table:
 
     def add_foreign_key(self, column, other_table, other_column):
         # Sanity check that the other column exists
-        if not [c for c in self.db[other_table].columns if c.name == other_column]:
+        if (
+            not [c for c in self.db[other_table].columns if c.name == other_column]
+            and other_column != "rowid"
+        ):
             raise AlterError("No such column: {}.{}".format(other_table, other_column))
         # Check we do not already have an existing foreign key
         if any(

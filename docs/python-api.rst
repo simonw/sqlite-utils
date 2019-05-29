@@ -266,6 +266,20 @@ If you pass a Python type, it will be mapped to SQLite types as shown here::
     np.float32: "FLOAT"
     np.float64: "FLOAT"
 
+You can also add a column that is a foreign key reference to another table using the ``fk`` parameter:
+
+.. code-block:: python
+
+    db["dogs"].add_column("species_id", fk="species")
+
+This will automatically detect the name of the primary key on the species table and use that (and its type) for the new column.
+
+You can explicitly specify the column you wish to reference using ``fk_col``:
+
+.. code-block:: python
+
+    db["dogs"].add_column("species_id", fk="species", fk_col="ref")
+
 .. _python_api_add_column_alter:
 
 Adding columns automatically on insert/update
