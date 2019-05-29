@@ -164,6 +164,8 @@ The ``foreign_keys`` argument takes a sequence of three-tuples, each one specify
         ("author_id", "authors", "id")
     ])
 
+.. _python_api_bulk_inserts:
+
 Bulk inserts
 ============
 
@@ -197,6 +199,8 @@ The function can accept an iterator or generator of rows and will commit them ac
         "id": 1,
         "name": "Name {}".format(i),
     } for i in range(10000)), batch_size=1000)
+
+You can skip inserting any records that have a primary key that already exists using ``ignore=True``. This works with both ``.insert({...}, ignore=True)`` and ``.insert_all([...], ignore=True)``.
 
 Upserting data
 ==============
