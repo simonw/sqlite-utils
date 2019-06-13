@@ -1,4 +1,11 @@
-from sqlite_utils.db import Index, Database, ForeignKey, AlterError
+from sqlite_utils.db import (
+    Index,
+    Database,
+    ForeignKey,
+    AlterError,
+    NoObviousTable,
+    ForeignKey,
+)
 import collections
 import datetime
 import json
@@ -91,13 +98,46 @@ def test_create_table_column_order(fresh_db):
     ] == [{"name": col.name, "type": col.type} for col in fresh_db["table"].columns]
 
 
-def test_create_table_works_for_m2m_with_only_foreign_keys(fresh_db):
+@pytest.mark.parametrize(
+    "foreign_key_specification,expected_exception",
+    (
+        # You can specify triples, pairs, or a list of columns
+        ((("one_id", "one", "id"), ("two_id", "two", "id")), False),
+        ((("one_id", "one"), ("two_id", "two")), False),
+        (("one_id", "two_id"), False),
+        # You can also specify ForeignKey tuples:
+        (
+            (
+                ForeignKey("m2m", "one_id", "one", "id"),
+                ForeignKey("m2m", "two_id", "two", "id"),
+            ),
+            False,
+        ),
+        # If you specify a column that doesn't point to a table, you  get an error:
+        (("one_id", "two_id", "three_id"), NoObviousTable),
+        # Tuples of the wrong length get an error:
+        ((("one_id", "one", "id", "five"), ("two_id", "two", "id")), AssertionError),
+        # Likewise a bad column:
+        ((("one_id", "one", "id2"),), AlterError),
+        # Or a list of dicts
+        (({"one_id": "one"},), AssertionError),
+    ),
+)
+def test_create_table_works_for_m2m_with_only_foreign_keys(
+    fresh_db, foreign_key_specification, expected_exception
+):
     fresh_db["one"].insert({"id": 1}, pk="id")
     fresh_db["two"].insert({"id": 1}, pk="id")
-    fresh_db["m2m"].insert(
-        {"one_id": 1, "two_id": 1},
-        foreign_keys=(("one_id", "one", "id"), ("two_id", "two", "id")),
-    )
+    if expected_exception:
+        with pytest.raises(expected_exception):
+            fresh_db["m2m"].insert(
+                {"one_id": 1, "two_id": 1}, foreign_keys=foreign_key_specification
+            )
+        return
+    else:
+        fresh_db["m2m"].insert(
+            {"one_id": 1, "two_id": 1}, foreign_keys=foreign_key_specification
+        )
     assert [
         {"name": "one_id", "type": "INTEGER"},
         {"name": "two_id", "type": "INTEGER"},

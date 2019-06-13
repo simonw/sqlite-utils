@@ -149,7 +149,25 @@ Any operation that can create a table (``.create()``, ``.insert()``, ``.insert_a
 
 If you are using your database with `Datasette <https://datasette.readthedocs.io/>`__, Datasette will detect these constraints and use them to generate hyperlinks to associated records.
 
-The ``foreign_keys`` argument takes a sequence of three-tuples, each one specifying the column, other table and other column that should be used to create the relationship. For example:
+The ``foreign_keys`` argument takes a list that indicates which foreign keys should be created. The list can take several forms. The simplest is a list of columns:
+
+.. code-block:: python
+
+    foreign_keys=["author_id"]
+
+The library will guess which tables you wish to reference based on the column names using the rules described in :ref:`python_api_add_foreign_key`.
+
+You can also be more explicit, by passing in a list of tuples:
+
+.. code-block:: python
+
+    foreign_keys=[
+        ("author_id", "authors", "id")
+    ]
+
+This means that the ``author_id`` column should be a foreign key that references the ``id`` column in the ``authors`` table.
+
+You can leave off the third item in the tuple to have the referenced column automatically set to the primary key of that table. A full example:
 
 .. code-block:: python
 
@@ -161,7 +179,7 @@ The ``foreign_keys`` argument takes a sequence of three-tuples, each one specify
         {"title": "Hedgehogs of the world", "author_id": 1},
         {"title": "How to train your wolf", "author_id": 2},
     ], foreign_keys=[
-        ("author_id", "authors", "id")
+        ("author_id", "authors")
     ])
 
 .. _python_api_bulk_inserts:

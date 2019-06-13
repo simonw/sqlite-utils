@@ -112,11 +112,52 @@ class Database:
         keys = [d[0] for d in cursor.description]
         return [dict(zip(keys, row)) for row in cursor.fetchall()]
 
+    def resolve_foreign_keys(self, name, foreign_keys):
+        # foreign_keys may be a list of strcolumn names, a list of ForeignKey tuples,
+        # a list of tuple-pairs or a list of tuple-triples. We want to turn
+        # it into a list of ForeignKey tuples
+        if all(isinstance(fk, ForeignKey) for fk in foreign_keys):
+            return foreign_keys
+        if all(isinstance(fk, str) for fk in foreign_keys):
+            # It's a list of columns
+            fks = []
+            for column in foreign_keys:
+                other_table = self[name].guess_foreign_table(column)
+                other_column = self[name].guess_foreign_column(other_table)
+                fks.append(ForeignKey(name, column, other_table, other_column))
+            return fks
+        assert all(
+            isinstance(fk, (tuple, list)) for fk in foreign_keys
+        ), "foreign_keys= should be a list of tuples"
+        fks = []
+        for tuple_or_list in foreign_keys:
+            assert len(tuple_or_list) in (
+                2,
+                3,
+            ), "foreign_keys= should be a list of tuple pairs or triples"
+            if len(tuple_or_list) == 3:
+                fks.append(
+                    ForeignKey(
+                        name, tuple_or_list[0], tuple_or_list[1], tuple_or_list[2]
+                    )
+                )
+            else:
+                # Guess the primary key
+                fks.append(
+                    ForeignKey(
+                        name,
+                        tuple_or_list[0],
+                        tuple_or_list[1],
+                        self[name].guess_foreign_column(tuple_or_list[1]),
+                    )
+                )
+        return fks
+
     def create_table(
         self, name, columns, pk=None, foreign_keys=None, column_order=None, hash_id=None
     ):
-        foreign_keys = foreign_keys or []
-        foreign_keys_by_name = {fk[0]: fk for fk in foreign_keys}
+        foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
+        foreign_keys_by_column = {fk.column: fk for fk in foreign_keys}
         column_items = list(columns.items())
         if column_order is not None:
             column_items.sort(
@@ -126,12 +167,12 @@ class Database:
             column_items.insert(0, (hash_id, str))
             pk = hash_id
         # Sanity check foreign_keys point to existing tables
-        for _, fk_other_table, fk_other_column in foreign_keys:
+        for fk in foreign_keys:
             if not any(
-                c for c in self[fk_other_table].columns if c.name == fk_other_column
+                c for c in self[fk.other_table].columns if c.name == fk.other_column
             ):
                 raise AlterError(
-                    "No such column: {}.{}".format(fk_other_table, fk_other_column)
+                    "No such column: {}.{}".format(fk.other_table, fk.other_column)
                 )
         extra = ""
         columns_sql = ",\n".join(
@@ -141,10 +182,10 @@ class Database:
                 primary_key=" PRIMARY KEY" if (pk == col_name) else "",
                 references=(
                     " REFERENCES [{other_table}]([{other_column}])".format(
-                        other_table=foreign_keys_by_name[col_name][1],
-                        other_column=foreign_keys_by_name[col_name][2],
+                        other_table=foreign_keys_by_column[col_name].other_table,
+                        other_column=foreign_keys_by_column[col_name].other_column,
                     )
-                    if col_name in foreign_keys_by_name
+                    if col_name in foreign_keys_by_column
                     else ""
                 ),
             )
@@ -366,21 +407,22 @@ class Table:
             )
         )
 
+    def guess_foreign_column(self, other_table):
+        pks = [c for c in self.db[other_table].columns if c.is_pk]
+        if len(pks) != 1:
+            raise BadPrimaryKey(
+                "Could not detect single primary key for table '{}'".format(other_table)
+            )
+        else:
+            return pks[0].name
+
     def add_foreign_key(self, column, other_table=None, other_column=None):
         # If other_table is not specified, attempt to guess it from the column
         if other_table is None:
             other_table = self.guess_foreign_table(column)
         # If other_column is not specified, detect the primary key on other_table
         if other_column is None:
-            pks = [c for c in self.db[other_table].columns if c.is_pk]
-            if len(pks) != 1:
-                raise BadPrimaryKey(
-                    "Could not detect single primary key for table '{}'".format(
-                        other_table
-                    )
-                )
-            else:
-                other_column = pks[0].name
+            other_column = self.guess_foreign_column(other_table)
 
         # Sanity check that the other column exists
         if (
