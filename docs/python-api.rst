@@ -138,7 +138,7 @@ You can directly create a new table without inserting any data into it using the
 
 The first argument here is a dictionary specifying the columns you would like to create. Each column is paired with a Python type indicating the type of column. See :ref:`python_api_add_column` for full details on how these types work.
 
-This method takes optional arguments ``pk=``, ``column_order=`` and ``foreign_keys=``.
+This method takes optional arguments ``pk=``, ``column_order=``, ``foreign_keys=``, ``not_null=set()`` and ``defaults=dict()`` - explained below.
 
 .. _python_api_foreign_keys:
 
@@ -181,6 +181,48 @@ You can leave off the third item in the tuple to have the referenced column auto
     ], foreign_keys=[
         ("author_id", "authors")
     ])
+
+
+.. _python_api_defaults_not_null:
+
+Setting defaults and not null constraints
+=========================================
+
+Each of the methods that can cause a table to be created take optional arguments ``not_null=set()`` and ``defaults=dict()``. The methods that take these optional arguments are:
+
+* ``db.create_table(...)``
+* ``table.create(...)``
+* ``table.insert(...)``
+* ``table.insert_all(...)``
+* ``table.upsert(...)``
+* ``table.upsert_all(...)``
+
+You can use ``not_null=`` to pass a set of column names that should have a ``NOT NULL`` constraint set on them when they are created.
+
+You can use ``defaults=`` to pass a dictionary mapping columns to the default value that should be specified in the ``CREATE TABLE`` statement.
+
+Here's an example that uses these features:
+
+.. code-block:: python
+
+    db["authors"].insert_all(
+        [{"id": 1, "name": "Sally", "score": 2}],
+        pk="id",
+        not_null={"name", "score"},
+        defaults={"score": 1},
+    )
+    db["authors"].insert({"name": "Dharma"})
+
+    list(db["authors"].rows)
+    # Outputs:
+    # [{'id': 1, 'name': 'Sally', 'score': 2},
+    #  {'id': 3, 'name': 'Dharma', 'score': 1}]
+    print(db["authors"].schema)                                                                                                                    # Outputs:
+    # CREATE TABLE [authors] (
+    #     [id] INTEGER PRIMARY KEY,
+    #     [name] TEXT NOT NULL,
+    #     [score] INTEGER NOT NULL DEFAULT 1
+    # )
 
 .. _python_api_bulk_inserts:
 

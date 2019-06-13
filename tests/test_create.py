@@ -55,6 +55,51 @@ def test_create_table(fresh_db):
     ) == table.schema
 
 
+def test_create_table_with_bad_defaults(fresh_db):
+    with pytest.raises(AssertionError):
+        fresh_db.create_table(
+            "players", {"name": str, "score": int}, defaults={"mouse": 1}
+        )
+
+
+def test_create_table_with_defaults(fresh_db):
+    table = fresh_db.create_table(
+        "players",
+        {"name": str, "score": int},
+        defaults={"score": 1, "name": "bob''bob"},
+    )
+    assert ["players"] == fresh_db.table_names()
+    assert [{"name": "name", "type": "TEXT"}, {"name": "score", "type": "INTEGER"}] == [
+        {"name": col.name, "type": col.type} for col in table.columns
+    ]
+    assert (
+        "CREATE TABLE [players] (\n   [name] TEXT DEFAULT 'bob''''bob',\n   [score] INTEGER DEFAULT 1\n)"
+    ) == table.schema
+
+
+def test_create_table_with_bad_not_null(fresh_db):
+    with pytest.raises(AssertionError):
+        fresh_db.create_table(
+            "players", {"name": str, "score": int}, not_null={"mouse"}
+        )
+
+
+def test_create_table_with_not_null(fresh_db):
+    table = fresh_db.create_table(
+        "players",
+        {"name": str, "score": int},
+        not_null={"name", "score"},
+        defaults={"score": 3},
+    )
+    assert ["players"] == fresh_db.table_names()
+    assert [{"name": "name", "type": "TEXT"}, {"name": "score", "type": "INTEGER"}] == [
+        {"name": col.name, "type": col.type} for col in table.columns
+    ]
+    assert (
+        "CREATE TABLE [players] (\n   [name] TEXT NOT NULL,\n   [score] INTEGER NOT NULL DEFAULT 3\n)"
+    ) == table.schema
+
+
 @pytest.mark.parametrize(
     "example,expected_columns",
     (

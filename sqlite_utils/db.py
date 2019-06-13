@@ -94,6 +94,16 @@ class Database:
     def __repr__(self):
         return "<Database {}>".format(self.conn)
 
+    def escape(self, value):
+        # Normally we would use .execute(sql, [params]) for escaping, but
+        # occasionally that isn't available - most notable when we need
+        # to include a "... DEFAULT 'value'" in a column definition.
+        return self.conn.execute(
+            # Use SQLite itself to correctly escape this string:
+            "SELECT quote(:value)",
+            {"value": value},
+        ).fetchone()[0]
+
     def table_names(self, fts4=False, fts5=False):
         where = ["type = 'table'"]
         if fts4:
@@ -154,10 +164,31 @@ class Database:
         return fks
 
     def create_table(
-        self, name, columns, pk=None, foreign_keys=None, column_order=None, hash_id=None
+        self,
+        name,
+        columns,
+        pk=None,
+        foreign_keys=None,
+        column_order=None,
+        not_null=None,
+        defaults=None,
+        hash_id=None,
     ):
         foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
         foreign_keys_by_column = {fk.column: fk for fk in foreign_keys}
+        # Sanity check not_null, and defaults if provided
+        not_null = not_null or set()
+        defaults = defaults or {}
+        assert all(
+            n in columns for n in not_null
+        ), "not_null set {} includes items not in columns {}".format(
+            repr(not_null), repr(set(columns.keys()))
+        )
+        assert all(
+            n in columns for n in defaults
+        ), "defaults set {} includes items not in columns {}".format(
+            repr(set(defaults)), repr(set(columns.keys()))
+        )
         column_items = list(columns.items())
         if column_order is not None:
             column_items.sort(
@@ -175,22 +206,34 @@ class Database:
                     "No such column: {}.{}".format(fk.other_table, fk.other_column)
                 )
         extra = ""
-        columns_sql = ",\n".join(
-            "   [{col_name}] {col_type}{primary_key}{references}".format(
-                col_name=col_name,
-                col_type=COLUMN_TYPE_MAPPING[col_type],
-                primary_key=" PRIMARY KEY" if (pk == col_name) else "",
-                references=(
-                    " REFERENCES [{other_table}]([{other_column}])".format(
-                        other_table=foreign_keys_by_column[col_name].other_table,
-                        other_column=foreign_keys_by_column[col_name].other_column,
+        column_defs = []
+        for column_name, column_type in column_items:
+            column_extras = []
+            if pk == column_name:
+                column_extras.append("PRIMARY KEY")
+            if column_name in not_null:
+                column_extras.append("NOT NULL")
+            if column_name in defaults:
+                column_extras.append(
+                    "DEFAULT {}".format(self.escape(defaults[column_name]))
+                )
+            if column_name in foreign_keys_by_column:
+                column_extras.append(
+                    "REFERENCES [{other_table}]([{other_column}])".format(
+                        other_table=foreign_keys_by_column[column_name].other_table,
+                        other_column=foreign_keys_by_column[column_name].other_column,
                     )
-                    if col_name in foreign_keys_by_column
-                    else ""
-                ),
+                )
+            column_defs.append(
+                "   [{column_name}] {column_type}{column_extras}".format(
+                    column_name=column_name,
+                    column_type=COLUMN_TYPE_MAPPING[column_type],
+                    column_extras=(" " + " ".join(column_extras))
+                    if column_extras
+                    else "",
+                )
             )
-            for col_name, col_type in column_items
-        )
+        columns_sql = ",\n".join(column_defs)
         sql = """CREATE TABLE [{table}] (
 {columns_sql}
 ){extra};
@@ -308,7 +351,14 @@ class Table:
         return indexes
 
     def create(
-        self, columns, pk=None, foreign_keys=None, column_order=None, hash_id=None
+        self,
+        columns,
+        pk=None,
+        foreign_keys=None,
+        column_order=None,
+        not_null=None,
+        defaults=None,
+        hash_id=None,
     ):
         columns = {name: value for (name, value) in columns.items()}
         with self.db.conn:
@@ -318,6 +368,8 @@ class Table:
                 pk=pk,
                 foreign_keys=foreign_keys,
                 column_order=column_order,
+                not_null=not_null,
+                defaults=defaults,
                 hash_id=hash_id,
             )
         self.exists = True
@@ -367,10 +419,7 @@ class Table:
         not_null_sql = None
         if not_null_default is not None:
             not_null_sql = "NOT NULL DEFAULT {}".format(
-                # Use SQLite itself to correctly escape this string:
-                self.db.conn.execute(
-                    "SELECT quote(:default)", {"default": not_null_default}
-                ).fetchone()[0]
+                self.db.escape(not_null_default)
             )
         sql = "ALTER TABLE [{table}] ADD COLUMN [{col_name}] {col_type}{not_null_default};".format(
             table=self.name,
@@ -564,8 +613,10 @@ class Table:
         record,
         pk=None,
         foreign_keys=None,
-        upsert=False,
         column_order=None,
+        not_null=None,
+        defaults=None,
+        upsert=False,
         hash_id=None,
         alter=False,
         ignore=False,
@@ -574,8 +625,10 @@ class Table:
             [record],
             pk=pk,
             foreign_keys=foreign_keys,
-            upsert=upsert,
             column_order=column_order,
+            not_null=not_null,
+            defaults=defaults,
+            upsert=upsert,
             hash_id=hash_id,
             alter=alter,
             ignore=ignore,
@@ -586,9 +639,11 @@ class Table:
         records,
         pk=None,
         foreign_keys=None,
+        column_order=None,
+        not_null=None,
+        defaults=None,
         upsert=False,
         batch_size=100,
-        column_order=None,
         hash_id=None,
         alter=False,
         ignore=False,
@@ -614,6 +669,8 @@ class Table:
                         pk,
                         foreign_keys,
                         column_order=column_order,
+                        not_null=not_null,
+                        defaults=defaults,
                         hash_id=hash_id,
                     )
                 all_columns = set()
@@ -679,6 +736,8 @@ class Table:
         pk=None,
         foreign_keys=None,
         column_order=None,
+        not_null=None,
+        defaults=None,
         hash_id=None,
         alter=False,
     ):
@@ -686,10 +745,12 @@ class Table:
             record,
             pk=pk,
             foreign_keys=foreign_keys,
-            upsert=True,
             column_order=column_order,
+            not_null=not_null,
+            defaults=defaults,
             hash_id=hash_id,
             alter=alter,
+            upsert=True,
         )
 
     def upsert_all(
@@ -698,6 +759,8 @@ class Table:
         pk=None,
         foreign_keys=None,
         column_order=None,
+        not_null=None,
+        defaults=None,
         batch_size=100,
         hash_id=None,
         alter=False,
@@ -707,10 +770,12 @@ class Table:
             pk=pk,
             foreign_keys=foreign_keys,
             column_order=column_order,
+            not_null=not_null,
+            defaults=defaults,
             batch_size=100,
-            upsert=True,
             hash_id=hash_id,
             alter=alter,
+            upsert=True,
         )
 
     def add_missing_columns(self, records):
