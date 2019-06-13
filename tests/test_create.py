@@ -131,33 +131,47 @@ def test_create_error_if_invalid_foreign_keys(fresh_db):
 
 
 @pytest.mark.parametrize(
-    "col_name,col_type,expected_schema",
+    "col_name,col_type,not_null_default,expected_schema",
     (
-        ("nickname", str, "CREATE TABLE [dogs] ( [name] TEXT , [nickname] TEXT)"),
-        ("dob", datetime.date, "CREATE TABLE [dogs] ( [name] TEXT , [dob] TEXT)"),
-        ("age", int, "CREATE TABLE [dogs] ( [name] TEXT , [age] INTEGER)"),
-        ("weight", float, "CREATE TABLE [dogs] ( [name] TEXT , [weight] FLOAT)"),
-        ("text", "TEXT", "CREATE TABLE [dogs] ( [name] TEXT , [text] TEXT)"),
+        ("nickname", str, None, "CREATE TABLE [dogs] ( [name] TEXT , [nickname] TEXT)"),
+        ("dob", datetime.date, None, "CREATE TABLE [dogs] ( [name] TEXT , [dob] TEXT)"),
+        ("age", int, None, "CREATE TABLE [dogs] ( [name] TEXT , [age] INTEGER)"),
+        ("weight", float, None, "CREATE TABLE [dogs] ( [name] TEXT , [weight] FLOAT)"),
+        ("text", "TEXT", None, "CREATE TABLE [dogs] ( [name] TEXT , [text] TEXT)"),
         (
             "integer",
             "INTEGER",
+            None,
             "CREATE TABLE [dogs] ( [name] TEXT , [integer] INTEGER)",
         ),
-        ("float", "FLOAT", "CREATE TABLE [dogs] ( [name] TEXT , [float] FLOAT)"),
-        ("blob", "blob", "CREATE TABLE [dogs] ( [name] TEXT , [blob] BLOB)"),
+        ("float", "FLOAT", None, "CREATE TABLE [dogs] ( [name] TEXT , [float] FLOAT)"),
+        ("blob", "blob", None, "CREATE TABLE [dogs] ( [name] TEXT , [blob] BLOB)"),
         (
             "default_str",
             None,
+            None,
             "CREATE TABLE [dogs] ( [name] TEXT , [default_str] TEXT)",
+        ),
+        (
+            "nickname",
+            str,
+            "",
+            "CREATE TABLE [dogs] ( [name] TEXT , [nickname] TEXT NOT NULL DEFAULT '')",
+        ),
+        (
+            "nickname",
+            str,
+            "dawg's dawg",
+            "CREATE TABLE [dogs] ( [name] TEXT , [nickname] TEXT NOT NULL DEFAULT 'dawg''s dawg')",
         ),
     ),
 )
-def test_add_column(fresh_db, col_name, col_type, expected_schema):
+def test_add_column(fresh_db, col_name, col_type, not_null_default, expected_schema):
     fresh_db.create_table("dogs", {"name": str})
     assert "CREATE TABLE [dogs] ( [name] TEXT )" == collapse_whitespace(
         fresh_db["dogs"].schema
     )
-    fresh_db["dogs"].add_column(col_name, col_type)
+    fresh_db["dogs"].add_column(col_name, col_type, not_null_default=not_null_default)
     assert expected_schema == collapse_whitespace(fresh_db["dogs"].schema)
 
 

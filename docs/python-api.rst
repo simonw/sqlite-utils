@@ -284,6 +284,12 @@ You can explicitly specify the column you wish to reference using ``fk_col``:
 
     db["dogs"].add_column("species_id", fk="species", fk_col="ref")
 
+You can set a ``NOT NULL DEFAULT 'x'`` constraint on the new column using ``not_null_default``:
+
+.. code-block:: python
+
+    db["dogs"].add_column("friends_count", int, not_null_default=0)
+
 .. _python_api_add_column_alter:
 
 Adding columns automatically on insert/update

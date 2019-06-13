@@ -280,6 +280,10 @@ You can explicitly specify the column you wish to reference using ``--fk-col``::
 
     $ sqlite-utils add-column mydb.db dogs species_id --fk species --fk-col ref
 
+You can set a ``NOT NULL DEFAULT 'x'`` constraint on the new column using ``--not-null-default``::
+
+    $ sqlite-utils add-column mydb.db dogs friends_count integer --not-null-default 0
+
 .. _cli_add_column_alter:
 
 Adding columns automatically on insert/update

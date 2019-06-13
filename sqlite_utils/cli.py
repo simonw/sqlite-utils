@@ -169,12 +169,27 @@ def optimize(path, no_vacuum):
     ),
     required=False,
 )
-@click.option("--fk", type=str, required=False)
-@click.option("--fk-col", type=str, required=False)
-def add_column(path, table, col_name, col_type, fk, fk_col):
+@click.option(
+    "--fk", type=str, required=False, help="Table to reference as a foreign key"
+)
+@click.option(
+    "--fk-col",
+    type=str,
+    required=False,
+    help="Referenced column on that foreign key table - if omitted will automatically use the primary key",
+)
+@click.option(
+    "--not-null-default",
+    type=str,
+    required=False,
+    help="Add NOT NULL DEFAULT 'TEXT' constraint",
+)
+def add_column(path, table, col_name, col_type, fk, fk_col, not_null_default):
     "Add a column to the specified table"
     db = sqlite_utils.Database(path)
-    db[table].add_column(col_name, col_type, fk=fk, fk_col=fk_col)
+    db[table].add_column(
+        col_name, col_type, fk=fk, fk_col=fk_col, not_null_default=not_null_default
+    )
 
 
 @cli.command(name="add-foreign-key")

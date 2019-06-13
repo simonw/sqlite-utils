@@ -199,6 +199,27 @@ def test_add_column(db_path, col_name, col_type, expected_schema):
     assert expected_schema == collapse_whitespace(db["dogs"].schema)
 
 
+def test_add_column_not_null_default(db_path):
+    db = Database(db_path)
+    db.create_table("dogs", {"name": str})
+    assert "CREATE TABLE [dogs] ( [name] TEXT )" == collapse_whitespace(
+        db["dogs"].schema
+    )
+    args = [
+        "add-column",
+        db_path,
+        "dogs",
+        "nickname",
+        "--not-null-default",
+        "dogs'dawg",
+    ]
+    assert 0 == CliRunner().invoke(cli.cli, args).exit_code
+    assert (
+        "CREATE TABLE [dogs] ( [name] TEXT , [nickname] TEXT NOT NULL DEFAULT 'dogs''dawg')"
+        == collapse_whitespace(db["dogs"].schema)
+    )
+
+
 def test_add_foreign_key(db_path):
     db = Database(db_path)
     db["authors"].insert_all(

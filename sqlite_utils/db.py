@@ -292,7 +292,9 @@ class Table:
         self.db.conn.execute(sql)
         return self
 
-    def add_column(self, col_name, col_type=None, fk=None, fk_col=None):
+    def add_column(
+        self, col_name, col_type=None, fk=None, fk_col=None, not_null_default=None
+    ):
         fk_col_type = None
         if fk is not None:
             # fk must be a valid table
@@ -313,10 +315,19 @@ class Table:
                     fk_col_type = "INTEGER"
         if col_type is None:
             col_type = str
-        sql = "ALTER TABLE [{table}] ADD COLUMN [{col_name}] {col_type};".format(
+        not_null_sql = None
+        if not_null_default is not None:
+            not_null_sql = "NOT NULL DEFAULT {}".format(
+                # Use SQLite itself to correctly escape this string:
+                self.db.conn.execute(
+                    "SELECT quote(:default)", {"default": not_null_default}
+                ).fetchone()[0]
+            )
+        sql = "ALTER TABLE [{table}] ADD COLUMN [{col_name}] {col_type}{not_null_default};".format(
             table=self.name,
             col_name=col_name,
             col_type=fk_col_type or COLUMN_TYPE_MAPPING[col_type],
+            not_null_default=(" " + not_null_sql) if not_null_sql else "",
         )
         self.db.conn.execute(sql)
         if fk is not None:
