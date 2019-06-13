@@ -417,6 +417,30 @@ def test_insert_multiple_with_primary_key(db_path, tmpdir):
     assert ["id"] == db["dogs"].pks
 
 
+def test_insert_not_null_default(db_path, tmpdir):
+    json_path = str(tmpdir / "dogs.json")
+    dogs = [
+        {"id": i, "name": "Cleo {}".format(i), "age": i + 3, "score": 10}
+        for i in range(1, 21)
+    ]
+    open(json_path, "w").write(json.dumps(dogs))
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "dogs", json_path, "--pk", "id"]
+        + ["--not-null", "name", "--not-null", "age"]
+        + ["--default", "score", "5", "--default", "age", "1"],
+    )
+    assert 0 == result.exit_code
+    db = Database(db_path)
+    assert (
+        "CREATE TABLE [dogs] (\n"
+        "   [id] INTEGER PRIMARY KEY,\n"
+        "   [name] TEXT NOT NULL,\n"
+        "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+        "   [score] INTEGER DEFAULT '5'\n)"
+    ) == db["dogs"].schema
+
+
 def test_insert_newline_delimited(db_path):
     result = CliRunner().invoke(
         cli.cli,

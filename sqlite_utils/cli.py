@@ -299,6 +299,17 @@ def insert_upsert_options(fn):
                 is_flag=True,
                 help="Alter existing table to add any missing columns",
             ),
+            click.option(
+                "--not-null",
+                multiple=True,
+                help="Columns that should be created as NOT NULL",
+            ),
+            click.option(
+                "--default",
+                multiple=True,
+                type=(str, str),
+                help="Default value that should be set for a column",
+            ),
         )
     ):
         fn = decorator(fn)
@@ -306,7 +317,18 @@ def insert_upsert_options(fn):
 
 
 def insert_upsert_implementation(
-    path, table, json_file, pk, nl, csv, batch_size, alter, upsert, ignore=False
+    path,
+    table,
+    json_file,
+    pk,
+    nl,
+    csv,
+    batch_size,
+    alter,
+    upsert,
+    ignore=False,
+    not_null=None,
+    default=None,
 ):
     db = sqlite_utils.Database(path)
     if nl and csv:
@@ -328,6 +350,10 @@ def insert_upsert_implementation(
     else:
         method = db[table].insert_all
         extra_kwargs = {"ignore": ignore}
+    if not_null:
+        extra_kwargs["not_null"] = set(not_null)
+    if default:
+        extra_kwargs["defaults"] = dict(default)
     method(docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs)
 
 
@@ -336,7 +362,9 @@ def insert_upsert_implementation(
 @click.option(
     "--ignore", is_flag=True, default=False, help="Ignore records if pk already exists"
 )
-def insert(path, table, json_file, pk, nl, csv, batch_size, alter, ignore):
+def insert(
+    path, table, json_file, pk, nl, csv, batch_size, alter, ignore, not_null, default
+):
     """
     Insert records from JSON file into a table, creating the table if it
     does not already exist.
@@ -354,19 +382,31 @@ def insert(path, table, json_file, pk, nl, csv, batch_size, alter, ignore):
         alter=alter,
         upsert=False,
         ignore=ignore,
+        not_null=not_null,
+        default=default,
     )
 
 
 @cli.command()
 @insert_upsert_options
-def upsert(path, table, json_file, pk, nl, csv, batch_size, alter):
+def upsert(path, table, json_file, pk, nl, csv, batch_size, alter, not_null, default):
     """
     Upsert records based on their primary key. Works like 'insert' but if
     an incoming record has a primary key that matches an existing record
     the existing record will be replaced.
     """
     insert_upsert_implementation(
-        path, table, json_file, pk, nl, csv, batch_size, alter=alter, upsert=True
+        path,
+        table,
+        json_file,
+        pk,
+        nl,
+        csv,
+        batch_size,
+        alter=alter,
+        upsert=True,
+        not_null=not_null,
+        default=default,
     )
 
 

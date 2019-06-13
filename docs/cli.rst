@@ -310,6 +310,19 @@ If you omit the other table and other column references ``sqlite-utils`` will at
 
 See :ref:`python_api_add_foreign_key` in the Python API documentation for further details, including how the automatic table guessing mechanism works.
 
+.. _cli_defaults_not_null:
+
+Setting defaults and not null constraints
+=========================================
+
+You can use the ``--not-null`` and ``--default`` options (to both ``insert`` and ``upsert``) to specify columns that should be ``NOT NULL`` or to set database defaults for one or more specific columns::
+
+    $ sqlite-utils insert dogs.db dogs_with_scores dogs-with-scores.json \
+        --not-null=age \
+        --not-null=name \
+        --default age 2 \
+        --default score 5
+
 .. _cli_create_index:
 
 Creating indexes
