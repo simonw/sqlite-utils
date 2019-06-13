@@ -71,6 +71,14 @@ class AlterError(Exception):
     pass
 
 
+class NoObviousTable(Exception):
+    pass
+
+
+class BadPrimaryKey(Exception):
+    pass
+
+
 class Database:
     def __init__(self, filename_or_conn):
         if isinstance(filename_or_conn, str):
@@ -337,7 +345,43 @@ class Table:
     def drop(self):
         return self.db.conn.execute("DROP TABLE {}".format(self.name))
 
-    def add_foreign_key(self, column, other_table, other_column):
+    def guess_foreign_table(self, column):
+        column = column.lower()
+        possibilities = [column]
+        if column.endswith("_id"):
+            column_without_id = column[:-3]
+            possibilities.append(column_without_id)
+            if not column_without_id.endswith("s"):
+                possibilities.append(column_without_id + "s")
+        elif not column.endswith("s"):
+            possibilities.append(column + "s")
+        existing_tables = {t.lower(): t for t in self.db.table_names()}
+        for table in possibilities:
+            if table in existing_tables:
+                return existing_tables[table]
+        # If we get here there's no obvious candidate - raise an error
+        raise NoObviousTable(
+            "No obvious foreign key table for column '{}' - tried {}".format(
+                column, repr(possibilities)
+            )
+        )
+
+    def add_foreign_key(self, column, other_table=None, other_column=None):
+        # If other_table is not specified, attempt to guess it from the column
+        if other_table is None:
+            other_table = self.guess_foreign_table(column)
+        # If other_column is not specified, detect the primary key on other_table
+        if other_column is None:
+            pks = [c for c in self.db[other_table].columns if c.is_pk]
+            if len(pks) != 1:
+                raise BadPrimaryKey(
+                    "Could not detect single primary key for table '{}'".format(
+                        other_table
+                    )
+                )
+            else:
+                other_column = pks[0].name
+
         # Sanity check that the other column exists
         if (
             not [c for c in self.db[other_table].columns if c.name == other_column]

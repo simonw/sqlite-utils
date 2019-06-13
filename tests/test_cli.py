@@ -220,7 +220,18 @@ def test_add_column_not_null_default(db_path):
     )
 
 
-def test_add_foreign_key(db_path):
+@pytest.mark.parametrize(
+    "args,assert_message",
+    (
+        (
+            ["books", "author_id", "authors", "id"],
+            "Explicit other_table and other_column",
+        ),
+        (["books", "author_id", "authors"], "Explicit other_table, guess other_column"),
+        (["books", "author_id"], "Automatically guess other_table and other_column"),
+    ),
+)
+def test_add_foreign_key(db_path, args, assert_message):
     db = Database(db_path)
     db["authors"].insert_all(
         [{"id": 1, "name": "Sally"}, {"id": 2, "name": "Asheesh"}], pk="id"
@@ -232,13 +243,8 @@ def test_add_foreign_key(db_path):
         ]
     )
     assert (
-        0
-        == CliRunner()
-        .invoke(
-            cli.cli, ["add-foreign-key", db_path, "books", "author_id", "authors", "id"]
-        )
-        .exit_code
-    )
+        0 == CliRunner().invoke(cli.cli, ["add-foreign-key", db_path] + args).exit_code
+    ), assert_message
     assert [
         ForeignKey(
             table="books", column="author_id", other_table="authors", other_column="id"

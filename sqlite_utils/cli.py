@@ -200,8 +200,8 @@ def add_column(path, table, col_name, col_type, fk, fk_col, not_null_default):
 )
 @click.argument("table")
 @click.argument("column")
-@click.argument("other_table")
-@click.argument("other_column")
+@click.argument("other_table", required=False)
+@click.argument("other_column", required=False)
 def add_foreign_key(path, table, column, other_table, other_column):
     """
     Add a new foreign key constraint to an existing table. Example usage:

@@ -300,11 +300,15 @@ Adding foreign key constraints
 
 The ``add-foreign-key`` command can be used to add new foreign key references to an existing table - something which SQLite's ``ALTER TABLE`` command does not support.
 
-See :ref:`python_api_add_foreign_key` in the Python API documentation for further details and warnings (this could corrupt your database).
-
 To add a foreign key constraint pointing the ``books.author_id`` column to ``authors.id`` in another table, do this::
 
     $ sqlite-utils add-foreign-key books.db books author_id authors id
+
+If you omit the other table and other column references ``sqlite-utils`` will attempt to guess them - so the above example could instead look like this::
+
+    $ sqlite-utils add-foreign-key books.db books author_id
+
+See :ref:`python_api_add_foreign_key` in the Python API documentation for further details, including how the automatic table guessing mechanism works.
 
 .. _cli_create_index:
 

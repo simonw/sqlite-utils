@@ -228,6 +228,17 @@ def test_add_column_foreign_key(fresh_db):
     )
 
 
+def test_add_foreign_key_guess_table(fresh_db):
+    fresh_db.create_table("dogs", {"name": str})
+    fresh_db.create_table("breeds", {"name": str, "id": int}, pk="id")
+    fresh_db["dogs"].add_column("breed_id", int)
+    fresh_db["dogs"].add_foreign_key("breed_id")
+    assert (
+        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, FOREIGN KEY(breed_id) REFERENCES breeds(id) )"
+        == collapse_whitespace(fresh_db["dogs"].schema)
+    )
+
+
 @pytest.mark.parametrize(
     "extra_data,expected_new_columns",
     [

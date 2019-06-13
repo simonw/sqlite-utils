@@ -1,4 +1,5 @@
 from sqlite_utils.db import Index
+import pytest
 
 
 def test_table_names(existing_db):
@@ -79,3 +80,19 @@ def test_indexes(fresh_db):
         ),
         Index(seq=1, name="Gosh_c1", unique=0, origin="c", partial=0, columns=["c1"]),
     ] == fresh_db["Gosh"].indexes
+
+
+@pytest.mark.parametrize(
+    "column,expected_table_guess",
+    (
+        ("author", "authors"),
+        ("author_id", "authors"),
+        ("authors", "authors"),
+        ("genre", "genre"),
+        ("genre_id", "genre"),
+    ),
+)
+def test_guess_foreign_table(fresh_db, column, expected_table_guess):
+    fresh_db.create_table("authors", {"name": str})
+    fresh_db.create_table("genre", {"name": str})
+    assert expected_table_guess == fresh_db["books"].guess_foreign_table(column)
