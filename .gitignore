@@ -6,3 +6,4 @@ venv
 .eggs
 .pytest_cache
 *.egg-info
+.DS_Store
