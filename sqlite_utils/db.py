@@ -466,6 +466,9 @@ class Table:
             return pks[0].name
 
     def add_foreign_key(self, column, other_table=None, other_column=None):
+        # Ensure column exists
+        if column not in self.columns_dict:
+            raise AlterError("No such column: {}".format(column))
         # If other_table is not specified, attempt to guess it from the column
         if other_table is None:
             other_table = self.guess_foreign_table(column)

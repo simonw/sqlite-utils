@@ -280,6 +280,14 @@ def test_add_foreign_key(fresh_db):
 
 
 def test_add_foreign_key_error_if_column_does_not_exist(fresh_db):
+    fresh_db["books"].insert(
+        {"id": 1, "title": "Hedgehogs of the world", "author_id": 1}
+    )
+    with pytest.raises(AlterError):
+        fresh_db["books"].add_foreign_key("author2_id", "books", "id")
+
+
+def test_add_foreign_key_error_if_other_table_does_not_exist(fresh_db):
     fresh_db["books"].insert({"title": "Hedgehogs of the world", "author_id": 1})
     with pytest.raises(AlterError):
         fresh_db["books"].add_foreign_key("author_id", "authors", "id")
