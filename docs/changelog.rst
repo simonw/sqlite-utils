@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v1_2_1:
+
+1.2.1 (2019-06-20)
+------------------
+
+- Check the column exists before attempting to add a foreign key (`#29 <https://github.com/simonw/sqlite-utils/issues/29>`__)
+
 .. _v1_2:
 
 1.2 (2019-06-12)
