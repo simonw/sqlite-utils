@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+
+.. _v1_2_2:
+
+1.2.2 (2019-06-25)
+------------------
+
+- Fixed bug where ``datetime.time`` was not being handled correctly
+
 .. _v1_2_1:
 
 1.2.1 (2019-06-20)
