@@ -111,6 +111,7 @@ def test_create_table_with_not_null(fresh_db):
             {"create": "Reserved word", "table": "Another"},
             [{"name": "create", "type": "TEXT"}, {"name": "table", "type": "TEXT"}],
         ),
+        ({"day": datetime.time(11, 0)}, [{"name": "day", "type": "TEXT"}]),
     ),
 )
 def test_create_table_from_example(fresh_db, example, expected_columns):

@@ -798,6 +798,8 @@ def chunks(sequence, size):
 def jsonify_if_needed(value):
     if isinstance(value, (dict, list, tuple)):
         return json.dumps(value)
+    elif isinstance(value, (datetime.time, datetime.date, datetime.datetime)):
+        return value.isoformat()
     else:
         return value
 
