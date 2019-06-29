@@ -289,7 +289,7 @@ class Database:
 
         # Construct SQL for use with "UPDATE sqlite_master SET sql = ? WHERE name = ?"
         table_sql = {}
-        for table, column, other_table, other_column in foreign_keys:
+        for table, column, other_table, other_column in foreign_keys_to_create:
             old_sql = table_sql.get(table, self[table].schema)
             extra_sql = ",\n   FOREIGN KEY({column}) REFERENCES {other_table}({other_column})\n".format(
                 column=column, other_table=other_table, other_column=other_column
