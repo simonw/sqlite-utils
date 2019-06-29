@@ -303,6 +303,34 @@ def test_add_foreign_key_error_if_already_exists(fresh_db):
     assert "Foreign key already exists for author_id => authors.id" == ex.value.args[0]
 
 
+def test_add_foreign_keys(fresh_db):
+    fresh_db["authors"].insert_all(
+        [{"id": 1, "name": "Sally"}, {"id": 2, "name": "Asheesh"}], pk="id"
+    )
+    fresh_db["categories"].insert_all([{"id": 1, "name": "Wildlife"}], pk="id")
+    fresh_db["books"].insert_all(
+        [{"title": "Hedgehogs of the world", "author_id": 1, "category_id": 1}]
+    )
+    assert [] == fresh_db["books"].foreign_keys
+    fresh_db.add_foreign_keys(
+        [
+            ("books", "author_id", "authors", "id"),
+            ("books", "category_id", "categories", "id"),
+        ]
+    )
+    assert [
+        ForeignKey(
+            table="books", column="author_id", other_table="authors", other_column="id"
+        ),
+        ForeignKey(
+            table="books",
+            column="category_id",
+            other_table="categories",
+            other_column="id",
+        ),
+    ] == sorted(fresh_db["books"].foreign_keys)
+
+
 def test_add_column_foreign_key(fresh_db):
     fresh_db.create_table("dogs", {"name": str})
     fresh_db.create_table("breeds", {"name": str})

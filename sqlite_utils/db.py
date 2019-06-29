@@ -287,24 +287,24 @@ class Database:
                     (table, column, other_table, other_column)
                 )
 
-        # Construct list of args to be used with "UPDATE sqlite_master SET sql = ? WHERE name = ?"
-        sql_args = []
+        # Construct SQL for use with "UPDATE sqlite_master SET sql = ? WHERE name = ?"
+        table_sql = {}
         for table, column, other_table, other_column in foreign_keys:
-            old_sql = self[table].schema
+            old_sql = table_sql.get(table, self[table].schema)
             extra_sql = ",\n   FOREIGN KEY({column}) REFERENCES {other_table}({other_column})\n".format(
                 column=column, other_table=other_table, other_column=other_column
             )
             # Stick that bit in at the very end just before the closing ')'
             last_paren = old_sql.rindex(")")
             new_sql = old_sql[:last_paren].strip() + extra_sql + old_sql[last_paren:]
-            sql_args.append((new_sql, table))
+            table_sql[table] = new_sql
 
         # And execute it all within a single transaction
         with self.conn:
             cursor = self.conn.cursor()
             schema_version = cursor.execute("PRAGMA schema_version").fetchone()[0]
             cursor.execute("PRAGMA writable_schema = 1")
-            for new_sql, table_name in sql_args:
+            for table_name, new_sql in table_sql.items():
                 cursor.execute(
                     "UPDATE sqlite_master SET sql = ? WHERE name = ?",
                     (new_sql, table_name),
