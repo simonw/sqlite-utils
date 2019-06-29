@@ -2,6 +2,12 @@
  Changelog
 ===========
 
+.. _v1_3:
+
+1.3 (2019-06-28)
+----------------
+
+- New mechanism for adding multiple foreign key constraints at once: :ref:`db.add_foreign_keys() documentation <python_api_add_foreign_keys>` (`#31 <https://github.com/simonw/sqlite-utils/issues/31>`__)
 
 .. _v1_2_2:
 
