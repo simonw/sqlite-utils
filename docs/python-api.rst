@@ -399,8 +399,10 @@ The ``table.add_foreign_key(column, other_table, other_column)`` method takes th
 - If the column is of format ``author_id``, look for tables called ``author`` or ``authors``
 - If the column does not end in ``_id``, try looking for a table with the exact name of the column or that name with an added ``s``
 
+.. _python_api_add_foreign_keys:
+
 Adding multiple foreign key constraints at once
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------------------
 
 The final step in adding a new foreign key to a SQLite database is to run ``VACUUM``, to ensure the new foreign key is available in future introspection queries.
 
