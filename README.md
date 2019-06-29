@@ -40,3 +40,4 @@ Related projects:
 
 * [Datasette](https://github.com/simonw/datasette): A tool for exploring and publishing data
 * [csvs-to-sqlite](https://github.com/simonw/csvs-to-sqlite): Convert CSV files into a SQLite database
+* [db-to-sqlite](https://github.com/simonw/db-to-sqlite): CLI tool for exporting a MySQL or PostgreSQL database as a SQLite file
