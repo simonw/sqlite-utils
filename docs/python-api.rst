@@ -399,6 +399,24 @@ The ``table.add_foreign_key(column, other_table, other_column)`` method takes th
 - If the column is of format ``author_id``, look for tables called ``author`` or ``authors``
 - If the column does not end in ``_id``, try looking for a table with the exact name of the column or that name with an added ``s``
 
+Adding multiple foreign key constraints at once
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The final step in adding a new foreign key to a SQLite database is to run ``VACUUM``, to ensure the new foreign key is available in future introspection queries.
+
+``VACUUM`` against a large (multi-GB) database can take several minutes or longer. If you are adding multiple foreign keys using ``table.add_foreign_key(...)`` these can quickly add up.
+
+Instead, you can use ``db.add_foreign_keys(...)`` to add multiple foreign keys within a single transaction. This method takes a list of four-tuples, each one specifying a ``table``, ``column``, ``other_table`` and ``other_column``.
+
+Here's an example adding two foreign keys at once:
+
+.. code-block:: python
+
+    db.add_foreign_keys([
+        ("dogs", "breed_id", "breeds", "id"),
+        ("dogs", "home_town_id", "towns", "id")
+    ])
+
 .. _python_api_hash:
 
 Setting an ID based on the hash of the row contents
