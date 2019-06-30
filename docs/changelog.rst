@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v1_4:
+
+1.4 (2019-06-30)
+----------------
+
+- Added ``sqlite-utils index-foreign-keys`` command (:ref:`docs <cli_index_foreign_keys>`) and ``db.index_foreign_keys()`` method (:ref:`docs <python_api_index_foreign_keys>`) (`#33 <https://github.com/simonw/sqlite-utils/issues/33>`__)
+
 .. _v1_3:
 
 1.3 (2019-06-28)
