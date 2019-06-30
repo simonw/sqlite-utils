@@ -310,6 +310,16 @@ def test_add_column_foreign_key(db_path):
     assert "table 'bobcats' does not exist" in str(result.exception)
 
 
+def test_index_foreign_keys(db_path):
+    test_add_column_foreign_key(db_path)
+    db = Database(db_path)
+    assert [] == db["books"].indexes
+    result = CliRunner().invoke(cli.cli, ["index-foreign-keys", db_path])
+    assert [["author_id"], ["author_name_ref"]] == [
+        i.columns for i in db["books"].indexes
+    ]
+
+
 def test_enable_fts(db_path):
     assert None == Database(db_path)["Gosh"].detect_fts()
     result = CliRunner().invoke(

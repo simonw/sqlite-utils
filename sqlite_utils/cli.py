@@ -217,6 +217,20 @@ def add_foreign_key(path, table, column, other_table, other_column):
         raise click.ClickException(e)
 
 
+@cli.command(name="index-foreign-keys")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+def index_foreign_keys(path):
+    """
+    Ensure every foreign key column has an index on it.
+    """
+    db = sqlite_utils.Database(path)
+    db.index_foreign_keys()
+
+
 @cli.command(name="create-index")
 @click.argument(
     "path",

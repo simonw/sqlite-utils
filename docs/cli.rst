@@ -310,6 +310,15 @@ If you omit the other table and other column references ``sqlite-utils`` will at
 
 See :ref:`python_api_add_foreign_key` in the Python API documentation for further details, including how the automatic table guessing mechanism works.
 
+.. _cli_index_foreign_keys:
+
+Adding indexes for all foreign keys
+-----------------------------------
+
+If you want to ensure that every foreign key column in your database has a corresponding index, you can do so like this::
+
+    $ sqlite-utils index-foreign-keys books.db
+
 .. _cli_defaults_not_null:
 
 Setting defaults and not null constraints
