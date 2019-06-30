@@ -315,6 +315,16 @@ class Database:
         # can see the newly created foreign key.
         self.vacuum()
 
+    def index_foreign_keys(self):
+        for table_name in self.table_names():
+            table = self[table_name]
+            existing_indexes = {
+                i.columns[0] for i in table.indexes if len(i.columns) == 1
+            }
+            for fk in table.foreign_keys:
+                if fk.column not in existing_indexes:
+                    table.create_index([fk.column])
+
     def vacuum(self):
         self.conn.execute("VACUUM;")
 

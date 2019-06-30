@@ -361,6 +361,16 @@ def test_add_foreign_key_guess_table(fresh_db):
     )
 
 
+def test_index_foreign_keys(fresh_db):
+    test_add_foreign_key_guess_table(fresh_db)
+    assert [] == fresh_db["dogs"].indexes
+    fresh_db.index_foreign_keys()
+    assert [["breed_id"]] == [i.columns for i in fresh_db["dogs"].indexes]
+    # Calling it a second time should do nothing
+    fresh_db.index_foreign_keys()
+    assert [["breed_id"]] == [i.columns for i in fresh_db["dogs"].indexes]
+
+
 @pytest.mark.parametrize(
     "extra_data,expected_new_columns",
     [
