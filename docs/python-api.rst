@@ -419,6 +419,17 @@ Here's an example adding two foreign keys at once:
         ("dogs", "home_town_id", "towns", "id")
     ])
 
+.. _python_api_index_foreign_keys:
+
+Adding indexes for all foreign keys
+-----------------------------------
+
+If you want to ensure that every foreign key column in your database has a corresponding index, you can do so like this:
+
+.. code-block:: python
+
+    db.index_foreign_keys()
+
 .. _python_api_hash:
 
 Setting an ID based on the hash of the row contents
