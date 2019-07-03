@@ -14,7 +14,7 @@ Install it like this:
 
     pip3 install sqlite-utils
 
-Now you can do things like this:
+Now you can do things with the CLI utility like this:
 
     $ sqlite-utils tables dogs.db --counts
     [{"table": "dogs", "count": 2}]
@@ -33,6 +33,18 @@ Now you can do things like this:
     ----  -----  --------
        1      4  Cleo
        2      2  Pancakes
+
+Or you can import it and use it as a Python library like this:
+
+```python
+import sqlite_utils
+db = sqlite_utils.Database("demo_database.db")
+# This line creates a "dogs" table if one does not already exist:
+db["dogs"].insert_all([
+    {"id": 1, "age": 4, "name": "Cleo"},
+    {"id": 2, "age": 2, "name": "Pancakes"}
+], pk="id")
+```
 
 Full documentation: https://sqlite-utils.readthedocs.io/
 
