@@ -6,6 +6,11 @@ import itertools
 import json
 import pathlib
 
+from datetime import time
+from itertools import chain
+from pathlib import PosixPath
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Type, Union
+
 try:
     import numpy as np
 except ImportError:
@@ -80,7 +85,7 @@ class BadPrimaryKey(Exception):
 
 
 class Database:
-    def __init__(self, filename_or_conn):
+    def __init__(self, filename_or_conn: Union[str, PosixPath]) -> None:
         if isinstance(filename_or_conn, str):
             self.conn = sqlite3.connect(filename_or_conn)
         elif isinstance(filename_or_conn, pathlib.Path):
@@ -88,13 +93,13 @@ class Database:
         else:
             self.conn = filename_or_conn
 
-    def __getitem__(self, table_name):
+    def __getitem__(self, table_name: str) -> "Table":
         return Table(self, table_name)
 
     def __repr__(self):
         return "<Database {}>".format(self.conn)
 
-    def escape(self, value):
+    def escape(self, value: Union[str, int]) -> Union[str, int]:
         # Normally we would use .execute(sql, [params]) for escaping, but
         # occasionally that isn't available - most notable when we need
         # to include a "... DEFAULT 'value'" in a column definition.
@@ -104,7 +109,7 @@ class Database:
             {"value": value},
         ).fetchone()[0]
 
-    def table_names(self, fts4=False, fts5=False):
+    def table_names(self, fts4: bool = False, fts5: bool = False) -> List[str]:
         where = ["type = 'table'"]
         if fts4:
             where.append("sql like '%FTS4%'")
@@ -114,15 +119,24 @@ class Database:
         return [r[0] for r in self.conn.execute(sql).fetchall()]
 
     @property
-    def tables(self):
+    def tables(self) -> List["Table"]:
         return [self[name] for name in self.table_names()]
 
-    def execute_returning_dicts(self, sql, params=None):
+    def execute_returning_dicts(
+        self, sql: str, params: None = None
+    ) -> Union[
+        List[Dict[str, Union[int, None]]],
+        List[Dict[str, int]],
+        List[Dict[str, Union[str, int, None]]],
+        List[Dict[str, Union[int, str]]],
+    ]:
         cursor = self.conn.execute(sql, params or tuple())
         keys = [d[0] for d in cursor.description]
         return [dict(zip(keys, row)) for row in cursor.fetchall()]
 
-    def resolve_foreign_keys(self, name, foreign_keys):
+    def resolve_foreign_keys(
+        self, name: str, foreign_keys: Any
+    ) -> Union[List[ForeignKey], Tuple[ForeignKey, ForeignKey]]:
         # foreign_keys may be a list of strcolumn names, a list of ForeignKey tuples,
         # a list of tuple-pairs or a list of tuple-triples. We want to turn
         # it into a list of ForeignKey tuples
@@ -165,15 +179,17 @@ class Database:
 
     def create_table(
         self,
-        name,
-        columns,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        hash_id=None,
-    ):
+        name: str,
+        columns: Dict[str, Any],
+        pk: Optional[str] = None,
+        foreign_keys: Optional[Any] = None,
+        column_order: Optional[Tuple[str, str, str]] = None,
+        not_null: Optional[Set[str]] = None,
+        defaults: Optional[
+            Union[Dict[str, int], Dict[str, Union[int, str]], Dict[str, str]]
+        ] = None,
+        hash_id: Optional[str] = None,
+    ) -> "Table":
         foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
         foreign_keys_by_column = {fk.column: fk for fk in foreign_keys}
         # Sanity check not_null, and defaults if provided
@@ -243,7 +259,7 @@ class Database:
         self.conn.execute(sql)
         return self[name]
 
-    def create_view(self, name, sql):
+    def create_view(self, name: str, sql: str) -> None:
         self.conn.execute(
             """
             CREATE VIEW {name} AS {sql}
@@ -252,7 +268,7 @@ class Database:
             )
         )
 
-    def add_foreign_keys(self, foreign_keys):
+    def add_foreign_keys(self, foreign_keys: List[Tuple[str, str, str, str]]) -> None:
         # foreign_keys is a list of explicit 4-tuples
         assert all(
             len(fk) == 4 and isinstance(fk, (list, tuple)) for fk in foreign_keys
@@ -315,7 +331,7 @@ class Database:
         # can see the newly created foreign key.
         self.vacuum()
 
-    def index_foreign_keys(self):
+    def index_foreign_keys(self) -> None:
         for table_name in self.table_names():
             table = self[table_name]
             existing_indexes = {
@@ -325,29 +341,29 @@ class Database:
                 if fk.column not in existing_indexes:
                     table.create_index([fk.column])
 
-    def vacuum(self):
+    def vacuum(self) -> None:
         self.conn.execute("VACUUM;")
 
 
 class Table:
-    def __init__(self, db, name):
+    def __init__(self, db: Database, name: str) -> None:
         self.db = db
         self.name = name
         self.exists = self.name in self.db.table_names()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Table {}{}>".format(
             self.name, " (does not exist yet)" if not self.exists else ""
         )
 
     @property
-    def count(self):
+    def count(self) -> int:
         return self.db.conn.execute(
             "select count(*) from [{}]".format(self.name)
         ).fetchone()[0]
 
     @property
-    def columns(self):
+    def columns(self) -> List[Column]:
         if not self.exists:
             return []
         rows = self.db.conn.execute(
@@ -356,7 +372,7 @@ class Table:
         return [Column(*row) for row in rows]
 
     @property
-    def columns_dict(self):
+    def columns_dict(self) -> Dict[str, Union[Type[int], Type[str]]]:
         "Returns {column: python-type} dictionary"
         return {
             column.name: REVERSE_COLUMN_TYPE_MAPPING[column.type]
@@ -364,7 +380,7 @@ class Table:
         }
 
     @property
-    def rows(self):
+    def rows(self) -> Iterator[Dict[str, Union[str, int, None]]]:
         if not self.exists:
             return []
         cursor = self.db.conn.execute("select * from [{}]".format(self.name))
@@ -373,11 +389,11 @@ class Table:
             yield dict(zip(columns, row))
 
     @property
-    def pks(self):
+    def pks(self) -> List[str]:
         return [column.name for column in self.columns if column.is_pk]
 
     @property
-    def foreign_keys(self):
+    def foreign_keys(self) -> List[ForeignKey]:
         fks = []
         for row in self.db.conn.execute(
             "PRAGMA foreign_key_list([{}])".format(self.name)
@@ -395,13 +411,13 @@ class Table:
         return fks
 
     @property
-    def schema(self):
+    def schema(self) -> str:
         return self.db.conn.execute(
             "select sql from sqlite_master where name = ?", (self.name,)
         ).fetchone()[0]
 
     @property
-    def indexes(self):
+    def indexes(self) -> List[Index]:
         sql = 'PRAGMA index_list("{}")'.format(self.name)
         indexes = []
         for row in self.db.execute_returning_dicts(sql):
@@ -425,14 +441,14 @@ class Table:
 
     def create(
         self,
-        columns,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        hash_id=None,
-    ):
+        columns: Dict[str, Union[Type[str], Type[int], Type[bool], Type[time]]],
+        pk: Optional[str] = None,
+        foreign_keys: Optional[Any] = None,
+        column_order: Optional[Tuple[str, str, str]] = None,
+        not_null: Optional[Set[str]] = None,
+        defaults: Optional[Dict[str, str]] = None,
+        hash_id: Optional[str] = None,
+    ) -> "Table":
         columns = {name: value for (name, value) in columns.items()}
         with self.db.conn:
             self.db.create_table(
@@ -448,7 +464,13 @@ class Table:
         self.exists = True
         return self
 
-    def create_index(self, columns, index_name=None, unique=False, if_not_exists=False):
+    def create_index(
+        self,
+        columns: Union[Tuple[str, str], List[str], Tuple[str]],
+        index_name: Optional[str] = None,
+        unique: bool = False,
+        if_not_exists: bool = False,
+    ) -> "Table":
         if index_name is None:
             index_name = "idx_{}_{}".format(
                 self.name.replace(" ", "_"), "_".join(columns)
@@ -467,8 +489,13 @@ class Table:
         return self
 
     def add_column(
-        self, col_name, col_type=None, fk=None, fk_col=None, not_null_default=None
-    ):
+        self,
+        col_name: str,
+        col_type: Optional[Any] = None,
+        fk: Optional[str] = None,
+        fk_col: Optional[str] = None,
+        not_null_default: Optional[str] = None,
+    ) -> "Table":
         fk_col_type = None
         if fk is not None:
             # fk must be a valid table
@@ -508,7 +535,7 @@ class Table:
     def drop(self):
         return self.db.conn.execute("DROP TABLE {}".format(self.name))
 
-    def guess_foreign_table(self, column):
+    def guess_foreign_table(self, column: str) -> str:
         column = column.lower()
         possibilities = [column]
         if column.endswith("_id"):
@@ -529,7 +556,7 @@ class Table:
             )
         )
 
-    def guess_foreign_column(self, other_table):
+    def guess_foreign_column(self, other_table: str) -> str:
         pks = [c for c in self.db[other_table].columns if c.is_pk]
         if len(pks) != 1:
             raise BadPrimaryKey(
@@ -538,7 +565,12 @@ class Table:
         else:
             return pks[0].name
 
-    def add_foreign_key(self, column, other_table=None, other_column=None):
+    def add_foreign_key(
+        self,
+        column: str,
+        other_table: Optional[str] = None,
+        other_column: Optional[str] = None,
+    ) -> None:
         # Ensure column exists
         if column not in self.columns_dict:
             raise AlterError("No such column: {}".format(column))
@@ -570,7 +602,9 @@ class Table:
             )
         self.db.add_foreign_keys([(self.name, column, other_table, other_column)])
 
-    def enable_fts(self, columns, fts_version="FTS5"):
+    def enable_fts(
+        self, columns: Union[List[str], Tuple[str]], fts_version: str = "FTS5"
+    ) -> "Table":
         "Enables FTS on the specified columns"
         sql = """
             CREATE VIRTUAL TABLE "{table}_fts" USING {fts_version} (
@@ -586,7 +620,7 @@ class Table:
         self.populate_fts(columns)
         return self
 
-    def populate_fts(self, columns):
+    def populate_fts(self, columns: Union[List[str], Tuple[str]]) -> "Table":
         sql = """
             INSERT INTO "{table}_fts" (rowid, {columns})
                 SELECT rowid, {columns} FROM {table};
@@ -596,7 +630,7 @@ class Table:
         self.db.conn.executescript(sql)
         return self
 
-    def detect_fts(self):
+    def detect_fts(self) -> Optional[str]:
         "Detect if table has a corresponding FTS virtual table and return it"
         rows = self.db.conn.execute(
             """
@@ -618,7 +652,7 @@ class Table:
         else:
             return rows[0][0]
 
-    def optimize(self):
+    def optimize(self) -> "Table":
         fts_table = self.detect_fts()
         if fts_table is not None:
             self.db.conn.execute(
@@ -630,7 +664,9 @@ class Table:
             )
         return self
 
-    def detect_column_types(self, records):
+    def detect_column_types(
+        self, records: Any
+    ) -> Dict[str, Union[Type[str], Type[int], Type[bool], Type[time], Type[float]]]:
         all_column_types = {}
         for record in records:
             for key, value in record.items():
@@ -654,7 +690,7 @@ class Table:
             column_types[key] = t
         return column_types
 
-    def search(self, q):
+    def search(self, q: str) -> List[Tuple[str, str, str]]:
         sql = """
             select * from {table} where rowid in (
                 select rowid from [{table}_fts]
@@ -668,17 +704,17 @@ class Table:
 
     def insert(
         self,
-        record,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        upsert=False,
-        hash_id=None,
-        alter=False,
-        ignore=False,
-    ):
+        record: Any,
+        pk: Optional[str] = None,
+        foreign_keys: Optional[Any] = None,
+        column_order: Optional[Tuple[str, str, str]] = None,
+        not_null: None = None,
+        defaults: None = None,
+        upsert: bool = False,
+        hash_id: Optional[str] = None,
+        alter: bool = False,
+        ignore: bool = False,
+    ) -> "Table":
         return self.insert_all(
             [record],
             pk=pk,
@@ -694,18 +730,18 @@ class Table:
 
     def insert_all(
         self,
-        records,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        upsert=False,
-        batch_size=100,
-        hash_id=None,
-        alter=False,
-        ignore=False,
-    ):
+        records: Any,
+        pk: Optional[str] = None,
+        foreign_keys: Optional[Any] = None,
+        column_order: Optional[Tuple[str, str, str]] = None,
+        not_null: Optional[Set[str]] = None,
+        defaults: Optional[Dict[str, str]] = None,
+        upsert: bool = False,
+        batch_size: int = 100,
+        hash_id: Optional[str] = None,
+        alter: bool = False,
+        ignore: bool = False,
+    ) -> "Table":
         """
         Like .insert() but takes a list of records and ensures that the table
         that it creates (if table does not exist) has columns for ALL of that
@@ -790,15 +826,15 @@ class Table:
 
     def upsert(
         self,
-        record,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        hash_id=None,
-        alter=False,
-    ):
+        record: Dict[str, str],
+        pk: None = None,
+        foreign_keys: None = None,
+        column_order: None = None,
+        not_null: None = None,
+        defaults: None = None,
+        hash_id: Optional[str] = None,
+        alter: bool = False,
+    ) -> "Table":
         return self.insert(
             record,
             pk=pk,
@@ -813,16 +849,21 @@ class Table:
 
     def upsert_all(
         self,
-        records,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        batch_size=100,
-        hash_id=None,
-        alter=False,
-    ):
+        records: Union[
+            List[
+                Union[Dict[str, Union[int, str]], Dict[str, Union[int, str, List[str]]]]
+            ],
+            List[Dict[str, Union[int, str]]],
+        ],
+        pk: Optional[str] = None,
+        foreign_keys: None = None,
+        column_order: None = None,
+        not_null: None = None,
+        defaults: None = None,
+        batch_size: int = 100,
+        hash_id: None = None,
+        alter: bool = False,
+    ) -> "Table":
         return self.insert_all(
             records,
             pk=pk,
@@ -836,7 +877,16 @@ class Table:
             upsert=True,
         )
 
-    def add_missing_columns(self, records):
+    def add_missing_columns(
+        self,
+        records: Union[
+            List[
+                Union[Dict[str, Union[int, str]], Dict[str, Union[int, str, List[str]]]]
+            ],
+            List[Dict[str, Union[str, int, float]]],
+            List[Dict[str, Union[int, str]]],
+        ],
+    ) -> None:
         needed_columns = self.detect_column_types(records)
         current_columns = self.columns_dict
         for col_name, col_type in needed_columns.items():
@@ -844,13 +894,13 @@ class Table:
                 self.add_column(col_name, col_type)
 
 
-def chunks(sequence, size):
+def chunks(sequence: Any, size: int) -> Iterator[chain]:
     iterator = iter(sequence)
     for item in iterator:
         yield itertools.chain([item], itertools.islice(iterator, size - 1))
 
 
-def jsonify_if_needed(value):
+def jsonify_if_needed(value: Any) -> Optional[Union[bool, str, float, int]]:
     if isinstance(value, (dict, list, tuple)):
         return json.dumps(value)
     elif isinstance(value, (datetime.time, datetime.date, datetime.datetime)):
@@ -859,7 +909,7 @@ def jsonify_if_needed(value):
         return value
 
 
-def _hash(record):
+def _hash(record: Dict[str, str]) -> str:
     return hashlib.sha1(
         json.dumps(record, separators=(",", ":"), sort_keys=True).encode("utf8")
     ).hexdigest()
