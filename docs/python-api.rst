@@ -355,7 +355,7 @@ You can set a ``NOT NULL DEFAULT 'x'`` constraint on the new column using ``not_
 Adding columns automatically on insert/update
 =============================================
 
-You can insert or update data that includes new columns and have the table automatically altered to fit the new schema using the ``alter=True`` argument. This can be passed to all four of ``.insert()``, ``.upsert()``, ``.insert_all()``and ``.insert_all()``:
+You can insert or update data that includes new columns and have the table automatically altered to fit the new schema using the ``alter=True`` argument. This can be passed to all four of ``.insert()``, ``.upsert()``, ``.insert_all()`` and ``.upsert_all()``:
 
 .. code-block:: python
 
