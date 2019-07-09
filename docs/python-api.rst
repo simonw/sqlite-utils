@@ -632,7 +632,7 @@ You can create an index on a table using the ``.create_index(columns)`` method. 
 
     dogs.create_index(["is_good_dog"])
 
-By default the index will be named ``idx_{table-name}_{columns}`` - if you want to customize the name of the created index you can pass the ``index_name`` parameter::]
+By default the index will be named ``idx_{table-name}_{columns}`` - if you want to customize the name of the created index you can pass the ``index_name`` parameter:
 
 .. code-block:: python
 
