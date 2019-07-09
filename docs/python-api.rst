@@ -23,7 +23,7 @@ This will create ``my_database.db`` if it does not already exist. You can also p
 
     db = Database(sqlite3.connect("my_database.db"))
 
-If you want to create an in-memory database, you con do so like this:
+If you want to create an in-memory database, you can do so like this:
 
 .. code-block:: python
 
