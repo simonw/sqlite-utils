@@ -5,9 +5,10 @@ import hashlib
 import itertools
 import json
 import pathlib
+from typing import Union, List, Dict, Tuple, Any
 
 try:
-    import numpy as np
+    import numpy as np  # type: ignore
 except ImportError:
     np = None
 
@@ -19,7 +20,7 @@ ForeignKey = namedtuple(
 )
 Index = namedtuple("Index", ("seq", "name", "unique", "origin", "partial", "columns"))
 
-COLUMN_TYPE_MAPPING = {
+COLUMN_TYPE_MAPPING: Dict[Any, str] = {
     float: "FLOAT",
     int: "INTEGER",
     bool: "INTEGER",
@@ -59,7 +60,7 @@ if np:
     )
 
 
-REVERSE_COLUMN_TYPE_MAPPING = {
+REVERSE_COLUMN_TYPE_MAPPING: Dict[str, Any] = {
     "TEXT": str,
     "BLOB": bytes,
     "INTEGER": int,
@@ -80,7 +81,7 @@ class BadPrimaryKey(Exception):
 
 
 class Database:
-    def __init__(self, filename_or_conn):
+    def __init__(self, filename_or_conn: Union[str, pathlib.Path, sqlite3.Connection]):
         if isinstance(filename_or_conn, str):
             self.conn = sqlite3.connect(filename_or_conn)
         elif isinstance(filename_or_conn, pathlib.Path):
@@ -88,13 +89,13 @@ class Database:
         else:
             self.conn = filename_or_conn
 
-    def __getitem__(self, table_name):
+    def __getitem__(self, table_name: str) -> "Table":
         return Table(self, table_name)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Database {}>".format(self.conn)
 
-    def escape(self, value):
+    def escape(self, value: str) -> str:
         # Normally we would use .execute(sql, [params]) for escaping, but
         # occasionally that isn't available - most notable when we need
         # to include a "... DEFAULT 'value'" in a column definition.
@@ -104,7 +105,7 @@ class Database:
             {"value": value},
         ).fetchone()[0]
 
-    def table_names(self, fts4=False, fts5=False):
+    def table_names(self, fts4: bool = False, fts5: bool = False) -> List[str]:
         where = ["type = 'table'"]
         if fts4:
             where.append("sql like '%FTS4%'")
@@ -114,10 +115,10 @@ class Database:
         return [r[0] for r in self.conn.execute(sql).fetchall()]
 
     @property
-    def tables(self):
+    def tables(self) -> List["Table"]:
         return [self[name] for name in self.table_names()]
 
-    def execute_returning_dicts(self, sql, params=None):
+    def execute_returning_dicts(self, sql: str, params: Union[Dict, Tuple, List]=None) -> List[Dict]:
         cursor = self.conn.execute(sql, params or tuple())
         keys = [d[0] for d in cursor.description]
         return [dict(zip(keys, row)) for row in cursor.fetchall()]
