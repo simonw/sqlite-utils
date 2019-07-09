@@ -118,7 +118,9 @@ class Database:
     def tables(self) -> List["Table"]:
         return [self[name] for name in self.table_names()]
 
-    def execute_returning_dicts(self, sql: str, params: Union[Dict, Tuple, List]=None) -> List[Dict]:
+    def execute_returning_dicts(
+        self, sql: str, params: Union[Dict, Tuple, List] = None
+    ) -> List[Dict]:
         cursor = self.conn.execute(sql, params or tuple())
         keys = [d[0] for d in cursor.description]
         return [dict(zip(keys, row)) for row in cursor.fetchall()]
