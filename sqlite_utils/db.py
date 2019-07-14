@@ -78,6 +78,9 @@ class NoObviousTable(Exception):
 class BadPrimaryKey(Exception):
     pass
 
+class NotFoundError(Exception):
+    pass
+
 
 class Database:
     def __init__(self, filename_or_conn):
@@ -381,6 +384,30 @@ class Table:
     @property
     def pks(self):
         return [column.name for column in self.columns if column.is_pk]
+
+    def get(self, pk_values):
+        if not isinstance(pk_values, (list, tuple)):
+            pk_values = [pk_values]
+        pks = self.pks
+        pk_names = []
+        if len(pks) == 0:
+            # rowid table
+            pk_names = ["rowid"]
+            last_pk = pk_values[0]
+        elif len(pks) == 1:
+            pk_names = [pks[0]]
+            last_pk = pk_values[0]
+        elif len(pks) > 1:
+            pk_names = pks
+            last_pk = pk_values
+        wheres = ["[{}] = ?".format(pk_name) for pk_name in pk_names]
+        rows = self.rows_where(' and '.join(wheres), pk_values)
+        try:
+            row = list(rows)[0]
+            self.last_pk = last_pk
+            return row
+        except IndexError:
+            raise NotFoundError
 
     @property
     def foreign_keys(self):
