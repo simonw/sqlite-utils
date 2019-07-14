@@ -58,7 +58,7 @@ pipe = Popen("git describe --tags --always", stdout=PIPE, shell=True)
 git_version = pipe.stdout.read().decode("utf8")
 
 if git_version:
-    version = git_version
+    version = git_version.rsplit("-", 1)[0]
     release = git_version
 else:
     version = ""
