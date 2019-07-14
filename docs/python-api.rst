@@ -123,7 +123,7 @@ You don't need to pass all of the columns to the ``column_order`` parameter. If 
 
 After inserting a row like this, the ``dogs.last_rowid`` property will return the SQLite ``rowid`` assigned to the most recently inserted record.
 
-The ``dogs.last_pk`` property will return the last inserted primary key value, if you specified one. This can be very useful when writing code that creates foreign key or many-to-many relationships.
+The ``dogs.last_pk`` property will return the last inserted primary key value, if you specified one. This can be very useful when writing code that creates foreign keys or many-to-many relationships.
 
 Explicitly creating a table
 ---------------------------
