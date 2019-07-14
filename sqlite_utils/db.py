@@ -365,9 +365,15 @@ class Table:
 
     @property
     def rows(self):
+        return self.rows_where()
+
+    def rows_where(self, where=None, where_args=None):
         if not self.exists:
             return []
-        cursor = self.db.conn.execute("select * from [{}]".format(self.name))
+        sql = "select * from [{}]".format(self.name)
+        if where is not None:
+            sql += " where " + where
+        cursor = self.db.conn.execute(sql, where_args or [])
         columns = [c[0] for c in cursor.description]
         for row in cursor:
             yield dict(zip(columns, row))

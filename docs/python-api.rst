@@ -65,6 +65,13 @@ To iterate through dictionaries for each of the rows in a table, use ``.rows``::
     {'id': 1, 'age': 4, 'name': 'Cleo'}
     {'id': 2, 'age': 2, 'name': 'Pancakes'}
 
+You can filter rows by a WHERE clause using ``.rows_where(where, where_args)``::
+
+    >>> db = sqlite_utils.Database("dogs.db")
+    >>> for row in db["dogs"].rows_where("age > ?", [3]):
+    ...     print(row)
+    {'id': 1, 'age': 4, 'name': 'Cleo'}
+
 Creating tables
 ===============
 
