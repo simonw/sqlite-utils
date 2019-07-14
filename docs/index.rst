@@ -1,6 +1,6 @@
-==============
- sqlite-utils
-==============
+=======================
+ sqlite-utils |version|
+=======================
 
 *Python utility functions for manipulating SQLite databases*
 
