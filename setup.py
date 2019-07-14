@@ -24,7 +24,10 @@ setup(
     packages=find_packages(exclude="tests"),
     install_requires=["click", "click-default-group", "tabulate"],
     setup_requires=["pytest-runner"],
-    extras_require={"test": ["pytest", "black"]},
+    extras_require={
+        "test": ["pytest", "black"],
+        "docs": ["sphinx_rtd_theme", "sphinx-autobuild"],
+    },
     entry_points="""
         [console_scripts]
         sqlite-utils=sqlite_utils.cli:cli
