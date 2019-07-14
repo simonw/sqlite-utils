@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v1_4_1:
+
+1.4.1 (2019-07-14)
+------------------
+
+- Assorted minor documentation fixes: `changes since 1.4 <https://github.com/simonw/sqlite-utils/compare/1.4...1.4.1>`__
+
 .. _v1_4:
 
 1.4 (2019-06-30)
