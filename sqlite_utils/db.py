@@ -784,6 +784,41 @@ class Table:
     def value_or_default(self, key, value):
         return self._defaults[key] if value is DEFAULT else value
 
+    def update(self, pk_values, updates=None):
+        updates = updates or {}
+        if not isinstance(pk_values, (list, tuple)):
+            pk_values = [pk_values]
+        pks = self.pks
+        pk_names = []
+        if len(pks) == 0:
+            # rowid table
+            pk_names = ["rowid"]
+            last_pk = pk_values[0]
+        elif len(pks) == 1:
+            pk_names = [pks[0]]
+            last_pk = pk_values[0]
+        elif len(pks) > 1:
+            pk_names = pks
+            last_pk = pk_values
+        assert len(pk_names) == len(pk_values)
+        args = []
+        sets = []
+        wheres = []
+        for key, value in updates.items():
+            sets.append("[{}] = ?".format(key))
+            args.append(value)
+        wheres = ["[{}] = ?".format(pk_name) for pk_name in pk_names]
+        args.extend(pk_values)
+        sql = "update [{table}] set {sets} where {wheres}".format(
+            table=self.name, sets=", ".join(sets), wheres=" and ".join(wheres)
+        )
+        with self.db.conn:
+            rowcount = self.db.conn.execute(sql, args).rowcount
+            # TODO: Test this works (rolls back) - use better exception:
+            assert rowcount == 1
+        self.last_pk = last_pk
+        return self
+
     def insert(
         self,
         record,
