@@ -78,6 +78,7 @@ class NoObviousTable(Exception):
 class BadPrimaryKey(Exception):
     pass
 
+
 class NotFoundError(Exception):
     pass
 
@@ -208,11 +209,15 @@ class Database:
                 raise AlterError(
                     "No such column: {}.{}".format(fk.other_table, fk.other_column)
                 )
-        extra = ""
+
         column_defs = []
+        # ensure pk is a tuple
+        single_pk = None
+        if isinstance(pk, str):
+            single_pk = pk
         for column_name, column_type in column_items:
             column_extras = []
-            if pk == column_name:
+            if column_name == single_pk:
                 column_extras.append("PRIMARY KEY")
             if column_name in not_null:
                 column_extras.append("NOT NULL")
@@ -236,12 +241,17 @@ class Database:
                     else "",
                 )
             )
+        extra_pk = ""
+        if single_pk is None and pk and len(pk) > 1:
+            extra_pk = ",\n   PRIMARY KEY ({pks})".format(
+                pks=", ".join(["[{}]".format(p) for p in pk])
+            )
         columns_sql = ",\n".join(column_defs)
         sql = """CREATE TABLE [{table}] (
-{columns_sql}
-){extra};
+{columns_sql}{extra_pk}
+);
         """.format(
-            table=name, columns_sql=columns_sql, extra=extra
+            table=name, columns_sql=columns_sql, extra_pk=extra_pk
         )
         self.conn.execute(sql)
         return self[name]
@@ -401,7 +411,7 @@ class Table:
             pk_names = pks
             last_pk = pk_values
         wheres = ["[{}] = ?".format(pk_name) for pk_name in pk_names]
-        rows = self.rows_where(' and '.join(wheres), pk_values)
+        rows = self.rows_where(" and ".join(wheres), pk_values)
         try:
             row = list(rows)[0]
             self.last_pk = last_pk
@@ -813,12 +823,13 @@ class Table:
                 self.last_pk = None
                 # self.last_rowid will be 0 if a "INSERT OR IGNORE" happened
                 if (hash_id or pk) and self.last_rowid:
-                    self.last_pk = self.db.conn.execute(
-                        "select [{}] from [{}] where rowid = ?".format(
-                            hash_id or pk, self.name
-                        ),
-                        (self.last_rowid,),
-                    ).fetchone()[0]
+                    row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
+                    if hash_id:
+                        self.last_pk = row[hash_id]
+                    elif isinstance(pk, str):
+                        self.last_pk = row[pk]
+                    else:
+                        self.last_pk = tuple(row[p] for p in pk)
         return self
 
     def upsert(
