@@ -302,7 +302,7 @@ def insert_upsert_options(fn):
             ),
             click.argument("table"),
             click.argument("json_file", type=click.File(), required=True),
-            click.option("--pk", help="Column to use as the primary key, e.g. id", multiple=True),
+            click.option("--pk", help="Columns to use as the primary key, e.g. id", multiple=True),
             click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
             click.option("-c", "--csv", is_flag=True, help="Expect CSV"),
             click.option(
