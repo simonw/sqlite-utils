@@ -147,6 +147,24 @@ The first argument here is a dictionary specifying the columns you would like to
 
 This method takes optional arguments ``pk=``, ``column_order=``, ``foreign_keys=``, ``not_null=set()`` and ``defaults=dict()`` - explained below.
 
+.. _python_api_compound_primary_keys:
+
+Compound primary keys
+---------------------
+
+If you want to create a table with a compound primary key that spans multiple columns, you can do so by passing a tuple of column names to any of the methods that accept a ``pk=`` parameter. For example:
+
+.. code-block:: python
+
+    db["cats"].create({
+        "id": int,
+        "breed": str,
+        "name": str,
+        "weight": float,
+    }, pk=("breed", "id"))
+
+This also works for the ``.insert()``, ``.insert_all()``, ``.upsert()`` and ``.upsert_all()`` methods.
+
 .. _python_api_foreign_keys:
 
 Specifying foreign keys
