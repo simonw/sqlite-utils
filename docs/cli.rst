@@ -200,6 +200,8 @@ Here's the simplest possible example::
 
 To specify a column as the primary key, use ``--pk=column_name``.
 
+To create a compound primary key across more than one column, use ``--pk`` multiple times.
+
 If you feed it a JSON list it will insert multiple records. For example, if ``dogs.json`` looks like this::
 
     [

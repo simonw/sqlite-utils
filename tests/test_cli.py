@@ -427,6 +427,31 @@ def test_insert_multiple_with_primary_key(db_path, tmpdir):
     assert ["id"] == db["dogs"].pks
 
 
+def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
+    json_path = str(tmpdir / "dogs.json")
+    dogs = [
+        {"breed": "mixed", "id": i, "name": "Cleo {}".format(i), "age": i + 3}
+        for i in range(1, 21)
+    ]
+    open(json_path, "w").write(json.dumps(dogs))
+    result = CliRunner().invoke(
+        cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id", "--pk", "breed"]
+    )
+    assert 0 == result.exit_code
+    db = Database(db_path)
+    assert dogs == db.execute_returning_dicts("select * from dogs order by breed, id")
+    assert {"breed", "id"} == set(db["dogs"].pks)
+    assert (
+        "CREATE TABLE [dogs] (\n"
+        "   [breed] TEXT,\n"
+        "   [id] INTEGER,\n"
+        "   [name] TEXT,\n"
+        "   [age] INTEGER,\n"
+        "   PRIMARY KEY ([id], [breed])\n"
+        ")"
+    ) == db["dogs"].schema
+
+
 def test_insert_not_null_default(db_path, tmpdir):
     json_path = str(tmpdir / "dogs.json")
     dogs = [

@@ -72,6 +72,21 @@ You can filter rows by a WHERE clause using ``.rows_where(where, where_args)``::
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
 
+.. _python_api_get:
+
+Retrieving a specific record
+============================
+
+You can retrieve a record by its primary key using ``table.get()``::
+
+    >>> db = sqlite_utils.Database("dogs.db")
+    >>> print(db["dogs"].get(1))
+    {'id': 1, 'age': 4, 'name': 'Cleo'}
+
+If the table has a compound primary key you can pass in the primary key values as a tuple::
+
+    >>> db["compound_dogs"].get(("mixed", 3))
+
 Creating tables
 ===============
 
@@ -146,6 +161,24 @@ You can directly create a new table without inserting any data into it using the
 The first argument here is a dictionary specifying the columns you would like to create. Each column is paired with a Python type indicating the type of column. See :ref:`python_api_add_column` for full details on how these types work.
 
 This method takes optional arguments ``pk=``, ``column_order=``, ``foreign_keys=``, ``not_null=set()`` and ``defaults=dict()`` - explained below.
+
+.. _python_api_compound_primary_keys:
+
+Compound primary keys
+---------------------
+
+If you want to create a table with a compound primary key that spans multiple columns, you can do so by passing a tuple of column names to any of the methods that accept a ``pk=`` parameter. For example:
+
+.. code-block:: python
+
+    db["cats"].create({
+        "id": int,
+        "breed": str,
+        "name": str,
+        "weight": float,
+    }, pk=("breed", "id"))
+
+This also works for the ``.insert()``, ``.insert_all()``, ``.upsert()`` and ``.upsert_all()`` methods.
 
 .. _python_api_foreign_keys:
 

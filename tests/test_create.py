@@ -55,6 +55,21 @@ def test_create_table(fresh_db):
     ) == table.schema
 
 
+def test_create_table_compound_primary_key(fresh_db):
+    table = fresh_db.create_table(
+        "test_table", {"id1": str, "id2": str, "value": int}, pk=("id1", "id2")
+    )
+    assert (
+        "CREATE TABLE [test_table] (\n"
+        "   [id1] TEXT,\n"
+        "   [id2] TEXT,\n"
+        "   [value] INTEGER,\n"
+        "   PRIMARY KEY ([id1], [id2])\n"
+        ")"
+    ) == table.schema
+    assert ["id1", "id2"] == table.pks
+
+
 def test_create_table_with_bad_defaults(fresh_db):
     with pytest.raises(AssertionError):
         fresh_db.create_table(
@@ -120,6 +135,13 @@ def test_create_table_from_example(fresh_db, example, expected_columns):
     assert expected_columns == [
         {"name": col.name, "type": col.type} for col in fresh_db["people"].columns
     ]
+
+
+def test_create_table_from_example_with_compound_primary_keys(fresh_db):
+    record = {"name": "Zhang", "group": "staff", "employee_id": 2}
+    table = fresh_db["people"].insert(record, pk=("group", "employee_id"))
+    assert ["group", "employee_id"] == table.pks
+    assert record == table.get(("staff", 2))
 
 
 def test_create_table_column_order(fresh_db):
