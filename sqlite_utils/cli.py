@@ -302,7 +302,7 @@ def insert_upsert_options(fn):
             ),
             click.argument("table"),
             click.argument("json_file", type=click.File(), required=True),
-            click.option("--pk", help="Column to use as the primary key, e.g. id"),
+            click.option("--pk", help="Column to use as the primary key, e.g. id", multiple=True),
             click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
             click.option("-c", "--csv", is_flag=True, help="Expect CSV"),
             click.option(
@@ -348,6 +348,8 @@ def insert_upsert_implementation(
     if nl and csv:
         click.echo("Use just one of --nl and --csv", err=True)
         return
+    if pk and len(pk) == 1:
+        pk = pk[0]
     if csv:
         reader = csv_std.reader(json_file)
         headers = next(reader)
