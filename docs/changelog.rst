@@ -2,6 +2,18 @@
  Changelog
 ===========
 
+.. _v1_5:
+
+1.5 (2019-07-14)
+----------------
+
+- Support for compound primary keys (`#36 <https://github.com/simonw/sqlite-utils/issues/36>`__)
+
+  - Configure these using the CLI tool by passing ``--pk`` multiple times
+  - In Python, pass a tuple of columns to the ``pk=(..., ...)`` argument: see :ref:`python_api_compound_primary_keys`
+
+- New ``table.get()`` method for retrieving a record by its primary key (`#39 <https://github.com/simonw/sqlite-utils/issues/39>`__) - :ref:`documentation <python_api_get>`
+
 .. _v1_4_1:
 
 1.4.1 (2019-07-14)
