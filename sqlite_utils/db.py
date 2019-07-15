@@ -410,6 +410,13 @@ class Table:
         elif len(pks) > 1:
             pk_names = pks
             last_pk = pk_values
+        if len(pk_names) != len(pk_values):
+            raise NotFoundError(
+                "Need {} primary key value{}".format(
+                    len(pk_names), "" if len(pk_names) == 1 else "s"
+                )
+            )
+
         wheres = ["[{}] = ?".format(pk_name) for pk_name in pk_names]
         rows = self.rows_where(" and ".join(wheres), pk_values)
         try:
