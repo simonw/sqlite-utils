@@ -72,6 +72,21 @@ You can filter rows by a WHERE clause using ``.rows_where(where, where_args)``::
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
 
+.. _python_api_get:
+
+Retrieving a specific record
+============================
+
+You can retrieve a record by its primary key using ``table.get()``::
+
+    >>> db = sqlite_utils.Database("dogs.db")
+    >>> print(db["dogs"].get(1))
+    {'id': 1, 'age': 4, 'name': 'Cleo'}
+
+If the table has a compound primary key you can pass in the primary key values as a tuple::
+
+    >>> db["compound_dogs"].get(("mixed", 3))
+
 Creating tables
 ===============
 
