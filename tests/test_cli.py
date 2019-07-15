@@ -429,7 +429,10 @@ def test_insert_multiple_with_primary_key(db_path, tmpdir):
 
 def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
     json_path = str(tmpdir / "dogs.json")
-    dogs = [{"breed": "mixed", "id": i, "name": "Cleo {}".format(i), "age": i + 3} for i in range(1, 21)]
+    dogs = [
+        {"breed": "mixed", "id": i, "name": "Cleo {}".format(i), "age": i + 3}
+        for i in range(1, 21)
+    ]
     open(json_path, "w").write(json.dumps(dogs))
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id", "--pk", "breed"]
