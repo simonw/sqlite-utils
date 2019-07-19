@@ -307,6 +307,7 @@ def insert_upsert_options(fn):
             ),
             click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
             click.option("-c", "--csv", is_flag=True, help="Expect CSV"),
+            click.option("--tsv", is_flag=True, help="Expect TSV"),
             click.option(
                 "--batch-size", type=int, default=100, help="Commit every X records"
             ),
@@ -339,6 +340,7 @@ def insert_upsert_implementation(
     pk,
     nl,
     csv,
+    tsv,
     batch_size,
     alter,
     upsert,
@@ -347,13 +349,13 @@ def insert_upsert_implementation(
     default=None,
 ):
     db = sqlite_utils.Database(path)
-    if nl and csv:
-        click.echo("Use just one of --nl and --csv", err=True)
-        return
+    if (nl + csv + tsv) >= 2:
+        raise click.ClickException("Use just one of --nl, --csv or --tsv")
     if pk and len(pk) == 1:
         pk = pk[0]
-    if csv:
-        reader = csv_std.reader(json_file)
+    if csv or tsv:
+        dialect = "excel-tab" if tsv else "excel"
+        reader = csv_std.reader(json_file, dialect=dialect)
         headers = next(reader)
         docs = (dict(zip(headers, row)) for row in reader)
     elif nl:
@@ -381,7 +383,18 @@ def insert_upsert_implementation(
     "--ignore", is_flag=True, default=False, help="Ignore records if pk already exists"
 )
 def insert(
-    path, table, json_file, pk, nl, csv, batch_size, alter, ignore, not_null, default
+    path,
+    table,
+    json_file,
+    pk,
+    nl,
+    csv,
+    tsv,
+    batch_size,
+    alter,
+    ignore,
+    not_null,
+    default,
 ):
     """
     Insert records from JSON file into a table, creating the table if it
@@ -396,6 +409,7 @@ def insert(
         pk,
         nl,
         csv,
+        tsv,
         batch_size,
         alter=alter,
         upsert=False,
@@ -407,7 +421,9 @@ def insert(
 
 @cli.command()
 @insert_upsert_options
-def upsert(path, table, json_file, pk, nl, csv, batch_size, alter, not_null, default):
+def upsert(
+    path, table, json_file, pk, nl, csv, tsv, batch_size, alter, not_null, default
+):
     """
     Upsert records based on their primary key. Works like 'insert' but if
     an incoming record has a primary key that matches an existing record
@@ -420,6 +436,7 @@ def upsert(path, table, json_file, pk, nl, csv, batch_size, alter, not_null, def
         pk,
         nl,
         csv,
+        tsv,
         batch_size,
         alter=alter,
         upsert=True,

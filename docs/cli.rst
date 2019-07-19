@@ -187,8 +187,8 @@ The ``--nl``, ``--csv`` and ``--table`` options are all available.
 
 .. _cli_inserting_data:
 
-Inserting data
-==============
+Inserting JSON data
+===================
 
 If you have data as JSON, you can use ``sqlite-utils insert tablename`` to insert it into a database. The table will be created with the correct (automatically detected) columns if it does not already exist.
 
@@ -248,6 +248,17 @@ This also means you pipe ``sqlite-utils`` together to easily create a new SQLite
     119263,495X Lakeshore Dr,,
     207368,920 Kirkham St,37.760210314285,-122.47073935813
     188702,1501 Evans Ave,37.7422086702947,-122.387293152263
+
+Inserting CSV or TSV data
+=========================
+
+If your data is in CSV format, you can insert it using the ``--csv`` option::
+
+    $ sqlite-utils insert dogs.db dogs docs.csv --csv
+
+For tab-delimited data, use ``--tsv``::
+
+    $ sqlite-utils insert dogs.db dogs docs.tsv --tsv
 
 Upserting data
 ==============
