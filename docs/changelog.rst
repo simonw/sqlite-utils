@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v1_6:
+
+1.6 (2019-07-18)
+----------------
+
+- ``sqlite-utils insert`` can now accept TSV data via the new ``--tsv`` option (`#41 <https://github.com/simonw/sqlite-utils/issues/41>`__)
+
 .. _v1_5:
 
 1.5 (2019-07-14)
