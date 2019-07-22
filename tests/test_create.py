@@ -144,8 +144,8 @@ def test_create_table_from_example_with_compound_primary_keys(fresh_db):
     assert record == table.get(("staff", 2))
 
 
-@pytest.mark.parametrize("use_class_constructor", [True, False])
-def test_create_table_column_order(fresh_db, use_class_constructor):
+@pytest.mark.parametrize("use_table_factory", [True, False])
+def test_create_table_column_order(fresh_db, use_table_factory):
     row = collections.OrderedDict(
         (
             ("zzz", "third"),
@@ -156,7 +156,7 @@ def test_create_table_column_order(fresh_db, use_class_constructor):
         )
     )
     column_order = ("abc", "ccc", "zzz")
-    if use_class_constructor:
+    if use_table_factory:
         fresh_db.table("table", column_order=column_order).insert(row)
     else:
         fresh_db["table"].insert(row, column_order=column_order)
@@ -194,11 +194,11 @@ def test_create_table_column_order(fresh_db, use_class_constructor):
         (({"one_id": "one"},), AssertionError),
     ),
 )
-@pytest.mark.parametrize("use_class_constructor", [True, False])
+@pytest.mark.parametrize("use_table_factory", [True, False])
 def test_create_table_works_for_m2m_with_only_foreign_keys(
-    fresh_db, foreign_key_specification, expected_exception, use_class_constructor
+    fresh_db, foreign_key_specification, expected_exception, use_table_factory
 ):
-    if use_class_constructor:
+    if use_table_factory:
         fresh_db.table("one", pk="id").insert({"id": 1})
         fresh_db.table("two", pk="id").insert({"id": 1})
     else:
@@ -208,7 +208,7 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(
     row = {"one_id": 1, "two_id": 1}
 
     def do_it():
-        if use_class_constructor:
+        if use_table_factory:
             fresh_db.table("m2m", foreign_keys=foreign_key_specification).insert(row)
         else:
             fresh_db["m2m"].insert(row, foreign_keys=foreign_key_specification)
@@ -420,9 +420,9 @@ def test_index_foreign_keys(fresh_db):
         ),
     ],
 )
-@pytest.mark.parametrize("use_class_constructor", [True, False])
+@pytest.mark.parametrize("use_table_factory", [True, False])
 def test_insert_row_alter_table(
-    fresh_db, extra_data, expected_new_columns, use_class_constructor
+    fresh_db, extra_data, expected_new_columns, use_table_factory
 ):
     table = fresh_db["books"]
     table.insert({"title": "Hedgehogs of the world", "author_id": 1})
@@ -432,7 +432,7 @@ def test_insert_row_alter_table(
     ] == [{"name": col.name, "type": col.type} for col in table.columns]
     record = {"title": "Squirrels of the world", "author_id": 2}
     record.update(extra_data)
-    if use_class_constructor:
+    if use_table_factory:
         fresh_db.table("books", alter=True).insert(record)
     else:
         fresh_db["books"].insert(record, alter=True)
@@ -444,8 +444,8 @@ def test_insert_row_alter_table(
     ]
 
 
-@pytest.mark.parametrize("use_class_constructor", [True, False])
-def test_upsert_rows_alter_table(fresh_db, use_class_constructor):
+@pytest.mark.parametrize("use_table_factory", [True, False])
+def test_upsert_rows_alter_table(fresh_db, use_table_factory):
     first_row = {"id": 1, "title": "Hedgehogs of the world", "author_id": 1}
     next_rows = [
         {"id": 1, "title": "Hedgehogs of the World", "species": "hedgehogs"},
@@ -456,7 +456,7 @@ def test_upsert_rows_alter_table(fresh_db, use_class_constructor):
             "significant_continents": ["Europe", "North America"],
         },
     ]
-    if use_class_constructor:
+    if use_table_factory:
         table = fresh_db.table("books", pk="id", alter=True)
         table.insert(first_row)
         table.upsert_all(next_rows)
