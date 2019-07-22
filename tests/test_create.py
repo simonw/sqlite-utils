@@ -144,19 +144,22 @@ def test_create_table_from_example_with_compound_primary_keys(fresh_db):
     assert record == table.get(("staff", 2))
 
 
-def test_create_table_column_order(fresh_db):
-    fresh_db["table"].insert(
-        collections.OrderedDict(
-            (
-                ("zzz", "third"),
-                ("abc", "first"),
-                ("ccc", "second"),
-                ("bbb", "second-to-last"),
-                ("aaa", "last"),
-            )
-        ),
-        column_order=("abc", "ccc", "zzz"),
+@pytest.mark.parametrize("use_class_constructor", [True, False])
+def test_create_table_column_order(fresh_db, use_class_constructor):
+    row = collections.OrderedDict(
+        (
+            ("zzz", "third"),
+            ("abc", "first"),
+            ("ccc", "second"),
+            ("bbb", "second-to-last"),
+            ("aaa", "last"),
+        )
     )
+    column_order = ("abc", "ccc", "zzz")
+    if use_class_constructor:
+        fresh_db.table("table", column_order=column_order).insert(row)
+    else:
+        fresh_db["table"].insert(row, column_order=column_order)
     assert [
         {"name": "abc", "type": "TEXT"},
         {"name": "ccc", "type": "TEXT"},
@@ -191,21 +194,31 @@ def test_create_table_column_order(fresh_db):
         (({"one_id": "one"},), AssertionError),
     ),
 )
+@pytest.mark.parametrize("use_class_constructor", [True, False])
 def test_create_table_works_for_m2m_with_only_foreign_keys(
-    fresh_db, foreign_key_specification, expected_exception
+    fresh_db, foreign_key_specification, expected_exception, use_class_constructor
 ):
-    fresh_db["one"].insert({"id": 1}, pk="id")
-    fresh_db["two"].insert({"id": 1}, pk="id")
+    if use_class_constructor:
+        fresh_db.table("one", pk="id").insert({"id": 1})
+        fresh_db.table("two", pk="id").insert({"id": 1})
+    else:
+        fresh_db["one"].insert({"id": 1}, pk="id")
+        fresh_db["two"].insert({"id": 1}, pk="id")
+
+    row = {"one_id": 1, "two_id": 1}
+
+    def do_it():
+        if use_class_constructor:
+            fresh_db.table("m2m", foreign_keys=foreign_key_specification).insert(row)
+        else:
+            fresh_db["m2m"].insert(row, foreign_keys=foreign_key_specification)
+
     if expected_exception:
         with pytest.raises(expected_exception):
-            fresh_db["m2m"].insert(
-                {"one_id": 1, "two_id": 1}, foreign_keys=foreign_key_specification
-            )
+            do_it()
         return
     else:
-        fresh_db["m2m"].insert(
-            {"one_id": 1, "two_id": 1}, foreign_keys=foreign_key_specification
-        )
+        do_it()
     assert [
         {"name": "one_id", "type": "INTEGER"},
         {"name": "two_id", "type": "INTEGER"},
@@ -407,7 +420,10 @@ def test_index_foreign_keys(fresh_db):
         ),
     ],
 )
-def test_insert_row_alter_table(fresh_db, extra_data, expected_new_columns):
+@pytest.mark.parametrize("use_class_constructor", [True, False])
+def test_insert_row_alter_table(
+    fresh_db, extra_data, expected_new_columns, use_class_constructor
+):
     table = fresh_db["books"]
     table.insert({"title": "Hedgehogs of the world", "author_id": 1})
     assert [
@@ -416,7 +432,10 @@ def test_insert_row_alter_table(fresh_db, extra_data, expected_new_columns):
     ] == [{"name": col.name, "type": col.type} for col in table.columns]
     record = {"title": "Squirrels of the world", "author_id": 2}
     record.update(extra_data)
-    fresh_db["books"].insert(record, alter=True)
+    if use_class_constructor:
+        fresh_db.table("books", alter=True).insert(record)
+    else:
+        fresh_db["books"].insert(record, alter=True)
     assert [
         {"name": "title", "type": "TEXT"},
         {"name": "author_id", "type": "INTEGER"},
@@ -425,21 +444,26 @@ def test_insert_row_alter_table(fresh_db, extra_data, expected_new_columns):
     ]
 
 
-def test_upsert_rows_alter_table(fresh_db):
-    table = fresh_db["books"]
-    table.insert({"id": 1, "title": "Hedgehogs of the world", "author_id": 1}, pk="id")
-    table.upsert_all(
-        [
-            {"id": 1, "title": "Hedgehogs of the World", "species": "hedgehogs"},
-            {"id": 2, "title": "Squirrels of the World", "num_species": 200},
-            {
-                "id": 3,
-                "title": "Badgers of the World",
-                "significant_continents": ["Europe", "North America"],
-            },
-        ],
-        alter=True,
-    )
+@pytest.mark.parametrize("use_class_constructor", [True, False])
+def test_upsert_rows_alter_table(fresh_db, use_class_constructor):
+    first_row = {"id": 1, "title": "Hedgehogs of the world", "author_id": 1}
+    next_rows = [
+        {"id": 1, "title": "Hedgehogs of the World", "species": "hedgehogs"},
+        {"id": 2, "title": "Squirrels of the World", "num_species": 200},
+        {
+            "id": 3,
+            "title": "Badgers of the World",
+            "significant_continents": ["Europe", "North America"],
+        },
+    ]
+    if use_class_constructor:
+        table = fresh_db.table("books", pk="id", alter=True)
+        table.insert(first_row)
+        table.upsert_all(next_rows)
+    else:
+        table = fresh_db["books"]
+        table.insert(first_row, pk="id")
+        table.upsert_all(next_rows, alter=True)
     assert {
         "author_id": int,
         "id": int,

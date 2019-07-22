@@ -18,6 +18,7 @@ ForeignKey = namedtuple(
     "ForeignKey", ("table", "column", "other_table", "other_column")
 )
 Index = namedtuple("Index", ("seq", "name", "unique", "origin", "partial", "columns"))
+DEFAULT = object()
 
 COLUMN_TYPE_MAPPING = {
     float: "FLOAT",
@@ -93,10 +94,13 @@ class Database:
             self.conn = filename_or_conn
 
     def __getitem__(self, table_name):
-        return Table(self, table_name)
+        return self.table(table_name)
 
     def __repr__(self):
         return "<Database {}>".format(self.conn)
+
+    def table(self, table_name, **kwargs):
+        return Table(self, table_name, **kwargs)
 
     def escape(self, value):
         # Normally we would use .execute(sql, [params]) for escaping, but
@@ -343,10 +347,36 @@ class Database:
 
 
 class Table:
-    def __init__(self, db, name):
+    def __init__(
+        self,
+        db,
+        name,
+        pk=None,
+        foreign_keys=None,
+        column_order=None,
+        not_null=None,
+        defaults=None,
+        upsert=False,
+        batch_size=100,
+        hash_id=None,
+        alter=False,
+        ignore=False,
+    ):
         self.db = db
         self.name = name
         self.exists = self.name in self.db.table_names()
+        self._defaults = dict(
+            pk=pk,
+            foreign_keys=foreign_keys,
+            column_order=column_order,
+            not_null=not_null,
+            defaults=defaults,
+            upsert=upsert,
+            batch_size=batch_size,
+            hash_id=hash_id,
+            alter=alter,
+            ignore=ignore,
+        )
 
     def __repr__(self):
         return "<Table {}{}>".format(
@@ -716,18 +746,21 @@ class Table:
         )
         return self.db.conn.execute(sql, (q,)).fetchall()
 
+    def value_or_default(self, key, value):
+        return self._defaults[key] if value is DEFAULT else value
+
     def insert(
         self,
         record,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        upsert=False,
-        hash_id=None,
-        alter=False,
-        ignore=False,
+        pk=DEFAULT,
+        foreign_keys=DEFAULT,
+        column_order=DEFAULT,
+        not_null=DEFAULT,
+        defaults=DEFAULT,
+        upsert=DEFAULT,
+        hash_id=DEFAULT,
+        alter=DEFAULT,
+        ignore=DEFAULT,
     ):
         return self.insert_all(
             [record],
@@ -745,22 +778,33 @@ class Table:
     def insert_all(
         self,
         records,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        upsert=False,
-        batch_size=100,
-        hash_id=None,
-        alter=False,
-        ignore=False,
+        pk=DEFAULT,
+        foreign_keys=DEFAULT,
+        column_order=DEFAULT,
+        not_null=DEFAULT,
+        defaults=DEFAULT,
+        upsert=DEFAULT,
+        batch_size=DEFAULT,
+        hash_id=DEFAULT,
+        alter=DEFAULT,
+        ignore=DEFAULT,
     ):
         """
         Like .insert() but takes a list of records and ensures that the table
         that it creates (if table does not exist) has columns for ALL of that
         data
         """
+        pk = self.value_or_default("pk", pk)
+        foreign_keys = self.value_or_default("foreign_keys", foreign_keys)
+        column_order = self.value_or_default("column_order", column_order)
+        not_null = self.value_or_default("not_null", not_null)
+        defaults = self.value_or_default("defaults", defaults)
+        upsert = self.value_or_default("upsert", upsert)
+        batch_size = self.value_or_default("batch_size", batch_size)
+        hash_id = self.value_or_default("hash_id", hash_id)
+        alter = self.value_or_default("alter", alter)
+        ignore = self.value_or_default("ignore", ignore)
+
         assert not (hash_id and pk), "Use either pk= or hash_id="
         assert not (
             ignore and upsert
@@ -842,13 +886,13 @@ class Table:
     def upsert(
         self,
         record,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        hash_id=None,
-        alter=False,
+        pk=DEFAULT,
+        foreign_keys=DEFAULT,
+        column_order=DEFAULT,
+        not_null=DEFAULT,
+        defaults=DEFAULT,
+        hash_id=DEFAULT,
+        alter=DEFAULT,
     ):
         return self.insert(
             record,
@@ -865,14 +909,14 @@ class Table:
     def upsert_all(
         self,
         records,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        batch_size=100,
-        hash_id=None,
-        alter=False,
+        pk=DEFAULT,
+        foreign_keys=DEFAULT,
+        column_order=DEFAULT,
+        not_null=DEFAULT,
+        defaults=DEFAULT,
+        batch_size=DEFAULT,
+        hash_id=DEFAULT,
+        alter=DEFAULT,
     ):
         return self.insert_all(
             records,
