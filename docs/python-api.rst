@@ -222,6 +222,27 @@ You can leave off the third item in the tuple to have the referenced column auto
         ("author_id", "authors")
     ])
 
+.. _python_api_table_configuration:
+
+Table configuration options
+===========================
+
+The ``.insert()``, ``.upsert()``, ``.insert_all()`` and ``.upsert_all()`` methods each take a number of keyword arguments, some of which influence what happens should they cause a table to be created and some of which affect the behavior of those methods.
+
+You can set default values for these methods by accessing the table through the ``db.table(...)`` method (instead of using ``db["table_name"]``), like so:
+
+.. code-block:: python
+
+    table = db.table(
+        "authors",
+        pk="id",
+        not_null={"name", "score"},
+        column_order=("id", "name", "score", "url")
+    )
+    # Now you can call .insert() like so:
+    table.insert({"id": 1, "name": "Tracy", "score": 5})
+
+The configuration options that can be specified in this way are ``pk``, ``foreign_keys``, ``column_order``, ``not_null``, ``defaults``, ``upsert``, ``batch_size``, ``hash_id``, ``alter``, ``ignore``. These are all documented below.
 
 .. _python_api_defaults_not_null:
 
@@ -395,7 +416,7 @@ You can set a ``NOT NULL DEFAULT 'x'`` constraint on the new column using ``not_
 Adding columns automatically on insert/update
 =============================================
 
-You can insert or update data that includes new columns and have the table automatically altered to fit the new schema using the ``alter=True`` argument. This can be passed to all four of ``.insert()``, ``.upsert()``, ``.insert_all()`` and ``.upsert_all()``:
+You can insert or update data that includes new columns and have the table automatically altered to fit the new schema using the ``alter=True`` argument. This can be passed to all four of ``.insert()``, ``.upsert()``, ``.insert_all()`` and ``.upsert_all()``, or it can be passed to ``db.table(table_name, alter=True)`` to enable it by default for all method calls against that table instance.
 
 .. code-block:: python
 
@@ -408,6 +429,10 @@ You can insert or update data that includes new columns and have the table autom
     print(db["new_table"].columns_dict)
     # Outputs this:
     # {'name': <class 'str'>, 'age': <class 'int'>}
+
+    # This works too:
+    new_table = db.table("new_table", alter=True)
+    new_table.insert({"name": "Gareth", "age": 32, "shoe_size": 11})
 
 .. _python_api_add_foreign_key:
 
