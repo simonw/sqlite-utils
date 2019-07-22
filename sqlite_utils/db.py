@@ -1,4 +1,4 @@
-import sqlite3
+from .utils import sqlite3
 from collections import namedtuple
 import datetime
 import hashlib

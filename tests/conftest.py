@@ -1,5 +1,5 @@
 from sqlite_utils import Database
-import sqlite3
+from sqlite_utils.utils import sqlite3
 import pytest
 
 

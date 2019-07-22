@@ -7,7 +7,7 @@ import json
 import sys
 import csv as csv_std
 import tabulate
-import sqlite3
+from .utils import sqlite3
 
 
 def output_options(fn):

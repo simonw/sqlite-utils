@@ -549,7 +549,7 @@ def test_create_index_if_not_exists(fresh_db):
     assert [] == dogs.indexes
     dogs.create_index(["name"])
     assert 1 == len(dogs.indexes)
-    with pytest.raises(sqlite3.OperationalError):
+    with pytest.raises(Exception, match="index idx_dogs_name already exists"):
         dogs.create_index(["name"])
     dogs.create_index(["name"], if_not_exists=True)
 
@@ -593,7 +593,7 @@ def test_insert_thousands_ignores_extra_columns_after_first_100(fresh_db):
 def test_insert_ignore(fresh_db):
     fresh_db["test"].insert({"id": 1, "bar": 2}, pk="id")
     # Should raise an error if we try this again
-    with pytest.raises(sqlite3.IntegrityError):
+    with pytest.raises(Exception, match="UNIQUE constraint failed"):
         fresh_db["test"].insert({"id": 1, "bar": 2}, pk="id")
     # Using ignore=True should cause our insert to be silently ignored
     fresh_db["test"].insert({"id": 1, "bar": 3}, pk="id", ignore=True)

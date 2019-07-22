@@ -4,7 +4,7 @@ from click.testing import CliRunner
 import json
 import os
 import pytest
-import sqlite3
+from sqlite_utils.utils import sqlite3
 
 from .utils import collapse_whitespace
 
