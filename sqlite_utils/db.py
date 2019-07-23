@@ -960,7 +960,6 @@ class Table:
         # lookups is a dictionary - all columns will be used for a unique index
         if self.exists:
             self.add_missing_columns([column_values])
-            # TODO: Ensure we have a unique index on these
             unique_column_sets = [set(i.columns) for i in self.indexes]
             if set(column_values.keys()) not in unique_column_sets:
                 self.create_index(column_values.keys(), unique=True)
