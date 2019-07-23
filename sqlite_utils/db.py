@@ -263,7 +263,15 @@ class Database:
             table=name, columns_sql=columns_sql, extra_pk=extra_pk
         )
         self.conn.execute(sql)
-        return self[name]
+        return self.table(
+            name,
+            pk=pk,
+            foreign_keys=foreign_keys,
+            column_order=column_order,
+            not_null=not_null,
+            defaults=defaults,
+            hash_id=hash_id,
+        )
 
     def create_view(self, name, sql):
         self.conn.execute(
