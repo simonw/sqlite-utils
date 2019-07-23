@@ -224,6 +224,8 @@ class Database:
         single_pk = None
         if isinstance(pk, str):
             single_pk = pk
+            if pk not in [c[0] for c in column_items]:
+                column_items.insert(0, (pk, int))
         for column_name, column_type in column_items:
             column_extras = []
             if column_name == single_pk:
@@ -953,6 +955,29 @@ class Table:
         for col_name, col_type in needed_columns.items():
             if col_name not in current_columns:
                 self.add_column(col_name, col_type)
+
+    def lookup(self, column_values):
+        # lookups is a dictionary - all columns will be used for a unique index
+        if self.exists:
+            self.add_missing_columns([column_values])
+            # TODO: Ensure we have a unique index on these
+            unique_column_sets = [set(i.columns) for i in self.indexes]
+            if set(column_values.keys()) not in unique_column_sets:
+                self.create_index(column_values.keys(), unique=True)
+            wheres = ["[{}] = ?".format(column) for column in column_values]
+            rows = list(
+                self.rows_where(
+                    " and ".join(wheres), [value for _, value in column_values.items()]
+                )
+            )
+            try:
+                return rows[0]["id"]
+            except IndexError:
+                return self.insert(column_values, pk="id").last_pk
+        else:
+            pk = self.insert(column_values, pk="id").last_pk
+            self.create_index(column_values.keys(), unique=True)
+            return pk
 
 
 def chunks(sequence, size):
