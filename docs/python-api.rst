@@ -356,10 +356,15 @@ An ``upsert_all()`` method is also available, which behaves like ``insert_all()`
 
 .. _python_api_lookup_tables:
 
-Creating lookup tables
-======================
+Working with lookup tables
+==========================
 
 A useful pattern when populating large tables in to break common values out into lookup tables. Consider a table of ``Trees``, where each tree has a species. Ideally these species would be split out into a separate ``Species`` table, with each one assigned an integer primary key that can be referenced from the ``Trees`` table ``species_id`` column.
+
+.. _python_api_explicit_lookup_tables:
+
+Creating lookup tables explicitly
+---------------------------------
 
 Calling ``db["Species"].lookup({"name": "Palm"})`` creates a table called ``Species`` (if one does not already exist) with two columns: ``id`` and ``name``. It sets up a unique constraint on the ``name`` column to guarantee it will not contain duplicate rows. It then inserts a new row with the ``name`` set to ``Palm`` and returns the new integer primary key value.
 
@@ -379,6 +384,39 @@ If you pass in a dictionary with multiple values, both values will be used to in
             "latin_name": "Juniperus communis"
         })
     })
+
+.. _python_api_extracts:
+
+Populating lookup tables automatically during insert/upsert
+-----------------------------------------------------------
+
+A more efficient way to work with lookup tables is to define them using the ``extracts=`` parameter, which is accepted by ``.insert()``, ``.upsert()``, ``.insert_all()``, ``.upsert_all()`` and by the ``.table(...)`` factory function.
+
+``extracts=`` specifies columns which should be "extracted" out into a separate lookup table during the data insertion.
+
+It can be either a list of column names, in which case the extracted table names will match the column names exactly, or it can be a dictionary mapping column names to the desired name of the extracted table.
+
+To extract the ``species`` column out to a separate ``Species`` table, you can do this:
+
+.. code-block:: python
+
+    # Using the table factory
+    trees = db.table("Trees", extracts={"species": "Species"})
+    trees.insert({
+        "latitude": 49.1265976,
+        "longitude": 2.5496218,
+        "species": "Common Juniper"
+    })
+
+    # If you want the table to be called 'species', you can do this:
+    trees = db.table("Trees", extracts=["species"])
+
+    # Using .insert() directly
+    db["Trees"].insert({
+        "latitude": 49.1265976,
+        "longitude": 2.5496218,
+        "species": "Common Juniper"
+    }, extracts={"species": "Species"})
 
 .. _python_api_add_column:
 
