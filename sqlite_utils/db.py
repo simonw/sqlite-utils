@@ -186,9 +186,20 @@ class Database:
         not_null=None,
         defaults=None,
         hash_id=None,
+        extracts=None,
     ):
         foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
         foreign_keys_by_column = {fk.column: fk for fk in foreign_keys}
+        # any extracts will be treated as integer columns with a foreign key
+        extracts = resolve_extracts(extracts)
+        for extract_column, extract_table in extracts.items():
+            # Ensure other table exists
+            if not self[extract_table].exists:
+                self.create_table(extract_table, {"id": int, "value": str}, pk="id")
+            columns[extract_column] = int
+            foreign_keys_by_column[extract_column] = ForeignKey(
+                name, extract_column, extract_table, "id"
+            )
         # Sanity check not_null, and defaults if provided
         not_null = not_null or set()
         defaults = defaults or {}
@@ -376,6 +387,7 @@ class Table:
         hash_id=None,
         alter=False,
         ignore=False,
+        extracts=None,
     ):
         self.db = db
         self.name = name
@@ -391,6 +403,7 @@ class Table:
             hash_id=hash_id,
             alter=alter,
             ignore=ignore,
+            extracts=extracts,
         )
 
     def __repr__(self):
@@ -530,6 +543,7 @@ class Table:
         not_null=None,
         defaults=None,
         hash_id=None,
+        extracts=None,
     ):
         columns = {name: value for (name, value) in columns.items()}
         with self.db.conn:
@@ -542,6 +556,7 @@ class Table:
                 not_null=not_null,
                 defaults=defaults,
                 hash_id=hash_id,
+                extracts=extracts,
             )
         self.exists = True
         return self
@@ -779,6 +794,7 @@ class Table:
         hash_id=DEFAULT,
         alter=DEFAULT,
         ignore=DEFAULT,
+        extracts=DEFAULT,
     ):
         return self.insert_all(
             [record],
@@ -791,6 +807,7 @@ class Table:
             hash_id=hash_id,
             alter=alter,
             ignore=ignore,
+            extracts=extracts,
         )
 
     def insert_all(
@@ -806,6 +823,7 @@ class Table:
         hash_id=DEFAULT,
         alter=DEFAULT,
         ignore=DEFAULT,
+        extracts=DEFAULT,
     ):
         """
         Like .insert() but takes a list of records and ensures that the table
@@ -822,6 +840,7 @@ class Table:
         hash_id = self.value_or_default("hash_id", hash_id)
         alter = self.value_or_default("alter", alter)
         ignore = self.value_or_default("ignore", ignore)
+        extracts = self.value_or_default("extracts", extracts)
 
         assert not (hash_id and pk), "Use either pk= or hash_id="
         assert not (
@@ -842,6 +861,7 @@ class Table:
                         not_null=not_null,
                         defaults=defaults,
                         hash_id=hash_id,
+                        extracts=extracts,
                     )
                 all_columns = set()
                 for record in chunk:
@@ -871,13 +891,18 @@ class Table:
                 ),
             )
             values = []
+            extracts = resolve_extracts(extracts)
             for record in chunk:
-                values.extend(
-                    jsonify_if_needed(
+                record_values = []
+                for key in all_columns:
+                    value = jsonify_if_needed(
                         record.get(key, None if key != hash_id else _hash(record))
                     )
-                    for key in all_columns
-                )
+                    if key in extracts:
+                        extract_table = extracts[key]
+                        value = self.db[extract_table].lookup({"value": value})
+                    record_values.append(value)
+                values.extend(record_values)
             with self.db.conn:
                 try:
                     result = self.db.conn.execute(sql, values)
@@ -911,6 +936,7 @@ class Table:
         defaults=DEFAULT,
         hash_id=DEFAULT,
         alter=DEFAULT,
+        extracts=DEFAULT,
     ):
         return self.insert(
             record,
@@ -922,6 +948,7 @@ class Table:
             hash_id=hash_id,
             alter=alter,
             upsert=True,
+            extracts=extracts,
         )
 
     def upsert_all(
@@ -935,6 +962,7 @@ class Table:
         batch_size=DEFAULT,
         hash_id=DEFAULT,
         alter=DEFAULT,
+        extracts=DEFAULT,
     ):
         return self.insert_all(
             records,
@@ -947,6 +975,7 @@ class Table:
             hash_id=hash_id,
             alter=alter,
             upsert=True,
+            extracts=extracts,
         )
 
     def add_missing_columns(self, records):
@@ -958,6 +987,7 @@ class Table:
 
     def lookup(self, column_values):
         # lookups is a dictionary - all columns will be used for a unique index
+        assert isinstance(column_values, dict)
         if self.exists:
             self.add_missing_columns([column_values])
             unique_column_sets = [set(i.columns) for i in self.indexes]
@@ -998,3 +1028,11 @@ def _hash(record):
     return hashlib.sha1(
         json.dumps(record, separators=(",", ":"), sort_keys=True).encode("utf8")
     ).hexdigest()
+
+
+def resolve_extracts(extracts):
+    if extracts is None:
+        extracts = {}
+    if isinstance(extracts, (list, tuple)):
+        extracts = {item: item for item in extracts}
+    return extracts
