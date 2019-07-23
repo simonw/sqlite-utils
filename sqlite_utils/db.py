@@ -380,7 +380,10 @@ class Table:
 
     def __repr__(self):
         return "<Table {}{}>".format(
-            self.name, " (does not exist yet)" if not self.exists else ""
+            self.name,
+            " (does not exist yet)"
+            if not self.exists
+            else " ({})".format(", ".join(c.name for c in self.columns)),
         )
 
     @property

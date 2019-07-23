@@ -57,8 +57,10 @@ def test_schema(existing_db):
     assert "CREATE TABLE foo (text TEXT)" == existing_db["foo"].schema
 
 
-def test_table_repr(existing_db):
-    assert "<Table foo>" == repr(existing_db["foo"])
+def test_table_repr(fresh_db):
+    table = fresh_db["dogs"].insert({"name": "Cleo", "age": 4})
+    assert "<Table dogs (name, age)>" == repr(table)
+    assert "<Table cats (does not exist yet)>" == repr(fresh_db["cats"])
 
 
 def test_indexes(fresh_db):

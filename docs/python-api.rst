@@ -571,7 +571,7 @@ Introspection
 If you have loaded an existing table, you can use introspection to find out more about it::
 
     >>> db["PlantType"]
-    <sqlite_utils.db.Table at 0x10f5960b8>
+    <Table PlantType (id, value)>
 
 The ``.count`` property shows the current number of rows (``select count(*) from table``)::
 
