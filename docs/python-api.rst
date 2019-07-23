@@ -354,6 +354,32 @@ Note that the ``pk`` and ``column_order`` parameters here are optional if you ar
 
 An ``upsert_all()`` method is also available, which behaves like ``insert_all()`` but performs upserts instead.
 
+.. _python_api_lookup_tables:
+
+Creating lookup tables
+======================
+
+A useful pattern when populating large tables in to break common values out into lookup tables. Consider a table of ``Trees``, where each tree has a species. Ideally these species would be split out into a separate ``Species`` table, with each one assigned an integer primary key that can be referenced from the ``Trees`` table ``species_id`` column.
+
+Calling ``db["Species"].lookup({"name": "Palm"})`` creates a table called ``Species`` (if one does not already exist) with two columns: ``id`` and ``name``. It sets up a unique constraint on the ``name`` column to guarantee it will not contain duplicate rows. It then inserts a new row with the ``name`` set to ``Palm`` and returns the new integer primary key value.
+
+If the ``Species`` table already exists, it will insert the new row and return the primary key. If a row with that ``name`` already exists, it will return the corresponding primary key value directly.
+
+If you call ``.lookup()`` against an existing table without the unique constraint it will attempt to add the constraint, raising an ``IntegrityError`` if the constraint cannot be created.
+
+If you pass in a dictionary with multiple values, both values will be used to insert or retrieve the corresponding ID and any unique constraint that is created will cover all of those columns, for example:
+
+.. code-block:: python
+
+    db["Trees"].insert({
+        "latitude": 49.1265976,
+        "longitude": 2.5496218,
+        "species": db["Species"].lookup({
+            "common_name": "Common Juniper",
+            "latin_name": "Juniperus communis"
+        })
+    })
+
 .. _python_api_add_column:
 
 Adding columns

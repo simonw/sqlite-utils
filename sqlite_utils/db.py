@@ -956,6 +956,29 @@ class Table:
             if col_name not in current_columns:
                 self.add_column(col_name, col_type)
 
+    def lookup(self, column_values):
+        # lookups is a dictionary - all columns will be used for a unique index
+        if self.exists:
+            self.add_missing_columns([column_values])
+            # TODO: Ensure we have a unique index on these
+            unique_column_sets = [set(i.columns) for i in self.indexes]
+            if set(column_values.keys()) not in unique_column_sets:
+                self.create_index(column_values.keys(), unique=True)
+            wheres = ["[{}] = ?".format(column) for column in column_values]
+            rows = list(
+                self.rows_where(
+                    " and ".join(wheres), [value for _, value in column_values.items()]
+                )
+            )
+            try:
+                return rows[0]["id"]
+            except IndexError:
+                return self.insert(column_values, pk="id").last_pk
+        else:
+            pk = self.insert(column_values, pk="id").last_pk
+            self.create_index(column_values.keys(), unique=True)
+            return pk
+
 
 def chunks(sequence, size):
     iterator = iter(sequence)
