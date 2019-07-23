@@ -85,8 +85,13 @@ class NotFoundError(Exception):
 
 
 class Database:
-    def __init__(self, filename_or_conn):
-        if isinstance(filename_or_conn, str):
+    def __init__(self, filename_or_conn=None, memory=False):
+        assert (filename_or_conn is not None and not memory) or (
+            filename_or_conn is None and memory
+        ), "Either specify a filename_or_conn or pass memory=True"
+        if memory:
+            self.conn = sqlite3.connect(":memory:")
+        elif isinstance(filename_or_conn, str):
             self.conn = sqlite3.connect(filename_or_conn)
         elif isinstance(filename_or_conn, pathlib.Path):
             self.conn = sqlite3.connect(str(filename_or_conn))

@@ -27,7 +27,7 @@ If you want to create an in-memory database, you can do so like this:
 
 .. code-block:: python
 
-    db = Database(sqlite3.connect(":memory:"))
+    db = Database(sqlite3.connect(memory=True))
 
 Tables are accessed using the indexing operator, like so:
 
@@ -36,6 +36,14 @@ Tables are accessed using the indexing operator, like so:
     table = db["my_table"]
 
 If the table does not yet exist, it will be created the first time you attempt to insert or upsert data into it.
+
+You can also access tables using the ``.table()`` method like so:
+
+.. code-block:: python
+
+    table = db.table("my_table")
+
+Using this factory function allows you to set :ref:`python_api_table_configuration`.
 
 Listing tables
 ==============

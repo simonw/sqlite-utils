@@ -727,3 +727,10 @@ def test_create_table_numpy(fresh_db):
             "np.uint8": 8,
         }
     ] == list(fresh_db["types"].rows)
+
+
+def test_cannot_provide_both_filename_and_memory():
+    with pytest.raises(
+        AssertionError, match="Either specify a filename_or_conn or pass memory=True"
+    ):
+        db = Database("/tmp/foo.db", memory=True)
