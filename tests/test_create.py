@@ -733,4 +733,4 @@ def test_cannot_provide_both_filename_and_memory():
     with pytest.raises(
         AssertionError, match="Either specify a filename_or_conn or pass memory=True"
     ):
-        db = Database("/tmp/foo.db", memory=True)
+        Database("/tmp/foo.db", memory=True)
