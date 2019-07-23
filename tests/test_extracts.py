@@ -2,9 +2,16 @@ from sqlite_utils.db import Index
 import pytest
 
 
+@pytest.mark.parametrize(
+    "kwargs,expected_table",
+    [
+        (dict(extracts={"species_id": "Species"}), "Species"),
+        (dict(extracts=["species_id"]), "species_id"),
+        (dict(extracts=("species_id",)), "species_id"),
+    ],
+)
 @pytest.mark.parametrize("use_table_factory", [True, False])
-def test_extracts(fresh_db, use_table_factory):
-    kwargs = dict(extracts={"species_id": "Species"})
+def test_extracts(fresh_db, kwargs, expected_table, use_table_factory):
     table_kwargs = {}
     insert_kwargs = {}
     if use_table_factory:
@@ -21,29 +28,33 @@ def test_extracts(fresh_db, use_table_factory):
         **insert_kwargs
     )
     # Should now have two tables: Trees and Species
-    assert {"Species", "Trees"} == set(fresh_db.table_names())
+    assert {expected_table, "Trees"} == set(fresh_db.table_names())
     assert (
-        "CREATE TABLE [Species] (\n   [id] INTEGER PRIMARY KEY,\n   [value] TEXT\n)"
-        == fresh_db["Species"].schema
+        "CREATE TABLE [{}] (\n   [id] INTEGER PRIMARY KEY,\n   [value] TEXT\n)".format(
+            expected_table
+        )
+        == fresh_db[expected_table].schema
     )
     assert (
-        "CREATE TABLE [Trees] (\n   [id] INTEGER,\n   [species_id] INTEGER REFERENCES [Species]([id])\n)"
+        "CREATE TABLE [Trees] (\n   [id] INTEGER,\n   [species_id] INTEGER REFERENCES [{}]([id])\n)".format(
+            expected_table
+        )
         == fresh_db["Trees"].schema
     )
     # Should have unique index on Species
     assert [
         Index(
             seq=0,
-            name="idx_Species_value",
+            name="idx_{}_value".format(expected_table),
             unique=1,
             origin="c",
             partial=0,
             columns=["value"],
         )
-    ] == fresh_db["Species"].indexes
+    ] == fresh_db[expected_table].indexes
     # Finally, check the rows
     assert [{"id": 1, "value": "Oak"}, {"id": 2, "value": "Palm"}] == list(
-        fresh_db["Species"].rows
+        fresh_db[expected_table].rows
     )
     assert [
         {"id": 1, "species_id": 1},

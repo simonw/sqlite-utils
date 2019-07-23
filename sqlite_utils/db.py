@@ -1033,6 +1033,6 @@ def _hash(record):
 def resolve_extracts(extracts):
     if extracts is None:
         extracts = {}
-    if isinstance(extracts, list):
+    if isinstance(extracts, (list, tuple)):
         extracts = {item: item for item in extracts}
     return extracts
