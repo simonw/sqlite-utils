@@ -734,3 +734,8 @@ def test_cannot_provide_both_filename_and_memory():
         AssertionError, match="Either specify a filename_or_conn or pass memory=True"
     ):
         Database("/tmp/foo.db", memory=True)
+
+
+def test_creates_id_column(fresh_db):
+    last_pk = fresh_db.table("cats", pk="id").insert({"name": "barry"}).last_pk
+    assert [{"name": "barry", "id": last_pk}] == list(fresh_db["cats"].rows)

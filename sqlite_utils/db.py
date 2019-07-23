@@ -224,6 +224,8 @@ class Database:
         single_pk = None
         if isinstance(pk, str):
             single_pk = pk
+            if pk not in [c[0] for c in column_items]:
+                column_items.insert(0, (pk, int))
         for column_name, column_type in column_items:
             column_extras = []
             if column_name == single_pk:
