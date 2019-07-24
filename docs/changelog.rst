@@ -2,6 +2,19 @@
  Changelog
 ===========
 
+.. _v1_7:
+
+1.7 (2019-07-24)
+----------------
+
+Support for lookup tables.
+
+- New ``table.lookup({...})`` utility method for building and querying lookup tables - see :ref:`python_api_lookup_tables` (`#44 <https://github.com/simonw/sqlite-utils/issues/44>`__)
+- New ``extracts=`` table configuration option, see :ref:`python_api_extracts` (`#46 <https://github.com/simonw/sqlite-utils/issues/46>`__)
+- Use `pysqlite3 <https://github.com/coleifer/pysqlite3>`__ if it is available, otherwise use ``sqlite3`` from the standard library
+- Table options can now be passed to the new ``db.table(name, **options)`` factory function in addition to being passed to ``insert_all(records, **options)`` and friends - see :ref:`python_api_table_configuration`
+- In-memory databases can now be created using ``db = Database(memory=True)``
+
 .. _v1_6:
 
 1.6 (2019-07-18)
