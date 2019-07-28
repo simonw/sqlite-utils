@@ -1,4 +1,4 @@
-from .utils import sqlite3
+from .utils import sqlite3, OperationalError
 from collections import namedtuple
 import datetime
 import hashlib
@@ -777,7 +777,7 @@ class Table:
     def value_or_default(self, key, value):
         return self._defaults[key] if value is DEFAULT else value
 
-    def update(self, pk_values, updates=None):
+    def update(self, pk_values, updates=None, alter=False):
         updates = updates or {}
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
@@ -795,7 +795,16 @@ class Table:
             table=self.name, sets=", ".join(sets), wheres=" and ".join(wheres)
         )
         with self.db.conn:
-            rowcount = self.db.conn.execute(sql, args).rowcount
+            try:
+                rowcount = self.db.conn.execute(sql, args).rowcount
+            except OperationalError as e:
+                if alter and (" column" in e.args[0]):
+                    # Attempt to add any missing columns, then try again
+                    self.add_missing_columns([updates])
+                    rowcount = self.db.conn.execute(sql, args).rowcount
+                else:
+                    raise
+
             # TODO: Test this works (rolls back) - use better exception:
             assert rowcount == 1
         self.last_pk = pk_values[0] if len(self.pks) == 1 else pk_values
@@ -935,8 +944,8 @@ class Table:
             with self.db.conn:
                 try:
                     result = self.db.conn.execute(sql, values)
-                except sqlite3.OperationalError as e:
-                    if alter and (" has no column " in e.args[0]):
+                except OperationalError as e:
+                    if alter and (" column" in e.args[0]):
                         # Attempt to add any missing columns, then try again
                         self.add_missing_columns(chunk)
                         result = self.db.conn.execute(sql, values)

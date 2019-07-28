@@ -44,3 +44,23 @@ def test_update_invalid_pk(fresh_db, pk, update_pk):
         table.update(update_pk, {"v": 2})
 
 
+def test_update_alter(fresh_db):
+    table = fresh_db["table"]
+    rowid = table.insert({"foo": "bar"}).last_pk
+    table.update(rowid, {"new_col": 1.2}, alter=True)
+    assert [{"foo": "bar", "new_col": 1.2}] == list(table.rows)
+    # Let's try adding three cols at once
+    table.update(
+        rowid,
+        {"str_col": "str", "bytes_col": b"\xa0 has bytes", "int_col": -10},
+        alter=True,
+    )
+    assert [
+        {
+            "foo": "bar",
+            "new_col": 1.2,
+            "str_col": "str",
+            "bytes_col": b"\xa0 has bytes",
+            "int_col": -10,
+        }
+    ] == list(table.rows)
