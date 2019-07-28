@@ -6,6 +6,8 @@ import itertools
 import json
 import pathlib
 
+SQLITE_MAX_VARS = 999
+
 try:
     import numpy as np
 except ImportError:
@@ -854,7 +856,10 @@ class Table:
         # Peek at first record to count its columns:
         first_record = next(records)
         num_columns = len(first_record.keys())
-        batch_size = max(1, min(batch_size, 999 // num_columns))
+        assert (
+            num_columns <= SQLITE_MAX_VARS
+        ), "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
+        batch_size = max(1, min(batch_size, SQLITE_MAX_VARS // num_columns))
         for chunk in chunks(itertools.chain([first_record], records), batch_size):
             chunk = list(chunk)
             if first:

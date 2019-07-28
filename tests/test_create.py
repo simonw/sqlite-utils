@@ -530,7 +530,7 @@ def test_bulk_insert_more_than_999_values(fresh_db):
 def test_error_if_more_than_999_columns(fresh_db, num_columns, should_error):
     record = dict([("c{}".format(i), i) for i in range(num_columns)])
     if should_error:
-        with pytest.raises(Exception):
+        with pytest.raises(AssertionError):
             fresh_db["big"].insert(record)
     else:
         fresh_db["big"].insert(record)
