@@ -331,6 +331,30 @@ The function can accept an iterator or generator of rows and will commit them ac
 
 You can skip inserting any records that have a primary key that already exists using ``ignore=True``. This works with both ``.insert({...}, ignore=True)`` and ``.insert_all([...], ignore=True)``.
 
+.. _python_api_update:
+
+Updating a specific record
+==========================
+
+You can update a record by its primary key using ``table.update()``::
+
+    >>> db = sqlite_utils.Database("dogs.db")
+    >>> print(db["dogs"].get(1))
+    {'id': 1, 'age': 4, 'name': 'Cleo'}
+    >>> db["dogs"].update(1, {"age": 5})
+    >>> print(db["dogs"].get(1))
+    {'id': 1, 'age': 5, 'name': 'Cleo'}
+
+The first argument to ``update()`` is the primary key. This can be a single value, or a tuple if that table has a compound primary key::
+
+    >>> db["compound_dogs"].update((5, 3), {"name": "Updated"})
+
+The second argument is a dictonary of columns that should be updated, along with their new values.
+
+You can cause any missing columns to be added automatically using ``alter=True``::
+
+    >>> db["dogs"].update(1, {"breed": "Mutt"}, alter=True)
+
 Upserting data
 ==============
 
