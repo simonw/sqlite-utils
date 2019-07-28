@@ -1,3 +1,4 @@
+from sqlite_utils.db import NotFoundError
 import pytest
 
 
@@ -22,3 +23,24 @@ def test_update_compound_pk_table(fresh_db):
     assert (5, 3) == pk
     table.update(pk, {"v": 2})
     assert [{"id1": 5, "id2": 3, "v": 2}] == list(table.rows)
+
+
+@pytest.mark.parametrize(
+    "pk,update_pk",
+    (
+        (None, 2),
+        (None, None),
+        ("id1", None),
+        ("id1", 4),
+        (("id1", "id2"), None),
+        (("id1", "id2"), 4),
+        (("id1", "id2"), (4, 5)),
+    ),
+)
+def test_update_invalid_pk(fresh_db, pk, update_pk):
+    table = fresh_db["table"]
+    table.insert({"id1": 5, "id2": 3, "v": 1}, pk=pk).last_pk
+    with pytest.raises(NotFoundError):
+        table.update(update_pk, {"v": 2})
+
+
