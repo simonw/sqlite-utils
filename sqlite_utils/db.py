@@ -1,4 +1,4 @@
-from .utils import sqlite3
+from .utils import sqlite3, OperationalError
 from collections import namedtuple
 import datetime
 import hashlib
@@ -456,31 +456,24 @@ class Table:
 
     @property
     def pks(self):
-        return [column.name for column in self.columns if column.is_pk]
+        names = [column.name for column in self.columns if column.is_pk]
+        if not names:
+            names = ["rowid"]
+        return names
 
     def get(self, pk_values):
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
         pks = self.pks
-        pk_names = []
-        if len(pks) == 0:
-            # rowid table
-            pk_names = ["rowid"]
-            last_pk = pk_values[0]
-        elif len(pks) == 1:
-            pk_names = [pks[0]]
-            last_pk = pk_values[0]
-        elif len(pks) > 1:
-            pk_names = pks
-            last_pk = pk_values
-        if len(pk_names) != len(pk_values):
+        last_pk = pk_values[0] if len(pks) == 1 else pk_values
+        if len(pks) != len(pk_values):
             raise NotFoundError(
                 "Need {} primary key value{}".format(
-                    len(pk_names), "" if len(pk_names) == 1 else "s"
+                    len(pks), "" if len(pks) == 1 else "s"
                 )
             )
 
-        wheres = ["[{}] = ?".format(pk_name) for pk_name in pk_names]
+        wheres = ["[{}] = ?".format(pk_name) for pk_name in pks]
         rows = self.rows_where(" and ".join(wheres), pk_values)
         try:
             row = list(rows)[0]
@@ -784,6 +777,41 @@ class Table:
     def value_or_default(self, key, value):
         return self._defaults[key] if value is DEFAULT else value
 
+    def update(self, pk_values, updates=None, alter=False):
+        updates = updates or {}
+        if not isinstance(pk_values, (list, tuple)):
+            pk_values = [pk_values]
+        # Sanity check that the record exists (raises error if not):
+        self.get(pk_values)
+        if not updates:
+            return self
+        args = []
+        sets = []
+        wheres = []
+        for key, value in updates.items():
+            sets.append("[{}] = ?".format(key))
+            args.append(value)
+        wheres = ["[{}] = ?".format(pk_name) for pk_name in self.pks]
+        args.extend(pk_values)
+        sql = "update [{table}] set {sets} where {wheres}".format(
+            table=self.name, sets=", ".join(sets), wheres=" and ".join(wheres)
+        )
+        with self.db.conn:
+            try:
+                rowcount = self.db.conn.execute(sql, args).rowcount
+            except OperationalError as e:
+                if alter and (" column" in e.args[0]):
+                    # Attempt to add any missing columns, then try again
+                    self.add_missing_columns([updates])
+                    rowcount = self.db.conn.execute(sql, args).rowcount
+                else:
+                    raise
+
+            # TODO: Test this works (rolls back) - use better exception:
+            assert rowcount == 1
+        self.last_pk = pk_values[0] if len(self.pks) == 1 else pk_values
+        return self
+
     def insert(
         self,
         record,
@@ -918,15 +946,15 @@ class Table:
             with self.db.conn:
                 try:
                     result = self.db.conn.execute(sql, values)
-                except sqlite3.OperationalError as e:
-                    if alter and (" has no column " in e.args[0]):
+                except OperationalError as e:
+                    if alter and (" column" in e.args[0]):
                         # Attempt to add any missing columns, then try again
                         self.add_missing_columns(chunk)
                         result = self.db.conn.execute(sql, values)
                     else:
                         raise
                 self.last_rowid = result.lastrowid
-                self.last_pk = None
+                self.last_pk = self.last_rowid
                 # self.last_rowid will be 0 if a "INSERT OR IGNORE" happened
                 if (hash_id or pk) and self.last_rowid:
                     row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]

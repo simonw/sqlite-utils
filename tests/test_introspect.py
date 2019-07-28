@@ -98,3 +98,11 @@ def test_guess_foreign_table(fresh_db, column, expected_table_guess):
     fresh_db.create_table("authors", {"name": str})
     fresh_db.create_table("genre", {"name": str})
     assert expected_table_guess == fresh_db["books"].guess_foreign_table(column)
+
+
+@pytest.mark.parametrize(
+    "pk,expected", ((None, ["rowid"]), ("id", ["id"]), (["id", "id2"], ["id", "id2"]))
+)
+def test_pks(fresh_db, pk, expected):
+    fresh_db["foo"].insert_all([{"id": 1, "id2": 2}], pk=pk)
+    assert expected == fresh_db["foo"].pks

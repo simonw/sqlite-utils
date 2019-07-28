@@ -6,12 +6,12 @@ from sqlite_utils.db import (
     NoObviousTable,
     ForeignKey,
 )
+from sqlite_utils.utils import sqlite3
 import collections
 import datetime
 import json
 import pathlib
 import pytest
-import sqlite3
 
 from .utils import collapse_whitespace
 
