@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+.. _v1_7_1:
+
+1.7.1 (2019-07-28)
+------------------
+
+- Fixed bug where inserting records with 11 columns in a batch of 100 triggered a "too many SQL variables" error (`#50 <https://github.com/simonw/sqlite-utils/issues/50>`__)
+- Documentation and tests for ``table.drop()`` method: :ref:`python_api_drop`
+
 .. _v1_7:
 
 1.7 (2019-07-24)
