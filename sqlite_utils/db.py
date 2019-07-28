@@ -783,6 +783,8 @@ class Table:
             pk_values = [pk_values]
         # Sanity check that the record exists (raises error if not):
         self.get(pk_values)
+        if not updates:
+            return self
         args = []
         sets = []
         wheres = []
