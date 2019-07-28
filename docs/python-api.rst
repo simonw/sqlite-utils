@@ -567,6 +567,17 @@ If you want to ensure that every foreign key column in your database has a corre
 
     db.index_foreign_keys()
 
+.. _python_api_drop:
+
+Dropping a table
+================
+
+You can drop a table by using the ``.drop()`` method:
+
+.. code-block:: python
+
+    db["my_table"].drop()
+
 .. _python_api_hash:
 
 Setting an ID based on the hash of the row contents

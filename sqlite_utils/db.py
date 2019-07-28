@@ -621,7 +621,7 @@ class Table:
         return self
 
     def drop(self):
-        return self.db.conn.execute("DROP TABLE {}".format(self.name))
+        self.db.conn.execute("DROP TABLE {}".format(self.name))
 
     def guess_foreign_table(self, column):
         column = column.lower()
