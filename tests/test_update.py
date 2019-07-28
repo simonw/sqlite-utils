@@ -68,13 +68,7 @@ def test_update_alter(fresh_db):
 
 def test_update_with_no_values_sets_last_pk(fresh_db):
     table = fresh_db.table("dogs", pk="id")
-    table.insert_all([{
-        "id": 1,
-        "name": "Cleo",
-    }, {
-        "id": 2,
-        "name": "Pancakes"
-    }])
+    table.insert_all([{"id": 1, "name": "Cleo"}, {"id": 2, "name": "Pancakes"}])
     table.update(1)
     assert 1 == table.last_pk
     table.update(2)
