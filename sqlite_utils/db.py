@@ -848,7 +848,14 @@ class Table:
         ), "Use either ignore=True or upsert=True, not both"
         all_columns = None
         first = True
-        for chunk in chunks(records, batch_size):
+        # We can only handle a max of 999 variables in a SQL insert, so
+        # we need to adjust the batch_size down if we have too many cols
+        records = iter(records)
+        # Peek at first record to count its columns:
+        first_record = next(records)
+        num_columns = len(first_record.keys())
+        batch_size = max(1, min(batch_size, 999 // num_columns))
+        for chunk in chunks(itertools.chain([first_record], records), batch_size):
             chunk = list(chunk)
             if first:
                 if not self.exists:
