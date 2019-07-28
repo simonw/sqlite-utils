@@ -500,6 +500,42 @@ def test_upsert_rows_alter_table(fresh_db, use_table_factory):
     ] == list(table.rows)
 
 
+def test_bulk_insert_more_than_999_values(fresh_db):
+    "Inserting 100 items with 11 columns should work"
+    fresh_db["big"].insert_all(
+        (
+            {
+                "id": i + 1,
+                "c2": 2,
+                "c3": 3,
+                "c4": 4,
+                "c5": 5,
+                "c6": 6,
+                "c7": 7,
+                "c8": 8,
+                "c8": 9,
+                "c10": 10,
+                "c11": 11,
+            }
+            for i in range(100)
+        ),
+        pk="id",
+    )
+    assert 100 == fresh_db["big"].count
+
+
+@pytest.mark.parametrize(
+    "num_columns,should_error", ((900, False), (999, False), (1000, True))
+)
+def test_error_if_more_than_999_columns(fresh_db, num_columns, should_error):
+    record = dict([("c{}".format(i), i) for i in range(num_columns)])
+    if should_error:
+        with pytest.raises(AssertionError):
+            fresh_db["big"].insert(record)
+    else:
+        fresh_db["big"].insert(record)
+
+
 @pytest.mark.parametrize(
     "columns,index_name,expected_index",
     (

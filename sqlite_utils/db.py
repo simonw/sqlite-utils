@@ -6,6 +6,8 @@ import itertools
 import json
 import pathlib
 
+SQLITE_MAX_VARS = 999
+
 try:
     import numpy as np
 except ImportError:
@@ -848,7 +850,17 @@ class Table:
         ), "Use either ignore=True or upsert=True, not both"
         all_columns = None
         first = True
-        for chunk in chunks(records, batch_size):
+        # We can only handle a max of 999 variables in a SQL insert, so
+        # we need to adjust the batch_size down if we have too many cols
+        records = iter(records)
+        # Peek at first record to count its columns:
+        first_record = next(records)
+        num_columns = len(first_record.keys())
+        assert (
+            num_columns <= SQLITE_MAX_VARS
+        ), "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
+        batch_size = max(1, min(batch_size, SQLITE_MAX_VARS // num_columns))
+        for chunk in chunks(itertools.chain([first_record], records), batch_size):
             chunk = list(chunk)
             if first:
                 if not self.exists:
