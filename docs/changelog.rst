@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v1_8:
+
+1.8 (2019-07-28)
+----------------
+
+- ``table.update(pk, values)`` method: :ref:`python_api_update` (`#35 <https://github.com/simonw/sqlite-utils/issues/35>`__)
+
 .. _v1_7_1:
 
 1.7.1 (2019-07-28)
@@ -38,9 +45,9 @@ Support for lookup tables.
 - Support for compound primary keys (`#36 <https://github.com/simonw/sqlite-utils/issues/36>`__)
 
   - Configure these using the CLI tool by passing ``--pk`` multiple times
-  - In Python, pass a tuple of columns to the ``pk=(..., ...)`` argument: see :ref:`python_api_compound_primary_keys`
+  - In Python, pass a tuple of columns to the ``pk=(..., ...)`` argument: :ref:`python_api_compound_primary_keys`
 
-- New ``table.get()`` method for retrieving a record by its primary key (`#39 <https://github.com/simonw/sqlite-utils/issues/39>`__) - :ref:`documentation <python_api_get>`
+- New ``table.get()`` method for retrieving a record by its primary key: :ref:`python_api_get` (`#39 <https://github.com/simonw/sqlite-utils/issues/39>`__)
 
 .. _v1_4_1:
 
