@@ -961,7 +961,7 @@ class Table:
                     else:
                         raise
                 self.last_rowid = result.lastrowid
-                self.last_pk = None
+                self.last_pk = self.last_rowid
                 # self.last_rowid will be 0 if a "INSERT OR IGNORE" happened
                 if (hash_id or pk) and self.last_rowid:
                     row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
