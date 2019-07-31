@@ -41,3 +41,20 @@ def test_insert_m2m_list(fresh_db):
             other_column="id",
         ),
     ] == dogs_humans.foreign_keys
+
+
+def test_m2m_explicit_argument(fresh_db):
+    # .m2m("humans", ..., m2m_table="relationships")
+    assert False
+
+
+def test_uses_existing_m2m_table_if_exists(fresh_db):
+    # Code should look for an existing toble with fks to both tables
+    # and use that if it exists.
+    assert False
+
+
+def test_requires_explicit_m2m_table_if_multiple_options(fresh_db):
+    # If the code scans for m2m tables and finds more than one candidate
+    # it should require that the m2m_table=x argument is used
+    assert False
