@@ -1048,6 +1048,26 @@ class Table:
             self.create_index(column_values.keys(), unique=True)
             return pk
 
+    def m2m(self, other_table, record_or_list, pk=None):
+        our_id = self.last_pk
+        records = (
+            [record_or_list]
+            if not isinstance(record_or_list, (list, tuple))
+            else record_or_list
+        )
+        tables = list(sorted([self.name, other_table]))
+        columns = ["{}_id".format(t) for t in tables]
+        m2m_table = self.db.table(
+            "{}_{}".format(*tables), pk=columns, foreign_keys=columns
+        )
+        # Ensure each record exists in other table
+        for record in records:
+            id = self.db[other_table].upsert(record, pk=pk).last_pk
+            m2m_table.upsert(
+                {"{}_id".format(other_table): id, "{}_id".format(self.name): our_id}
+            )
+        return self
+
 
 def chunks(sequence, size):
     iterator = iter(sequence)
