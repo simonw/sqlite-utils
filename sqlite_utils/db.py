@@ -297,6 +297,17 @@ class Database:
             )
         )
 
+    def m2m_table_candidates(self, table, other_table):
+        "Returns potential m2m tables for arguments, based on FKs"
+        candidates = []
+        tables = {table, other_table}
+        for table in self.tables:
+            # Does it have foreign keys to both table and other_table?
+            has_fks_to = {fk.other_table for fk in table.foreign_keys}
+            if has_fks_to.issuperset(tables):
+                candidates.append(table.name)
+        return candidates
+
     def add_foreign_keys(self, foreign_keys):
         # foreign_keys is a list of explicit 4-tuples
         assert all(

@@ -84,6 +84,28 @@ def test_m2m_explicit_table_name_argument(fresh_db):
     assert not fresh_db["people_tags"].exists
 
 
+def test_m2m_table_candidates(fresh_db):
+    fresh_db.create_table("one", {"id": int, "name": str}, pk="id")
+    fresh_db.create_table("two", {"id": int, "name": str}, pk="id")
+    fresh_db.create_table("three", {"id": int, "name": str}, pk="id")
+    # No candidates at first
+    assert [] == fresh_db.m2m_table_candidates("one", "two")
+    # Create a candidate
+    fresh_db.create_table(
+        "one_m2m_two", {"one_id": int, "two_id": int}, foreign_keys=["one_id", "two_id"]
+    )
+    assert ["one_m2m_two"] == fresh_db.m2m_table_candidates("one", "two")
+    # Add another table and there should be two candidates
+    fresh_db.create_table(
+        "one_m2m_two_and_three",
+        {"one_id": int, "two_id": int, "three_id": int},
+        foreign_keys=["one_id", "two_id", "three_id"],
+    )
+    assert {"one_m2m_two", "one_m2m_two_and_three"} == set(
+        fresh_db.m2m_table_candidates("one", "two")
+    )
+
+
 def test_uses_existing_m2m_table_if_exists(fresh_db):
     # Code should look for an existing toble with fks to both tables
     # and use that if it exists.
