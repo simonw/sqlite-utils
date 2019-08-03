@@ -1069,7 +1069,22 @@ class Table:
             assert record_or_list is not None, "Provide lookup= or record, not both"
         tables = list(sorted([self.name, other_table]))
         columns = ["{}_id".format(t) for t in tables]
-        m2m_table_name = m2m_table or "{}_{}".format(*tables)
+        if m2m_table is not None:
+            m2m_table_name = m2m_table
+        else:
+            # Detect if there is a single, unambiguous option
+            candidates = self.db.m2m_table_candidates(self.name, other_table)
+            if len(candidates) == 1:
+                m2m_table_name = candidates[0]
+            elif len(candidates) > 1:
+                raise NoObviousTable(
+                    "No single obvious m2m table for {}, {} - use m2m_table= parameter".format(
+                        self.name, other_table
+                    )
+                )
+            else:
+                # If not, create a new table
+                m2m_table_name = m2m_table or "{}_{}".format(*tables)
         m2m_table = self.db.table(m2m_table_name, pk=columns, foreign_keys=columns)
         if lookup is None:
             records = (

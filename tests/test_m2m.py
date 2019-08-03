@@ -1,4 +1,4 @@
-from sqlite_utils.db import ForeignKey
+from sqlite_utils.db import ForeignKey, NoObviousTable
 import pytest
 
 
@@ -107,12 +107,37 @@ def test_m2m_table_candidates(fresh_db):
 
 
 def test_uses_existing_m2m_table_if_exists(fresh_db):
-    # Code should look for an existing toble with fks to both tables
+    # Code should look for an existing table with fks to both tables
     # and use that if it exists.
-    assert False
+    people = fresh_db.create_table("people", {"id": int, "name": str}, pk="id")
+    fresh_db["tags"].lookup({"tag": "Coworker"})
+    fresh_db.create_table(
+        "tagged",
+        {"people_id": int, "tags_id": int},
+        foreign_keys=["people_id", "tags_id"],
+    )
+    people.insert({"name": "Wahyu"}).m2m("tags", lookup={"tag": "Coworker"})
+    assert fresh_db["tags"].exists
+    assert fresh_db["tagged"].exists
+    assert not fresh_db["people_tags"].exists
+    assert not fresh_db["tags_people"].exists
+    assert [{"people_id": 1, "tags_id": 1}] == list(fresh_db["tagged"].rows)
 
 
 def test_requires_explicit_m2m_table_if_multiple_options(fresh_db):
     # If the code scans for m2m tables and finds more than one candidate
     # it should require that the m2m_table=x argument is used
-    assert False
+    people = fresh_db.create_table("people", {"id": int, "name": str}, pk="id")
+    fresh_db["tags"].lookup({"tag": "Coworker"})
+    fresh_db.create_table(
+        "tagged",
+        {"people_id": int, "tags_id": int},
+        foreign_keys=["people_id", "tags_id"],
+    )
+    fresh_db.create_table(
+        "tagged2",
+        {"people_id": int, "tags_id": int},
+        foreign_keys=["people_id", "tags_id"],
+    )
+    with pytest.raises(NoObviousTable):
+        people.insert({"name": "Wahyu"}).m2m("tags", lookup={"tag": "Coworker"})
