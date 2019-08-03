@@ -43,6 +43,37 @@ def test_insert_m2m_list(fresh_db):
     ] == dogs_humans.foreign_keys
 
 
+def test_m2m_lookup(fresh_db):
+    people = fresh_db.table("people", pk="id")
+    people.insert({"name": "Wahyu"}).m2m("tags", lookup={"tag": "Coworker"})
+    people_tags = fresh_db["people_tags"]
+    tags = fresh_db["tags"]
+    assert people_tags.exists
+    assert tags.exists
+    assert [
+        ForeignKey(
+            table="people_tags",
+            column="people_id",
+            other_table="people",
+            other_column="id",
+        ),
+        ForeignKey(
+            table="people_tags", column="tags_id", other_table="tags", other_column="id"
+        ),
+    ] == people_tags.foreign_keys
+    assert [{"people_id": 1, "tags_id": 1}] == list(people_tags.rows)
+    assert [{"id": 1, "name": "Wahyu"}] == list(people.rows)
+    assert [{"id": 1, "tag": "Coworker"}] == list(tags.rows)
+
+
+def test_m2m_requires_either_records_or_lookup(fresh_db):
+    people = fresh_db.table("people", pk="id").insert({"name": "Wahyu"})
+    with pytest.raises(AssertionError):
+        people.m2m("tags")
+    with pytest.raises(AssertionError):
+        people.m2m("tags", {"tag": "hello"}, lookup={"foo": "bar"})
+
+
 def test_m2m_explicit_argument(fresh_db):
     # .m2m("humans", ..., m2m_table="relationships")
     assert False
