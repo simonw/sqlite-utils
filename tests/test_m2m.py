@@ -74,9 +74,14 @@ def test_m2m_requires_either_records_or_lookup(fresh_db):
         people.m2m("tags", {"tag": "hello"}, lookup={"foo": "bar"})
 
 
-def test_m2m_explicit_argument(fresh_db):
-    # .m2m("humans", ..., m2m_table="relationships")
-    assert False
+def test_m2m_explicit_table_name_argument(fresh_db):
+    people = fresh_db.table("people", pk="id")
+    people.insert({"name": "Wahyu"}).m2m(
+        "tags", lookup={"tag": "Coworker"}, m2m_table="tagged"
+    )
+    assert fresh_db["tags"].exists
+    assert fresh_db["tagged"].exists
+    assert not fresh_db["people_tags"].exists
 
 
 def test_uses_existing_m2m_table_if_exists(fresh_db):

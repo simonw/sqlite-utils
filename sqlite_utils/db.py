@@ -1048,7 +1048,9 @@ class Table:
             self.create_index(column_values.keys(), unique=True)
             return pk
 
-    def m2m(self, other_table, record_or_list=None, pk=None, lookup=None):
+    def m2m(
+        self, other_table, record_or_list=None, pk=None, lookup=None, m2m_table=None
+    ):
         our_id = self.last_pk
         if lookup is not None:
             assert record_or_list is None, "Provide lookup= or record, not both"
@@ -1056,9 +1058,8 @@ class Table:
             assert record_or_list is not None, "Provide lookup= or record, not both"
         tables = list(sorted([self.name, other_table]))
         columns = ["{}_id".format(t) for t in tables]
-        m2m_table = self.db.table(
-            "{}_{}".format(*tables), pk=columns, foreign_keys=columns
-        )
+        m2m_table_name = m2m_table or "{}_{}".format(*tables)
+        m2m_table = self.db.table(m2m_table_name, pk=columns, foreign_keys=columns)
         if lookup is None:
             records = (
                 [record_or_list]
