@@ -43,6 +43,19 @@ def test_insert_m2m_list(fresh_db):
     ] == dogs_humans.foreign_keys
 
 
+def test_m2m_with_table_objects(fresh_db):
+    dogs = fresh_db.table("dogs", pk="id")
+    humans = fresh_db.table("humans", pk="id")
+    dogs.insert({"id": 1, "name": "Cleo"}).m2m(
+        humans, [{"id": 1, "name": "Natalie D"}, {"id": 2, "name": "Simon W"}]
+    )
+    expected_tables = {"dogs", "humans", "dogs_humans"}
+    assert expected_tables == set(fresh_db.table_names())
+    assert 1 == dogs.count
+    assert 2 == humans.count
+    assert 2 == fresh_db["dogs_humans"].count
+
+
 def test_m2m_lookup(fresh_db):
     people = fresh_db.table("people", pk="id")
     people.insert({"name": "Wahyu"}).m2m("tags", lookup={"tag": "Coworker"})

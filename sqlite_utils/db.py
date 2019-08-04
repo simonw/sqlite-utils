@@ -1060,26 +1060,28 @@ class Table:
             return pk
 
     def m2m(
-        self, other_table, record_or_list=None, pk=None, lookup=None, m2m_table=None
+        self, other_table, record_or_list=None, pk=DEFAULT, lookup=None, m2m_table=None
     ):
+        if isinstance(other_table, str):
+            other_table = self.db.table(other_table, pk=pk)
         our_id = self.last_pk
         if lookup is not None:
             assert record_or_list is None, "Provide lookup= or record, not both"
         else:
             assert record_or_list is not None, "Provide lookup= or record, not both"
-        tables = list(sorted([self.name, other_table]))
+        tables = list(sorted([self.name, other_table.name]))
         columns = ["{}_id".format(t) for t in tables]
         if m2m_table is not None:
             m2m_table_name = m2m_table
         else:
             # Detect if there is a single, unambiguous option
-            candidates = self.db.m2m_table_candidates(self.name, other_table)
+            candidates = self.db.m2m_table_candidates(self.name, other_table.name)
             if len(candidates) == 1:
                 m2m_table_name = candidates[0]
             elif len(candidates) > 1:
                 raise NoObviousTable(
                     "No single obvious m2m table for {}, {} - use m2m_table= parameter".format(
-                        self.name, other_table
+                        self.name, other_table.name
                     )
                 )
             else:
@@ -1094,14 +1096,20 @@ class Table:
             )
             # Ensure each record exists in other table
             for record in records:
-                id = self.db[other_table].upsert(record, pk=pk).last_pk
+                id = other_table.upsert(record, pk=pk).last_pk
                 m2m_table.upsert(
-                    {"{}_id".format(other_table): id, "{}_id".format(self.name): our_id}
+                    {
+                        "{}_id".format(other_table.name): id,
+                        "{}_id".format(self.name): our_id,
+                    }
                 )
         else:
-            id = self.db[other_table].lookup(lookup)
+            id = other_table.lookup(lookup)
             m2m_table.upsert(
-                {"{}_id".format(other_table): id, "{}_id".format(self.name): our_id}
+                {
+                    "{}_id".format(other_table.name): id,
+                    "{}_id".format(self.name): our_id,
+                }
             )
         return self
 
