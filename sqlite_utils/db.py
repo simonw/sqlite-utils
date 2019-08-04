@@ -297,6 +297,17 @@ class Database:
             )
         )
 
+    def m2m_table_candidates(self, table, other_table):
+        "Returns potential m2m tables for arguments, based on FKs"
+        candidates = []
+        tables = {table, other_table}
+        for table in self.tables:
+            # Does it have foreign keys to both table and other_table?
+            has_fks_to = {fk.other_table for fk in table.foreign_keys}
+            if has_fks_to.issuperset(tables):
+                candidates.append(table.name)
+        return candidates
+
     def add_foreign_keys(self, foreign_keys):
         # foreign_keys is a list of explicit 4-tuples
         assert all(
@@ -1047,6 +1058,60 @@ class Table:
             pk = self.insert(column_values, pk="id").last_pk
             self.create_index(column_values.keys(), unique=True)
             return pk
+
+    def m2m(
+        self, other_table, record_or_list=None, pk=DEFAULT, lookup=None, m2m_table=None
+    ):
+        if isinstance(other_table, str):
+            other_table = self.db.table(other_table, pk=pk)
+        our_id = self.last_pk
+        if lookup is not None:
+            assert record_or_list is None, "Provide lookup= or record, not both"
+        else:
+            assert record_or_list is not None, "Provide lookup= or record, not both"
+        tables = list(sorted([self.name, other_table.name]))
+        columns = ["{}_id".format(t) for t in tables]
+        if m2m_table is not None:
+            m2m_table_name = m2m_table
+        else:
+            # Detect if there is a single, unambiguous option
+            candidates = self.db.m2m_table_candidates(self.name, other_table.name)
+            if len(candidates) == 1:
+                m2m_table_name = candidates[0]
+            elif len(candidates) > 1:
+                raise NoObviousTable(
+                    "No single obvious m2m table for {}, {} - use m2m_table= parameter".format(
+                        self.name, other_table.name
+                    )
+                )
+            else:
+                # If not, create a new table
+                m2m_table_name = m2m_table or "{}_{}".format(*tables)
+        m2m_table = self.db.table(m2m_table_name, pk=columns, foreign_keys=columns)
+        if lookup is None:
+            records = (
+                [record_or_list]
+                if not isinstance(record_or_list, (list, tuple))
+                else record_or_list
+            )
+            # Ensure each record exists in other table
+            for record in records:
+                id = other_table.upsert(record, pk=pk).last_pk
+                m2m_table.upsert(
+                    {
+                        "{}_id".format(other_table.name): id,
+                        "{}_id".format(self.name): our_id,
+                    }
+                )
+        else:
+            id = other_table.lookup(lookup)
+            m2m_table.upsert(
+                {
+                    "{}_id".format(other_table.name): id,
+                    "{}_id".format(self.name): our_id,
+                }
+            )
+        return self
 
 
 def chunks(sequence, size):
