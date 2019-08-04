@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v1_9:
+
+1.9 (2019-08-04)
+----------------
+
+- ``table.m2m(...)`` method for creating many-to-many relationships: :ref:`python_api_m2m` (`#23 <https://github.com/simonw/sqlite-utils/issues/23>`__)
+
 .. _v1_8:
 
 1.8 (2019-07-28)
