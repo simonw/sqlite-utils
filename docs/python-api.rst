@@ -469,7 +469,7 @@ The ``.m2m()`` method executes against the last record that was affected by ``.i
 
 The first argument to ``.m2m()`` can be either the name of a table as a string or it can be the table object itself.
 
-The second argument can be a single dictionary record or a list of dictionaries. Thesee dictionaries will be passed to ``.upsert()`` against the specified table.
+The second argument can be a single dictionary record or a list of dictionaries. These dictionaries will be passed to ``.upsert()`` against the specified table.
 
 Here's alternative code that creates the dog record and adds two people to it:
 
