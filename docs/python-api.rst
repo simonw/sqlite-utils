@@ -442,6 +442,95 @@ To extract the ``species`` column out to a separate ``Species`` table, you can d
         "species": "Common Juniper"
     }, extracts={"species": "Species"})
 
+.. _python_api_m2m:
+
+Working with many-to-many relationships
+=======================================
+
+``sqlite-utils`` includes a shortcut for creating records using many-to-many relationships in the form of the ``table.m2m(...)`` method.
+
+Here's how to create two new records and connect them via a many-to-many table in a single line of code:
+
+.. code-block:: python
+
+    db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id").m2m(
+        "humans", {"id": 1, "name": "Natalie"}, pk="id"
+    )
+
+Running this example actually creates three tables: ``dogs``, ``humans`` and a many-to-many ``dogs_humans`` table. It will insert a record into each of those tables.
+
+The ``.m2m()`` method executes against the last record that was affected by ``.insert()`` or ``.update()`` - the record identified by the ``table.last_pk`` property. To execute ``.m2m()`` against a specific record you can first select it by passing its primary key to ``.update()``:
+
+.. code-block:: python
+
+    db["dogs"].update(1).m2m(
+        "humans", {"id": 2, "name": "Simon"}, pk="id"
+    )
+
+The first argument to ``.m2m()`` can be either the name of a table as a string or it can be the table object itself.
+
+The second argument can be a single dictionary record or a list of dictionaries. Thesee dictionaries will be passed to ``.upsert()`` against the specified table.
+
+Here's alternative code that creates the dog record and adds two people to it:
+
+.. code-block:: python
+
+    db = Database(memory=True)
+    dogs = db.table("dogs", pk="id")
+    humans = db.table("humans", pk="id")
+    dogs.insert({"id": 1, "name": "Cleo"}).m2m(
+        humans, [
+            {"id": 1, "name": "Natalie"},
+            {"id": 2, "name": "Simon"}
+        ]
+    )
+
+The method will attempt to find an existing many-to-many table by looking for a table that has foreign key relationships against both of the tables in the relationship.
+
+If it cannot find such a table, it will create a new one using the names of the two tables - ``dogs_humans`` in this example. You can customize the name of this table using the ``m2m_table=`` argument to ``.m2m()``.
+
+It it finds multiple candidate tables with foreign keys to both of the specified tables it will raise a ``sqlite_utils.db.NoObviousTable`` exception. You can avoid this error by specifying the correct table using ``m2m_table=``.
+
+.. _python_api_m2m_lookup:
+
+Using m2m and lookup tables together
+------------------------------------
+
+You can work with (or create) lookup tables as part of a call to ``.m2m()`` using the ``lookup=`` parameter. This accepts the same argument as ``table.lookup()`` does - a dictionary of values that should be used to lookup or create a row in the lookup table.
+
+This example creates a dogs table, populates it, creates a characteristics table, populates that and sets up a many-to-many relationship between the two. It chains ``.m2m()`` twice to create two associated characteristics:
+
+.. code-block:: python
+
+    db = Database(memory=True)
+    dogs = db.table("dogs", pk="id")
+    dogs.insert({"id": 1, "name": "Cleo"}).m2m(
+        "characteristics", lookup={
+            "name": "Playful"
+        }
+    ).m2m(
+        "characteristics", lookup={
+            "name": "Opinionated"
+        }
+    )
+
+You can inspect the database to see the results like this::
+
+    >>> db.table_names()
+    ['dogs', 'characteristics', 'characteristics_dogs']
+    >>> list(db["dogs"].rows)
+    [{'id': 1, 'name': 'Cleo'}]
+    >>> list(db["characteristics"].rows)
+    [{'id': 1, 'name': 'Playful'}, {'id': 2, 'name': 'Opinionated'}]
+    >>> list(db["characteristics_dogs"].rows)
+    [{'characteristics_id': 1, 'dogs_id': 1}, {'characteristics_id': 2, 'dogs_id': 1}]
+    >>> print(db["characteristics_dogs"].schema)
+    CREATE TABLE [characteristics_dogs] (
+        [characteristics_id] INTEGER REFERENCES [characteristics]([id]),
+        [dogs_id] INTEGER REFERENCES [dogs]([id]),
+        PRIMARY KEY ([characteristics_id], [dogs_id])
+    )
+
 .. _python_api_add_column:
 
 Adding columns
