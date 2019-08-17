@@ -6,6 +6,11 @@ def test_table_names(existing_db):
     assert ["foo"] == existing_db.table_names()
 
 
+def test_view_names(fresh_db):
+    fresh_db.create_view("foo_view", "select 1")
+    assert ["foo_view"] == fresh_db.view_names()
+
+
 def test_table_names_fts4(existing_db):
     existing_db["woo"].insert({"title": "Hello"}).enable_fts(
         ["title"], fts_version="FTS4"
@@ -34,6 +39,16 @@ def test_detect_fts(existing_db):
 def test_tables(existing_db):
     assert 1 == len(existing_db.tables)
     assert "foo" == existing_db.tables[0].name
+
+
+def test_views(fresh_db):
+    fresh_db.create_view("foo_view", "select 1")
+    assert 1 == len(fresh_db.views)
+    view = fresh_db.views[0]
+    assert view.is_view
+    assert view.exists
+    assert "foo_view" == view.name
+    assert "<View foo_view (1)>" == repr(view)
 
 
 def test_count(existing_db):

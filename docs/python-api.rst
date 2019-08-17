@@ -45,6 +45,8 @@ You can also access tables using the ``.table()`` method like so:
 
 Using this factory function allows you to set :ref:`python_api_table_configuration`.
 
+.. _python_api_tables:
+
 Listing tables
 ==============
 
@@ -59,6 +61,23 @@ You can also iterate through the table objects themselves using the ``.tables`` 
 
     >>> db.tables
     [<Table dogs>]
+
+.. _python_api_views:
+
+Listing views
+=============
+
+``.table_views()`` shows you a list of views in the database::
+
+    >>> db.table_views()
+    ['good_dogs']
+
+You can also iterate through view objects using the ``.views`` property::
+
+    >>> db.views
+    [<View good_dogs>]
+
+View objects work the same as table objects, except any attempts to insert or update data will throw an error.
 
 .. _python_api_rows:
 

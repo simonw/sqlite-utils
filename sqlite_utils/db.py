@@ -128,9 +128,21 @@ class Database:
         sql = "select name from sqlite_master where {}".format(" AND ".join(where))
         return [r[0] for r in self.conn.execute(sql).fetchall()]
 
+    def view_names(self):
+        return [
+            r[0]
+            for r in self.conn.execute(
+                "select name from sqlite_master where type = 'view'"
+            ).fetchall()
+        ]
+
     @property
     def tables(self):
         return [self[name] for name in self.table_names()]
+
+    @property
+    def views(self):
+        return [self[name] for name in self.view_names()]
 
     def execute_returning_dicts(self, sql, params=None):
         cursor = self.conn.execute(sql, params or tuple())
@@ -404,7 +416,13 @@ class Table:
     ):
         self.db = db
         self.name = name
+        self.is_view = False
         self.exists = self.name in self.db.table_names()
+        if not self.exists:
+            # It might be a view
+            self.is_view = self.name in self.db.view_names()
+            if self.is_view:
+                self.exists = True
         self._defaults = dict(
             pk=pk,
             foreign_keys=foreign_keys,
@@ -420,7 +438,8 @@ class Table:
         )
 
     def __repr__(self):
-        return "<Table {}{}>".format(
+        return "<{} {}{}>".format(
+            "View" if self.is_view else "Table",
             self.name,
             " (does not exist yet)"
             if not self.exists
