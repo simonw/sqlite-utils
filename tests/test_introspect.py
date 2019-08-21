@@ -1,4 +1,4 @@
-from sqlite_utils.db import Index
+from sqlite_utils.db import Index, View
 import pytest
 
 
@@ -45,10 +45,10 @@ def test_views(fresh_db):
     fresh_db.create_view("foo_view", "select 1")
     assert 1 == len(fresh_db.views)
     view = fresh_db.views[0]
-    assert view.is_view
-    assert view.exists
+    assert isinstance(view, View)
     assert "foo_view" == view.name
     assert "<View foo_view (1)>" == repr(view)
+    assert {"1": str} == view.columns_dict
 
 
 def test_count(existing_db):

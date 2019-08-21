@@ -63,6 +63,7 @@ if np:
 
 
 REVERSE_COLUMN_TYPE_MAPPING = {
+    "": str,  # Columns in views sometimes have type = ''
     "TEXT": str,
     "BLOB": bytes,
     "INTEGER": int,
@@ -107,7 +108,8 @@ class Database:
         return "<Database {}>".format(self.conn)
 
     def table(self, table_name, **kwargs):
-        return Table(self, table_name, **kwargs)
+        klass = View if table_name in self.view_names() else Table
+        return klass(self, table_name, **kwargs)
 
     def escape(self, value):
         # Normally we would use .execute(sql, [params]) for escaping, but
@@ -397,60 +399,33 @@ class Database:
         self.conn.execute("VACUUM;")
 
 
-class Table:
-    def __init__(
-        self,
-        db,
-        name,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        upsert=False,
-        batch_size=100,
-        hash_id=None,
-        alter=False,
-        ignore=False,
-        extracts=None,
-    ):
+class Queryable:
+    exists = False
+
+    def __init__(self, db, name):
         self.db = db
         self.name = name
-        self.is_view = False
-        self.exists = self.name in self.db.table_names()
-        if not self.exists:
-            # It might be a view
-            self.is_view = self.name in self.db.view_names()
-            if self.is_view:
-                self.exists = True
-        self._defaults = dict(
-            pk=pk,
-            foreign_keys=foreign_keys,
-            column_order=column_order,
-            not_null=not_null,
-            defaults=defaults,
-            upsert=upsert,
-            batch_size=batch_size,
-            hash_id=hash_id,
-            alter=alter,
-            ignore=ignore,
-            extracts=extracts,
-        )
-
-    def __repr__(self):
-        return "<{} {}{}>".format(
-            "View" if self.is_view else "Table",
-            self.name,
-            " (does not exist yet)"
-            if not self.exists
-            else " ({})".format(", ".join(c.name for c in self.columns)),
-        )
 
     @property
     def count(self):
         return self.db.conn.execute(
             "select count(*) from [{}]".format(self.name)
         ).fetchone()[0]
+
+    @property
+    def rows(self):
+        return self.rows_where()
+
+    def rows_where(self, where=None, where_args=None):
+        if not self.exists:
+            return []
+        sql = "select * from [{}]".format(self.name)
+        if where is not None:
+            sql += " where " + where
+        cursor = self.db.conn.execute(sql, where_args or [])
+        columns = [c[0] for c in cursor.description]
+        for row in cursor:
+            yield dict(zip(columns, row))
 
     @property
     def columns(self):
@@ -470,19 +445,52 @@ class Table:
         }
 
     @property
-    def rows(self):
-        return self.rows_where()
+    def schema(self):
+        return self.db.conn.execute(
+            "select sql from sqlite_master where name = ?", (self.name,)
+        ).fetchone()[0]
 
-    def rows_where(self, where=None, where_args=None):
-        if not self.exists:
-            return []
-        sql = "select * from [{}]".format(self.name)
-        if where is not None:
-            sql += " where " + where
-        cursor = self.db.conn.execute(sql, where_args or [])
-        columns = [c[0] for c in cursor.description]
-        for row in cursor:
-            yield dict(zip(columns, row))
+
+class Table(Queryable):
+    def __init__(
+        self,
+        db,
+        name,
+        pk=None,
+        foreign_keys=None,
+        column_order=None,
+        not_null=None,
+        defaults=None,
+        upsert=False,
+        batch_size=100,
+        hash_id=None,
+        alter=False,
+        ignore=False,
+        extracts=None,
+    ):
+        super().__init__(db, name)
+        self.exists = self.name in self.db.table_names()
+        self._defaults = dict(
+            pk=pk,
+            foreign_keys=foreign_keys,
+            column_order=column_order,
+            not_null=not_null,
+            defaults=defaults,
+            upsert=upsert,
+            batch_size=batch_size,
+            hash_id=hash_id,
+            alter=alter,
+            ignore=ignore,
+            extracts=extracts,
+        )
+
+    def __repr__(self):
+        return "<Table {}{}>".format(
+            self.name,
+            " (does not exist yet)"
+            if not self.exists
+            else " ({})".format(", ".join(c.name for c in self.columns)),
+        )
 
     @property
     def pks(self):
@@ -529,12 +537,6 @@ class Table:
                     )
                 )
         return fks
-
-    @property
-    def schema(self):
-        return self.db.conn.execute(
-            "select sql from sqlite_master where name = ?", (self.name,)
-        ).fetchone()[0]
 
     @property
     def indexes(self):
@@ -1131,6 +1133,18 @@ class Table:
                 }
             )
         return self
+
+
+class View(Queryable):
+    exists = True
+
+    def __repr__(self):
+        return "<View {} ({})>".format(
+            self.name, ", ".join(c.name for c in self.columns)
+        )
+
+    def drop(self):
+        self.db.conn.execute("DROP VIEW {}".format(self.name))
 
 
 def chunks(sequence, size):

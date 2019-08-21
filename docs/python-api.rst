@@ -72,12 +72,20 @@ Listing views
     >>> db.table_views()
     ['good_dogs']
 
-You can also iterate through view objects using the ``.views`` property::
+You can iterate through view objects using the ``.views`` property::
 
     >>> db.views
     [<View good_dogs>]
 
-View objects work the same as table objects, except any attempts to insert or update data will throw an error.
+View objects are similar to Table objects, except that any attempts to insert or update data will throw an error. The full list of methods and properties available on a view object is as follows:
+
+* ``columns``
+* ``columns_dict``
+* ``count``
+* ``schema``
+* ``rows``
+* ``rows_where(where, where_args)``
+* ``drop()``
 
 .. _python_api_rows:
 
@@ -701,10 +709,10 @@ If you want to ensure that every foreign key column in your database has a corre
 
 .. _python_api_drop:
 
-Dropping a table
-================
+Dropping a table or view
+========================
 
-You can drop a table by using the ``.drop()`` method:
+You can drop a table or view using the ``.drop()`` method:
 
 .. code-block:: python
 
@@ -783,7 +791,7 @@ For example:
 Introspection
 =============
 
-If you have loaded an existing table, you can use introspection to find out more about it::
+If you have loaded an existing table or view, you can use introspection to find out more about it::
 
     >>> db["PlantType"]
     <Table PlantType (id, value)>
@@ -795,7 +803,7 @@ The ``.count`` property shows the current number of rows (``select count(*) from
     >>> db["Street_Tree_List"].count
     189144
 
-The ``.columns`` property shows the columns in the table::
+The ``.columns`` property shows the columns in the table or view::
 
     >>> db["PlantType"].columns
     [Column(cid=0, name='id', type='INTEGER', notnull=0, default_value=None, is_pk=1),
@@ -806,7 +814,9 @@ The ``.columns_dict`` property returns a dictionary version of this with just th
     >>> db["PlantType"].columns_dict
     {'id': <class 'int'>, 'value': <class 'str'>}
 
-The ``.foreign_keys`` property shows if the table has any foreign key relationships::
+The ``.foreign_keys`` property shows if the table has any foreign key relationships. It is not available on views.
+
+::
 
     >>> db["Street_Tree_List"].foreign_keys
     [ForeignKey(table='Street_Tree_List', column='qLegalStatus', other_table='qLegalStatus', other_column='id'),
@@ -846,7 +856,9 @@ The ``.schema`` property outputs the table's schema as a SQL string::
         FOREIGN KEY ("qCareAssistant") REFERENCES [qCareAssistant](id),
         FOREIGN KEY ("qLegalStatus") REFERENCES [qLegalStatus](id))
 
-The ``.indexes`` property shows you all indexes created for a table::
+The ``.indexes`` property shows you all indexes created for a table. It is not available on views.
+
+::
 
     >>> db["Street_Tree_List"].indexes
     [Index(seq=0, name='"Street_Tree_List_qLegalStatus"', unique=0, origin='c', partial=0, columns=['qLegalStatus']),
