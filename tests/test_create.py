@@ -782,3 +782,10 @@ def test_drop(fresh_db):
     assert ["t"] == fresh_db.table_names()
     assert None is fresh_db["t"].drop()
     assert [] == fresh_db.table_names()
+
+
+def test_drop_view(fresh_db):
+    fresh_db.create_view("foo_view", "select 1")
+    assert ["foo_view"] == fresh_db.view_names()
+    assert None is fresh_db["foo_view"].drop()
+    assert [] == fresh_db.view_names()

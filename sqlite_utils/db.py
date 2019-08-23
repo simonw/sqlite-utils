@@ -63,6 +63,7 @@ if np:
 
 
 REVERSE_COLUMN_TYPE_MAPPING = {
+    "": str,  # Columns in views sometimes have type = ''
     "TEXT": str,
     "BLOB": bytes,
     "INTEGER": int,
@@ -107,7 +108,8 @@ class Database:
         return "<Database {}>".format(self.conn)
 
     def table(self, table_name, **kwargs):
-        return Table(self, table_name, **kwargs)
+        klass = View if table_name in self.view_names() else Table
+        return klass(self, table_name, **kwargs)
 
     def escape(self, value):
         # Normally we would use .execute(sql, [params]) for escaping, but
@@ -128,9 +130,21 @@ class Database:
         sql = "select name from sqlite_master where {}".format(" AND ".join(where))
         return [r[0] for r in self.conn.execute(sql).fetchall()]
 
+    def view_names(self):
+        return [
+            r[0]
+            for r in self.conn.execute(
+                "select name from sqlite_master where type = 'view'"
+            ).fetchall()
+        ]
+
     @property
     def tables(self):
         return [self[name] for name in self.table_names()]
+
+    @property
+    def views(self):
+        return [self[name] for name in self.view_names()]
 
     def execute_returning_dicts(self, sql, params=None):
         cursor = self.conn.execute(sql, params or tuple())
@@ -385,7 +399,59 @@ class Database:
         self.conn.execute("VACUUM;")
 
 
-class Table:
+class Queryable:
+    exists = False
+
+    def __init__(self, db, name):
+        self.db = db
+        self.name = name
+
+    @property
+    def count(self):
+        return self.db.conn.execute(
+            "select count(*) from [{}]".format(self.name)
+        ).fetchone()[0]
+
+    @property
+    def rows(self):
+        return self.rows_where()
+
+    def rows_where(self, where=None, where_args=None):
+        if not self.exists:
+            return []
+        sql = "select * from [{}]".format(self.name)
+        if where is not None:
+            sql += " where " + where
+        cursor = self.db.conn.execute(sql, where_args or [])
+        columns = [c[0] for c in cursor.description]
+        for row in cursor:
+            yield dict(zip(columns, row))
+
+    @property
+    def columns(self):
+        if not self.exists:
+            return []
+        rows = self.db.conn.execute(
+            "PRAGMA table_info([{}])".format(self.name)
+        ).fetchall()
+        return [Column(*row) for row in rows]
+
+    @property
+    def columns_dict(self):
+        "Returns {column: python-type} dictionary"
+        return {
+            column.name: REVERSE_COLUMN_TYPE_MAPPING[column.type]
+            for column in self.columns
+        }
+
+    @property
+    def schema(self):
+        return self.db.conn.execute(
+            "select sql from sqlite_master where name = ?", (self.name,)
+        ).fetchone()[0]
+
+
+class Table(Queryable):
     def __init__(
         self,
         db,
@@ -402,8 +468,7 @@ class Table:
         ignore=False,
         extracts=None,
     ):
-        self.db = db
-        self.name = name
+        super().__init__(db, name)
         self.exists = self.name in self.db.table_names()
         self._defaults = dict(
             pk=pk,
@@ -426,44 +491,6 @@ class Table:
             if not self.exists
             else " ({})".format(", ".join(c.name for c in self.columns)),
         )
-
-    @property
-    def count(self):
-        return self.db.conn.execute(
-            "select count(*) from [{}]".format(self.name)
-        ).fetchone()[0]
-
-    @property
-    def columns(self):
-        if not self.exists:
-            return []
-        rows = self.db.conn.execute(
-            "PRAGMA table_info([{}])".format(self.name)
-        ).fetchall()
-        return [Column(*row) for row in rows]
-
-    @property
-    def columns_dict(self):
-        "Returns {column: python-type} dictionary"
-        return {
-            column.name: REVERSE_COLUMN_TYPE_MAPPING[column.type]
-            for column in self.columns
-        }
-
-    @property
-    def rows(self):
-        return self.rows_where()
-
-    def rows_where(self, where=None, where_args=None):
-        if not self.exists:
-            return []
-        sql = "select * from [{}]".format(self.name)
-        if where is not None:
-            sql += " where " + where
-        cursor = self.db.conn.execute(sql, where_args or [])
-        columns = [c[0] for c in cursor.description]
-        for row in cursor:
-            yield dict(zip(columns, row))
 
     @property
     def pks(self):
@@ -510,12 +537,6 @@ class Table:
                     )
                 )
         return fks
-
-    @property
-    def schema(self):
-        return self.db.conn.execute(
-            "select sql from sqlite_master where name = ?", (self.name,)
-        ).fetchone()[0]
 
     @property
     def indexes(self):
@@ -1112,6 +1133,18 @@ class Table:
                 }
             )
         return self
+
+
+class View(Queryable):
+    exists = True
+
+    def __repr__(self):
+        return "<View {} ({})>".format(
+            self.name, ", ".join(c.name for c in self.columns)
+        )
+
+    def drop(self):
+        self.db.conn.execute("DROP VIEW {}".format(self.name))
 
 
 def chunks(sequence, size):
