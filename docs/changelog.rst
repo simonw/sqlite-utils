@@ -2,6 +2,19 @@
  Changelog
 ===========
 
+.. _v1_10:
+
+1.10 (2019-08-23)
+-----------------
+
+Ability to introspect and run queries against views (`#54 <https://github.com/simonw/sqlite-utils/issues/54>`__)
+
+- ``db.views_names()`` method and and ``db.views`` property
+- Separate ``View`` and ``Table`` classes, both subclassing new ``Queryable`` class
+- ``view.drop()`` method
+
+See :ref:`python_api_views`.
+
 .. _v1_9:
 
 1.9 (2019-08-04)
