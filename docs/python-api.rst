@@ -67,9 +67,9 @@ You can also iterate through the table objects themselves using the ``.tables`` 
 Listing views
 =============
 
-``.table_views()`` shows you a list of views in the database::
+``.view_names()`` shows you a list of views in the database::
 
-    >>> db.table_views()
+    >>> db.view_names()
     ['good_dogs']
 
 You can iterate through view objects using the ``.views`` property::
