@@ -9,7 +9,7 @@
 
 Ability to introspect and run queries against views (`#54 <https://github.com/simonw/sqlite-utils/issues/54>`__)
 
-- ``db.views_names()`` method and and ``db.views`` property
+- ``db.view_names()`` method and and ``db.views`` property
 - Separate ``View`` and ``Table`` classes, both subclassing new ``Queryable`` class
 - ``view.drop()`` method
 
