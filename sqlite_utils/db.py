@@ -729,7 +729,7 @@ class Table(Queryable):
     def populate_fts(self, columns):
         sql = """
             INSERT INTO "{table}_fts" (rowid, {columns})
-                SELECT rowid, {columns} FROM {table};
+                SELECT rowid, {columns} FROM "{table}";
         """.format(
             table=self.name, columns=", ".join(columns)
         )
@@ -796,7 +796,7 @@ class Table(Queryable):
 
     def search(self, q):
         sql = """
-            select * from {table} where rowid in (
+            select * from "{table}" where rowid in (
                 select rowid from [{table}_fts]
                 where [{table}_fts] match :search
             )
