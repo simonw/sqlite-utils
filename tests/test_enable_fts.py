@@ -48,3 +48,16 @@ def test_optimize_fts(fresh_db):
         "searchable_5_fts",
     ):
         fresh_db[table_name].optimize()
+
+
+def test_enable_fts_w_triggers(fresh_db):
+    table = fresh_db["searchable"]
+    table.insert(search_records[0])
+    table.enable_fts(
+        ["text", "country"], fts_version="FTS4", create_update_triggers=True
+    )
+    assert [("tanuki are tricksters", "Japan", "foo")] == table.search("tanuki")
+    table.insert(search_records[1])
+    # Triggers will auto-populate FTS virtual table, not need to call populate_fts()
+    assert [("racoons are trash pandas", "USA", "bar")] == table.search("usa")
+    assert [] == table.search("bar")

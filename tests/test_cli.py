@@ -329,6 +329,30 @@ def test_enable_fts(db_path):
     assert "Gosh_fts" == Database(db_path)["Gosh"].detect_fts()
 
 
+def test_enable_fts_with_triggers(db_path):
+    Database(db_path)["Gosh"].insert_all([{"c1": "baz"}])
+    exit_code = (
+        CliRunner()
+        .invoke(
+            cli.cli,
+            ["enable-fts", db_path, "Gosh", "c1", "--fts4", "--create-update-triggers"],
+        )
+        .exit_code
+    )
+    assert 0 == exit_code
+
+    def search(q):
+        return (
+            Database(db_path)
+            .conn.execute("select c1 from Gosh_fts where c1 match ?", [q])
+            .fetchall()
+        )
+
+    assert [("baz",)] == search("baz")
+    Database(db_path)["Gosh"].insert_all([{"c1": "martha"}])
+    assert [("martha",)] == search("martha")
+
+
 def test_populate_fts(db_path):
     Database(db_path)["Gosh"].insert_all([{"c1": "baz"}])
     exit_code = (
