@@ -646,7 +646,7 @@ class Table(Queryable):
         return self
 
     def drop(self):
-        self.db.conn.execute("DROP TABLE {}".format(self.name))
+        self.db.conn.execute("DROP TABLE [{}]".format(self.name))
 
     def guess_foreign_table(self, column):
         column = column.lower()
@@ -760,21 +760,20 @@ class Table(Queryable):
 
     def detect_fts(self):
         "Detect if table has a corresponding FTS virtual table and return it"
-        rows = self.db.conn.execute(
-            """
+        sql = """
             SELECT name FROM sqlite_master
                 WHERE rootpage = 0
                 AND (
-                    sql LIKE '%VIRTUAL TABLE%USING FTS%content="{table}"%'
+                    sql LIKE '%VIRTUAL TABLE%USING FTS%content=%{table}%'
                     OR (
                         tbl_name = "{table}"
                         AND sql LIKE '%VIRTUAL TABLE%USING FTS%'
                     )
                 )
         """.format(
-                table=self.name
-            )
-        ).fetchall()
+            table=self.name
+        )
+        rows = self.db.conn.execute(sql).fetchall()
         if len(rows) == 0:
             return None
         else:
@@ -1166,7 +1165,7 @@ class View(Queryable):
         )
 
     def drop(self):
-        self.db.conn.execute("DROP VIEW {}".format(self.name))
+        self.db.conn.execute("DROP VIEW [{}]".format(self.name))
 
 
 def chunks(sequence, size):

@@ -22,8 +22,41 @@ def test_enable_fts(fresh_db):
     assert [] == table.search("bar")
 
 
+def test_enable_fts_escape_table_names(fresh_db):
+    # Table names with restricted chars are handled correctly.
+    # colons and dots are restricted characters for table names.
+    table = fresh_db["http://example.com"]
+    table.insert_all(search_records)
+    assert ["http://example.com"] == fresh_db.table_names()
+    table.enable_fts(["text", "country"], fts_version="FTS4")
+    assert [
+        "http://example.com",
+        "http://example.com_fts",
+        "http://example.com_fts_segments",
+        "http://example.com_fts_segdir",
+        "http://example.com_fts_docsize",
+        "http://example.com_fts_stat",
+    ] == fresh_db.table_names()
+    assert [("tanuki are tricksters", "Japan", "foo")] == table.search("tanuki")
+    assert [("racoons are trash pandas", "USA", "bar")] == table.search("usa")
+    assert [] == table.search("bar")
+
+
 def test_populate_fts(fresh_db):
     table = fresh_db["populatable"]
+    table.insert(search_records[0])
+    table.enable_fts(["text", "country"], fts_version="FTS4")
+    assert [] == table.search("trash pandas")
+    table.insert(search_records[1])
+    assert [] == table.search("trash pandas")
+    # Now run populate_fts to make this record available
+    table.populate_fts(["text", "country"])
+    assert [("racoons are trash pandas", "USA", "bar")] == table.search("usa")
+
+
+def test_populate_fts_escape_table_names(fresh_db):
+    # Restricted characters such as colon and dots should be escaped.
+    table = fresh_db["http://example.com"]
     table.insert(search_records[0])
     table.enable_fts(["text", "country"], fts_version="FTS4")
     assert [] == table.search("trash pandas")
@@ -53,9 +86,7 @@ def test_optimize_fts(fresh_db):
 def test_enable_fts_w_triggers(fresh_db):
     table = fresh_db["searchable"]
     table.insert(search_records[0])
-    table.enable_fts(
-        ["text", "country"], fts_version="FTS4", create_triggers=True
-    )
+    table.enable_fts(["text", "country"], fts_version="FTS4", create_triggers=True)
     assert [("tanuki are tricksters", "Japan", "foo")] == table.search("tanuki")
     table.insert(search_records[1])
     # Triggers will auto-populate FTS virtual table, not need to call populate_fts()

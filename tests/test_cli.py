@@ -315,6 +315,7 @@ def test_index_foreign_keys(db_path):
     db = Database(db_path)
     assert [] == db["books"].indexes
     result = CliRunner().invoke(cli.cli, ["index-foreign-keys", db_path])
+    assert 0 == result.exit_code
     assert [["author_id"], ["author_name_ref"]] == [
         i.columns for i in db["books"].indexes
     ]
@@ -327,6 +328,19 @@ def test_enable_fts(db_path):
     )
     assert 0 == result.exit_code
     assert "Gosh_fts" == Database(db_path)["Gosh"].detect_fts()
+
+    # Table names with restricted chars are handled correctly.
+    # colons and dots are restricted characters for table names.
+    Database(db_path)["http://example.com"].create({"c1": str, "c2": str, "c3": str})
+    assert None == Database(db_path)["http://example.com"].detect_fts()
+    result = CliRunner().invoke(
+        cli.cli, ["enable-fts", db_path, "http://example.com", "c1", "--fts4"]
+    )
+    assert 0 == result.exit_code
+    assert (
+        "http://example.com_fts" == Database(db_path)["http://example.com"].detect_fts()
+    )
+    Database(db_path)["http://example.com"].drop()
 
 
 def test_enable_fts_with_triggers(db_path):
