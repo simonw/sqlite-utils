@@ -713,9 +713,9 @@ class Table(Queryable):
     def enable_fts(self, columns, fts_version="FTS5", create_triggers=False):
         "Enables FTS on the specified columns."
         sql = """
-            CREATE VIRTUAL TABLE "{table}_fts" USING {fts_version} (
+            CREATE VIRTUAL TABLE [{table}_fts] USING {fts_version} (
                 {columns},
-                content="{table}"
+                content=[{table}]
             );
         """.format(
             table=self.name,
@@ -729,15 +729,15 @@ class Table(Queryable):
             old_cols = ", ".join("old.[{}]".format(c) for c in columns)
             new_cols = ", ".join("new.[{}]".format(c) for c in columns)
             triggers = """
-                CREATE TRIGGER "{table}_ai" AFTER INSERT ON "{table}" BEGIN
-                  INSERT INTO "{table}_fts" (rowid, {columns}) VALUES (new.rowid, {new_cols});
+                CREATE TRIGGER [{table}_ai] AFTER INSERT ON [{table}] BEGIN
+                  INSERT INTO [{table}_fts] (rowid, {columns}) VALUES (new.rowid, {new_cols});
                 END;
-                CREATE TRIGGER "{table}_ad" AFTER DELETE ON "{table}" BEGIN
-                  INSERT INTO "{table}_fts" ("{table}_fts", rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
+                CREATE TRIGGER [{table}_ad] AFTER DELETE ON [{table}] BEGIN
+                  INSERT INTO [{table}_fts] ([{table}_fts], rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
                 END;
-                CREATE TRIGGER "{table}_au" AFTER UPDATE ON "{table}" BEGIN
-                  INSERT INTO "{table}_fts" ("{table}_fts", rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
-                  INSERT INTO "{table}_fts" (rowid, {columns}) VALUES (new.rowid, {new_cols});
+                CREATE TRIGGER [{table}_au] AFTER UPDATE ON [{table}] BEGIN
+                  INSERT INTO [{table}_fts] ([{table}_fts], rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
+                  INSERT INTO [{table}_fts] (rowid, {columns}) VALUES (new.rowid, {new_cols});
                 END;
             """.format(
                 table=self.name,
@@ -750,8 +750,8 @@ class Table(Queryable):
 
     def populate_fts(self, columns):
         sql = """
-            INSERT INTO "{table}_fts" (rowid, {columns})
-                SELECT rowid, {columns} FROM "{table}";
+            INSERT INTO [{table}_fts] (rowid, {columns})
+                SELECT rowid, {columns} FROM [{table}];
         """.format(
             table=self.name, columns=", ".join(columns)
         )
