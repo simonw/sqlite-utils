@@ -710,7 +710,7 @@ class Table(Queryable):
             )
         self.db.add_foreign_keys([(self.name, column, other_table, other_column)])
 
-    def enable_fts(self, columns, fts_version="FTS5", create_update_triggers=False):
+    def enable_fts(self, columns, fts_version="FTS5", create_triggers=False):
         "Enables FTS on the specified columns."
         sql = """
             CREATE VIRTUAL TABLE "{table}_fts" USING {fts_version} (
@@ -725,7 +725,7 @@ class Table(Queryable):
         self.db.conn.executescript(sql)
         self.populate_fts(columns)
 
-        if create_update_triggers:
+        if create_triggers:
             old_cols = ", ".join("old.[{}]".format(c) for c in columns)
             new_cols = ", ".join("new.[{}]".format(c) for c in columns)
             triggers = """

@@ -54,7 +54,7 @@ def test_enable_fts_w_triggers(fresh_db):
     table = fresh_db["searchable"]
     table.insert(search_records[0])
     table.enable_fts(
-        ["text", "country"], fts_version="FTS4", create_update_triggers=True
+        ["text", "country"], fts_version="FTS4", create_triggers=True
     )
     assert [("tanuki are tricksters", "Japan", "foo")] == table.search("tanuki")
     table.insert(search_records[1])

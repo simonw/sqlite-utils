@@ -335,7 +335,7 @@ def test_enable_fts_with_triggers(db_path):
         CliRunner()
         .invoke(
             cli.cli,
-            ["enable-fts", db_path, "Gosh", "c1", "--fts4", "--create-update-triggers"],
+            ["enable-fts", db_path, "Gosh", "c1", "--fts4", "--create-triggers"],
         )
         .exit_code
     )
