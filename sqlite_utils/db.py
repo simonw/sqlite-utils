@@ -710,8 +710,8 @@ class Table(Queryable):
             )
         self.db.add_foreign_keys([(self.name, column, other_table, other_column)])
 
-    def enable_fts(self, columns, fts_version="FTS5"):
-        "Enables FTS on the specified columns"
+    def enable_fts(self, columns, fts_version="FTS5", create_update_triggers=False):
+        "Enables FTS on the specified columns."
         sql = """
             CREATE VIRTUAL TABLE "{table}_fts" USING {fts_version} (
                 {columns},
@@ -724,6 +724,28 @@ class Table(Queryable):
         )
         self.db.conn.executescript(sql)
         self.populate_fts(columns)
+
+        if create_update_triggers:
+            old_cols = ", ".join("old.[{}]".format(c) for c in columns)
+            new_cols = ", ".join("new.[{}]".format(c) for c in columns)
+            triggers = """
+                CREATE TRIGGER "{table}_ai" AFTER INSERT ON "{table}" BEGIN
+                  INSERT INTO "{table}_fts" (rowid, {columns}) VALUES (new.rowid, {new_cols});
+                END;
+                CREATE TRIGGER "{table}_ad" AFTER DELETE ON "{table}" BEGIN
+                  INSERT INTO "{table}_fts" ("{table}_fts", rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
+                END;
+                CREATE TRIGGER "{table}_au" AFTER UPDATE ON "{table}" BEGIN
+                  INSERT INTO "{table}_fts" ("{table}_fts", rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
+                  INSERT INTO "{table}_fts" (rowid, {columns}) VALUES (new.rowid, {new_cols});
+                END;
+            """.format(
+                table=self.name,
+                columns=", ".join("[{}]".format(c) for c in columns),
+                old_cols=old_cols,
+                new_cols=new_cols,
+            )
+            self.db.conn.executescript(triggers)
         return self
 
     def populate_fts(self, columns):
