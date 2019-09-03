@@ -20,6 +20,9 @@ ForeignKey = namedtuple(
     "ForeignKey", ("table", "column", "other_table", "other_column")
 )
 Index = namedtuple("Index", ("seq", "name", "unique", "origin", "partial", "columns"))
+Trigger = namedtuple("Trigger", ("name", "table", "sql"))
+
+
 DEFAULT = object()
 
 COLUMN_TYPE_MAPPING = {
@@ -145,6 +148,15 @@ class Database:
     @property
     def views(self):
         return [self[name] for name in self.view_names()]
+
+    @property
+    def triggers(self):
+        return [
+            Trigger(*r)
+            for r in self.conn.execute(
+                "select name, tbl_name, sql from sqlite_master where type = 'trigger'"
+            ).fetchall()
+        ]
 
     def execute_returning_dicts(self, sql, params=None):
         cursor = self.conn.execute(sql, params or tuple())
@@ -560,6 +572,17 @@ class Table(Queryable):
                     row[key] = default
             indexes.append(Index(**row))
         return indexes
+
+    @property
+    def triggers(self):
+        return [
+            Trigger(*r)
+            for r in self.db.conn.execute(
+                "select name, tbl_name, sql from sqlite_master where type = 'trigger'"
+                " and tbl_name = ?",
+                (self.name,),
+            ).fetchall()
+        ]
 
     def create(
         self,

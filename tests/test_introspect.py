@@ -121,3 +121,30 @@ def test_guess_foreign_table(fresh_db, column, expected_table_guess):
 def test_pks(fresh_db, pk, expected):
     fresh_db["foo"].insert_all([{"id": 1, "id2": 2}], pk=pk)
     assert expected == fresh_db["foo"].pks
+
+
+def test_triggers(fresh_db):
+    assert [] == fresh_db.triggers
+    authors = fresh_db["authors"]
+    authors.insert_all(
+        [
+            {"name": "Frank Herbert", "famous_works": "Dune"},
+            {"name": "Neal Stephenson", "famous_works": "Cryptonomicon"},
+        ]
+    )
+    fresh_db["other"].insert({"foo": "bar"})
+    assert [] == authors.triggers
+    assert [] == fresh_db["other"].triggers
+    authors.enable_fts(
+        ["name", "famous_works"], fts_version="FTS4", create_triggers=True
+    )
+    expected_triggers = {
+        ("authors_ai", "authors"),
+        ("authors_ad", "authors"),
+        ("authors_au", "authors"),
+    }
+    assert expected_triggers == {(t.name, t.table) for t in fresh_db.triggers}
+    assert expected_triggers == {
+        (t.name, t.table) for t in fresh_db["authors"].triggers
+    }
+    assert [] == fresh_db["other"].triggers
