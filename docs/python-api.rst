@@ -907,6 +907,12 @@ If you insert additional records into the table you will need to refresh the sea
     }, pk="id")
     dogs.populate_fts(["name", "twitter"])
 
+A better solution is to use database triggers. You can set up database triggers to automatically update the full-text index using ``create_triggers=True``:
+
+.. code-block:: python
+
+    dogs.enable_fts(["name", "twitter"], create_triggers=True)
+
 ``.enable_fts()`` defaults to using `FTS5 <https://www.sqlite.org/fts5.html>`__. If you wish to use `FTS4 <https://www.sqlite.org/fts3.html>`__ instead, use the following:
 
 .. code-block:: python

@@ -379,6 +379,10 @@ The ``enable-fts`` command will populate the new index with all existing documen
 
     $ sqlite-utils populate-fts mydb.db documents title summary
 
+A better solution here is to use database triggers. You can set up database triggers to automatically update the full-text index using the ``--create-triggers`` option when you first run ``enable-fts``::
+
+    $ sqlite-utils enable-fts mydb.db documents title summary --create-triggers
+
 Vacuum
 ======
 
