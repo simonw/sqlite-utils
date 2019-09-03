@@ -868,6 +868,17 @@ The ``.indexes`` property shows you all indexes created for a table. It is not a
      Index(seq=4, name='"Street_Tree_List_qCaretaker"', unique=0, origin='c', partial=0, columns=['qCaretaker']),
      Index(seq=5, name='"Street_Tree_List_PlantType"', unique=0, origin='c', partial=0, columns=['PlantType'])]
 
+The ``.triggers`` property lists database triggers. It can be used on both database and table objects.
+
+::
+
+    >>> db["authors"].triggers
+    [Trigger(name='authors_ai', table='authors', sql='CREATE TRIGGER [authors_ai] AFTER INSERT...'),
+     Trigger(name='authors_ad', table='authors', sql="CREATE TRIGGER [authors_ad] AFTER DELETE..."),
+     Trigger(name='authors_au', table='authors', sql="CREATE TRIGGER [authors_au] AFTER UPDATE")]
+    >>> db.triggers
+    ... similar output to db["authors"].triggers
+
 Enabling full-text search
 =========================
 
