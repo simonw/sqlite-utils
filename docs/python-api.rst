@@ -788,6 +788,8 @@ For example:
     """).fetchall()
     # Returns [('Felton, CA',)]
 
+.. _python_api_introspection:
+
 Introspection
 =============
 
@@ -878,6 +880,8 @@ The ``.triggers`` property lists database triggers. It can be used on both datab
      Trigger(name='authors_au', table='authors', sql="CREATE TRIGGER [authors_au] AFTER UPDATE")]
     >>> db.triggers
     ... similar output to db["authors"].triggers
+
+.. _python_api_fts:
 
 Enabling full-text search
 =========================
