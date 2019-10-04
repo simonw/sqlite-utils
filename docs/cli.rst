@@ -55,6 +55,11 @@ If you want to pretty-print the output further, you can pipe it through ``python
         }
     ]
 
+You can run queries against a temporary in-memory database by passing ``:memory:`` as the filename::
+
+    $ sqlite-utils :memory: "select sqlite_version()"
+    [{"sqlite_version()": "3.29.0"}]
+
 .. _cli_json_values:
 
 Nested JSON values

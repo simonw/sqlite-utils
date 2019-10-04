@@ -724,6 +724,20 @@ def test_query_json_with_json_cols(db_path):
     assert expected == result_rows.output.strip()
 
 
+def test_query_memory_does_not_create_file(tmpdir):
+    owd = os.getcwd()
+    try:
+        os.chdir(tmpdir)
+        # This should create a foo.db file
+        CliRunner().invoke(cli.cli, ["foo.db", "select sqlite_version()"])
+        # This should NOT create a file
+        result = CliRunner().invoke(cli.cli, [":memory:", "select sqlite_version()"])
+        assert ["sqlite_version()"] == list(json.loads(result.output)[0].keys())
+    finally:
+        os.chdir(owd)
+    assert ["foo.db"] == os.listdir(tmpdir)
+
+
 @pytest.mark.parametrize(
     "args,expected",
     [
