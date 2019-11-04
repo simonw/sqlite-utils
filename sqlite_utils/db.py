@@ -853,6 +853,17 @@ class Table(Queryable):
     def value_or_default(self, key, value):
         return self._defaults[key] if value is DEFAULT else value
 
+    def delete(self, pk_values):
+        if not isinstance(pk_values, (list, tuple)):
+            pk_values = [pk_values]
+        self.get(pk_values)
+        wheres = ["[{}] = ?".format(pk_name) for pk_name in self.pks]
+        sql = "delete from [{table}] where {wheres}".format(
+            table=self.name, wheres=" and ".join(wheres)
+        )
+        with self.db.conn:
+            self.db.conn.execute(sql, pk_values)
+
     def update(self, pk_values, updates=None, alter=False):
         updates = updates or {}
         if not isinstance(pk_values, (list, tuple)):

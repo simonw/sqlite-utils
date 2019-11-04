@@ -382,6 +382,20 @@ You can cause any missing columns to be added automatically using ``alter=True``
 
     >>> db["dogs"].update(1, {"breed": "Mutt"}, alter=True)
 
+.. _python_api_delete:
+
+Deleting a specific record
+==========================
+
+You can delete a record using ``table.delete()``::
+
+    >>> db = sqlite_utils.Database("dogs.db")
+    >>> db["dogs"].delete(1)
+
+The ``delete()`` method takes the primary key of the record. This can be a tuple of values if the row has a compound primary key::
+
+    >>> db["compound_dogs"].delete((5, 3))
+
 Upserting data
 ==============
 
