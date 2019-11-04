@@ -2,6 +2,16 @@
  Changelog
 ===========
 
+.. _v1_12:
+
+1.12 (2019-11-04)
+-----------------
+
+Python library utilities for deleting records (`#62 <https://github.com/simonw/sqlite-utils/issues/62>`__)
+
+- ``db["tablename"].delete(4)`` to delete by primary key, see :ref:`python_api_delete`
+- ``db["tablename"].delete_where("id > ?", [3])`` to delete by a where clause, see :ref:`python_api_delete_where`
+
 .. _v1_11:
 
 1.11 (2019-09-02)

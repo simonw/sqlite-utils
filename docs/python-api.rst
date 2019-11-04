@@ -396,6 +396,8 @@ The ``delete()`` method takes the primary key of the record. This can be a tuple
 
     >>> db["compound_dogs"].delete((5, 3))
 
+.. _python_api_delete_where:
+
 Deleting multiple records
 =========================
 
