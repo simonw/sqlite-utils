@@ -864,6 +864,14 @@ class Table(Queryable):
         with self.db.conn:
             self.db.conn.execute(sql, pk_values)
 
+    def delete_where(self, where=None, where_args=None):
+        if not self.exists:
+            return []
+        sql = "delete from [{}]".format(self.name)
+        if where is not None:
+            sql += " where " + where
+        self.db.conn.execute(sql, where_args or [])
+
     def update(self, pk_values, updates=None, alter=False):
         updates = updates or {}
         if not isinstance(pk_values, (list, tuple)):

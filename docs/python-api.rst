@@ -396,6 +396,17 @@ The ``delete()`` method takes the primary key of the record. This can be a tuple
 
     >>> db["compound_dogs"].delete((5, 3))
 
+Deleting multiple records
+=========================
+
+You can delete all records in a table that match a specific WHERE statement using ``table.delete_where()``::
+
+    >>> db = sqlite_utils.Database("dogs.db")
+    >>> # Delete every dog with age less than 3
+    >>> db["dogs"].delete_where("age < ?", [3]):
+
+Calling ``table.delete_where()`` with no other arguments will delete every row in the table.
+
 Upserting data
 ==============
 
