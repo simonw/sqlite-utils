@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v1_12_1:
+
+1.12.1 (2019-11-06)
+-------------------
+
+- Fixed error thrown when ``.insert_all()`` and ``.upsert_all()`` were called with empty lists (`#52 <https://github.com/simonw/sqlite-utils/issues/52>`__)
+
 .. _v1_12:
 
 1.12 (2019-11-04)
