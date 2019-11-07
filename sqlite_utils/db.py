@@ -977,7 +977,10 @@ class Table(Queryable):
         # we need to adjust the batch_size down if we have too many cols
         records = iter(records)
         # Peek at first record to count its columns:
-        first_record = next(records)
+        try:
+            first_record = next(records)
+        except StopIteration:
+            return self  # It was an empty list
         num_columns = len(first_record.keys())
         assert (
             num_columns <= SQLITE_MAX_VARS

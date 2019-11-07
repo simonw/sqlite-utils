@@ -789,3 +789,12 @@ def test_drop_view(fresh_db):
     assert ["foo_view"] == fresh_db.view_names()
     assert None is fresh_db["foo_view"].drop()
     assert [] == fresh_db.view_names()
+
+
+def test_insert_upsert_all_empty_list(fresh_db):
+    fresh_db["t"].insert({"foo": 1})
+    assert 1 == fresh_db["t"].count
+    fresh_db["t"].insert_all([])
+    assert 1 == fresh_db["t"].count
+    fresh_db["t"].upsert_all([])
+    assert 1 == fresh_db["t"].count
