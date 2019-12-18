@@ -27,7 +27,7 @@ If you want to create an in-memory database, you can do so like this:
 
 .. code-block:: python
 
-    db = Database(sqlite3.connect(memory=True))
+    db = Database(memory=True)
 
 Tables are accessed using the indexing operator, like so:
 
