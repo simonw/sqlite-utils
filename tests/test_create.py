@@ -668,7 +668,9 @@ def test_insert_hash_id(fresh_db):
     assert "f501265970505d9825d8d9f590bfab3519fb20b1" == id
     assert 1 == dogs.count
     # Insert replacing a second time should not create a new row
-    id2 = dogs.insert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id", replace=True).last_pk
+    id2 = dogs.insert(
+        {"name": "Cleo", "twitter": "cleopaws"}, hash_id="id", replace=True
+    ).last_pk
     assert "f501265970505d9825d8d9f590bfab3519fb20b1" == id2
     assert 1 == dogs.count
 

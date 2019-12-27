@@ -985,6 +985,8 @@ class Table(Queryable):
         assert (
             num_columns <= SQLITE_MAX_VARS
         ), "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
+        # When calculating this for upsert, the primary keys are referenced twice
+        # so num_columns needs to have num primary keys added to it:
         batch_size = max(1, min(batch_size, SQLITE_MAX_VARS // num_columns))
         for chunk in chunks(itertools.chain([first_record], records), batch_size):
             chunk = list(chunk)
@@ -1008,11 +1010,21 @@ class Table(Queryable):
                 if hash_id:
                     all_columns.insert(0, hash_id)
             first = False
+
+            # START of bit that differs for upsert v.s. insert
             or_what = ""
             if replace:
                 or_what = "OR REPLACE "
             elif ignore:
                 or_what = "OR IGNORE "
+            # INSERT OR IGNORE INTO book(id) VALUES(1001);
+            # UPDATE book SET name = 'Programming' WHERE id = 1001;
+            # WAIT NO: this won't work because here we create a single
+            # giant INSERT, but for upsert we need two statements per
+            # record which means we need executescript()... but
+            # executescript doesn't take parameters at all.
+            # So maybe for upsert() we execute two separate SQL queries
+            # for every single record? Very different implementation.
             sql = """
                 INSERT {or_what}INTO [{table}] ({columns}) VALUES {rows};
             """.format(
@@ -1028,6 +1040,8 @@ class Table(Queryable):
                     for record in chunk
                 ),
             )
+            # END of bit that differs
+
             values = []
             extracts = resolve_extracts(extracts)
             for record in chunk:
@@ -1041,6 +1055,9 @@ class Table(Queryable):
                         value = self.db[extract_table].lookup({"value": value})
                     record_values.append(value)
                 values.extend(record_values)
+
+            # Except... if upsert() needs to execute multiple queries
+            # then this bit needs to change too
             with self.db.conn:
                 try:
                     result = self.db.conn.execute(sql, values)
@@ -1051,9 +1068,11 @@ class Table(Queryable):
                         result = self.db.conn.execute(sql, values)
                     else:
                         raise
+                # How do we get lastrowid for upserts?
                 self.last_rowid = result.lastrowid
                 self.last_pk = self.last_rowid
                 # self.last_rowid will be 0 if a "INSERT OR IGNORE" happened
+                # Do we need this logic for upsert too?
                 if (hash_id or pk) and self.last_rowid:
                     row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
                     if hash_id:
@@ -1076,7 +1095,17 @@ class Table(Queryable):
         alter=DEFAULT,
         extracts=DEFAULT,
     ):
-        raise NotImplementedError
+        return self.upsert_all(
+            [record],
+            pk=pk,
+            foreign_keys=foreign_keys,
+            column_order=column_order,
+            not_null=not_null,
+            defaults=defaults,
+            hash_id=hash_id,
+            alter=alter,
+            extracts=extracts,
+        )
 
     def upsert_all(
         self,
@@ -1091,6 +1120,9 @@ class Table(Queryable):
         alter=DEFAULT,
         extracts=DEFAULT,
     ):
+        # Perform the following for each record:
+        # INSERT OR IGNORE INTO books(id) VALUES(1001);
+        # UPDATE books SET name = 'Programming' WHERE id = 1001;
         raise NotImplementedError
 
     def add_missing_columns(self, records):
@@ -1165,7 +1197,8 @@ class Table(Queryable):
                     {
                         "{}_id".format(other_table.name): id,
                         "{}_id".format(self.name): our_id,
-                    }, replace=True
+                    },
+                    replace=True,
                 )
         else:
             id = other_table.lookup(lookup)
@@ -1173,7 +1206,8 @@ class Table(Queryable):
                 {
                     "{}_id".format(other_table.name): id,
                     "{}_id".format(self.name): our_id,
-                }, replace=True
+                },
+                replace=True,
             )
         return self
 
