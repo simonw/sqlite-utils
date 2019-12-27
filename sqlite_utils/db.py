@@ -473,11 +473,11 @@ class Table(Queryable):
         column_order=None,
         not_null=None,
         defaults=None,
-        upsert=False,
         batch_size=100,
         hash_id=None,
         alter=False,
         ignore=False,
+        replace=False,
         extracts=None,
     ):
         super().__init__(db, name)
@@ -488,11 +488,11 @@ class Table(Queryable):
             column_order=column_order,
             not_null=not_null,
             defaults=defaults,
-            upsert=upsert,
             batch_size=batch_size,
             hash_id=hash_id,
             alter=alter,
             ignore=ignore,
+            replace=replace,
             extracts=extracts,
         )
 
@@ -915,10 +915,10 @@ class Table(Queryable):
         column_order=DEFAULT,
         not_null=DEFAULT,
         defaults=DEFAULT,
-        upsert=DEFAULT,
         hash_id=DEFAULT,
         alter=DEFAULT,
         ignore=DEFAULT,
+        replace=DEFAULT,
         extracts=DEFAULT,
     ):
         return self.insert_all(
@@ -928,10 +928,10 @@ class Table(Queryable):
             column_order=column_order,
             not_null=not_null,
             defaults=defaults,
-            upsert=upsert,
             hash_id=hash_id,
             alter=alter,
             ignore=ignore,
+            replace=replace,
             extracts=extracts,
         )
 
@@ -943,11 +943,11 @@ class Table(Queryable):
         column_order=DEFAULT,
         not_null=DEFAULT,
         defaults=DEFAULT,
-        upsert=DEFAULT,
         batch_size=DEFAULT,
         hash_id=DEFAULT,
         alter=DEFAULT,
         ignore=DEFAULT,
+        replace=DEFAULT,
         extracts=DEFAULT,
     ):
         """
@@ -960,17 +960,17 @@ class Table(Queryable):
         column_order = self.value_or_default("column_order", column_order)
         not_null = self.value_or_default("not_null", not_null)
         defaults = self.value_or_default("defaults", defaults)
-        upsert = self.value_or_default("upsert", upsert)
         batch_size = self.value_or_default("batch_size", batch_size)
         hash_id = self.value_or_default("hash_id", hash_id)
         alter = self.value_or_default("alter", alter)
         ignore = self.value_or_default("ignore", ignore)
+        replace = self.value_or_default("replace", replace)
         extracts = self.value_or_default("extracts", extracts)
 
         assert not (hash_id and pk), "Use either pk= or hash_id="
         assert not (
-            ignore and upsert
-        ), "Use either ignore=True or upsert=True, not both"
+            ignore and replace
+        ), "Use either ignore=True or replace=True, not both"
         all_columns = None
         first = True
         # We can only handle a max of 999 variables in a SQL insert, so
@@ -1009,7 +1009,7 @@ class Table(Queryable):
                     all_columns.insert(0, hash_id)
             first = False
             or_what = ""
-            if upsert:
+            if replace:
                 or_what = "OR REPLACE "
             elif ignore:
                 or_what = "OR IGNORE "
@@ -1076,18 +1076,7 @@ class Table(Queryable):
         alter=DEFAULT,
         extracts=DEFAULT,
     ):
-        return self.insert(
-            record,
-            pk=pk,
-            foreign_keys=foreign_keys,
-            column_order=column_order,
-            not_null=not_null,
-            defaults=defaults,
-            hash_id=hash_id,
-            alter=alter,
-            upsert=True,
-            extracts=extracts,
-        )
+        raise NotImplementedError
 
     def upsert_all(
         self,
@@ -1102,19 +1091,7 @@ class Table(Queryable):
         alter=DEFAULT,
         extracts=DEFAULT,
     ):
-        return self.insert_all(
-            records,
-            pk=pk,
-            foreign_keys=foreign_keys,
-            column_order=column_order,
-            not_null=not_null,
-            defaults=defaults,
-            batch_size=100,
-            hash_id=hash_id,
-            alter=alter,
-            upsert=True,
-            extracts=extracts,
-        )
+        raise NotImplementedError
 
     def add_missing_columns(self, records):
         needed_columns = self.detect_column_types(records)
@@ -1183,20 +1160,20 @@ class Table(Queryable):
             )
             # Ensure each record exists in other table
             for record in records:
-                id = other_table.upsert(record, pk=pk).last_pk
-                m2m_table.upsert(
+                id = other_table.insert(record, pk=pk, replace=True).last_pk
+                m2m_table.insert(
                     {
                         "{}_id".format(other_table.name): id,
                         "{}_id".format(self.name): our_id,
-                    }
+                    }, replace=True
                 )
         else:
             id = other_table.lookup(lookup)
-            m2m_table.upsert(
+            m2m_table.insert(
                 {
                     "{}_id".format(other_table.name): id,
                     "{}_id".format(self.name): our_id,
-                }
+                }, replace=True
             )
         return self
 

@@ -581,23 +581,23 @@ def test_only_allow_one_of_nl_tsv_csv(options, db_path, tmpdir):
     assert "Error: Use just one of --nl, --csv or --tsv" == result.output.strip()
 
 
-def test_upsert(db_path, tmpdir):
+def test_insert_replace(db_path, tmpdir):
     test_insert_multiple_with_primary_key(db_path, tmpdir)
-    json_path = str(tmpdir / "upsert.json")
+    json_path = str(tmpdir / "insert-replace.json")
     db = Database(db_path)
     assert 20 == db["dogs"].count
-    upsert_dogs = [
-        {"id": 1, "name": "Upserted 1", "age": 4},
-        {"id": 2, "name": "Upserted 2", "age": 4},
+    insert_replace_dogs = [
+        {"id": 1, "name": "Insert replaced 1", "age": 4},
+        {"id": 2, "name": "Insert replaced 2", "age": 4},
         {"id": 21, "name": "Fresh insert 21", "age": 6},
     ]
-    open(json_path, "w").write(json.dumps(upsert_dogs))
+    open(json_path, "w").write(json.dumps(insert_replace_dogs))
     result = CliRunner().invoke(
-        cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id"]
+        cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id", "--replace"]
     )
-    assert 0 == result.exit_code
+    assert 0 == result.exit_code, result.output
     assert 21 == db["dogs"].count
-    assert upsert_dogs == db.execute_returning_dicts(
+    assert insert_replace_dogs == db.execute_returning_dicts(
         "select * from dogs where id in (1, 2, 21) order by id"
     )
 

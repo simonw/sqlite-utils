@@ -265,15 +265,15 @@ For tab-delimited data, use ``--tsv``::
 
     $ sqlite-utils insert dogs.db dogs docs.tsv --tsv
 
-Upserting data
-==============
+Insert-replacing data
+=====================
 
-Upserting works exactly like inserting, with the exception that if your data has a primary key that matches an already exsting record that record will be replaced with the new data.
+Insert-replacing works exactly like inserting, with the exception that if your data has a primary key that matches an already exsting record that record will be replaced with the new data.
 
 After running the above ``dogs.json`` example, try running this::
 
     $ echo '{"id": 2, "name": "Pancakes", "age": 3}' | \
-        sqlite-utils upsert dogs.db dogs - --pk=id
+        sqlite-utils insert dogs.db dogs - --pk=id --replace
 
 This will replace the record for id=2 (Pancakes) with a new record with an updated age.
 
