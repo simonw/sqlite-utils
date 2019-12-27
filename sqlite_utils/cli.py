@@ -353,6 +353,7 @@ def insert_upsert_implementation(
     alter,
     upsert,
     ignore=False,
+    replace=False,
     not_null=None,
     default=None,
 ):
@@ -372,23 +373,21 @@ def insert_upsert_implementation(
         docs = json.load(json_file)
         if isinstance(docs, dict):
             docs = [docs]
-    if upsert:
-        method = db[table].upsert_all
-        extra_kwargs = {}
-    else:
-        method = db[table].insert_all
-        extra_kwargs = {"ignore": ignore}
+    extra_kwargs = {"ignore": ignore, "replace": replace}
     if not_null:
         extra_kwargs["not_null"] = set(not_null)
     if default:
         extra_kwargs["defaults"] = dict(default)
-    method(docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs)
+    db[table].insert_all(docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs)
 
 
 @cli.command()
 @insert_upsert_options
 @click.option(
     "--ignore", is_flag=True, default=False, help="Ignore records if pk already exists"
+)
+@click.option(
+    "--replace", is_flag=True, default=False, help="Replace records if pk already exists"
 )
 def insert(
     path,
@@ -401,6 +400,7 @@ def insert(
     batch_size,
     alter,
     ignore,
+    replace,
     not_null,
     default,
 ):
@@ -422,6 +422,7 @@ def insert(
         alter=alter,
         upsert=False,
         ignore=ignore,
+        replace=replace,
         not_null=not_null,
         default=default,
     )

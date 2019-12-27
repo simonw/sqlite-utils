@@ -445,7 +445,7 @@ def test_insert_row_alter_table(
 
 
 @pytest.mark.parametrize("use_table_factory", [True, False])
-def test_upsert_rows_alter_table(fresh_db, use_table_factory):
+def test_insert_replace_rows_alter_table(fresh_db, use_table_factory):
     first_row = {"id": 1, "title": "Hedgehogs of the world", "author_id": 1}
     next_rows = [
         {"id": 1, "title": "Hedgehogs of the World", "species": "hedgehogs"},
@@ -459,11 +459,11 @@ def test_upsert_rows_alter_table(fresh_db, use_table_factory):
     if use_table_factory:
         table = fresh_db.table("books", pk="id", alter=True)
         table.insert(first_row)
-        table.upsert_all(next_rows)
+        table.insert_all(next_rows, replace=True)
     else:
         table = fresh_db["books"]
         table.insert(first_row, pk="id")
-        table.upsert_all(next_rows, alter=True)
+        table.insert_all(next_rows, alter=True, replace=True)
     assert {
         "author_id": int,
         "id": int,
@@ -664,11 +664,11 @@ def test_insert_ignore(fresh_db):
 
 def test_insert_hash_id(fresh_db):
     dogs = fresh_db["dogs"]
-    id = dogs.upsert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id").last_pk
+    id = dogs.insert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id").last_pk
     assert "f501265970505d9825d8d9f590bfab3519fb20b1" == id
     assert 1 == dogs.count
-    # Upserting a second time should not create a new row
-    id2 = dogs.upsert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id").last_pk
+    # Insert replacing a second time should not create a new row
+    id2 = dogs.insert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id", replace=True).last_pk
     assert "f501265970505d9825d8d9f590bfab3519fb20b1" == id2
     assert 1 == dogs.count
 
@@ -791,10 +791,10 @@ def test_drop_view(fresh_db):
     assert [] == fresh_db.view_names()
 
 
-def test_insert_upsert_all_empty_list(fresh_db):
+def test_insert_all_empty_list(fresh_db):
     fresh_db["t"].insert({"foo": 1})
     assert 1 == fresh_db["t"].count
     fresh_db["t"].insert_all([])
     assert 1 == fresh_db["t"].count
-    fresh_db["t"].upsert_all([])
+    fresh_db["t"].insert_all([], replace=True)
     assert 1 == fresh_db["t"].count
