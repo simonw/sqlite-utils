@@ -378,7 +378,9 @@ def insert_upsert_implementation(
         extra_kwargs["not_null"] = set(not_null)
     if default:
         extra_kwargs["defaults"] = dict(default)
-    db[table].insert_all(docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs)
+    db[table].insert_all(
+        docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
+    )
 
 
 @cli.command()
@@ -387,7 +389,10 @@ def insert_upsert_implementation(
     "--ignore", is_flag=True, default=False, help="Ignore records if pk already exists"
 )
 @click.option(
-    "--replace", is_flag=True, default=False, help="Replace records if pk already exists"
+    "--replace",
+    is_flag=True,
+    default=False,
+    help="Replace records if pk already exists",
 )
 def insert(
     path,
