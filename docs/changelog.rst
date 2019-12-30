@@ -2,6 +2,21 @@
  Changelog
 ===========
 
+.. _v2:
+
+2.0 (2019-12-29)
+----------------
+
+This release changes the behaviour of ``upsert``. It's a breaking change, hence ``2.0``.
+
+The ``upsert`` command-line utility and the ``.upsert()`` and ``.upsert_all()`` Python API methods have had their behaviour altered. They used to completely replace the affected records: now, they update the specified values on existing records but leave other columns unaffected.
+
+See :ref:`Upserting data using the Python API <python_api_upsert>` and :ref:`Upserting data using the CLI <cli_upsert>` for full details.
+
+If you want the old behaviour - where records were completely replaced - you can use ``$ sqlite-utils insert ... --replace`` on the command-line and ``.insert(..., replace=True)`` and ``.insert_all(..., replace=True)`` in the Python API. See :ref:`Insert-replacing data using the Python API <python_api_insert_replace>` and :ref:`Insert-replacing data using the CLI <cli_insert_replace>` for more.
+
+For full background on this change, see `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__).
+
 .. _v1_12_1:
 
 1.12.1 (2019-11-06)
