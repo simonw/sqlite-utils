@@ -443,7 +443,7 @@ def upsert(
     """
     Upsert records based on their primary key. Works like 'insert' but if
     an incoming record has a primary key that matches an existing record
-    the existing record will be replaced.
+    the existing record will be updated.
     """
     insert_upsert_implementation(
         path,
