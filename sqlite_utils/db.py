@@ -949,6 +949,7 @@ class Table(Queryable):
         ignore=DEFAULT,
         replace=DEFAULT,
         extracts=DEFAULT,
+        upsert=False,
     ):
         """
         Like .insert() but takes a list of records and ensures that the table
@@ -985,8 +986,6 @@ class Table(Queryable):
         assert (
             num_columns <= SQLITE_MAX_VARS
         ), "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
-        # When calculating this for upsert, the primary keys are referenced twice
-        # so num_columns needs to have num primary keys added to it:
         batch_size = max(1, min(batch_size, SQLITE_MAX_VARS // num_columns))
         for chunk in chunks(itertools.chain([first_record], records), batch_size):
             chunk = list(chunk)
@@ -1011,37 +1010,9 @@ class Table(Queryable):
                     all_columns.insert(0, hash_id)
             first = False
 
-            # START of bit that differs for upsert v.s. insert
-            or_what = ""
-            if replace:
-                or_what = "OR REPLACE "
-            elif ignore:
-                or_what = "OR IGNORE "
-            # INSERT OR IGNORE INTO book(id) VALUES(1001);
-            # UPDATE book SET name = 'Programming' WHERE id = 1001;
-            # WAIT NO: this won't work because here we create a single
-            # giant INSERT, but for upsert we need two statements per
-            # record which means we need executescript()... but
-            # executescript doesn't take parameters at all.
-            # So maybe for upsert() we execute two separate SQL queries
-            # for every single record? Very different implementation.
-            sql = """
-                INSERT {or_what}INTO [{table}] ({columns}) VALUES {rows};
-            """.format(
-                or_what=or_what,
-                table=self.name,
-                columns=", ".join("[{}]".format(c) for c in all_columns),
-                rows=", ".join(
-                    """
-                    ({placeholders})
-                """.format(
-                        placeholders=", ".join(["?"] * len(all_columns))
-                    )
-                    for record in chunk
-                ),
-            )
-            # END of bit that differs
-
+            # values is the list of insert data that is passed to the
+            # .execute() method - but some of them may be replaced by
+            # new primary keys if we are extracting any columns.
             values = []
             extracts = resolve_extracts(extracts)
             for record in chunk:
@@ -1054,25 +1025,76 @@ class Table(Queryable):
                         extract_table = extracts[key]
                         value = self.db[extract_table].lookup({"value": value})
                     record_values.append(value)
-                values.extend(record_values)
+                values.append(record_values)
 
-            # Except... if upsert() needs to execute multiple queries
-            # then this bit needs to change too
+            queries_and_params = []
+            if upsert:
+                if isinstance(pk, str):
+                    pks = [pk]
+                else:
+                    pks = pk
+                for record_values in values:
+                    # TODO: make more efficient:
+                    record = dict(zip(all_columns, record_values))
+                    params = []
+                    sql = "INSERT OR IGNORE INTO [{table}]({pks}) VALUES({pk_placeholders});".format(
+                        table=self.name,
+                        pks=", ".join(["[{}]".format(p) for p in pks]),
+                        pk_placeholders=", ".join(["?" for p in pks]),
+                    )
+                    queries_and_params.append((sql, [record[col] for col in pks]))
+                    # UPDATE [book] SET [name] = 'Programming' WHERE [id] = 1001;
+                    set_cols = [col for col in all_columns if col not in pks]
+                    sql2 = "UPDATE [{table}] SET {pairs} WHERE {wheres}".format(
+                        table=self.name,
+                        pairs=", ".join("[{}] = ?".format(col) for col in set_cols),
+                        wheres=" AND ".join("[{}] = ?".format(pk) for pk in pks),
+                    )
+                    queries_and_params.append(
+                        (
+                            sql2,
+                            [record[col] for col in set_cols]
+                            + [record[pk] for pk in pks],
+                        )
+                    )
+            else:
+                or_what = ""
+                if replace:
+                    or_what = "OR REPLACE "
+                elif ignore:
+                    or_what = "OR IGNORE "
+                sql = """
+                    INSERT {or_what}INTO [{table}] ({columns}) VALUES {rows};
+                """.format(
+                    or_what=or_what,
+                    table=self.name,
+                    columns=", ".join("[{}]".format(c) for c in all_columns),
+                    rows=", ".join(
+                        """
+                        ({placeholders})
+                    """.format(
+                            placeholders=", ".join(["?"] * len(all_columns))
+                        )
+                        for record in chunk
+                    ),
+                )
+                flat_values = list(itertools.chain(*values))
+                queries_and_params = [(sql, flat_values)]
+
             with self.db.conn:
-                try:
-                    result = self.db.conn.execute(sql, values)
-                except OperationalError as e:
-                    if alter and (" column" in e.args[0]):
-                        # Attempt to add any missing columns, then try again
-                        self.add_missing_columns(chunk)
-                        result = self.db.conn.execute(sql, values)
-                    else:
-                        raise
-                # How do we get lastrowid for upserts?
+                for query, params in queries_and_params:
+                    try:
+                        result = self.db.conn.execute(query, params)
+                    except OperationalError as e:
+                        if alter and (" column" in e.args[0]):
+                            # Attempt to add any missing columns, then try again
+                            self.add_missing_columns(chunk)
+                            result = self.db.conn.execute(query, params)
+                        else:
+                            raise
                 self.last_rowid = result.lastrowid
                 self.last_pk = self.last_rowid
                 # self.last_rowid will be 0 if a "INSERT OR IGNORE" happened
-                # Do we need this logic for upsert too?
                 if (hash_id or pk) and self.last_rowid:
                     row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
                     if hash_id:
@@ -1123,7 +1145,19 @@ class Table(Queryable):
         # Perform the following for each record:
         # INSERT OR IGNORE INTO books(id) VALUES(1001);
         # UPDATE books SET name = 'Programming' WHERE id = 1001;
-        raise NotImplementedError
+        return self.insert_all(
+            records,
+            pk=pk,
+            foreign_keys=foreign_keys,
+            column_order=column_order,
+            not_null=not_null,
+            defaults=defaults,
+            batch_size=batch_size,
+            hash_id=hash_id,
+            alter=alter,
+            extracts=extracts,
+            upsert=True,
+        )
 
     def add_missing_columns(self, records):
         needed_columns = self.detect_column_types(records)
