@@ -270,7 +270,7 @@ For tab-delimited data, use ``--tsv``::
 Insert-replacing data
 =====================
 
-Insert-replacing works exactly like inserting, with the exception that if your data has a primary key that matches an already exsting record that record will be replaced with the new data.
+Insert-replacing works exactly like inserting, with the exception that if your data has a primary key that matches an already existing record that record will be replaced with the new data.
 
 After running the above ``dogs.json`` example, try running this::
 
