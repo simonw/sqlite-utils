@@ -358,6 +358,30 @@ The function can accept an iterator or generator of rows and will commit them ac
 
 You can skip inserting any records that have a primary key that already exists using ``ignore=True``. This works with both ``.insert({...}, ignore=True)`` and ``.insert_all([...], ignore=True)``.
 
+.. _python_api_insert_replace:
+
+Insert-replacing data
+=====================
+
+If you want to insert a record or replace an existing record with the same primary key, using the ``replace=True`` argument to ``.insert()`` or ``.insert_all()``::
+
+    dogs.insert_all([{
+        "id": 1,
+        "name": "Cleo",
+        "twitter": "cleopaws",
+        "age": 3,
+        "is_good_dog": True,
+    }, {
+        "id": 2,
+        "name": "Marnie",
+        "twitter": "MarnieTheDog",
+        "age": 16,
+        "is_good_dog": True,
+    }], pk="id", replace=True)
+
+.. note::
+    Prior to sqlite-utils 2.x the ``.upsert()`` and ``.upsert_all()`` methods did this. See :ref:`python_api_upsert` for the new behaviour of those methods in 2.x.
+
 .. _python_api_update:
 
 Updating a specific record
@@ -409,6 +433,8 @@ You can delete all records in a table that match a specific WHERE statement usin
 
 Calling ``table.delete_where()`` with no other arguments will delete every row in the table.
 
+.. _python_api_upsert:
+
 Upserting data
 ==============
 
@@ -428,9 +454,14 @@ For example, given the dogs database you could upsert the record for Cleo like s
 
 If a record exists with id=1, it will be updated to match those fields. If it does not exist it will be created.
 
+Any existing columns that are not referenced in the dictionary passed to ``.upsert()`` will be unchanged. If you want to replace a record entirely, use ``.insert(doc, replace=True)`` instead.
+
 Note that the ``pk`` and ``column_order`` parameters here are optional if you are certain that the table has already been created. You should pass them if the table may not exist at the time the first upsert is performed.
 
 An ``upsert_all()`` method is also available, which behaves like ``insert_all()`` but performs upserts instead.
+
+.. note::
+    ``.upsert()`` and ``.upsert_all()`` in sqlite-utils 1.x worked like ``.insert(..., replace=True)`` and ``.insert_all(..., replace=True)`` do in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
 
 .. _python_api_lookup_tables:
 

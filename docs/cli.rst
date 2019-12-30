@@ -265,6 +265,8 @@ For tab-delimited data, use ``--tsv``::
 
     $ sqlite-utils insert dogs.db dogs docs.tsv --tsv
 
+.. _cli_insert_replace:
+
 Insert-replacing data
 =====================
 
@@ -276,6 +278,27 @@ After running the above ``dogs.json`` example, try running this::
         sqlite-utils insert dogs.db dogs - --pk=id --replace
 
 This will replace the record for id=2 (Pancakes) with a new record with an updated age.
+
+.. _cli_upsert:
+
+Upserting data
+==============
+
+Upserting is update-or-insert. If a row exists with the specified primary key the provided columns will be updated. If no row exists that row will be created.
+
+Unlike ``insert --replace``, an upsert will ignore any column values that exist but are not present in the upsert document.
+
+For example::
+
+    $ echo '{"id": 2, "age": 4}' | \
+        sqlite-utils upsert dogs.db dogs - --pk=id
+
+This will update the dog with id=2 to have an age of 4, creating a new record (with a null name) if one does not exist. If a row DOES exist the name will be left as-is.
+
+The command will fail if you reference columns that do not exist on the table. To automatically create missing columns, use the ``--alter`` option.
+
+.. note::
+    ``upsert`` in sqlite-utils 1.x worked like ``insert ... --replace`` does in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
 
 .. _cli_add_column:
 
