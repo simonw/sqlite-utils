@@ -18,7 +18,13 @@ def test_upsert_all(fresh_db):
 
 def test_upsert_compound_primary_key(fresh_db):
     table = fresh_db["table"]
-    table.upsert_all([{"species": "dog", "id": 1, "name": "Cleo", "age": 4}, {"species": "cat", "id": 1, "name": "Catbag"}], pk=("species", "id"))
+    table.upsert_all(
+        [
+            {"species": "dog", "id": 1, "name": "Cleo", "age": 4},
+            {"species": "cat", "id": 1, "name": "Catbag"},
+        ],
+        pk=("species", "id"),
+    )
     table.upsert_all([{"species": "dog", "id": 1, "age": 5}], pk=("species", "id"))
     assert [
         {"species": "dog", "id": 1, "name": "Cleo", "age": 5},
