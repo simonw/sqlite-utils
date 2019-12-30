@@ -765,3 +765,59 @@ def test_rows(db_path, args, expected):
         )
     result = CliRunner().invoke(cli.cli, ["rows", db_path, "dogs"] + args)
     assert expected == result.output.strip()
+
+
+def test_upsert(db_path, tmpdir):
+    json_path = str(tmpdir / "dogs.json")
+    db = Database(db_path)
+    insert_dogs = [
+        {"id": 1, "name": "Cleo", "age": 4},
+        {"id": 2, "name": "Nixie", "age": 4},
+    ]
+    open(json_path, "w").write(json.dumps(insert_dogs))
+    result = CliRunner().invoke(
+        cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
+    )
+    assert 0 == result.exit_code, result.output
+    assert 2 == db["dogs"].count
+    # Now run the upsert to update just their ages
+    upsert_dogs = [
+        {"id": 1, "age": 5},
+        {"id": 2, "age": 5},
+    ]
+    open(json_path, "w").write(json.dumps(insert_dogs))
+    result = CliRunner().invoke(
+        cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id"]
+    )
+    assert 0 == result.exit_code, result.output
+    assert [
+        {"id": 1, "name": "Cleo", "age": 4},
+        {"id": 2, "name": "Nixie", "age": 4},
+    ] == db.execute_returning_dicts("select * from dogs order by id")
+
+
+def test_upsert_alter(db_path, tmpdir):
+    json_path = str(tmpdir / "dogs.json")
+    db = Database(db_path)
+    insert_dogs = [{"id": 1, "name": "Cleo"}]
+    open(json_path, "w").write(json.dumps(insert_dogs))
+    result = CliRunner().invoke(
+        cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
+    )
+    assert 0 == result.exit_code, result.output
+    # Should fail with error code if no --alter
+    upsert_dogs = [{"id": 1, "age": 5}]
+    open(json_path, "w").write(json.dumps(upsert_dogs))
+    result = CliRunner().invoke(
+        cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id"]
+    )
+    assert 1 == result.exit_code
+    assert "no such column: age" == str(result.exception)
+    # Should succeed with --alter
+    result = CliRunner().invoke(
+        cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id", "--alter"]
+    )
+    assert 0 == result.exit_code
+    assert [{"id": 1, "name": "Cleo", "age": 5},] == db.execute_returning_dicts(
+        "select * from dogs order by id"
+    )

@@ -378,6 +378,8 @@ def insert_upsert_implementation(
         extra_kwargs["not_null"] = set(not_null)
     if default:
         extra_kwargs["defaults"] = dict(default)
+    if upsert:
+        extra_kwargs["upsert"] = upsert
     db[table].insert_all(
         docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
     )
