@@ -15,7 +15,7 @@ See :ref:`Upserting data using the Python API <python_api_upsert>` and :ref:`Ups
 
 If you want the old behaviour - where records were completely replaced - you can use ``$ sqlite-utils insert ... --replace`` on the command-line and ``.insert(..., replace=True)`` and ``.insert_all(..., replace=True)`` in the Python API. See :ref:`Insert-replacing data using the Python API <python_api_insert_replace>` and :ref:`Insert-replacing data using the CLI <cli_insert_replace>` for more.
 
-For full background on this change, see `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__).
+For full background on this change, see `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__.
 
 .. _v1_12_1:
 
