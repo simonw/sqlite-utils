@@ -1,3 +1,7 @@
+from sqlite_utils.db import PrimaryKeyRequired
+import pytest
+
+
 def test_upsert(fresh_db):
     table = fresh_db["table"]
     table.insert({"id": 1, "name": "Cleo"}, pk="id")
@@ -14,6 +18,14 @@ def test_upsert_all(fresh_db):
         {"id": 2, "name": "Nixie", "age": 5},
     ] == list(table.rows)
     assert 2 == table.last_pk
+
+
+def test_upsert_error_if_no_pk(fresh_db):
+    table = fresh_db["table"]
+    with pytest.raises(PrimaryKeyRequired):
+        table.upsert_all([{"id": 1, "name": "Cleo"}])
+    with pytest.raises(PrimaryKeyRequired):
+        table.upsert({"id": 1, "name": "Cleo"})
 
 
 def test_upsert_compound_primary_key(fresh_db):

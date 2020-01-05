@@ -90,6 +90,10 @@ class NotFoundError(Exception):
     pass
 
 
+class PrimaryKeyRequired(Exception):
+    pass
+
+
 class Database:
     def __init__(self, filename_or_conn=None, memory=False):
         assert (filename_or_conn is not None and not memory) or (
@@ -957,6 +961,8 @@ class Table(Queryable):
         data
         """
         pk = self.value_or_default("pk", pk)
+        if upsert and not pk:
+            raise PrimaryKeyRequired("upsert() requires a pk")
         foreign_keys = self.value_or_default("foreign_keys", foreign_keys)
         column_order = self.value_or_default("column_order", column_order)
         not_null = self.value_or_default("not_null", not_null)
@@ -1142,9 +1148,6 @@ class Table(Queryable):
         alter=DEFAULT,
         extracts=DEFAULT,
     ):
-        # Perform the following for each record:
-        # INSERT OR IGNORE INTO books(id) VALUES(1001);
-        # UPDATE books SET name = 'Programming' WHERE id = 1001;
         return self.insert_all(
             records,
             pk=pk,
