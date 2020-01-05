@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_0_1:
+
+2.0.1 (2020-01-05)
+------------------
+
+The ``.upsert()`` and ``.upsert_all()`` methods now raise a ``sqlite_utils.db.PrimaryKeyRequired`` exception if you call them without specifying the primary key column using ``pk=`` (`#73 <https://github.com/simonw/sqlite-utils/issues/73>`__).
+
 .. _v2:
 
 2.0 (2019-12-29)
