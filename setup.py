@@ -21,7 +21,7 @@ setup(
     author="Simon Willison",
     version=VERSION,
     license="Apache License, Version 2.0",
-    packages=find_packages(exclude="tests"),
+    packages=find_packages(exclude=["tests", "tests.*"]),
     install_requires=["click", "click-default-group", "tabulate"],
     setup_requires=["pytest-runner"],
     extras_require={
