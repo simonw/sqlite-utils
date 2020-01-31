@@ -219,6 +219,7 @@ class Database:
         defaults=None,
         hash_id=None,
         extracts=None,
+        on_create=None,
     ):
         foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
         foreign_keys_by_column = {fk.column: fk for fk in foreign_keys}
@@ -227,7 +228,12 @@ class Database:
         for extract_column, extract_table in extracts.items():
             # Ensure other table exists
             if not self[extract_table].exists:
-                self.create_table(extract_table, {"id": int, "value": str}, pk="id")
+                self.create_table(
+                    extract_table,
+                    {"id": int, "value": str},
+                    pk="id",
+                    on_create=on_create,
+                )
             columns[extract_column] = int
             foreign_keys_by_column[extract_column] = ForeignKey(
                 name, extract_column, extract_table, "id"
@@ -308,6 +314,8 @@ class Database:
             table=name, columns_sql=columns_sql, extra_pk=extra_pk
         )
         self.conn.execute(sql)
+        if on_create:
+            on_create(self, name)
         return self.table(
             name,
             pk=pk,
@@ -484,6 +492,7 @@ class Table(Queryable):
         replace=False,
         extracts=None,
         conversions=None,
+        on_create=None,
     ):
         super().__init__(db, name)
         self.exists = self.name in self.db.table_names()
@@ -500,6 +509,7 @@ class Table(Queryable):
             replace=replace,
             extracts=extracts,
             conversions=conversions or {},
+            on_create=lambda db, table_name: None,
         )
 
     def __repr__(self):
@@ -928,6 +938,7 @@ class Table(Queryable):
         replace=DEFAULT,
         extracts=DEFAULT,
         conversions=DEFAULT,
+        on_create=DEFAULT,
     ):
         return self.insert_all(
             [record],
@@ -942,6 +953,7 @@ class Table(Queryable):
             replace=replace,
             extracts=extracts,
             conversions=conversions,
+            on_create=on_create,
         )
 
     def insert_all(
@@ -959,6 +971,7 @@ class Table(Queryable):
         replace=DEFAULT,
         extracts=DEFAULT,
         conversions=DEFAULT,
+        on_create=DEFAULT,
         upsert=False,
     ):
         """
@@ -980,6 +993,7 @@ class Table(Queryable):
         replace = self.value_or_default("replace", replace)
         extracts = self.value_or_default("extracts", extracts)
         conversions = self.value_or_default("conversions", conversions)
+        on_create = self.value_or_default("on_create", on_create)
 
         assert not (hash_id and pk), "Use either pk= or hash_id="
         assert not (
@@ -1135,6 +1149,7 @@ class Table(Queryable):
         alter=DEFAULT,
         extracts=DEFAULT,
         conversions=DEFAULT,
+        on_create=DEFAULT,
     ):
         return self.upsert_all(
             [record],
@@ -1147,6 +1162,7 @@ class Table(Queryable):
             alter=alter,
             extracts=extracts,
             conversions=conversions,
+            on_create=on_create,
         )
 
     def upsert_all(
@@ -1162,6 +1178,7 @@ class Table(Queryable):
         alter=DEFAULT,
         extracts=DEFAULT,
         conversions=DEFAULT,
+        on_create=DEFAULT,
     ):
         return self.insert_all(
             records,
@@ -1175,6 +1192,7 @@ class Table(Queryable):
             alter=alter,
             extracts=extracts,
             conversions=conversions,
+            on_create=on_create,
             upsert=True,
         )
 
