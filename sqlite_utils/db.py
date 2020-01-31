@@ -483,6 +483,7 @@ class Table(Queryable):
         ignore=False,
         replace=False,
         extracts=None,
+        conversions=None,
     ):
         super().__init__(db, name)
         self.exists = self.name in self.db.table_names()
@@ -498,6 +499,7 @@ class Table(Queryable):
             ignore=ignore,
             replace=replace,
             extracts=extracts,
+            conversions=conversions or {},
         )
 
     def __repr__(self):
@@ -876,8 +878,9 @@ class Table(Queryable):
             sql += " where " + where
         self.db.conn.execute(sql, where_args or [])
 
-    def update(self, pk_values, updates=None, alter=False):
+    def update(self, pk_values, updates=None, alter=False, conversions=None):
         updates = updates or {}
+        conversions = conversions or {}
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
         # Sanity check that the record exists (raises error if not):
@@ -888,7 +891,7 @@ class Table(Queryable):
         sets = []
         wheres = []
         for key, value in updates.items():
-            sets.append("[{}] = ?".format(key))
+            sets.append("[{}] = {}".format(key, conversions.get(key, "?")))
             args.append(value)
         wheres = ["[{}] = ?".format(pk_name) for pk_name in self.pks]
         args.extend(pk_values)
@@ -924,6 +927,7 @@ class Table(Queryable):
         ignore=DEFAULT,
         replace=DEFAULT,
         extracts=DEFAULT,
+        conversions=DEFAULT,
     ):
         return self.insert_all(
             [record],
@@ -937,6 +941,7 @@ class Table(Queryable):
             ignore=ignore,
             replace=replace,
             extracts=extracts,
+            conversions=conversions,
         )
 
     def insert_all(
@@ -953,6 +958,7 @@ class Table(Queryable):
         ignore=DEFAULT,
         replace=DEFAULT,
         extracts=DEFAULT,
+        conversions=DEFAULT,
         upsert=False,
     ):
         """
@@ -973,6 +979,7 @@ class Table(Queryable):
         ignore = self.value_or_default("ignore", ignore)
         replace = self.value_or_default("replace", replace)
         extracts = self.value_or_default("extracts", extracts)
+        conversions = self.value_or_default("conversions", conversions)
 
         assert not (hash_id and pk), "Use either pk= or hash_id="
         assert not (
@@ -1053,7 +1060,10 @@ class Table(Queryable):
                     set_cols = [col for col in all_columns if col not in pks]
                     sql2 = "UPDATE [{table}] SET {pairs} WHERE {wheres}".format(
                         table=self.name,
-                        pairs=", ".join("[{}] = ?".format(col) for col in set_cols),
+                        pairs=", ".join(
+                            "[{}] = {}".format(col, conversions.get(col, "?"))
+                            for col in set_cols
+                        ),
                         wheres=" AND ".join("[{}] = ?".format(pk) for pk in pks),
                     )
                     queries_and_params.append(
@@ -1079,7 +1089,9 @@ class Table(Queryable):
                         """
                         ({placeholders})
                     """.format(
-                            placeholders=", ".join(["?"] * len(all_columns))
+                            placeholders=", ".join(
+                                [conversions.get(col, "?") for col in all_columns]
+                            )
                         )
                         for record in chunk
                     ),
@@ -1122,6 +1134,7 @@ class Table(Queryable):
         hash_id=DEFAULT,
         alter=DEFAULT,
         extracts=DEFAULT,
+        conversions=DEFAULT,
     ):
         return self.upsert_all(
             [record],
@@ -1133,6 +1146,7 @@ class Table(Queryable):
             hash_id=hash_id,
             alter=alter,
             extracts=extracts,
+            conversions=conversions,
         )
 
     def upsert_all(
@@ -1147,6 +1161,7 @@ class Table(Queryable):
         hash_id=DEFAULT,
         alter=DEFAULT,
         extracts=DEFAULT,
+        conversions=DEFAULT,
     ):
         return self.insert_all(
             records,
@@ -1159,6 +1174,7 @@ class Table(Queryable):
             hash_id=hash_id,
             alter=alter,
             extracts=extracts,
+            conversions=conversions,
             upsert=True,
         )
 
