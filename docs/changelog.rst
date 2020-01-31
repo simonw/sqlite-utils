@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+.. _v2_1:
+
+2.1 (2020-01-30)
+----------------
+
+New feature: ``conversions={...}`` can be passed to the ``.insert()`` family of functions to specify SQL conversions that should be applied to values that are being inserted or updated. See :ref:`python_api_conversions` . (`#77 <https://github.com/simonw/sqlite-utils/issues/73>`__).
+
+
 .. _v2_0_1:
 
 2.0.1 (2020-01-05)
