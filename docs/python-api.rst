@@ -846,6 +846,68 @@ For example:
     """).fetchall()
     # Returns [('Felton, CA',)]
 
+.. _python_api_conversions:
+
+Converting column values using SQL functions
+============================================
+
+Sometimes it can be useful to run values through a SQL function prior to inserting them. A simple example might be converting a value to upper case while it is being inserted.
+
+The ``conversions={...}`` parameter can be used to specify custom SQL to be used as part of a ``INSERT`` or ``UPDATE`` SQL statement.
+
+You can specify an upper case conversion for a specific column like so:
+
+.. code-block:: python
+
+    db["example"].insert({
+        "name": "The Bigfoot Discovery Museum"
+    }, conversions={"name": "upper(?)"})
+
+    # list(db["example"].rows) now returns:
+    # [{'name': 'THE BIGFOOT DISCOVERY MUSEUM'}]
+
+The dictionary key is the column name to be converted. The value is the SQL fragment to use, with a ``?`` placeholder for the original value.
+
+A more useful example: if you are working with `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ you may find yourself wanting to create geometry values from a WKT value. Code to do that could look like this:
+
+.. code-block:: python
+
+    import sqlite3
+    import sqlite_utils
+    from shapely.geometry import shape
+    import requests
+
+    # Open a database and load the SpatiaLite extension:
+    import sqlite3
+
+    conn = sqlite3.connect("places.db")
+    conn.enable_load_extension(True)
+    conn.load_extension("/usr/local/lib/mod_spatialite.dylib")
+
+    # Use sqlite-utils to create a places table:
+    db = sqlite_utils.Database(conn)
+    places = db["places"].create({"id": int, "name": str,})
+
+    # Add a SpatiaLite 'geometry' column:
+    db.conn.execute("select InitSpatialMetadata(1)")
+    db.conn.execute(
+        "SELECT AddGeometryColumn('places', 'geometry', 4326, 'MULTIPOLYGON', 2);"
+    )
+
+    # Fetch some GeoJSON from Who's On First:
+    geojson = requests.get(
+        "https://data.whosonfirst.org/404/227/475/404227475.geojson"
+    ).json()
+
+    # Convert to "Well Known Text" format using shapely
+    wkt = shape(geojson["geometry"]).wkt
+
+    # Insert the record, converting the WKT to a SpatiaLite geometry:
+    db["places"].insert(
+        {"name": "Wales", "geometry": wkt},
+        conversions={"geometry": "GeomFromText(?, 4326)"},
+    )
+
 .. _python_api_introspection:
 
 Introspection
