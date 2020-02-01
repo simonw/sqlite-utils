@@ -182,6 +182,8 @@ After inserting a row like this, the ``dogs.last_rowid`` property will return th
 
 The ``dogs.last_pk`` property will return the last inserted primary key value, if you specified one. This can be very useful when writing code that creates foreign keys or many-to-many relationships.
 
+.. _python_api_explicit_create:
+
 Explicitly creating a table
 ---------------------------
 
@@ -1090,3 +1092,71 @@ You can optimize your database by running VACUUM against it like so:
 .. code-block:: python
 
     Database("my_database.db").vacuum()
+
+.. _python_api_suggest_column_types:
+
+Suggesting column types
+=======================
+
+When you create a new table for a list of inserted or upserted Python dictionaries, those methods detect the correct types for the database columns based on the data you pass in.
+
+In some situations you may need to intervene in this process, to customize the columns that are being created in some way - see :ref:`python_api_explicit_create`.
+
+That table ``.create()`` method takes a dictionary mapping column names to the Python type they should store:
+
+.. code-block:: python
+
+    db["cats"].create({
+        "id": int,
+        "name": str,
+        "weight": float,
+    })
+
+You can use the ``suggest_column_types()`` helper function to derive a dictionary of column names and types from a list of records, suitable to be passed to ``table.create()``.
+
+For example:
+
+.. code-block:: python
+
+    from sqlite_utils import Database, suggest_column_types
+
+    cats = [{
+        "id": 1,
+        "name": "Snowflake"
+    }, {
+        "id": 2,
+        "name": "Crabtree",
+        "age": 4
+    }]
+    types = suggest_column_types(cats)
+    # types now looks like this:
+    # {"id": <class 'int'>,
+    #  "name": <class 'str'>,
+    #  "age": <class 'int'>}
+
+    # Manually add an extra field:
+    types["thumbnail"] = bytes
+    # types now looks like this:
+    # {"id": <class 'int'>,
+    #  "name": <class 'str'>,
+    #  "age": <class 'int'>,
+    #  "thumbnail": <class 'bytes'>}
+
+    # Create the table
+    db = Database("cats.db")
+    db["cats"].create(types, pk="id")
+    # Insert the records
+    db["cats"].insert_all(cats)
+
+    # list(db["cats"].rows) now returns:
+    # [{"id": 1, "name": "Snowflake", "age": None, "thumbnail": None}
+    #  {"id": 2, "name": "Crabtree", "age": 4, "thumbnail": None}]
+
+    # The table schema looks like this:
+    # print(db["cats"].schema)
+    # CREATE TABLE [cats] (
+    #    [id] INTEGER PRIMARY KEY,
+    #    [name] TEXT,
+    #    [age] INTEGER,
+    #    [thumbnail] BLOB
+    # )
