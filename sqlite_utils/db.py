@@ -1,4 +1,4 @@
-from .utils import sqlite3, OperationalError
+from .utils import sqlite3, OperationalError, suggest_column_types
 from collections import namedtuple
 import datetime
 import hashlib
@@ -820,30 +820,6 @@ class Table(Queryable):
             )
         return self
 
-    def detect_column_types(self, records):
-        all_column_types = {}
-        for record in records:
-            for key, value in record.items():
-                all_column_types.setdefault(key, set()).add(type(value))
-        column_types = {}
-        for key, types in all_column_types.items():
-            if len(types) == 1:
-                t = list(types)[0]
-                # But if it's list / tuple / dict, use str instead as we
-                # will be storing it as JSON in the table
-                if t in (list, tuple, dict):
-                    t = str
-            elif {int, bool}.issuperset(types):
-                t = int
-            elif {int, float, bool}.issuperset(types):
-                t = float
-            elif {bytes, str}.issuperset(types):
-                t = bytes
-            else:
-                t = str
-            column_types[key] = t
-        return column_types
-
     def search(self, q):
         sql = """
             select * from "{table}" where rowid in (
@@ -1006,7 +982,7 @@ class Table(Queryable):
                 if not self.exists:
                     # Use the first batch to derive the table names
                     self.create(
-                        self.detect_column_types(chunk),
+                        suggest_column_types(chunk),
                         pk,
                         foreign_keys,
                         column_order=column_order,
@@ -1179,7 +1155,7 @@ class Table(Queryable):
         )
 
     def add_missing_columns(self, records):
-        needed_columns = self.detect_column_types(records)
+        needed_columns = suggest_column_types(records)
         current_columns = self.columns_dict
         for col_name, col_type in needed_columns.items():
             if col_name not in current_columns:
