@@ -2,13 +2,21 @@
  Changelog
 ===========
 
+.. _v2_2:
+
+2.2 (2020-02-01)
+----------------
+
+New feature: ``sqlite_utils.suggest_column_types([records])`` returns the suggested column types for a list of records. See :ref:`python_api_suggest_column_types`. (`#81 <https://github.com/simonw/sqlite-utils/issues/81>`__).
+
+This replaces the undocumented ``table.detect_column_types()`` method.
+
 .. _v2_1:
 
 2.1 (2020-01-30)
 ----------------
 
 New feature: ``conversions={...}`` can be passed to the ``.insert()`` family of functions to specify SQL conversions that should be applied to values that are being inserted or updated. See :ref:`python_api_conversions` . (`#77 <https://github.com/simonw/sqlite-utils/issues/73>`__).
-
 
 .. _v2_0_1:
 
