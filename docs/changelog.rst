@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_2_1:
+
+2.2.1 (2020-02-06)
+------------------
+
+Fixed a bug where ``.upsert(..., hash_id="pk")`` threw an error (`#84 <https://github.com/simonw/sqlite-utils/issues/84>`__).
+
 .. _v2_2:
 
 2.2 (2020-02-01)
