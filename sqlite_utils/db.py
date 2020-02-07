@@ -943,8 +943,6 @@ class Table(Queryable):
         data
         """
         pk = self.value_or_default("pk", pk)
-        if upsert and not pk:
-            raise PrimaryKeyRequired("upsert() requires a pk")
         foreign_keys = self.value_or_default("foreign_keys", foreign_keys)
         column_order = self.value_or_default("column_order", column_order)
         not_null = self.value_or_default("not_null", not_null)
@@ -957,7 +955,12 @@ class Table(Queryable):
         extracts = self.value_or_default("extracts", extracts)
         conversions = self.value_or_default("conversions", conversions)
 
+        if upsert and (not pk and not hash_id):
+            raise PrimaryKeyRequired("upsert() requires a pk")
         assert not (hash_id and pk), "Use either pk= or hash_id="
+        if hash_id:
+            pk = hash_id
+
         assert not (
             ignore and replace
         ), "Use either ignore=True or replace=True, not both"
