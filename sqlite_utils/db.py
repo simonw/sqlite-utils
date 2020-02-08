@@ -226,7 +226,7 @@ class Database:
         extracts = resolve_extracts(extracts)
         for extract_column, extract_table in extracts.items():
             # Ensure other table exists
-            if not self[extract_table].exists:
+            if not self[extract_table].exists():
                 self.create_table(extract_table, {"id": int, "value": str}, pk="id")
             columns[extract_column] = int
             foreign_keys_by_column[extract_column] = ForeignKey(
@@ -348,11 +348,11 @@ class Database:
 
         # Verify that all tables and columns exist
         for table, column, other_table, other_column in foreign_keys:
-            if not self[table].exists:
+            if not self[table].exists():
                 raise AlterError("No such table: {}".format(table))
             if column not in self[table].columns_dict:
                 raise AlterError("No such column: {} in {}".format(column, table))
-            if not self[other_table].exists:
+            if not self[other_table].exists():
                 raise AlterError("No such other_table: {}".format(other_table))
             if (
                 other_column != "rowid"
@@ -416,7 +416,8 @@ class Database:
 
 
 class Queryable:
-    exists = False
+    def exists(self):
+        return False
 
     def __init__(self, db, name):
         self.db = db
@@ -433,7 +434,7 @@ class Queryable:
         return self.rows_where()
 
     def rows_where(self, where=None, where_args=None):
-        if not self.exists:
+        if not self.exists():
             return []
         sql = "select * from [{}]".format(self.name)
         if where is not None:
@@ -445,7 +446,7 @@ class Queryable:
 
     @property
     def columns(self):
-        if not self.exists:
+        if not self.exists():
             return []
         rows = self.db.conn.execute(
             "PRAGMA table_info([{}])".format(self.name)
@@ -486,7 +487,6 @@ class Table(Queryable):
         conversions=None,
     ):
         super().__init__(db, name)
-        self.exists = self.name in self.db.table_names()
         self._defaults = dict(
             pk=pk,
             foreign_keys=foreign_keys,
@@ -506,9 +506,12 @@ class Table(Queryable):
         return "<Table {}{}>".format(
             self.name,
             " (does not exist yet)"
-            if not self.exists
+            if not self.exists()
             else " ({})".format(", ".join(c.name for c in self.columns)),
         )
+
+    def exists(self):
+        return self.name in self.db.table_names()
 
     @property
     def pks(self):
@@ -614,7 +617,6 @@ class Table(Queryable):
                 hash_id=hash_id,
                 extracts=extracts,
             )
-        self.exists = True
         return self
 
     def create_index(self, columns, index_name=None, unique=False, if_not_exists=False):
@@ -847,7 +849,7 @@ class Table(Queryable):
             self.db.conn.execute(sql, pk_values)
 
     def delete_where(self, where=None, where_args=None):
-        if not self.exists:
+        if not self.exists():
             return []
         sql = "delete from [{}]".format(self.name)
         if where is not None:
@@ -982,7 +984,7 @@ class Table(Queryable):
         for chunk in chunks(itertools.chain([first_record], records), batch_size):
             chunk = list(chunk)
             if first:
-                if not self.exists:
+                if not self.exists():
                     # Use the first batch to derive the table names
                     self.create(
                         suggest_column_types(chunk),
@@ -1167,7 +1169,7 @@ class Table(Queryable):
     def lookup(self, column_values):
         # lookups is a dictionary - all columns will be used for a unique index
         assert isinstance(column_values, dict)
-        if self.exists:
+        if self.exists():
             self.add_missing_columns([column_values])
             unique_column_sets = [set(i.columns) for i in self.indexes]
             if set(column_values.keys()) not in unique_column_sets:
@@ -1245,7 +1247,8 @@ class Table(Queryable):
 
 
 class View(Queryable):
-    exists = True
+    def exists(self):
+        return True
 
     def __repr__(self):
         return "<View {} ({})>".format(

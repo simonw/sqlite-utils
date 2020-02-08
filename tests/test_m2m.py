@@ -61,8 +61,8 @@ def test_m2m_lookup(fresh_db):
     people.insert({"name": "Wahyu"}).m2m("tags", lookup={"tag": "Coworker"})
     people_tags = fresh_db["people_tags"]
     tags = fresh_db["tags"]
-    assert people_tags.exists
-    assert tags.exists
+    assert people_tags.exists()
+    assert tags.exists()
     assert [
         ForeignKey(
             table="people_tags",
@@ -94,7 +94,7 @@ def test_m2m_explicit_table_name_argument(fresh_db):
     )
     assert fresh_db["tags"].exists
     assert fresh_db["tagged"].exists
-    assert not fresh_db["people_tags"].exists
+    assert not fresh_db["people_tags"].exists()
 
 
 def test_m2m_table_candidates(fresh_db):
@@ -130,10 +130,10 @@ def test_uses_existing_m2m_table_if_exists(fresh_db):
         foreign_keys=["people_id", "tags_id"],
     )
     people.insert({"name": "Wahyu"}).m2m("tags", lookup={"tag": "Coworker"})
-    assert fresh_db["tags"].exists
-    assert fresh_db["tagged"].exists
-    assert not fresh_db["people_tags"].exists
-    assert not fresh_db["tags_people"].exists
+    assert fresh_db["tags"].exists()
+    assert fresh_db["tagged"].exists()
+    assert not fresh_db["people_tags"].exists()
+    assert not fresh_db["tags_people"].exists()
     assert [{"people_id": 1, "tags_id": 1}] == list(fresh_db["tagged"].rows)
 
 

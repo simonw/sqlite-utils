@@ -920,6 +920,13 @@ If you have loaded an existing table or view, you can use introspection to find 
     >>> db["PlantType"]
     <Table PlantType (id, value)>
 
+The ``.exists()`` method can be used to find out if a table exists or not::
+
+    >>> db["PlantType"].exists()
+    True
+    >>> db["PlantType2"].exists()
+    False
+
 The ``.count`` property shows the current number of rows (``select count(*) from table``)::
 
     >>> db["PlantType"].count
