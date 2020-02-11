@@ -8,6 +8,7 @@ python:
   - "3.8-dev"
 
 script:
+  - python3 -m pip install -U pip
   - pip install -U pip wheel
   - pip install .[test]
   # Only run the numpy/pandas tests on Python 3.7:
