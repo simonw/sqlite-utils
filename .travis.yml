@@ -4,11 +4,10 @@ dist: bionic
 # 3.6 is listed first so it gets used for the later build stages
 python:
   - "3.6"
-  - "3.7-dev"
-  - "3.8-dev"
+  - "3.7"
+  - "3.8"
 
 script:
-  - python3 -m pip install -U pip
   - pip install -U pip wheel
   - pip install .[test]
   # Only run the numpy/pandas tests on Python 3.7:
