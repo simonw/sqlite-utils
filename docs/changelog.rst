@@ -2,13 +2,19 @@
  Changelog
 ===========
 
+.. _v2_3_1:
+
+2.3.1 (2020-02-10)
+------------------
+
+``table.create_index()`` now works for columns that contain spaces. (`#85 <https://github.com/simonw/sqlite-utils/issues/85>`__)
+
 .. _v2_3:
 
 2.3 (2020-02-08)
 ----------------
 
 ``table.exists()`` is now a method, not a property. This was not a documented part of the API before so I'm considering this a non-breaking change. (`#83 <https://github.com/simonw/sqlite-utils/issues/83>`__)
-
 
 .. _v2_2_1:
 
