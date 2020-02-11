@@ -540,27 +540,27 @@ def test_error_if_more_than_999_columns(fresh_db, num_columns, should_error):
     "columns,index_name,expected_index",
     (
         (
-            ["is_good_dog"],
+            ["is good dog"],
             None,
             Index(
                 seq=0,
-                name="idx_dogs_is_good_dog",
+                name="idx_dogs_is good dog",
                 unique=0,
                 origin="c",
                 partial=0,
-                columns=["is_good_dog"],
+                columns=["is good dog"],
             ),
         ),
         (
-            ["is_good_dog", "age"],
+            ["is good dog", "age"],
             None,
             Index(
                 seq=0,
-                name="idx_dogs_is_good_dog_age",
+                name="idx_dogs_is good dog_age",
                 unique=0,
                 origin="c",
                 partial=0,
-                columns=["is_good_dog", "age"],
+                columns=["is good dog", "age"],
             ),
         ),
         (
@@ -579,7 +579,7 @@ def test_error_if_more_than_999_columns(fresh_db, num_columns, should_error):
 )
 def test_create_index(fresh_db, columns, index_name, expected_index):
     dogs = fresh_db["dogs"]
-    dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is_good_dog": True})
+    dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is good dog": True})
     assert [] == dogs.indexes
     dogs.create_index(columns, index_name)
     assert expected_index == dogs.indexes[0]

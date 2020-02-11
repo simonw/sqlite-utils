@@ -625,12 +625,12 @@ class Table(Queryable):
                 self.name.replace(" ", "_"), "_".join(columns)
             )
         sql = """
-            CREATE {unique}INDEX {if_not_exists}{index_name}
-                ON {table_name} ({columns});
+            CREATE {unique}INDEX {if_not_exists}[{index_name}]
+                ON [{table_name}] ({columns});
         """.format(
             index_name=index_name,
             table_name=self.name,
-            columns=", ".join(columns),
+            columns=", ".join("[{}]".format(c) for c in columns),
             unique="UNIQUE " if unique else "",
             if_not_exists="IF NOT EXISTS " if if_not_exists else "",
         )
