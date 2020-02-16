@@ -18,10 +18,11 @@ def suggest_column_types(records):
     for key, types in all_column_types.items():
         if len(types) == 1:
             t = list(types)[0]
-            # But if it's list / tuple / dict, use str instead as we
-            # will be storing it as JSON in the table
-            if t in (list, tuple, dict):
-                t = str
+            # But if it's a subclass of list / tuple / dict, use str
+            # instead as we will be storing it as JSON in the table
+            for superclass in (list, tuple, dict):
+                if issubclass(t, superclass):
+                    t = str
         elif {int, bool}.issuperset(types):
             t = int
         elif {int, float, bool}.issuperset(types):

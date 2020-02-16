@@ -1,4 +1,5 @@
 import pytest
+from collections import OrderedDict
 from sqlite_utils.utils import suggest_column_types
 
 
@@ -11,6 +12,7 @@ from sqlite_utils.utils import suggest_column_types
         ([{"a": [1]}], {"a": str}),
         ([{"a": (1,)}], {"a": str}),
         ([{"a": {"b": 1}}], {"a": str}),
+        ([{"a": OrderedDict({"b": 1})}], {"a": str}),
         ([{"a": 1}, {"a": 1.1}], {"a": float}),
         ([{"a": b"b"}], {"a": bytes}),
     ],

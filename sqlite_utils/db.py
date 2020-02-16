@@ -1,5 +1,5 @@
 from .utils import sqlite3, OperationalError, suggest_column_types
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 import datetime
 import hashlib
 import itertools
