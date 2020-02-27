@@ -2,6 +2,16 @@
  Changelog
 ===========
 
+.. _v2_4:
+
+2.4 (2020-02-26)
+----------------
+
+- ``table.disable_fts()`` can now be used to remove FTS tables and triggers that were created using ``table.enable_fts(...)``. (`#88 <https://github.com/simonw/sqlite-utils/issues/88>`__)
+- The ``sqlite-utils disable-fts`` command can be used to remove FTS tables and triggers from the command-line. (`#88 <https://github.com/simonw/sqlite-utils/issues/88>`__)
+- Trying to create table columns wih square braces (``[`` or ``]``) in the name now raises an error. (`#86 <https://github.com/simonw/sqlite-utils/issues/86>`__)
+- Subclasses of ``dict``, ``list`` and ``tuple`` are now detected as needing a JSON column. (`#87 <https://github.com/simonw/sqlite-utils/issues/87>`__)
+
 .. _v2_3_1:
 
 2.3.1 (2020-02-10)
