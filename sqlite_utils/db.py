@@ -245,6 +245,11 @@ class Database:
         ), "defaults set {} includes items not in columns {}".format(
             repr(set(defaults)), repr(set(columns.keys()))
         )
+        # Validate no columns contain '[' or ']' - #86
+        for column in columns.keys():
+            assert (
+                "[" not in column and "]" not in column
+            ), "'[' and ']' cannot be used in column names"
         column_items = list(columns.items())
         if column_order is not None:
             column_items.sort(

@@ -77,6 +77,11 @@ def test_create_table_with_bad_defaults(fresh_db):
         )
 
 
+def test_create_table_with_invalid_column_charactters(fresh_db):
+    with pytest.raises(AssertionError):
+        fresh_db.create_table("players", {"name[foo]": str})
+
+
 def test_create_table_with_defaults(fresh_db):
     table = fresh_db.create_table(
         "players",
