@@ -1052,6 +1052,12 @@ A better solution is to use database triggers. You can set up database triggers 
 
     dogs.enable_fts(["name", "twitter"], fts_version="FTS4")
 
+To remove the FTS tables and triggers you created, use the ``disable_fts()`` table method:
+
+.. code-block:: python
+
+    dogs.disable_fts()
+
 Optimizing a full-text search table
 ===================================
 

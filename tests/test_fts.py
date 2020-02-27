@@ -1,3 +1,5 @@
+import pytest
+
 search_records = [
     {"text": "tanuki are tricksters", "country": "Japan", "not_searchable": "foo"},
     {"text": "racoons are trash pandas", "country": "USA", "not_searchable": "bar"},
@@ -92,3 +94,37 @@ def test_enable_fts_w_triggers(fresh_db):
     # Triggers will auto-populate FTS virtual table, not need to call populate_fts()
     assert [("racoons are trash pandas", "USA", "bar")] == table.search("usa")
     assert [] == table.search("bar")
+
+
+@pytest.mark.parametrize("create_triggers", [True, False])
+def test_disable_fts(fresh_db, create_triggers):
+    table = fresh_db["searchable"]
+    table.insert(search_records[0])
+    table.enable_fts(["text", "country"], create_triggers=create_triggers)
+    assert {
+        "searchable",
+        "searchable_fts",
+        "searchable_fts_data",
+        "searchable_fts_idx",
+        "searchable_fts_docsize",
+        "searchable_fts_config",
+    } == set(fresh_db.table_names())
+    if create_triggers:
+        expected_triggers = {"searchable_ai", "searchable_ad", "searchable_au"}
+    else:
+        expected_triggers = set()
+    assert expected_triggers == set(
+        r[0]
+        for r in fresh_db.conn.execute(
+            "select name from sqlite_master where type = 'trigger'"
+        ).fetchall()
+    )
+    # Now run .disable_fts() and confirm it worked
+    table.disable_fts()
+    assert (
+        0
+        == fresh_db.conn.execute(
+            "select count(*) from sqlite_master where type = 'trigger'"
+        ).fetchone()[0]
+    )
+    assert ["searchable"] == fresh_db.table_names()

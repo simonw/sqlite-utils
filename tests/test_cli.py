@@ -393,6 +393,24 @@ def test_populate_fts(db_path):
     assert [("martha",)] == search("martha")
 
 
+def test_disable_fts(db_path):
+    db = Database(db_path)
+    assert {"Gosh", "Gosh2"} == set(db.table_names())
+    db["Gosh"].enable_fts(["c1"], create_triggers=True)
+    assert {
+        "Gosh_fts",
+        "Gosh_fts_idx",
+        "Gosh_fts_data",
+        "Gosh2",
+        "Gosh_fts_config",
+        "Gosh",
+        "Gosh_fts_docsize",
+    } == set(db.table_names())
+    exit_code = CliRunner().invoke(cli.cli, ["disable-fts", db_path, "Gosh"]).exit_code
+    assert 0 == exit_code
+    assert {"Gosh", "Gosh2"} == set(db.table_names())
+
+
 def test_vacuum(db_path):
     result = CliRunner().invoke(cli.cli, ["vacuum", db_path])
     assert 0 == result.exit_code

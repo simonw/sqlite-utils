@@ -411,6 +411,10 @@ A better solution here is to use database triggers. You can set up database trig
 
     $ sqlite-utils enable-fts mydb.db documents title summary --create-triggers
 
+To remove the FTS tables and triggers you created, use ``disable-fts``::
+
+    $ sqlite-utils disable-fts mydb.db documents
+
 Vacuum
 ======
 

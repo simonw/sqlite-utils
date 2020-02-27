@@ -300,6 +300,19 @@ def populate_fts(path, table, column):
     db[table].populate_fts(column)
 
 
+@cli.command(name="disable-fts")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+def disable_fts(path, table):
+    "Disable FTS for specific table"
+    db = sqlite_utils.Database(path)
+    db[table].disable_fts()
+
+
 def insert_upsert_options(fn):
     for decorator in reversed(
         (
