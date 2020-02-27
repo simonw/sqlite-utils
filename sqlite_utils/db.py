@@ -245,11 +245,7 @@ class Database:
         ), "defaults set {} includes items not in columns {}".format(
             repr(set(defaults)), repr(set(columns.keys()))
         )
-        # Validate no columns contain '[' or ']' - #86
-        for column in columns.keys():
-            assert (
-                "[" not in column and "]" not in column
-            ), "'[' and ']' cannot be used in column names"
+        validate_column_names(columns.keys())
         column_items = list(columns.items())
         if column_order is not None:
             column_items.sort(
@@ -892,6 +888,7 @@ class Table(Queryable):
         args = []
         sets = []
         wheres = []
+        validate_column_names(updates.keys())
         for key, value in updates.items():
             sets.append("[{}] = {}".format(key, conversions.get(key, "?")))
             args.append(value)
@@ -1026,8 +1023,8 @@ class Table(Queryable):
                 all_columns = list(sorted(all_columns))
                 if hash_id:
                     all_columns.insert(0, hash_id)
+            validate_column_names(all_columns)
             first = False
-
             # values is the list of insert data that is passed to the
             # .execute() method - but some of them may be replaced by
             # new primary keys if we are extracting any columns.
@@ -1310,3 +1307,11 @@ def resolve_extracts(extracts):
     if isinstance(extracts, (list, tuple)):
         extracts = {item: item for item in extracts}
     return extracts
+
+
+def validate_column_names(columns):
+    # Validate no columns contain '[' or ']' - #86
+    for column in columns:
+        assert (
+            "[" not in column and "]" not in column
+        ), "'[' and ']' cannot be used in column names"

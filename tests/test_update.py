@@ -66,6 +66,13 @@ def test_update_alter(fresh_db):
     ] == list(table.rows)
 
 
+def test_update_alter_with_invalid_column_characters(fresh_db):
+    table = fresh_db["table"]
+    rowid = table.insert({"foo": "bar"}).last_pk
+    with pytest.raises(AssertionError):
+        table.update(rowid, {"new_col[abc]": 1.2}, alter=True)
+
+
 def test_update_with_no_values_sets_last_pk(fresh_db):
     table = fresh_db.table("dogs", pk="id")
     table.insert_all([{"id": 1, "name": "Cleo"}, {"id": 2, "name": "Pancakes"}])

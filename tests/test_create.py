@@ -77,7 +77,7 @@ def test_create_table_with_bad_defaults(fresh_db):
         )
 
 
-def test_create_table_with_invalid_column_charactters(fresh_db):
+def test_create_table_with_invalid_column_characters(fresh_db):
     with pytest.raises(AssertionError):
         fresh_db.create_table("players", {"name[foo]": str})
 
@@ -447,6 +447,13 @@ def test_insert_row_alter_table(
     ] + expected_new_columns == [
         {"name": col.name, "type": col.type} for col in table.columns
     ]
+
+
+def test_insert_row_alter_table_invalid_column_characters(fresh_db):
+    table = fresh_db["table"]
+    rowid = table.insert({"foo": "bar"}).last_pk
+    with pytest.raises(AssertionError):
+        table.insert({"foo": "baz", "new_col[abc]": 1.2}, alter=True)
 
 
 @pytest.mark.parametrize("use_table_factory", [True, False])
