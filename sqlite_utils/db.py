@@ -785,7 +785,7 @@ class Table(Queryable):
             INSERT INTO [{table}_fts] (rowid, {columns})
                 SELECT rowid, {columns} FROM [{table}];
         """.format(
-            table=self.name, columns=", ".join(columns)
+            table=self.name, columns=", ".join("[{}]".format(c) for c in columns)
         )
         self.db.conn.executescript(sql)
         return self

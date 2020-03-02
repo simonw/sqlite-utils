@@ -44,6 +44,20 @@ def test_enable_fts_escape_table_names(fresh_db):
     assert [] == table.search("bar")
 
 
+def test_enable_fts_table_names_containing_spaces(fresh_db):
+    table = fresh_db["test"]
+    table.insert({"column with spaces": "in its name"})
+    table.enable_fts(["column with spaces"])
+    assert [
+        "test",
+        "test_fts",
+        "test_fts_data",
+        "test_fts_idx",
+        "test_fts_docsize",
+        "test_fts_config",
+    ] == fresh_db.table_names()
+
+
 def test_populate_fts(fresh_db):
     table = fresh_db["populatable"]
     table.insert(search_records[0])
