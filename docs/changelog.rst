@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_4_1:
+
+2.4.1 (2020-03-01)
+------------------
+
+- ``table.enable_fts()`` now works with columns that contain spaces. (`#90 <https://github.com/simonw/sqlite-utils/issues/90>`__)
+
 .. _v2_4:
 
 2.4 (2020-02-26)
