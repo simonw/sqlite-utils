@@ -122,6 +122,17 @@ If the table has a compound primary key you can pass in the primary key values a
 
     >>> db["compound_dogs"].get(("mixed", 3))
 
+If the record does not exist a ``NotFoundError`` will be raised:
+
+.. code-block:: python
+
+    from sqlite_utils.db import NotFoundError
+
+    try:
+        row = db["dogs"].get(5)
+    except NotFoundError:
+        print("Dog not found")
+
 Creating tables
 ===============
 
