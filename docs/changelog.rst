@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+.. _v2_4_2:
+
+2.4.2 (2020-03-14)
+------------------
+
+- ``table.column_dicts`` now works with all column types - previously it would throw errors on types other than ``TEXT``, ``BLOB``, ``INTEGER`` or ``FLOAT``. (`#92 <https://github.com/simonw/sqlite-utils/issues/92>`__)
+- Documentation for ``NotFoundError`` thrown by ``table.get(pk)`` - see :ref:`python_api_get`.
+
 .. _v2_4_1:
 
 2.4.1 (2020-03-01)
