@@ -33,3 +33,22 @@ def suggest_column_types(records):
             t = str
         column_types[key] = t
     return column_types
+
+
+def column_affinity(column_type):
+    # Implementation of SQLite affinity rules from
+    # https://www.sqlite.org/datatype3.html#determination_of_column_affinity
+    assert isinstance(column_type, str)
+    column_type = column_type.upper().strip()
+    if column_type == "":
+        return str  # We differ from spec, which says it should be BLOB
+    if "INT" in column_type:
+        return int
+    if "CHAR" in column_type or "CLOB" in column_type or "TEXT" in column_type:
+        return str
+    if "BLOB" in column_type:
+        return bytes
+    if "REAL" in column_type or "FLOA" in column_type or "DOUB" in column_type:
+        return float
+    # Default is 'NUMERIC', which we currently also treat as float
+    return float

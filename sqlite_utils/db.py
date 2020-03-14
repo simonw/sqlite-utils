@@ -1,4 +1,4 @@
-from .utils import sqlite3, OperationalError, suggest_column_types
+from .utils import sqlite3, OperationalError, suggest_column_types, column_affinity
 from collections import namedtuple, OrderedDict
 import datetime
 import hashlib
@@ -63,15 +63,6 @@ if np:
             np.float64: "FLOAT",
         }
     )
-
-
-REVERSE_COLUMN_TYPE_MAPPING = {
-    "": str,  # Columns in views sometimes have type = ''
-    "TEXT": str,
-    "BLOB": bytes,
-    "INTEGER": int,
-    "FLOAT": float,
-}
 
 
 class AlterError(Exception):
@@ -457,10 +448,7 @@ class Queryable:
     @property
     def columns_dict(self):
         "Returns {column: python-type} dictionary"
-        return {
-            column.name: REVERSE_COLUMN_TYPE_MAPPING[column.type]
-            for column in self.columns
-        }
+        return {column.name: column_affinity(column.type) for column in self.columns}
 
     @property
     def schema(self):
