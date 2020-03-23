@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_4_4:
+
+2.4.4 (2020-03-23)
+------------------
+
+- Fixed bug where columns with only null values were not correctly created. (`#95 <https://github.com/simonw/sqlite-utils/issues/95>`__)
+
 .. _v2_4_3:
 
 2.4.3 (2020-03-23)
