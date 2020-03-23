@@ -7,14 +7,20 @@ from sqlite_utils.utils import suggest_column_types
     "records,types",
     [
         ([{"a": 1}], {"a": int}),
+        ([{"a": 1}, {"a": None}], {"a": int}),
         ([{"a": "baz"}], {"a": str}),
+        ([{"a": "baz"}, {"a": None}], {"a": str}),
         ([{"a": 1.2}], {"a": float}),
+        ([{"a": 1.2}, {"a": None}], {"a": float}),
         ([{"a": [1]}], {"a": str}),
+        ([{"a": [1]}, {"a": None}], {"a": str}),
         ([{"a": (1,)}], {"a": str}),
         ([{"a": {"b": 1}}], {"a": str}),
+        ([{"a": {"b": 1}}, {"a": None}], {"a": str}),
         ([{"a": OrderedDict({"b": 1})}], {"a": str}),
         ([{"a": 1}, {"a": 1.1}], {"a": float}),
         ([{"a": b"b"}], {"a": bytes}),
+        ([{"a": b"b"}, {"a": None}], {"a": bytes}),
     ],
 )
 def test_suggest_column_types(records, types):

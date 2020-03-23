@@ -13,7 +13,8 @@ def suggest_column_types(records):
     all_column_types = {}
     for record in records:
         for key, value in record.items():
-            all_column_types.setdefault(key, set()).add(type(value))
+            if value is not None:
+                all_column_types.setdefault(key, set()).add(type(value))
     column_types = {}
     for key, types in all_column_types.items():
         if len(types) == 1:
