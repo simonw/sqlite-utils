@@ -21,6 +21,7 @@ from sqlite_utils.utils import suggest_column_types
         ([{"a": 1}, {"a": 1.1}], {"a": float}),
         ([{"a": b"b"}], {"a": bytes}),
         ([{"a": b"b"}, {"a": None}], {"a": bytes}),
+        ([{"a": "a", "b": None}], {"a": str, "b": str}),
     ],
 )
 def test_suggest_column_types(records, types):

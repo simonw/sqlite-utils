@@ -13,11 +13,16 @@ def suggest_column_types(records):
     all_column_types = {}
     for record in records:
         for key, value in record.items():
-            if value is not None:
-                all_column_types.setdefault(key, set()).add(type(value))
+            all_column_types.setdefault(key, set()).add(type(value))
     column_types = {}
+
     for key, types in all_column_types.items():
-        if len(types) == 1:
+        # Ignore null values if at least one other type present:
+        if len(types) > 1:
+            types.discard(None.__class__)
+        if {None.__class__} == types:
+            t = str
+        elif len(types) == 1:
             t = list(types)[0]
             # But if it's a subclass of list / tuple / dict, use str
             # instead as we will be storing it as JSON in the table
