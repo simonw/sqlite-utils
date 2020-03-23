@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_4_3:
+
+2.4.3 (2020-03-23)
+------------------
+
+- Column type suggestion code is no longer confused by null values. (`#94 <https://github.com/simonw/sqlite-utils/issues/94>`__)
+
 .. _v2_4_2:
 
 2.4.2 (2020-03-14)
