@@ -8,6 +8,12 @@ import pathlib
 
 SQLITE_MAX_VARS = 999
 
+
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
+
 try:
     import numpy as np
 except ImportError:
@@ -63,6 +69,10 @@ if np:
             np.float64: "FLOAT",
         }
     )
+
+# If pandas is available, add more types
+if pd:
+    COLUMN_TYPE_MAPPING.update({pd.Timestamp: "TEXT"})
 
 
 class AlterError(Exception):
