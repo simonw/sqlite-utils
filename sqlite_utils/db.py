@@ -72,10 +72,7 @@ if np:
 
 # If pandas is available, add more types
 if pd:
-    COLUMN_TYPE_MAPPING.update(
-        {
-            pd.Timestamp: "TEXT"
-        })
+    COLUMN_TYPE_MAPPING.update({pd.Timestamp: "TEXT"})
 
 
 class AlterError(Exception):
