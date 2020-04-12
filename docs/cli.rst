@@ -242,11 +242,11 @@ You can also import newline-delimited JSON using the ``--nl`` option. Since `Dat
 
 This also means you pipe ``sqlite-utils`` together to easily create a new SQLite database file containing the results of a SQL query against another database::
 
-    $ sqlite-utils json sf-trees.db \
+    $ sqlite-utils sf-trees.db \
         "select TreeID, qAddress, Latitude, Longitude from Street_Tree_List" --nl \
       | sqlite-utils insert saved.db trees - --nl
     # This creates saved.db with a single table called trees:
-    $ sqlite-utils csv saved.db "select * from trees limit 5"
+    $ sqlite-utils saved.db "select * from trees limit 5" --csv
     TreeID,qAddress,Latitude,Longitude
     141565,501X Baker St,37.7759676911831,-122.441396661871
     232565,940 Elizabeth St,37.7517102172731,-122.441498017841
