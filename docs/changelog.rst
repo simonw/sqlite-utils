@@ -2,6 +2,15 @@
  Changelog
 ===========
 
+.. _v2_5:
+
+2.5 (2020-04-12)
+---------------
+
+- Panda's Timestamp is now stored as a SQLite TEXT column. Thanks, b0b5h4rp13! (`#96 <https://github.com/simonw/sqlite-utils/issues/96>`__)
+- ``table.last_pk`` is now only available for inserts or upserts of a single record. (`#98 <https://github.com/simonw/sqlite-utils/issues/98>`__)
+- New ``Database(filepath, recreate=True)`` parameter for deleting and recreating the database. (`#97 <https://github.com/simonw/sqlite-utils/issues/97>`__)
+
 .. _v2_4_4:
 
 2.4.4 (2020-03-23)
