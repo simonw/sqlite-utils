@@ -7,6 +7,7 @@ def test_upsert(fresh_db):
     table.insert({"id": 1, "name": "Cleo"}, pk="id")
     table.upsert({"id": 1, "age": 5}, pk="id", alter=True)
     assert [{"id": 1, "name": "Cleo", "age": 5}] == list(table.rows)
+    assert 1 == table.last_pk
 
 
 def test_upsert_all(fresh_db):
@@ -17,7 +18,7 @@ def test_upsert_all(fresh_db):
         {"id": 1, "name": "Cleo", "age": 5},
         {"id": 2, "name": "Nixie", "age": 5},
     ] == list(table.rows)
-    assert 2 == table.last_pk
+    assert table.last_pk is None
 
 
 def test_upsert_error_if_no_pk(fresh_db):
@@ -34,6 +35,7 @@ def test_upsert_with_hash_id(fresh_db):
     assert [{"pk": "a5e744d0164540d33b1d7ea616c28f2fa97e754a", "foo": "bar"}] == list(
         table.rows
     )
+    assert "a5e744d0164540d33b1d7ea616c28f2fa97e754a" == table.last_pk
 
 
 def test_upsert_compound_primary_key(fresh_db):
@@ -45,8 +47,13 @@ def test_upsert_compound_primary_key(fresh_db):
         ],
         pk=("species", "id"),
     )
-    table.upsert_all([{"species": "dog", "id": 1, "age": 5}], pk=("species", "id"))
+    assert None == table.last_pk
+    table.upsert({"species": "dog", "id": 1, "age": 5}, pk=("species", "id"))
+    assert ("dog", 1) == table.last_pk
     assert [
         {"species": "dog", "id": 1, "name": "Cleo", "age": 5},
         {"species": "cat", "id": 1, "name": "Catbag", "age": None},
     ] == list(table.rows)
+    # .upsert_all() with a single item should set .last_pk
+    table.upsert_all([{"species": "cat", "id": 1, "age": 5}], pk=("species", "id"))
+    assert ("cat", 1) == table.last_pk

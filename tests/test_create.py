@@ -135,7 +135,12 @@ def test_create_table_with_not_null(fresh_db):
     ),
 )
 def test_create_table_from_example(fresh_db, example, expected_columns):
-    fresh_db["people"].insert(example)
+    people_table = fresh_db["people"]
+    assert None == people_table.last_rowid
+    assert None == people_table.last_pk
+    people_table.insert(example)
+    assert 1 == people_table.last_rowid
+    assert 1 == people_table.last_pk
     assert ["people"] == fresh_db.table_names()
     assert expected_columns == [
         {"name": col.name, "type": col.type} for col in fresh_db["people"].columns

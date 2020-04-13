@@ -468,6 +468,9 @@ class Queryable:
 
 
 class Table(Queryable):
+    last_rowid = None
+    last_pk = None
+
     def __init__(
         self,
         db,
@@ -987,6 +990,7 @@ class Table(Queryable):
         ), "Use either ignore=True or replace=True, not both"
         all_columns = None
         first = True
+        num_records_processed = 0
         # We can only handle a max of 999 variables in a SQL insert, so
         # we need to adjust the batch_size down if we have too many cols
         records = iter(records)
@@ -1000,8 +1004,11 @@ class Table(Queryable):
             num_columns <= SQLITE_MAX_VARS
         ), "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
         batch_size = max(1, min(batch_size, SQLITE_MAX_VARS // num_columns))
+        self.last_rowid = None
+        self.last_pk = None
         for chunk in chunks(itertools.chain([first_record], records), batch_size):
             chunk = list(chunk)
+            num_records_processed += len(chunk)
             if first:
                 if not self.exists():
                     # Use the first batch to derive the table names
@@ -1046,6 +1053,7 @@ class Table(Queryable):
                     pks = [pk]
                 else:
                     pks = pk
+                self.last_pk = None
                 for record_values in values:
                     # TODO: make more efficient:
                     record = dict(zip(all_columns, record_values))
@@ -1073,6 +1081,12 @@ class Table(Queryable):
                             + [record[pk] for pk in pks],
                         )
                     )
+                    # We can populate .last_pk right here
+                    if num_records_processed == 1:
+                        self.last_pk = tuple(record[pk] for pk in pks)
+                        if len(self.last_pk) == 1:
+                            self.last_pk = self.last_pk[0]
+
             else:
                 or_what = ""
                 if replace:
@@ -1110,17 +1124,18 @@ class Table(Queryable):
                             result = self.db.conn.execute(query, params)
                         else:
                             raise
-                self.last_rowid = result.lastrowid
-                self.last_pk = self.last_rowid
-                # self.last_rowid will be 0 if a "INSERT OR IGNORE" happened
-                if (hash_id or pk) and self.last_rowid:
-                    row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
-                    if hash_id:
-                        self.last_pk = row[hash_id]
-                    elif isinstance(pk, str):
-                        self.last_pk = row[pk]
-                    else:
-                        self.last_pk = tuple(row[p] for p in pk)
+                if num_records_processed == 1 and not upsert:
+                    self.last_rowid = result.lastrowid
+                    self.last_pk = self.last_rowid
+                    # self.last_rowid will be 0 if a "INSERT OR IGNORE" happened
+                    if (hash_id or pk) and self.last_rowid:
+                        row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
+                        if hash_id:
+                            self.last_pk = row[hash_id]
+                        elif isinstance(pk, str):
+                            self.last_pk = row[pk]
+                        else:
+                            self.last_pk = tuple(row[p] for p in pk)
         return self
 
     def upsert(
