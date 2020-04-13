@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import itertools
 import json
+import os
 import pathlib
 
 SQLITE_MAX_VARS = 999
@@ -96,17 +97,18 @@ class PrimaryKeyRequired(Exception):
 
 
 class Database:
-    def __init__(self, filename_or_conn=None, memory=False):
+    def __init__(self, filename_or_conn=None, memory=False, recreate=False):
         assert (filename_or_conn is not None and not memory) or (
             filename_or_conn is None and memory
         ), "Either specify a filename_or_conn or pass memory=True"
-        if memory:
+        if memory or filename_or_conn == ":memory:":
             self.conn = sqlite3.connect(":memory:")
-        elif isinstance(filename_or_conn, str):
-            self.conn = sqlite3.connect(filename_or_conn)
-        elif isinstance(filename_or_conn, pathlib.Path):
+        elif isinstance(filename_or_conn, (str, pathlib.Path)):
+            if recreate and os.path.exists(filename_or_conn):
+                os.remove(filename_or_conn)
             self.conn = sqlite3.connect(str(filename_or_conn))
         else:
+            assert not recreate, "recreate cannot be used with connections, only paths"
             self.conn = filename_or_conn
 
     def __getitem__(self, table_name):

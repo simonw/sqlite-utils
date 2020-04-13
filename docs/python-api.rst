@@ -15,7 +15,15 @@ Database objects are constructed by passing in either a path to a file on disk o
 
     db = Database("my_database.db")
 
-This will create ``my_database.db`` if it does not already exist. You can also pass in an existing SQLite connection:
+This will create ``my_database.db`` if it does not already exist.
+
+If you want to recreate a database from scratch (first removing the existing file from disk if it already exists) you can use the ``recreate=True`` argument:
+
+.. code-block:: python
+
+    db = Database("my_database.db", recreate=True)
+
+Instead of a file path you can pass in an existing SQLite connection:
 
 .. code-block:: python
 
