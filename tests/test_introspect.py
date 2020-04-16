@@ -62,12 +62,6 @@ def test_columns(existing_db):
     ]
 
 
-def test_rows(existing_db):
-    assert [{"text": "one"}, {"text": "two"}, {"text": "three"}] == list(
-        existing_db["foo"].rows
-    )
-
-
 def test_schema(existing_db):
     assert "CREATE TABLE foo (text TEXT)" == existing_db["foo"].schema
 
