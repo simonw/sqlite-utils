@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_6:
+
+2.6 (2020-04-15)
+---------------
+
+- New ``table.rows_where(..., order_by="age desc")`` argument, see :ref:`python_api_rows`. (`#76 <https://github.com/simonw/sqlite-utils/issues/76>`__)
+
 .. _v2_5:
 
 2.5 (2020-04-12)
