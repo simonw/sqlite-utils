@@ -27,3 +27,25 @@ def test_rows_where(where, where_args, expected_ids, fresh_db):
         pk="id",
     )
     assert expected_ids == {r["id"] for r in table.rows_where(where, where_args)}
+
+
+@pytest.mark.parametrize(
+    "where,order_by,expected_ids",
+    [
+        (None, None, [1, 2, 3]),
+        (None, "id desc", [3, 2, 1]),
+        (None, "age", [3, 2, 1]),
+        ("id > 1", "age", [3, 2]),
+    ],
+)
+def test_rows_where_order_by(where, order_by, expected_ids, fresh_db):
+    table = fresh_db["dogs"]
+    table.insert_all(
+        [
+            {"id": 1, "name": "Cleo", "age": 4},
+            {"id": 2, "name": "Pancakes", "age": 3},
+            {"id": 3, "name": "Bailey", "age": 2},
+        ],
+        pk="id",
+    )
+    assert expected_ids == [r["id"] for r in table.rows_where(where, order_by=order_by)]

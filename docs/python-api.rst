@@ -92,7 +92,7 @@ View objects are similar to Table objects, except that any attempts to insert or
 * ``count``
 * ``schema``
 * ``rows``
-* ``rows_where(where, where_args)``
+* ``rows_where(where, where_args, order_by)``
 * ``drop()``
 
 .. _python_api_rows:
@@ -114,6 +114,22 @@ You can filter rows by a WHERE clause using ``.rows_where(where, where_args)``::
     >>> for row in db["dogs"].rows_where("age > ?", [3]):
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
+
+To specify an order, use the ``order_my=`` argument::
+
+    >>> for row in db["dogs"].rows_where("age > 1", order_by="age"):
+    ...     print(row)
+    {'id': 2, 'age': 2, 'name': 'Pancakes'}
+    {'id': 1, 'age': 4, 'name': 'Cleo'}
+
+You can use ``order_by="age desc"`` for descending order.
+
+You can order all records in the table by excluding the ``where`` argument::
+
+    >>> for row in db["dogs"].rows_where(order_by="age desc"):
+    ...     print(row)
+    {'id': 1, 'age': 4, 'name': 'Cleo'}
+    {'id': 2, 'age': 2, 'name': 'Pancakes'}
 
 .. _python_api_get:
 

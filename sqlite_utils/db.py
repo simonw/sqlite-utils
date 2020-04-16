@@ -437,12 +437,14 @@ class Queryable:
     def rows(self):
         return self.rows_where()
 
-    def rows_where(self, where=None, where_args=None):
+    def rows_where(self, where=None, where_args=None, order_by=None):
         if not self.exists():
             return []
         sql = "select * from [{}]".format(self.name)
         if where is not None:
             sql += " where " + where
+        if order_by is not None:
+            sql += " order by " + order_by
         cursor = self.db.conn.execute(sql, where_args or [])
         columns = [c[0] for c in cursor.description]
         for row in cursor:
