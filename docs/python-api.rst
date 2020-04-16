@@ -115,7 +115,7 @@ You can filter rows by a WHERE clause using ``.rows_where(where, where_args)``::
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
 
-To specify an order, use the ``order_my=`` argument::
+To specify an order, use the ``order_by=`` argument::
 
     >>> for row in db["dogs"].rows_where("age > 1", order_by="age"):
     ...     print(row)
