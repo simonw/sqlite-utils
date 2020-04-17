@@ -157,6 +157,8 @@ If the record does not exist a ``NotFoundError`` will be raised:
     except NotFoundError:
         print("Dog not found")
 
+.. _python_api_creating_tables:
+
 Creating tables
 ===============
 
@@ -197,6 +199,15 @@ You can also specify a primary key by passing the ``pk=`` parameter to the ``.in
         "is_good_dog": True,
     }, pk="id")
 
+After inserting a row like this, the ``dogs.last_rowid`` property will return the SQLite ``rowid`` assigned to the most recently inserted record.
+
+The ``dogs.last_pk`` property will return the last inserted primary key value, if you specified one. This can be very useful when writing code that creates foreign keys or many-to-many relationships.
+
+.. _python_api_custom_columns:
+
+Custom column order and column types
+------------------------------------
+
 The order of the columns in the table will be derived from the order of the keys in the dictionary, provided you are using Python 3.6 or later.
 
 If you want to explicitly set the order of the columns you can do so using the ``column_order=`` parameter:
@@ -213,9 +224,26 @@ If you want to explicitly set the order of the columns you can do so using the `
 
 You don't need to pass all of the columns to the ``column_order`` parameter. If you only pass a subset of the columns the remaining columns will be ordered based on the key order of the dictionary.
 
-After inserting a row like this, the ``dogs.last_rowid`` property will return the SQLite ``rowid`` assigned to the most recently inserted record.
+Column types are detected based on the example data provided. Sometimes you may find you need to over-ride these detected types - to create an integer column for data that was provided as a string for example, or to ensure that a table where the first example was ``None`` is created as an ``INTEGER`` rather than a ``TEXT`` column. You can do this using the ``columns=`` parameter:
 
-The ``dogs.last_pk`` property will return the last inserted primary key value, if you specified one. This can be very useful when writing code that creates foreign keys or many-to-many relationships.
+.. code-block:: python
+
+    dogs.insert({
+        "id": 1,
+        "name": "Cleo",
+        "age": "5",
+    }, pk="id", columns={"age": int, "weight": float})
+
+This will create a table with the following schema:
+
+.. code-block:: sql
+
+    CREATE TABLE [dogs] (
+        [id] INTEGER PRIMARY KEY,
+        [name] TEXT,
+        [age] INTEGER,
+        [weight] FLOAT
+    )
 
 .. _python_api_explicit_create:
 

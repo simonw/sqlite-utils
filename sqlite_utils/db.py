@@ -491,6 +491,7 @@ class Table(Queryable):
         replace=False,
         extracts=None,
         conversions=None,
+        columns=None,
     ):
         super().__init__(db, name)
         self._defaults = dict(
@@ -506,6 +507,7 @@ class Table(Queryable):
             replace=replace,
             extracts=extracts,
             conversions=conversions or {},
+            columns=columns,
         )
 
     def __repr__(self):
@@ -932,6 +934,7 @@ class Table(Queryable):
         replace=DEFAULT,
         extracts=DEFAULT,
         conversions=DEFAULT,
+        columns=DEFAULT,
     ):
         return self.insert_all(
             [record],
@@ -946,6 +949,7 @@ class Table(Queryable):
             replace=replace,
             extracts=extracts,
             conversions=conversions,
+            columns=columns,
         )
 
     def insert_all(
@@ -963,6 +967,7 @@ class Table(Queryable):
         replace=DEFAULT,
         extracts=DEFAULT,
         conversions=DEFAULT,
+        columns=DEFAULT,
         upsert=False,
     ):
         """
@@ -982,6 +987,7 @@ class Table(Queryable):
         replace = self.value_or_default("replace", replace)
         extracts = self.value_or_default("extracts", extracts)
         conversions = self.value_or_default("conversions", conversions)
+        columns = self.value_or_default("columns", columns)
 
         if upsert and (not pk and not hash_id):
             raise PrimaryKeyRequired("upsert() requires a pk")
@@ -1016,8 +1022,10 @@ class Table(Queryable):
             if first:
                 if not self.exists():
                     # Use the first batch to derive the table names
+                    column_types = suggest_column_types(chunk)
+                    column_types.update(columns or {})
                     self.create(
-                        suggest_column_types(chunk),
+                        column_types,
                         pk,
                         foreign_keys,
                         column_order=column_order,
@@ -1154,6 +1162,7 @@ class Table(Queryable):
         alter=DEFAULT,
         extracts=DEFAULT,
         conversions=DEFAULT,
+        columns=DEFAULT,
     ):
         return self.upsert_all(
             [record],
@@ -1166,6 +1175,7 @@ class Table(Queryable):
             alter=alter,
             extracts=extracts,
             conversions=conversions,
+            columns=columns,
         )
 
     def upsert_all(
@@ -1181,6 +1191,7 @@ class Table(Queryable):
         alter=DEFAULT,
         extracts=DEFAULT,
         conversions=DEFAULT,
+        columns=DEFAULT,
     ):
         return self.insert_all(
             records,
@@ -1194,6 +1205,7 @@ class Table(Queryable):
             alter=alter,
             extracts=extracts,
             conversions=conversions,
+            columns=columns,
             upsert=True,
         )
 

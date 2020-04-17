@@ -154,6 +154,29 @@ def test_create_table_from_example_with_compound_primary_keys(fresh_db):
     assert record == table.get(("staff", 2))
 
 
+@pytest.mark.parametrize(
+    "method_name", ("insert", "upsert", "insert_all", "upsert_all")
+)
+def test_create_table_with_custom_columns(fresh_db, method_name):
+    table = fresh_db["dogs"]
+    method = getattr(table, method_name)
+    record = {"id": 1, "name": "Cleo", "age": "5"}
+    if method_name.endswith("_all"):
+        record = [record]
+    method(record, pk="id", columns={"age": int, "weight": float})
+    assert ["dogs"] == fresh_db.table_names()
+    expected_columns = [
+        {"name": "id", "type": "INTEGER"},
+        {"name": "name", "type": "TEXT"},
+        {"name": "age", "type": "INTEGER"},
+        {"name": "weight", "type": "FLOAT"},
+    ]
+    assert expected_columns == [
+        {"name": col.name, "type": col.type} for col in table.columns
+    ]
+    assert [{"id": 1, "name": "Cleo", "age": 5, "weight": None}] == list(table.rows)
+
+
 @pytest.mark.parametrize("use_table_factory", [True, False])
 def test_create_table_column_order(fresh_db, use_table_factory):
     row = collections.OrderedDict(
