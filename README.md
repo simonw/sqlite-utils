@@ -10,9 +10,11 @@ Python CLI utility and library for manipulating SQLite databases.
 Read more on my blog: [
 sqlite-utils: a Python library and CLI tool for building SQLite databases](https://simonwillison.net/2019/Feb/25/sqlite-utils/)
 
-Install it like this:
+## Installation
 
     pip3 install sqlite-utils
+
+## Using as a CLI tool
 
 Now you can do things with the CLI utility like this:
 
@@ -34,7 +36,16 @@ Now you can do things with the CLI utility like this:
        1      4  Cleo
        2      2  Pancakes
 
-Or you can import it and use it as a Python library like this:
+You can even import data into a new database table like this:
+
+    $ curl https://api.github.com/repos/simonw/sqlite-utils/releases \
+        | sqlite-utils insert releases.db releases - --pk
+
+Full CLI documentation: https://sqlite-utils.readthedocs.io/en/stable/cli.html
+
+## Using as a library
+
+You can also `import sqlite_utils` and use it as a Python library like this:
 
 ```python
 import sqlite_utils
@@ -46,10 +57,11 @@ db["dogs"].insert_all([
 ], pk="id")
 ```
 
-Full documentation: https://sqlite-utils.readthedocs.io/
+Full library documentation: https://sqlite-utils.readthedocs.io/en/stable/python-api.html
 
-Related projects:
+## Related projects
 
 * [Datasette](https://github.com/simonw/datasette): A tool for exploring and publishing data
 * [csvs-to-sqlite](https://github.com/simonw/csvs-to-sqlite): Convert CSV files into a SQLite database
 * [db-to-sqlite](https://github.com/simonw/db-to-sqlite): CLI tool for exporting a MySQL or PostgreSQL database as a SQLite file
+* [dogsheep](https://dogsheep.github.io/): A family of tools for personal analytics, built on top of `sqlite-utils`
