@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import io
 import os
 
-VERSION = "2.6"
+VERSION = "2.7"
 
 
 def get_long_description():

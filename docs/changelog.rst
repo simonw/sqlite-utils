@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_7:
+
+2.7 (2020-04-17)
+----------------
+
+- New ``columns=`` argument for the ``.insert()``, ``.insert_all()``, ``.upsert()`` and ``.upsert_all()`` methods, for over-riding the auto-detected types for columns and specifying additional columns that should be added when the table is created. See :ref:`python_api_custom_columns`. (`#100 <https://github.com/simonw/sqlite-utils/issues/100>`__)
+
 .. _v2_6:
 
 2.6 (2020-04-15)
