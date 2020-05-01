@@ -1317,7 +1317,7 @@ def chunks(sequence, size):
 
 def jsonify_if_needed(value):
     if isinstance(value, (dict, list, tuple)):
-        return json.dumps(value)
+        return json.dumps(value, default=repr)
     elif isinstance(value, (datetime.time, datetime.date, datetime.datetime)):
         return value.isoformat()
     else:
@@ -1326,7 +1326,9 @@ def jsonify_if_needed(value):
 
 def _hash(record):
     return hashlib.sha1(
-        json.dumps(record, separators=(",", ":"), sort_keys=True).encode("utf8")
+        json.dumps(record, separators=(",", ":"), sort_keys=True, default=repr).encode(
+            "utf8"
+        )
     ).hexdigest()
 
 

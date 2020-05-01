@@ -847,3 +847,9 @@ def test_create_with_a_null_column(fresh_db):
     record = {"name": "Name", "description": None}
     fresh_db["t"].insert(record)
     assert [record] == list(fresh_db["t"].rows)
+
+
+def test_create_with_nested_bytes(fresh_db):
+    record = {"id": 1, "data": {"foo": b"bytes"}}
+    fresh_db["t"].insert(record)
+    assert [{"id": 1, "data": '{"foo": "b\'bytes\'"}'}] == list(fresh_db["t"].rows)
