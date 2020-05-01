@@ -162,7 +162,7 @@ You can list the names of tables in a database using the ``tables`` subcommand::
      {"table": "cats"},
      {"table": "chickens"}]
 
-You can output this list in CSV using the ``-csv`` option::
+You can output this list in CSV using the ``--csv`` option::
 
     $ sqlite-utils tables mydb.db --csv --no-headers
     dogs
@@ -187,6 +187,18 @@ Use ``--columns`` to include a list of columns in each table::
     [{"table": "Gosh", "count": 0, "columns": ["c1", "c2", "c3"]},
      {"table": "Gosh2", "count": 0, "columns": ["c1", "c2", "c3"]},
      {"table": "dogs", "count": 2, "columns": ["id", "age", "name"]}]
+
+Use ``--schema`` to include the schema of each table::
+
+    $ sqlite-utils tables dogs.db --schema --table
+    table    schema
+    -------  -----------------------------------------------
+    Gosh     CREATE TABLE Gosh (c1 text, c2 text, c3 text)
+    Gosh2    CREATE TABLE Gosh2 (c1 text, c2 text, c3 text)
+    dogs     CREATE TABLE [dogs] (
+               [id] INTEGER,
+               [age] INTEGER,
+               [name] TEXT)
 
 The ``--nl``, ``--csv`` and ``--table`` options are all available.
 

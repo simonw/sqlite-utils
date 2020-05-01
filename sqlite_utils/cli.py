@@ -77,6 +77,9 @@ def cli():
     is_flag=True,
     default=False,
 )
+@click.option(
+    "--schema", help="Include schema for each table", is_flag=True, default=False,
+)
 def tables(
     path,
     fts4,
@@ -88,8 +91,9 @@ def tables(
     no_headers,
     table,
     fmt,
-    columns,
     json_cols,
+    columns,
+    schema,
 ):
     """List the tables in the database"""
     db = sqlite_utils.Database(path)
@@ -98,6 +102,8 @@ def tables(
         headers.append("count")
     if columns:
         headers.append("columns")
+    if schema:
+        headers.append("schema")
 
     def _iter():
         for name in db.table_names(fts4=fts4, fts5=fts5):
@@ -110,6 +116,8 @@ def tables(
                     row.append("\n".join(cols))
                 else:
                     row.append(cols)
+            if schema:
+                row.append(db[name].schema)
             yield row
 
     if table:

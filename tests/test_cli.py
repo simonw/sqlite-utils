@@ -72,6 +72,18 @@ def test_tables_counts_and_columns_csv(db_path):
     ) == result.output.strip()
 
 
+def test_tables_schema(db_path):
+    db = Database(db_path)
+    with db.conn:
+        db["lots"].insert_all([{"id": i, "age": i + 1} for i in range(30)])
+    result = CliRunner().invoke(cli.cli, ["tables", "--schema", db_path])
+    assert (
+        '[{"table": "Gosh", "schema": "CREATE TABLE Gosh (c1 text, c2 text, c3 text)"},\n'
+        ' {"table": "Gosh2", "schema": "CREATE TABLE Gosh2 (c1 text, c2 text, c3 text)"},\n'
+        ' {"table": "lots", "schema": "CREATE TABLE [lots] (\\n   [id] INTEGER,\\n   [age] INTEGER\\n)"}]'
+    ) == result.output.strip()
+
+
 @pytest.mark.parametrize(
     "fmt,expected",
     [
