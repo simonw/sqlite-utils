@@ -2,6 +2,15 @@
  Changelog
 ===========
 
+.. _v2_7.1:
+
+2.7.1 (2020-05-01)
+------------------
+
+- New ``sqlite-utils views my.db`` command for listing views in a database, see :ref:`cli_views`. (`#105 <https://github.com/simonw/sqlite-utils/issues/105>`__)
+- ``sqlite-utils tables`` (and ``views``) has a new ``--schema`` option which outputs the table/view schema, see :ref:`cli_tables`. (`#104 <https://github.com/simonw/sqlite-utils/issues/104>`__)
+- Nested structures containing invalid JSON values (e.g. Python bytestrings) are now serialized using ``repr()`` instead of throwing an error. (`#102 <https://github.com/simonw/sqlite-utils/issues/102>`__)
+
 .. _v2_7:
 
 2.7 (2020-04-17)

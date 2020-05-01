@@ -17,7 +17,7 @@ You can execute a SQL query against a database and get the results back as JSON 
     [{"id": 1, "age": 4, "name": "Cleo"},
      {"id": 2, "age": 2, "name": "Pancakes"}]
 
-This is the default subcommand for ``sqlite-utils``, so you can instead use this::
+This is the default command for ``sqlite-utils``, so you can instead use this::
 
     $ sqlite-utils dogs.db "select * from dogs"
 
@@ -142,7 +142,7 @@ For a full list of table format options, run ``sqlite-utils query --help``.
 Returning all rows in a table
 =============================
 
-You can return every row in a specified table using the ``rows`` subcommand::
+You can return every row in a specified table using the ``rows`` command::
 
     $ sqlite-utils rows dogs.db dogs
     [{"id": 1, "age": 4, "name": "Cleo"},
@@ -155,7 +155,7 @@ This command accepts the same output options as ``query`` - so you can pass ``--
 Listing tables
 ==============
 
-You can list the names of tables in a database using the ``tables`` subcommand::
+You can list the names of tables in a database using the ``tables`` command::
 
     $ sqlite-utils tables mydb.db
     [{"table": "dogs"},
@@ -201,6 +201,8 @@ Use ``--schema`` to include the schema of each table::
                [name] TEXT)
 
 The ``--nl``, ``--csv`` and ``--table`` options are all available.
+
+.. _cli_views:
 
 Listing views
 =============
@@ -410,7 +412,7 @@ You can use the ``--not-null`` and ``--default`` options (to both ``insert`` and
 Creating indexes
 ================
 
-You can add an index to an existing table using the ``create-index`` subcommand::
+You can add an index to an existing table using the ``create-index`` command::
 
     $ sqlite-utils create-index mydb.db mytable col1 [col2...]
 
