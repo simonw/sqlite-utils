@@ -28,6 +28,16 @@ def test_tables(db_path):
     assert '[{"table": "Gosh"},\n {"table": "Gosh2"}]' == result.output.strip()
 
 
+def test_views(db_path):
+    Database(db_path).create_view("hello", "select sqlite_version()")
+    result = CliRunner().invoke(cli.cli, ["views", db_path, "--table", "--schema"])
+    assert (
+        "view    schema\n"
+        "------  --------------------------------------------\n"
+        "hello   CREATE VIEW hello AS select sqlite_version()"
+    ) == result.output.strip()
+
+
 def test_tables_fts4(db_path):
     Database(db_path)["Gosh"].enable_fts(["c2"], fts_version="FTS4")
     result = CliRunner().invoke(cli.cli, ["tables", "--fts4", db_path])

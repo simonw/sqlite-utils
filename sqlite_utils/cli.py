@@ -94,10 +94,11 @@ def tables(
     json_cols,
     columns,
     schema,
+    views=False,
 ):
     """List the tables in the database"""
     db = sqlite_utils.Database(path)
-    headers = ["table"]
+    headers = ["view" if views else "table"]
     if counts:
         headers.append("count")
     if columns:
@@ -106,7 +107,11 @@ def tables(
         headers.append("schema")
 
     def _iter():
-        for name in db.table_names(fts4=fts4, fts5=fts5):
+        if views:
+            items = db.view_names()
+        else:
+            items = db.table_names(fts4=fts4, fts5=fts5)
+        for name in items:
             row = [name]
             if counts:
                 row.append(db[name].count)
@@ -131,6 +136,47 @@ def tables(
     else:
         for line in output_rows(_iter(), headers, nl, arrays, json_cols):
             click.echo(line)
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.option(
+    "--counts", help="Include row counts per view", default=False, is_flag=True
+)
+@output_options
+@click.option(
+    "--columns",
+    help="Include list of columns for each view",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--schema", help="Include schema for each view", is_flag=True, default=False,
+)
+def views(
+    path, counts, nl, arrays, csv, no_headers, table, fmt, json_cols, columns, schema,
+):
+    """List the views in the database"""
+    tables.callback(
+        path=path,
+        fts4=False,
+        fts5=False,
+        counts=counts,
+        nl=nl,
+        arrays=arrays,
+        csv=csv,
+        no_headers=no_headers,
+        table=table,
+        fmt=fmt,
+        json_cols=json_cols,
+        columns=columns,
+        schema=schema,
+        views=True,
+    )
 
 
 @cli.command()

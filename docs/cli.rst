@@ -202,6 +202,26 @@ Use ``--schema`` to include the schema of each table::
 
 The ``--nl``, ``--csv`` and ``--table`` options are all available.
 
+Listing views
+=============
+
+The `views` command shows any views defined in the database::
+
+    $ sqlite-utils views sf-trees.db --table --counts --columns --schema
+    view         count  columns               schema
+    ---------  -------  --------------------  --------------------------------------------------------------
+    demo_view   189144  ['qSpecies']          CREATE VIEW demo_view AS select qSpecies from Street_Tree_List
+    hello            1  ['sqlite_version()']  CREATE VIEW hello as select sqlite_version()
+
+It takes the same options as the ``tables`` command:
+
+* ``--columns``
+* ``--schema``
+* ``--counts``
+* ``--nl``
+* ``--csv``
+* ``--table``
+
 .. _cli_inserting_data:
 
 Inserting JSON data
