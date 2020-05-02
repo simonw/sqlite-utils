@@ -868,6 +868,8 @@ If you are going to use that ID straight away, you can access it using ``last_pk
     }, hash_id="id").last_pk
     # dog_id is now "f501265970505d9825d8d9f590bfab3519fb20b1"
 
+.. _python_api_create_view:
+
 Creating views
 ==============
 

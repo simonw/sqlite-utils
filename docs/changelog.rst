@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_7.2:
+
+2.7.2 (2020-05-02)
+------------------
+
+- ``db.create_view(...)`` now has additional parameters ``ignore=True`` or ``replace=True``, see :ref:`python_api_create_view`. (`#106 <https://github.com/simonw/sqlite-utils/issues/106>`__)
+
 .. _v2_7.1:
 
 2.7.1 (2020-05-01)
