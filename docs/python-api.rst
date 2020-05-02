@@ -879,6 +879,16 @@ The ``.create_view()`` method on the database class can be used to create a view
         select * from dogs where is_good_dog = 1
     """)
 
+This will raise a ``sqlite_utils.utils.OperationalError`` if a view with that name already exists.
+
+You can pass ``ignore=True`` to silently ignore an existing view and do nothing, or ``replace=True`` to replace an existing view with a new definition if your select statement differs from the current view:
+
+.. code-block:: python
+
+    db.create_view("good_dogs", """
+        select * from dogs where is_good_dog = 1
+    """, replace=True)
+
 Storing JSON
 ============
 

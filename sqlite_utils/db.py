@@ -322,14 +322,23 @@ class Database:
             hash_id=hash_id,
         )
 
-    def create_view(self, name, sql):
-        self.conn.execute(
-            """
-            CREATE VIEW {name} AS {sql}
-        """.format(
-                name=name, sql=sql
-            )
-        )
+    def create_view(self, name, sql, ignore=False, replace=False):
+        assert not (
+            ignore and replace
+        ), "Use one or the other of ignore/replace, not both"
+        create_sql = "CREATE VIEW {name} AS {sql}".format(name=name, sql=sql)
+        if ignore or replace:
+            # Does view exist already?
+            if name in self.view_names():
+                if ignore:
+                    return self
+                elif replace:
+                    # If SQL is the same, do nothing
+                    if create_sql == self[name].schema:
+                        return self
+                    self[name].drop()
+        self.conn.execute(create_sql)
+        return self
 
     def m2m_table_candidates(self, table, other_table):
         "Returns potential m2m tables for arguments, based on FKs"
