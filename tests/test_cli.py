@@ -999,3 +999,69 @@ def test_create_table_replace():
         )
         assert 0 == result.exit_code
         assert "CREATE TABLE [dogs] (\n   [id] INTEGER\n)" == db["dogs"].schema
+
+
+def test_create_view():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        result = runner.invoke(
+            cli.cli, ["create-view", "test.db", "version", "select sqlite_version()"]
+        )
+        assert 0 == result.exit_code
+        assert "CREATE VIEW version AS select sqlite_version()" == db["version"].schema
+
+
+def test_create_view_error_if_view_exists():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db.create_view("version", "select sqlite_version() + 1")
+        result = runner.invoke(
+            cli.cli, ["create-view", "test.db", "version", "select sqlite_version()"]
+        )
+        assert 1 == result.exit_code
+        assert (
+            'Error: View "version" already exists. Use --replace to delete and replace it.'
+            == result.output.strip()
+        )
+
+
+def test_create_view_ignore():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db.create_view("version", "select sqlite_version() + 1")
+        result = runner.invoke(
+            cli.cli,
+            [
+                "create-view",
+                "test.db",
+                "version",
+                "select sqlite_version()",
+                "--ignore",
+            ],
+        )
+        assert 0 == result.exit_code
+        assert (
+            "CREATE VIEW version AS select sqlite_version() + 1" == db["version"].schema
+        )
+
+
+def test_create_view_replace():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db.create_view("version", "select sqlite_version() + 1")
+        result = runner.invoke(
+            cli.cli,
+            [
+                "create-view",
+                "test.db",
+                "version",
+                "select sqlite_version()",
+                "--replace",
+            ],
+        )
+        assert 0 == result.exit_code
+        assert "CREATE VIEW version AS select sqlite_version()" == db["version"].schema

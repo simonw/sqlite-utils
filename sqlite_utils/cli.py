@@ -594,6 +594,38 @@ def create_table(path, table, columns, pk, not_null, default, fk, ignore, replac
     )
 
 
+@cli.command(name="create-view")
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("view")
+@click.argument("select")
+@click.option(
+    "--ignore", is_flag=True, help="If view already exists, do nothing",
+)
+@click.option(
+    "--replace", is_flag=True, help="If view already exists, replace it",
+)
+def create_view(path, view, select, ignore, replace):
+    "Create a view for the provided SELECT query"
+    db = sqlite_utils.Database(path)
+    # Does view already exist?
+    if view in db.view_names():
+        if ignore:
+            return
+        elif replace:
+            db[view].drop()
+        else:
+            raise click.ClickException(
+                'View "{}" already exists. Use --replace to delete and replace it.'.format(
+                    view
+                )
+            )
+    db.create_view(view, select)
+
+
 @cli.command()
 @click.argument(
     "path",

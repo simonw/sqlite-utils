@@ -401,6 +401,21 @@ You can specify foreign key relationships between the tables you are creating us
 
 If a table with the same name already exists, you will get an error. You can choose to silently ignore this error with ``--ignore``, or you can replace the existing table with a new, empty table using ``--replace``.
 
+
+.. _cli_create_view:
+
+Creating views
+==============
+
+You can create a view using the ``create-view`` command::
+
+    $ sqlite-utils create-view mydb.db version "select sqlite_version()"
+
+    $ sqlite-utils mydb.db "select * from version"
+    [{"sqlite_version()": "3.31.1"}]
+
+Use ``--replace`` to replace an existing view of the same name, and ``--ignore`` to do nothing if a view already exists.
+
 .. _cli_add_column:
 
 Adding columns
