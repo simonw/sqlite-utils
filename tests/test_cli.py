@@ -863,15 +863,17 @@ def test_upsert_alter(db_path, tmpdir):
     )
 
 
-def test_create_table():
-    runner = CliRunner()
-    with runner.isolated_filesystem():
-        result = runner.invoke(
-            cli.cli,
+@pytest.mark.parametrize(
+    "args,schema",
+    [
+        # No primary key
+        (
+            ["name", "text", "age", "integer",],
+            ("CREATE TABLE [t] (\n   [name] TEXT,\n   [age] INTEGER\n)"),
+        ),
+        # All types:
+        (
             [
-                "create-table",
-                "test.db",
-                "t",
                 "id",
                 "integer",
                 "name",
@@ -885,15 +887,76 @@ def test_create_table():
                 "--pk",
                 "id",
             ],
+            (
+                "CREATE TABLE [t] (\n"
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [name] TEXT,\n"
+                "   [age] INTEGER,\n"
+                "   [weight] FLOAT,\n"
+                "   [thumbnail] BLOB\n"
+                ")"
+            ),
+        ),
+        # Not null:
+        (
+            ["name", "text", "--not-null", "name"],
+            ("CREATE TABLE [t] (\n" "   [name] TEXT NOT NULL\n" ")"),
+        ),
+        # Default:
+        (
+            ["age", "integer", "--default", "age", "3"],
+            ("CREATE TABLE [t] (\n" "   [age] INTEGER DEFAULT '3'\n" ")"),
+        ),
+    ],
+)
+def test_create_table(args, schema):
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli.cli, ["create-table", "test.db", "t",] + args, catch_exceptions=False
         )
         assert 0 == result.exit_code
         db = Database("test.db")
+        assert schema == db["t"].schema
+
+
+def test_create_table_foreign_key():
+    runner = CliRunner()
+    creates = (
+        ["authors", "id", "integer", "name", "text", "--pk", "id"],
+        [
+            "books",
+            "id",
+            "integer",
+            "title",
+            "text",
+            "author_id",
+            "integer",
+            "--pk",
+            "id",
+            "--fk",
+            "author_id",
+            "authors",
+            "id",
+        ],
+    )
+    with runner.isolated_filesystem():
+        for args in creates:
+            result = runner.invoke(
+                cli.cli, ["create-table", "books.db"] + args, catch_exceptions=False
+            )
+            assert 0 == result.exit_code
+        db = Database("books.db")
         assert (
-            "CREATE TABLE [t] (\n"
+            "CREATE TABLE [authors] (\n"
             "   [id] INTEGER PRIMARY KEY,\n"
-            "   [name] TEXT,\n"
-            "   [age] INTEGER,\n"
-            "   [weight] FLOAT,\n"
-            "   [thumbnail] BLOB\n"
+            "   [name] TEXT\n"
             ")"
-        ) == db["t"].schema
+        ) == db["authors"].schema
+        assert (
+            "CREATE TABLE [books] (\n"
+            "   [id] INTEGER PRIMARY KEY,\n"
+            "   [title] TEXT,\n"
+            "   [author_id] INTEGER REFERENCES [authors]([id])\n"
+            ")"
+        ) == db["books"].schema

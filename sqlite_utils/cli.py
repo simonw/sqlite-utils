@@ -539,7 +539,22 @@ def upsert(
 @click.argument("table")
 @click.argument("columns", nargs=-1, required=True)
 @click.option("--pk", help="Column to use as primary key")
-def create_table(path, table, columns, pk):
+@click.option(
+    "--not-null", multiple=True, help="Columns that should be created as NOT NULL",
+)
+@click.option(
+    "--default",
+    multiple=True,
+    type=(str, str),
+    help="Default value that should be set for a column",
+)
+@click.option(
+    "--fk",
+    multiple=True,
+    type=(str, str, str),
+    help="Column, other table, other column to set as a foreign key",
+)
+def create_table(path, table, columns, pk, not_null, default, fk):
     "Add an index to the specified table covering the specified columns"
     db = sqlite_utils.Database(path)
     if len(columns) % 2 == 1:
@@ -556,7 +571,9 @@ def create_table(path, table, columns, pk):
                 "column types must be one of {}".format(VALID_COLUMN_TYPES)
             )
         coltypes[name] = ctype.upper()
-    db[table].create(coltypes, pk=pk)
+    db[table].create(
+        coltypes, pk=pk, not_null=not_null, defaults=dict(default), foreign_keys=fk
+    )
 
 
 @cli.command()

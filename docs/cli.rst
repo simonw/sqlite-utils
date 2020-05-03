@@ -348,6 +348,57 @@ This will create a table called ``mytable`` with two columns - an integer ``id``
 
 You can pass as many column-name column-type pairs as you like. Valid types are ``integer``, ``text``, ``float`` and ``blob``.
 
+You can specify columns that should be NOT NULL using ``--not-null colname``. You can specify default values for columns using ``--default colname defaultvalue``.
+
+::
+
+    $ sqlite-utils create-table mydb.db mytable \
+        id integer \
+        name text \
+        age integer \
+        is_good integer \
+        --not-null name \
+        --not-null age \
+        --default is_good 1 \
+        --pk=id
+
+    $ sqlite-utils tables mydb.db --schema -t
+    table    schema
+    -------  --------------------------------
+    mytable  CREATE TABLE [mytable] (
+                [id] INTEGER PRIMARY KEY,
+                [name] TEXT NOT NULL,
+                [age] INTEGER NOT NULL,
+                [is_good] INTEGER DEFAULT '1'
+            )
+
+You can specify foreign key relationships between the tables you are creating using ``--fk colname othertable othercolumn``::
+
+    $ sqlite-utils create-table books.db authors \
+        id integer \
+        name text \
+        --pk=id
+
+    $ sqlite-utils create-table books.db books \
+        id integer \
+        title text \
+        author_id integer \
+        --pk=id \
+        --fk author_id authors id
+
+    $ sqlite-utils tables books.db --schema -t
+    table    schema
+    -------  -------------------------------------------------
+    authors  CREATE TABLE [authors] (
+                [id] INTEGER PRIMARY KEY,
+                [name] TEXT
+             )
+    books    CREATE TABLE [books] (
+                [id] INTEGER PRIMARY KEY,
+                [title] TEXT,
+                [author_id] INTEGER REFERENCES [authors]([id])
+             )
+
 .. _cli_add_column:
 
 Adding columns
