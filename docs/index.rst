@@ -2,6 +2,19 @@
  sqlite-utils |version|
 =======================
 
+|PyPI| |Changelog| |Travis CI| |Documentation Status| |License|
+
+.. |PyPI| image:: https://img.shields.io/pypi/v/sqlite-utils.svg
+   :target: https://pypi.org/project/sqlite-utils/
+.. |Changelog| image:: https://img.shields.io/github/v/release/simonw/sqlite-utils?include_prereleases&label=changelog
+   :target: https://sqlite-utils.readthedocs.io/en/stable/changelog.html
+.. |Travis CI| image:: https://travis-ci.com/simonw/sqlite-utils.svg?branch=master
+   :target: https://travis-ci.com/simonw/sqlite-utils
+.. |Documentation Status| image:: https://readthedocs.org/projects/sqlite-utils/badge/?version=latest
+   :target: http://sqlite-utils.readthedocs.io/en/latest/?badge=latest
+.. |License| image:: https://img.shields.io/badge/license-Apache%202.0-blue.svg
+   :target: https://github.com/simonw/sqlite-utils/blob/master/LICENSE
+
 *Python utility functions for manipulating SQLite databases*
 
 This library and command-line utility helps create SQLite databases from an existing collection of data.
