@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+.. _v2_8:
+
+2.8 (2020-05-03)
+----------------
+
+- New ``sqlite-utils create-table`` command, see :ref:`cli_create_table`. (`#27 <https://github.com/simonw/sqlite-utils/issues/27>`__)
+- New ``sqlite-utils create-view`` command, see :ref:`cli_create_view`. (`#107 <https://github.com/simonw/sqlite-utils/issues/107>`__)
+
 .. _v2_7.2:
 
 2.7.2 (2020-05-02)
