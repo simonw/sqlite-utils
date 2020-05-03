@@ -2,7 +2,7 @@
  sqlite-utils |version|
 =======================
 
-|PyPI| |Changelog| |Travis CI| |Documentation Status| |License|
+|PyPI| |Changelog| |Travis CI| |License|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/sqlite-utils.svg
    :target: https://pypi.org/project/sqlite-utils/
@@ -10,8 +10,6 @@
    :target: https://sqlite-utils.readthedocs.io/en/stable/changelog.html
 .. |Travis CI| image:: https://travis-ci.com/simonw/sqlite-utils.svg?branch=master
    :target: https://travis-ci.com/simonw/sqlite-utils
-.. |Documentation Status| image:: https://readthedocs.org/projects/sqlite-utils/badge/?version=latest
-   :target: http://sqlite-utils.readthedocs.io/en/latest/?badge=latest
 .. |License| image:: https://img.shields.io/badge/license-Apache%202.0-blue.svg
    :target: https://github.com/simonw/sqlite-utils/blob/master/LICENSE
 
