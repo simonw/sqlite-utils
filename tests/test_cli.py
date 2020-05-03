@@ -960,3 +960,42 @@ def test_create_table_foreign_key():
             "   [author_id] INTEGER REFERENCES [authors]([id])\n"
             ")"
         ) == db["books"].schema
+
+
+def test_create_table_error_if_table_exists():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["dogs"].insert({"name": "Cleo"})
+        result = runner.invoke(
+            cli.cli, ["create-table", "test.db", "dogs", "id", "integer"]
+        )
+        assert 1 == result.exit_code
+        assert (
+            'Error: Table "dogs" already exists. Use --replace to delete and replace it.'
+            == result.output.strip()
+        )
+
+
+def test_create_table_ignore():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["dogs"].insert({"name": "Cleo"})
+        result = runner.invoke(
+            cli.cli, ["create-table", "test.db", "dogs", "id", "integer", "--ignore"]
+        )
+        assert 0 == result.exit_code
+        assert "CREATE TABLE [dogs] (\n   [name] TEXT\n)" == db["dogs"].schema
+
+
+def test_create_table_replace():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["dogs"].insert({"name": "Cleo"})
+        result = runner.invoke(
+            cli.cli, ["create-table", "test.db", "dogs", "id", "integer", "--replace"]
+        )
+        assert 0 == result.exit_code
+        assert "CREATE TABLE [dogs] (\n   [id] INTEGER\n)" == db["dogs"].schema

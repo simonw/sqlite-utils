@@ -554,7 +554,13 @@ def upsert(
     type=(str, str, str),
     help="Column, other table, other column to set as a foreign key",
 )
-def create_table(path, table, columns, pk, not_null, default, fk):
+@click.option(
+    "--ignore", is_flag=True, help="If table already exists, do nothing",
+)
+@click.option(
+    "--replace", is_flag=True, help="If table already exists, replace it",
+)
+def create_table(path, table, columns, pk, not_null, default, fk, ignore, replace):
     "Add an index to the specified table covering the specified columns"
     db = sqlite_utils.Database(path)
     if len(columns) % 2 == 1:
@@ -571,6 +577,18 @@ def create_table(path, table, columns, pk, not_null, default, fk):
                 "column types must be one of {}".format(VALID_COLUMN_TYPES)
             )
         coltypes[name] = ctype.upper()
+    # Does table already exist?
+    if table in db.table_names():
+        if ignore:
+            return
+        elif replace:
+            db[table].drop()
+        else:
+            raise click.ClickException(
+                'Table "{}" already exists. Use --replace to delete and replace it.'.format(
+                    table
+                )
+            )
     db[table].create(
         coltypes, pk=pk, not_null=not_null, defaults=dict(default), foreign_keys=fk
     )

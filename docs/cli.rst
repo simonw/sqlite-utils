@@ -399,6 +399,8 @@ You can specify foreign key relationships between the tables you are creating us
                 [author_id] INTEGER REFERENCES [authors]([id])
              )
 
+If a table with the same name already exists, you will get an error. You can choose to silently ignore this error with ``--ignore``, or you can replace the existing table with a new, empty table using ``--replace``.
+
 .. _cli_add_column:
 
 Adding columns

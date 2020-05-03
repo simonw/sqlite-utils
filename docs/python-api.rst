@@ -262,6 +262,8 @@ The first argument here is a dictionary specifying the columns you would like to
 
 This method takes optional arguments ``pk=``, ``column_order=``, ``foreign_keys=``, ``not_null=set()`` and ``defaults=dict()`` - explained below.
 
+You can pass ``ignore=True`` to silently ignore an existing table and do nothing, or ``replace=True`` to replace that table with a new, empty table.
+
 .. _python_api_compound_primary_keys:
 
 Compound primary keys
