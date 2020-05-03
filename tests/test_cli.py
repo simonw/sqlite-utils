@@ -861,3 +861,39 @@ def test_upsert_alter(db_path, tmpdir):
     assert [{"id": 1, "name": "Cleo", "age": 5},] == db.execute_returning_dicts(
         "select * from dogs order by id"
     )
+
+
+def test_create_table():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli.cli,
+            [
+                "create-table",
+                "test.db",
+                "t",
+                "id",
+                "integer",
+                "name",
+                "text",
+                "age",
+                "integer",
+                "weight",
+                "float",
+                "thumbnail",
+                "blob",
+                "--pk",
+                "id",
+            ],
+        )
+        assert 0 == result.exit_code
+        db = Database("test.db")
+        assert (
+            "CREATE TABLE [t] (\n"
+            "   [id] INTEGER PRIMARY KEY,\n"
+            "   [name] TEXT,\n"
+            "   [age] INTEGER,\n"
+            "   [weight] FLOAT,\n"
+            "   [thumbnail] BLOB\n"
+            ")"
+        ) == db["t"].schema

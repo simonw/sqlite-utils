@@ -9,6 +9,8 @@ import csv as csv_std
 import tabulate
 from .utils import sqlite3
 
+VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "BLOB")
+
 
 def output_options(fn):
     for decorator in reversed(
@@ -526,6 +528,35 @@ def upsert(
         not_null=not_null,
         default=default,
     )
+
+
+@cli.command(name="create-table")
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.argument("columns", nargs=-1, required=True)
+@click.option("--pk", help="Column to use as primary key")
+def create_table(path, table, columns, pk):
+    "Add an index to the specified table covering the specified columns"
+    db = sqlite_utils.Database(path)
+    if len(columns) % 2 == 1:
+        raise click.ClickException(
+            "columns must be an even number of 'name' 'type' pairs"
+        )
+    coltypes = {}
+    columns = list(columns)
+    while columns:
+        name = columns.pop(0)
+        ctype = columns.pop(0)
+        if ctype.upper() not in VALID_COLUMN_TYPES:
+            raise click.ClickException(
+                "column types must be one of {}".format(VALID_COLUMN_TYPES)
+            )
+        coltypes[name] = ctype.upper()
+    db[table].create(coltypes, pk=pk)
 
 
 @cli.command()
