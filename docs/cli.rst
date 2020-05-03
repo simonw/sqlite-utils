@@ -334,6 +334,20 @@ The command will fail if you reference columns that do not exist on the table. T
 .. note::
     ``upsert`` in sqlite-utils 1.x worked like ``insert ... --replace`` does in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
 
+
+.. _cli_create_table:
+
+Creating tables
+===============
+
+Most of the time creating tables by inserting example data is the quickest approach. If you need to create an empty table in advance of inserting data you can do so using the ``create-table`` command::
+
+    $ sqlite-utils create-table mydb.db mytable id integer name text --pk=id
+
+This will create a table called ``mytable`` with two columns - an integer ``id`` column and a text ``name`` column. It will set the ``id`` column to be the primary key.
+
+You can pass as many column-name column-type pairs as you like. Valid types are ``integer``, ``text``, ``float`` and ``blob``.
+
 .. _cli_add_column:
 
 Adding columns
