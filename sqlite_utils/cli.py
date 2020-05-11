@@ -594,6 +594,22 @@ def create_table(path, table, columns, pk, not_null, default, fk, ignore, replac
     )
 
 
+@cli.command(name="drop-table")
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+def drop_table(path, table):
+    "Drop the specified table"
+    db = sqlite_utils.Database(path)
+    if table in db.table_names():
+        db[table].drop()
+    else:
+        raise click.ClickException('Table "{}" does not exist'.format(table))
+
+
 @cli.command(name="create-view")
 @click.argument(
     "path",
@@ -624,6 +640,23 @@ def create_view(path, view, select, ignore, replace):
                 )
             )
     db.create_view(view, select)
+
+
+@cli.command(name="drop-view")
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("view")
+def drop_view(path, view):
+    "Drop the specified view"
+    db = sqlite_utils.Database(path)
+    if view in db.view_names():
+        db[view].drop()
+    else:
+        raise click.ClickException('View "{}" does not exist'.format(view))
+
 
 
 @cli.command()

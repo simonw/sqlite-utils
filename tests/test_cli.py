@@ -1065,3 +1065,73 @@ def test_create_view_replace():
         )
         assert 0 == result.exit_code
         assert "CREATE VIEW version AS select sqlite_version()" == db["version"].schema
+
+
+def test_drop_table():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["t"].create({"pk": int}, pk="pk")
+        assert "t" in db.table_names()
+        result = runner.invoke(
+            cli.cli,
+            [
+                "drop-table",
+                "test.db",
+                "t",
+            ],
+        )
+        assert 0 == result.exit_code
+        assert "t" not in db.table_names()
+
+
+def test_drop_table_error():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["t"].create({"pk": int}, pk="pk")
+        result = runner.invoke(
+            cli.cli,
+            [
+                "drop-table",
+                "test.db",
+                "t2",
+            ],
+        )
+        assert 1 == result.exit_code
+        assert 'Error: Table "t2" does not exist' == result.output.strip()
+
+
+def test_drop_view():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db.create_view("hello", "select 1")
+        assert "hello" in db.view_names()
+        result = runner.invoke(
+            cli.cli,
+            [
+                "drop-view",
+                "test.db",
+                "hello",
+            ],
+        )
+        assert 0 == result.exit_code
+        assert "hello" not in db.view_names()
+
+
+def test_drop_view_error():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["t"].create({"pk": int}, pk="pk")
+        result = runner.invoke(
+            cli.cli,
+            [
+                "drop-view",
+                "test.db",
+                "t2",
+            ],
+        )
+        assert 1 == result.exit_code
+        assert 'Error: View "t2" does not exist' == result.output.strip()
