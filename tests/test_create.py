@@ -9,6 +9,7 @@ from sqlite_utils.db import (
 from sqlite_utils.utils import sqlite3
 import collections
 import datetime
+import decimal
 import json
 import pathlib
 import pytest
@@ -132,6 +133,7 @@ def test_create_table_with_not_null(fresh_db):
             [{"name": "create", "type": "TEXT"}, {"name": "table", "type": "TEXT"}],
         ),
         ({"day": datetime.time(11, 0)}, [{"name": "day", "type": "TEXT"}]),
+        ({"decimal": decimal.Decimal("1.2")}, [{"name": "decimal", "type": "FLOAT"}]),
     ),
 )
 def test_create_table_from_example(fresh_db, example, expected_columns):

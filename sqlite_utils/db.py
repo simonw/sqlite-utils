@@ -1,6 +1,7 @@
 from .utils import sqlite3, OperationalError, suggest_column_types, column_affinity
 from collections import namedtuple, OrderedDict
 import datetime
+import decimal
 import hashlib
 import itertools
 import json
@@ -42,6 +43,7 @@ COLUMN_TYPE_MAPPING = {
     datetime.datetime: "TEXT",
     datetime.date: "TEXT",
     datetime.time: "TEXT",
+    decimal.Decimal: "FLOAT",
     None.__class__: "TEXT",
     # SQLite explicit types
     "TEXT": "TEXT",
@@ -1325,6 +1327,8 @@ def chunks(sequence, size):
 
 
 def jsonify_if_needed(value):
+    if isinstance(value, decimal.Decimal):
+        return float(value)
     if isinstance(value, (dict, list, tuple)):
         return json.dumps(value, default=repr)
     elif isinstance(value, (datetime.time, datetime.date, datetime.datetime)):
