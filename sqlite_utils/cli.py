@@ -658,7 +658,6 @@ def drop_view(path, view):
         raise click.ClickException('View "{}" does not exist'.format(view))
 
 
-
 @cli.command()
 @click.argument(
     "path",
