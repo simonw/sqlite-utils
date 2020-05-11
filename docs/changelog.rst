@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_9_1:
+
+2.9.1 (2020-05-11)
+------------------
+
+- Added custom project links to the `PyPI listing <https://pypi.org/project/sqlite-utils/>`__.
+
 .. _v2_9:
 
 2.9 (2020-05-10)
