@@ -13,7 +13,7 @@ sqlite-utils: a Python library and CLI tool for building SQLite databases](https
 
 ## Installation
 
-    pip3 install sqlite-utils
+    pip install sqlite-utils
 
 ## Using as a CLI tool
 
