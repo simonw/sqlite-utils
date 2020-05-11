@@ -2,6 +2,15 @@
  Changelog
 ===========
 
+.. _v2_9:
+
+2.9 (2020-05-10)
+----------------
+
+- New ``sqlite-utils drop-table`` command, see :ref:`cli_drop_table`. (`#111 <https://github.com/simonw/sqlite-utils/issues/111>`__)
+- New ``sqlite-utils drop-view`` command, see :ref:`cli_drop_view`.
+- Python ``decimal.Decimal`` objects are now stored as ``FLOAT``. (`#110 <https://github.com/simonw/sqlite-utils/issues/110>`__)
+
 .. _v2_8:
 
 2.8 (2020-05-03)
