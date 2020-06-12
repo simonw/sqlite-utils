@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_10:
+
+2.10 (2020-06-12)
+-----------------
+
+- The ``sqlite-utils`` command now supports UPDATE/INSERT/DELETE in addition to SELECT. (`#115 <https://github.com/simonw/sqlite-utils/issues/115>`__)
+
 .. _v2_9_1:
 
 2.9.1 (2020-05-11)

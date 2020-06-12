@@ -55,7 +55,7 @@ If you want to pretty-print the output further, you can pipe it through ``python
         }
     ]
 
-If you execute an `UPDATE` or `INSERT` query the comand will return the number of affected rows::
+If you execute an ``UPDATE``, ``INSERT`` or ``DELETE`` query the comand will return the number of affected rows::
 
     $ sqlite-utils dogs.db "update dogs set age = 5 where name = 'Cleo'"   
     [{"rows_affected": 1}]
