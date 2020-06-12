@@ -55,6 +55,11 @@ If you want to pretty-print the output further, you can pipe it through ``python
         }
     ]
 
+If you execute an `UPDATE` or `INSERT` query the comand will return the number of affected rows::
+
+    $ sqlite-utils dogs.db "update dogs set age = 5 where name = 'Cleo'"   
+    [{"rows_affected": 1}]
+
 You can run queries against a temporary in-memory database by passing ``:memory:`` as the filename::
 
     $ sqlite-utils :memory: "select sqlite_version()"

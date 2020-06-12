@@ -669,14 +669,19 @@ def drop_view(path, view):
 def query(path, sql, nl, arrays, csv, no_headers, table, fmt, json_cols):
     "Execute SQL query and return the results as JSON"
     db = sqlite_utils.Database(path)
-    cursor = iter(db.conn.execute(sql))
-    headers = [c[0] for c in cursor.description]
+    cursor = db.conn.execute(sql)
+    if cursor.description is None:
+        # This was an update/insert
+        headers = ["rows_affected"]
+        cursor = [[cursor.rowcount]]
+    else:
+        headers = [c[0] for c in cursor.description]
     if table:
         print(tabulate.tabulate(list(cursor), headers=headers, tablefmt=fmt))
     elif csv:
         writer = csv_std.writer(sys.stdout)
         if not no_headers:
-            writer.writerow([c[0] for c in cursor.description])
+            writer.writerow(headers)
         for row in cursor:
             writer.writerow(row)
     else:

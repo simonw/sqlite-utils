@@ -1107,3 +1107,22 @@ def test_drop_view_error():
         result = runner.invoke(cli.cli, ["drop-view", "test.db", "t2",],)
         assert 1 == result.exit_code
         assert 'Error: View "t2" does not exist' == result.output.strip()
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], '[{"rows_affected": 1}]',),
+        (["-t"], "rows_affected\n---------------\n              1"),
+    ],
+)
+def test_query_update(db_path, args, expected):
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert_all(
+            [{"id": 1, "age": 4, "name": "Cleo"},]
+        )
+    result = CliRunner().invoke(
+        cli.cli, [db_path, "update dogs set age = 5 where name = 'Cleo'"] + args
+    )
+    assert expected == result.output.strip()
