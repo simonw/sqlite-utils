@@ -1020,6 +1020,11 @@ The ``.columns_dict`` property returns a dictionary version of this with just th
     >>> db["PlantType"].columns_dict
     {'id': <class 'int'>, 'value': <class 'str'>}
 
+The ``.pks`` property returns a list of strings naming the primary key columns for the table::
+
+    >>> db["PlantType"].pks
+    ['id']
+
 The ``.foreign_keys`` property shows if the table has any foreign key relationships. It is not available on views.
 
 ::
