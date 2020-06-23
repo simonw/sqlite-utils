@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+
+.. _v2_10_1:
+
+2.10.1 (2020-06-23)
+-------------------
+
+- Added documentation for the ``table.pks`` introspection property. (`#116 <https://github.com/simonw/sqlite-utils/issues/116>`__)
+
 .. _v2_10:
 
 2.10 (2020-06-12)
