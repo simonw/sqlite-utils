@@ -976,6 +976,7 @@ class Table(Queryable):
         alter=DEFAULT,
         ignore=DEFAULT,
         replace=DEFAULT,
+        truncate=False,
         extracts=DEFAULT,
         conversions=DEFAULT,
         columns=DEFAULT,
@@ -1027,6 +1028,8 @@ class Table(Queryable):
         batch_size = max(1, min(batch_size, SQLITE_MAX_VARS // num_columns))
         self.last_rowid = None
         self.last_pk = None
+        if truncate and self.exists():
+            self.db.conn.execute("DELETE FROM [{}];".format(self.name))
         for chunk in chunks(itertools.chain([first_record], records), batch_size):
             chunk = list(chunk)
             num_records_processed += len(chunk)

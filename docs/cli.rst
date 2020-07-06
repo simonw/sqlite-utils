@@ -274,6 +274,10 @@ You can skip inserting any records that have a primary key that already exists u
 
     $ sqlite-utils insert dogs.db dogs dogs.json --ignore
 
+You can delete all the existing rows in the table before inserting the new records using ``--truncate``::
+
+    $ sqlite-utils insert dogs.db dogs dogs.json --truncate
+
 You can also import newline-delimited JSON using the ``--nl`` option. Since `Datasette <https://datasette.readthedocs.io/>`__ can export newline-delimited JSON, you can combine the two tools like so::
 
     $ curl -L "https://latest.datasette.io/fixtures/facetable.json?_shape=array&_nl=on" \
