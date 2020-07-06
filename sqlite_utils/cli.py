@@ -423,6 +423,7 @@ def insert_upsert_implementation(
     upsert,
     ignore=False,
     replace=False,
+    truncate=False,
     not_null=None,
     default=None,
 ):
@@ -442,7 +443,7 @@ def insert_upsert_implementation(
         docs = json.load(json_file)
         if isinstance(docs, dict):
             docs = [docs]
-    extra_kwargs = {"ignore": ignore, "replace": replace}
+    extra_kwargs = {"ignore": ignore, "replace": replace, "truncate": truncate}
     if not_null:
         extra_kwargs["not_null"] = set(not_null)
     if default:
@@ -465,6 +466,12 @@ def insert_upsert_implementation(
     default=False,
     help="Replace records if pk already exists",
 )
+@click.option(
+    "--truncate",
+    is_flag=True,
+    default=False,
+    help="Truncate table before inserting records, if table already exists",
+)
 def insert(
     path,
     table,
@@ -477,6 +484,7 @@ def insert(
     alter,
     ignore,
     replace,
+    truncate,
     not_null,
     default,
 ):
@@ -499,6 +507,7 @@ def insert(
         upsert=False,
         ignore=ignore,
         replace=replace,
+        truncate=truncate,
         not_null=not_null,
         default=default,
     )

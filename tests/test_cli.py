@@ -642,6 +642,39 @@ def test_insert_replace(db_path, tmpdir):
     )
 
 
+def test_insert_truncate(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "from_json_nl", "-", "--nl", "--batch-size=1"],
+        input='{"foo": "bar", "n": 1}\n{"foo": "baz", "n": 2}',
+    )
+    assert 0 == result.exit_code, result.output
+    db = Database(db_path)
+    assert [
+        {"foo": "bar", "n": 1},
+        {"foo": "baz", "n": 2},
+    ] == db.execute_returning_dicts("select foo, n from from_json_nl")
+    # Truncate and insert new rows
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            db_path,
+            "from_json_nl",
+            "-",
+            "--nl",
+            "--truncate",
+            "--batch-size=1",
+        ],
+        input='{"foo": "bam", "n": 3}\n{"foo": "bat", "n": 4}',
+    )
+    assert 0 == result.exit_code, result.output
+    assert [
+        {"foo": "bam", "n": 3},
+        {"foo": "bat", "n": 4},
+    ] == db.execute_returning_dicts("select foo, n from from_json_nl")
+
+
 def test_insert_alter(db_path, tmpdir):
     result = CliRunner().invoke(
         cli.cli,
