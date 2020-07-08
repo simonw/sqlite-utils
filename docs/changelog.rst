@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_11:
+
+2.11 (2020-07-08)
+-----------------
+
+- New ``--truncate`` option to ``sqlite-utils insert``, and ``truncate=True`` argument to ``.insert_all()``. Thanks, Thomas Sibley. (`#118 <https://github.com/simonw/sqlite-utils/pull/118>`__)
+- The ``sqlite-utils query`` command now runs updates in a transaction. Thanks, Thomas Sibley. (`#120 <https://github.com/simonw/sqlite-utils/pull/120>`__)
 
 .. _v2_10_1:
 
