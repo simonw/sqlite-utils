@@ -1126,3 +1126,6 @@ def test_query_update(db_path, args, expected):
         cli.cli, [db_path, "update dogs set age = 5 where name = 'Cleo'"] + args
     )
     assert expected == result.output.strip()
+    assert db.execute_returning_dicts("select * from dogs") == [
+        {"id": 1, "age": 5, "name": "Cleo"},
+    ]
