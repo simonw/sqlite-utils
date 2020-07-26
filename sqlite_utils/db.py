@@ -362,7 +362,6 @@ class Database:
         """.format(
             table=name, columns_sql=columns_sql, extra_pk=extra_pk
         )
-        self.execute(sql)
         return sql
 
     def create_table(
