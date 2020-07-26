@@ -142,6 +142,17 @@ You can use the ``--fmt`` (or ``-f``) option to specify different table formats,
 
 For a full list of table format options, run ``sqlite-utils query --help``.
 
+.. _cli_query_raw:
+
+Returning raw data from a query, such as binary content
+=======================================================
+
+If your table contains binary data in a ``BLOB`` you can use the ``--raw`` option to output specific columns directly to standard out.
+
+For example, to retrieve a binary image from a ``BLOB`` column and store it in a file you can use the following::
+
+    $ sqlite-utils photos.db "select contents from photos where id=1" --raw > myphoto.jpg
+
 .. _cli_rows:
 
 Returning all rows in a table

@@ -797,6 +797,21 @@ def test_query_json_with_json_cols(db_path):
     assert expected == result_rows.output.strip()
 
 
+@pytest.mark.parametrize(
+    "content,is_binary",
+    [(b"\x00\x0Fbinary", True), ("this is text", False), (1, False), (1.5, False)],
+)
+def test_query_raw(db_path, content, is_binary):
+    Database(db_path)["files"].insert({"content": content})
+    result = CliRunner().invoke(
+        cli.cli, [db_path, "select content from files", "--raw"]
+    )
+    if is_binary:
+        assert result.stdout_bytes == content
+    else:
+        assert result.output == str(content)
+
+
 def test_query_memory_does_not_create_file(tmpdir):
     owd = os.getcwd()
     try:

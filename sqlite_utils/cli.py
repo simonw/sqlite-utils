@@ -675,7 +675,8 @@ def drop_view(path, view):
 )
 @click.argument("sql")
 @output_options
-def query(path, sql, nl, arrays, csv, no_headers, table, fmt, json_cols):
+@click.option("-r", "--raw", is_flag=True, help="Raw output, first column of first row")
+def query(path, sql, nl, arrays, csv, no_headers, table, fmt, json_cols, raw):
     "Execute SQL query and return the results as JSON"
     db = sqlite_utils.Database(path)
     with db.conn:
@@ -686,7 +687,13 @@ def query(path, sql, nl, arrays, csv, no_headers, table, fmt, json_cols):
             cursor = [[cursor.rowcount]]
         else:
             headers = [c[0] for c in cursor.description]
-        if table:
+        if raw:
+            data = cursor.fetchone()[0]
+            if isinstance(data, bytes):
+                sys.stdout.buffer.write(data)
+            else:
+                sys.stdout.write(str(data))
+        elif table:
             print(tabulate.tabulate(list(cursor), headers=headers, tablefmt=fmt))
         elif csv:
             writer = csv_std.writer(sys.stdout)
