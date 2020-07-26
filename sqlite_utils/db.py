@@ -262,7 +262,7 @@ class Database:
                 )
         return fks
 
-    def create_table(
+    def create_table_sql(
         self,
         name,
         columns,
@@ -363,6 +363,32 @@ class Database:
             table=name, columns_sql=columns_sql, extra_pk=extra_pk
         )
         self.execute(sql)
+        return sql
+
+    def create_table(
+        self,
+        name,
+        columns,
+        pk=None,
+        foreign_keys=None,
+        column_order=None,
+        not_null=None,
+        defaults=None,
+        hash_id=None,
+        extracts=None,
+    ):
+        sql = self.create_table_sql(
+            name=name,
+            columns=columns,
+            pk=pk,
+            foreign_keys=foreign_keys,
+            column_order=column_order,
+            not_null=not_null,
+            defaults=defaults,
+            hash_id=hash_id,
+            extracts=extracts,
+        )
+        self.conn.execute(sql)
         return self.table(
             name,
             pk=pk,
@@ -684,6 +710,96 @@ class Table(Queryable):
                 extracts=extracts,
             )
         return self
+
+    def transform_table(
+        self,
+        columns=None,
+        rename=None,
+        change_type=None,
+        pk=None,
+        foreign_keys=None,
+        column_order=None,
+        not_null=None,
+        defaults=None,
+        hash_id=None,
+        extracts=None,
+    ):
+        assert self.exists(), "Cannot transform a table that doesn't exist yet"
+        sqls = self.transform_table_sql(
+            columns=columns,
+            rename=rename,
+            change_type=change_type,
+            pk=pk,
+            foreign_keys=foreign_keys,
+            column_order=column_order,
+            not_null=not_null,
+            defaults=defaults,
+            hash_id=hash_id,
+            extracts=extracts,
+        )
+        with self.db.conn:
+            for sql in sqls:
+                self.db.conn.execute(sql)
+        return self
+
+    def transform_table_sql(
+        self,
+        columns=None,
+        rename=None,
+        change_type=None,
+        pk=None,
+        foreign_keys=None,
+        column_order=None,
+        not_null=None,
+        defaults=None,
+        hash_id=None,
+        extracts=None,
+        tmp_suffix=None,
+    ):
+        columns = columns or self.columns_dict
+        rename = rename or {}
+        change_type = change_type or {}
+        if rename or change_type:
+            columns = {
+                rename.get(key, key): change_type.get(key, value)
+                for key, value in columns.items()
+            }
+        new_table_name = "{}_new_{}".format(
+            self.name, tmp_suffix or os.urandom(6).hex()
+        )
+        previous_columns = set(self.columns_dict.keys())
+        sqls = []
+        columns = {name: value for (name, value) in columns.items()}
+        sqls.append(
+            self.db.create_table_sql(
+                new_table_name,
+                columns,
+                pk=pk,
+                foreign_keys=foreign_keys,
+                column_order=column_order,
+                not_null=not_null,
+                defaults=defaults,
+                hash_id=hash_id,
+                extracts=extracts,
+            )
+        )
+        # Copy across data, respecting any renamed columns
+        new_columns = set(columns.keys())
+        columns_to_copy = new_columns.intersection(previous_columns)
+        copy_sql = "INSERT INTO [{new_table}] ({new_cols}) SELECT {old_cols} FROM [{old_table}]".format(
+            new_table=new_table_name,
+            old_table=self.name,
+            old_cols=", ".join(sorted("[{}]".format(col) for col in columns_to_copy)),
+            new_cols=", ".join(
+                sorted("[{}]".format(col) for col in new_columns)
+            ),
+        )
+        sqls.append(copy_sql)
+        # Drop the old table
+        sqls.append("DROP TABLE [{}]".format(self.name))
+        # Rename the new one
+        sqls.append("ALTER TABLE [{}] RENAME TO [{}]".format(new_table_name, self.name))
+        return sqls
 
     def create_index(self, columns, index_name=None, unique=False, if_not_exists=False):
         if index_name is None:
