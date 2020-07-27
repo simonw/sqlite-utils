@@ -55,6 +55,19 @@ If you want to pretty-print the output further, you can pipe it through ``python
         }
     ]
 
+Binary strings are not valid JSON, so BLOB columns containing binary data will be returned as a JSON object containing base64 encoded data, that looks like this::
+
+    $ sqlite-utils dogs.db "select name, content from images" | python -mjson.tool
+    [
+        {
+            "name": "smile.gif",
+            "content": {
+                "$base64": true,
+                "encoded": "eJzt0c1x..."
+            }
+        }
+    ]
+
 If you execute an ``UPDATE``, ``INSERT`` or ``DELETE`` query the comand will return the number of affected rows::
 
     $ sqlite-utils dogs.db "update dogs set age = 5 where name = 'Cleo'"   

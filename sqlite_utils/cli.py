@@ -1,3 +1,4 @@
+import base64
 import click
 from click_default_group import DefaultGroup
 import sqlite_utils
@@ -748,7 +749,7 @@ def output_rows(iterator, headers, nl, arrays, json_cols):
             data = dict(zip(headers, data))
         line = "{firstchar}{serialized}{maybecomma}{lastchar}".format(
             firstchar=("[" if first else " ") if not nl else "",
-            serialized=json.dumps(data),
+            serialized=json.dumps(data, default=json_binary),
             maybecomma="," if (not nl and not is_last) else "",
             lastchar="]" if (is_last and not nl) else "",
         )
@@ -766,3 +767,10 @@ def maybe_json(value):
         return json.loads(stripped)
     except ValueError:
         return value
+
+
+def json_binary(value):
+    if isinstance(value, bytes):
+        return {"$base64": True, "encoded": base64.b64encode(value).decode("latin-1")}
+    else:
+        raise TypeError
