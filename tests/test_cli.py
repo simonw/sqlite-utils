@@ -789,6 +789,27 @@ def test_query_json_binary(db_path):
     ]
 
 
+@pytest.mark.parametrize(
+    "sql,params,expected",
+    [
+        ("select 1 + 1 as out", {"p": "2"}, 2),
+        ("select 1 + :p as out", {"p": "2"}, 3),
+        (
+            "select :hello as out",
+            {"hello": """This"has'many'quote"s"""},
+            """This"has'many'quote"s""",
+        ),
+    ],
+)
+def test_query_params(db_path, sql, params, expected):
+    extra_args = []
+    for key, value in params.items():
+        extra_args.extend(["-p", key, value])
+    result = CliRunner().invoke(cli.cli, [db_path, sql] + extra_args)
+    assert result.exit_code == 0, str(result)
+    assert json.loads(result.output.strip()) == [{"out": expected}]
+
+
 def test_query_json_with_json_cols(db_path):
     db = Database(db_path)
     with db.conn:

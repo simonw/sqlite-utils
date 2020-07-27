@@ -21,6 +21,11 @@ This is the default command for ``sqlite-utils``, so you can instead use this::
 
     $ sqlite-utils dogs.db "select * from dogs"
 
+You can pass named parameters to the query using ``-p``::
+
+    $ sqlite-utils query dogs.db "select :num * :num2" -p num 5 -p num2 6
+    [{":num * :num2": 30}]
+
 Use ``--nl`` to get back newline-delimited JSON objects::
 
     $ sqlite-utils dogs.db "select * from dogs" --nl

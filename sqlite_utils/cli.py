@@ -677,11 +677,18 @@ def drop_view(path, view):
 @click.argument("sql")
 @output_options
 @click.option("-r", "--raw", is_flag=True, help="Raw output, first column of first row")
-def query(path, sql, nl, arrays, csv, no_headers, table, fmt, json_cols, raw):
+@click.option(
+    "-p",
+    "--param",
+    multiple=True,
+    type=(str, str),
+    help="Named :parameters for SQL query",
+)
+def query(path, sql, nl, arrays, csv, no_headers, table, fmt, json_cols, raw, param):
     "Execute SQL query and return the results as JSON"
     db = sqlite_utils.Database(path)
     with db.conn:
-        cursor = db.conn.execute(sql)
+        cursor = db.conn.execute(sql, dict(param))
         if cursor.description is None:
             # This was an update/insert
             headers = ["rows_affected"]
