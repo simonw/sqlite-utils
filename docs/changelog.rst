@@ -2,6 +2,19 @@
  Changelog
 ===========
 
+.. _v2_12:
+
+2.12 (2020-07-27)
+-----------------
+
+The theme of this release is better tools for working with binary data. The new ``insert-files`` command can be used to insert binary files directly into a database table, and other commands have been improved with better support for BLOB columns.
+
+- ``sqlite-utils insert-files my.db gifs *.gif`` can now insert the contents of files into a specified table. The columns in the table can be customized to include different pieces of metadata derived from the files. See :ref:`cli_insert_files`. (`#122 <https://github.com/simonw/sqlite-utils/issues/122>`__)
+- ``--raw`` option to ``sqlite-utils query`` - for outputting just a single raw column value - see :ref:`cli_query_raw`. (`#123 <https://github.com/simonw/sqlite-utils/issues/123>`__)
+- JSON output now encodes BLOB values as special base64 obects - see :ref:`cli_query_json`. (`#125 <https://github.com/simonw/sqlite-utils/issues/125>`__)
+- The same format of JSON base64 objects can now be used to insert binary data - see :ref:`cli_inserting_data`. (`#126 <https://github.com/simonw/sqlite-utils/issues/126>`__)
+- The ``sqlite-utils query`` command can now accept named parameters, e.g. ``sqlite-utils :memory: "select :num * :num2" -p num 5 -p num2 6`` - see :ref:`cli_query_json`. (`#124 <https://github.com/simonw/sqlite-utils/issues/124>`__)
+
 .. _v2_11:
 
 2.11 (2020-07-08)
