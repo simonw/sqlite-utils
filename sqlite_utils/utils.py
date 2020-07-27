@@ -1,3 +1,5 @@
+import base64
+
 try:
     import pysqlite3 as sqlite3
     import pysqlite3.dbapi2
@@ -58,3 +60,17 @@ def column_affinity(column_type):
         return float
     # Default is 'NUMERIC', which we currently also treat as float
     return float
+
+
+def decode_base64_values(doc):
+    # Looks for '{"$base64": true..., "encoded": ...}' values and decodes them
+    to_fix = [
+        k
+        for k in doc
+        if isinstance(doc[k], dict)
+        and doc[k].get("$base64") is True
+        and "encoded" in doc[k]
+    ]
+    if not to_fix:
+        return doc
+    return dict(doc, **{k: base64.b64decode(doc[k]["encoded"]) for k in to_fix})

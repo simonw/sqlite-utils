@@ -65,10 +65,10 @@ Binary strings are not valid JSON, so BLOB columns containing binary data will b
     $ sqlite-utils dogs.db "select name, content from images" | python -mjson.tool
     [
         {
-            "name": "smile.gif",
+            "name": "transparent.gif",
             "content": {
                 "$base64": true,
-                "encoded": "eJzt0c1x..."
+                "encoded": "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
             }
         }
     ]
@@ -292,6 +292,18 @@ If you feed it a JSON list it will insert multiple records. For example, if ``do
             "id": 3,
             "name": "Toby",
             "age": 6
+        }
+    ]
+
+You can insert binary data into a BLOB column by first encoding it using base64 and then structuring it like this::
+
+    [
+        {
+            "name": "transparent.gif",
+            "content": {
+                "$base64": true,
+                "encoded": "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+            }
         }
     ]
 

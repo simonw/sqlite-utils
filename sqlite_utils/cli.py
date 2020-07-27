@@ -8,7 +8,7 @@ import json
 import sys
 import csv as csv_std
 import tabulate
-from .utils import sqlite3
+from .utils import sqlite3, decode_base64_values
 
 VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "BLOB")
 
@@ -451,6 +451,8 @@ def insert_upsert_implementation(
         extra_kwargs["defaults"] = dict(default)
     if upsert:
         extra_kwargs["upsert"] = upsert
+    # Apply {"$base64": true, ...} decoding, if needed
+    docs = (decode_base64_values(doc) for doc in docs)
     db[table].insert_all(
         docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
     )

@@ -554,6 +554,18 @@ def test_insert_not_null_default(db_path, tmpdir):
     ) == db["dogs"].schema
 
 
+def test_insert_binary_base64(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "files", "-"],
+        input=r'{"content": {"$base64": true, "encoded": "aGVsbG8="}}',
+    )
+    assert 0 == result.exit_code, result.output
+    db = Database(db_path)
+    actual = db.execute_returning_dicts("select content from files")
+    assert actual == [{"content": b"hello"}]
+
+
 def test_insert_newline_delimited(db_path):
     result = CliRunner().invoke(
         cli.cli,
