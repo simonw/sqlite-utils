@@ -1,6 +1,9 @@
 import base64
 import click
 from click_default_group import DefaultGroup
+from datetime import datetime
+import hashlib
+import pathlib
 import sqlite_utils
 from sqlite_utils.db import AlterError
 import itertools
@@ -739,6 +742,109 @@ def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt, json_cols)
         fmt=fmt,
         json_cols=json_cols,
     )
+
+
+@cli.command(name="insert-files")
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.argument(
+    "file_or_dir",
+    nargs=-1,
+    required=True,
+    type=click.Path(file_okay=True, dir_okay=True, allow_dash=True),
+)
+@click.option(
+    "-c", "--column", type=str, multiple=True, help="Column definitions for the table",
+)
+@click.option("--pk", type=str, help="Column to use as primary key")
+@click.option("--alter", is_flag=True, help="Alter table to add missing columns")
+@click.option("--replace", is_flag=True, help="Replace files with matching primary key")
+@click.option("--upsert", is_flag=True, help="Upsert files with matching primary key")
+def insert_files(path, table, file_or_dir, column, pk, alter, replace, upsert):
+    """
+    Insert one or more files using BLOB columns in the specified table
+
+    Example usage:
+
+    \b
+    sqlite-utils insert-files pics.db images *.gif \\
+        -c name:name \\
+        -c content:content \\
+        -c content_hash:sha256 \\
+        -c created:ctime_iso \\
+        -c modified:mtime_iso \\
+        -c size:size \\
+        --pk name
+    """
+    if not column:
+        column = ["path:path", "content:content", "size:size"]
+        if not pk:
+            pk = "path"
+
+    def yield_paths_and_relative_paths():
+        for f_or_d in file_or_dir:
+            path = pathlib.Path(f_or_d)
+            if path.is_dir():
+                for subpath in path.rglob("*"):
+                    if subpath.is_file():
+                        yield subpath, subpath.relative_to(path)
+            elif path.is_file():
+                yield path, path
+
+    # Load all paths so we can show a progress bar
+    paths_and_relative_paths = list(yield_paths_and_relative_paths())
+
+    with click.progressbar(paths_and_relative_paths) as bar:
+
+        def to_insert():
+            for path, relative_path in bar:
+                row = {}
+                for coldef in column:
+                    if ":" in coldef:
+                        colname, coltype = coldef.rsplit(":", 1)
+                    else:
+                        colname, coltype = coldef, coldef
+                    try:
+                        if coltype == "path":
+                            value = str(relative_path)
+                        else:
+                            value = FILE_COLUMNS[coltype](path)
+                        row[colname] = value
+                    except KeyError:
+                        raise click.ClickException(
+                            "'{}' is not a valid column definition - options are {}".format(
+                                coltype, ", ".join(FILE_COLUMNS.keys())
+                            )
+                        )
+                yield row
+
+        db = sqlite_utils.Database(path)
+        with db.conn:
+            db[table].insert_all(
+                to_insert(), pk=pk, alter=alter, replace=replace, upsert=upsert
+            )
+
+
+FILE_COLUMNS = {
+    "name": lambda p: p.name,
+    "path": lambda p: str(p),
+    "fullpath": lambda p: str(p.resolve()),
+    "sha256": lambda p: hashlib.sha256(p.resolve().read_bytes()).hexdigest(),
+    "md5": lambda p: hashlib.md5(p.resolve().read_bytes()).hexdigest(),
+    "mode": lambda p: p.stat().st_mode,
+    "content": lambda p: p.resolve().read_bytes(),
+    "mtime": lambda p: p.stat().st_mtime,
+    "ctime": lambda p: p.stat().st_ctime,
+    "mtime_int": lambda p: int(p.stat().st_mtime),
+    "ctime_int": lambda p: int(p.stat().st_ctime),
+    "mtime_iso": lambda p: datetime.utcfromtimestamp(p.stat().st_mtime).isoformat(),
+    "ctime_iso": lambda p: datetime.utcfromtimestamp(p.stat().st_ctime).isoformat(),
+    "size": lambda p: p.stat().st_size,
+}
 
 
 def output_rows(iterator, headers, nl, arrays, json_cols):

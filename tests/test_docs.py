@@ -18,5 +18,5 @@ def documented_commands():
 
 
 @pytest.mark.parametrize("command", cli.cli.commands.keys())
-def test_plugin_hooks_are_documented(documented_commands, command):
+def test_commands_are_documented(documented_commands, command):
     assert command in documented_commands

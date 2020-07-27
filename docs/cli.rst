@@ -384,6 +384,80 @@ The command will fail if you reference columns that do not exist on the table. T
 .. note::
     ``upsert`` in sqlite-utils 1.x worked like ``insert ... --replace`` does in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
 
+.. _cli_insert_files:
+
+Inserting binary data from files
+================================
+
+SQLite ``BLOB`` columns can be used to store binary content. It can be useful to insert the contents of files into a SQLite table.
+
+The ``insert-files`` command can be used to insert the content of files, along with their metadata.
+
+Here's an example that inserts all of the GIF files in the current directory into a ``gifs.db`` database, placing the file contents in an ``images`` table::
+
+    $ sqlite-utils insert-files gifs.db images *.gif
+
+You can also pass one or more directories, in which case every file in those directories will be added recursively::
+
+    $ sqlite-utils insert-files gifs.db images path/to/my-gifs
+
+By default this command will create a table with the following schema::
+
+    CREATE TABLE [images] (
+        [path] TEXT PRIMARY KEY,
+        [content] BLOB,
+        [size] INTEGER
+    );
+
+You can customize the schema using one or more ``-c`` options. For a table schema that includes just the path, MD5 hash and last modification time of the file, you would use this::
+
+    $ sqlite-utils insert-files gifs.db images *.gif -c path -c content -c mtime --pk=path
+
+This will result in the following schema::
+
+    CREATE TABLE [images] (
+        [path] TEXT PRIMARY KEY,
+        [content] BLOB,
+        [mtime] FLOAT
+    );
+
+You can change the name of one of these columns using a ``-c colname:coldef`` parameter. To rename the ``mtime`` column to ``last_modified`` you would use this::
+
+    $ sqlite-utils insert-files gifs.db images *.gif \
+        -c path -c content -c last_modified:mtime --pk=path
+
+You can pass ``--replace`` or ``--upsert`` to indicate what should happen if you try to insert a file with an existing primary key. Pass ``--alter`` to cause any missing columns to be added to the table.
+
+The full list of column definitions you can use is as follows:
+
+``name``
+    The name of the file, e.g. ``cleo.jpg``
+``path``
+    The path to the file relative to the root folder, e.g. ``pictures/cleo.jpg``
+``fullpath``
+    The fully resolved path to the image, e.g. ``/home/simonw/pictures/cleo.jpg``
+``sha256``
+    The SHA256 hash of the file contents
+``md5``
+    The MD5 hash of the file contents
+``mode``
+    The permission bits of the file, as an integer - you may want to convert this to octal
+``content``
+    The binary file contents, which will be stored as a BLOB
+``mtime``
+    The modification time of the file, as floating point seconds since the Unix epoch
+``ctime``
+    The creation time of the file, as floating point seconds since the Unix epoch
+``mtime_int``
+    The modification time as an integer rather than a float
+``ctime_int``
+    The creation time as an integer rather than a float
+``mtime_iso``
+    The modification time as an ISO timestamp, e.g. ``2020-07-27T04:24:06.654246``
+``ctime_iso``
+    The creation time is an ISO timestamp
+``size``
+    The integer size of the file in bytes
 
 .. _cli_create_table:
 
