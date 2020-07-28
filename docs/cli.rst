@@ -411,20 +411,20 @@ By default this command will create a table with the following schema::
 
 You can customize the schema using one or more ``-c`` options. For a table schema that includes just the path, MD5 hash and last modification time of the file, you would use this::
 
-    $ sqlite-utils insert-files gifs.db images *.gif -c path -c content -c mtime --pk=path
+    $ sqlite-utils insert-files gifs.db images *.gif -c path -c md5 -c mtime --pk=path
 
 This will result in the following schema::
 
     CREATE TABLE [images] (
         [path] TEXT PRIMARY KEY,
-        [content] BLOB,
+        [md5] TEXT,
         [mtime] FLOAT
     );
 
 You can change the name of one of these columns using a ``-c colname:coldef`` parameter. To rename the ``mtime`` column to ``last_modified`` you would use this::
 
     $ sqlite-utils insert-files gifs.db images *.gif \
-        -c path -c content -c last_modified:mtime --pk=path
+        -c path -c md5 -c last_modified:mtime --pk=path
 
 You can pass ``--replace`` or ``--upsert`` to indicate what should happen if you try to insert a file with an existing primary key. Pass ``--alter`` to cause any missing columns to be added to the table.
 
