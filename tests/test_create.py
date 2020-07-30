@@ -13,6 +13,7 @@ import decimal
 import json
 import pathlib
 import pytest
+import uuid
 
 from .utils import collapse_whitespace
 
@@ -134,6 +135,11 @@ def test_create_table_with_not_null(fresh_db):
         ),
         ({"day": datetime.time(11, 0)}, [{"name": "day", "type": "TEXT"}]),
         ({"decimal": decimal.Decimal("1.2")}, [{"name": "decimal", "type": "FLOAT"}]),
+        (
+            {"memoryview": memoryview(b"hello")},
+            [{"name": "memoryview", "type": "BLOB"}],
+        ),
+        ({"uuid": uuid.uuid4()}, [{"name": "uuid", "type": "TEXT"}]),
     ),
 )
 def test_create_table_from_example(fresh_db, example, expected_columns):
@@ -672,6 +678,23 @@ def test_insert_dictionaries_and_lists_as_json(fresh_db, data_structure):
     row = fresh_db.conn.execute("select id, data from test").fetchone()
     assert row[0] == 1
     assert data_structure == json.loads(row[1])
+
+
+def test_insert_uuid(fresh_db):
+    uuid4 = uuid.uuid4()
+    fresh_db["test"].insert({"uuid": uuid4})
+    row = list(fresh_db["test"].rows)[0]
+    assert {"uuid"} == row.keys()
+    assert isinstance(row["uuid"], str)
+    assert row["uuid"] == str(uuid4)
+
+
+def test_insert_memoryview(fresh_db):
+    fresh_db["test"].insert({"data": memoryview(b"hello")})
+    row = list(fresh_db["test"].rows)[0]
+    assert {"data"} == row.keys()
+    assert isinstance(row["data"], bytes)
+    assert row["data"] == b"hello"
 
 
 def test_insert_thousands_using_generator(fresh_db):

@@ -7,6 +7,7 @@ import itertools
 import json
 import os
 import pathlib
+import uuid
 
 SQLITE_MAX_VARS = 999
 
@@ -40,11 +41,13 @@ COLUMN_TYPE_MAPPING = {
     str: "TEXT",
     bytes.__class__: "BLOB",
     bytes: "BLOB",
+    memoryview: "BLOB",
     datetime.datetime: "TEXT",
     datetime.date: "TEXT",
     datetime.time: "TEXT",
     decimal.Decimal: "FLOAT",
     None.__class__: "TEXT",
+    uuid.UUID: "TEXT",
     # SQLite explicit types
     "TEXT": "TEXT",
     "INTEGER": "INTEGER",
@@ -1336,6 +1339,8 @@ def jsonify_if_needed(value):
         return json.dumps(value, default=repr)
     elif isinstance(value, (datetime.time, datetime.date, datetime.datetime)):
         return value.isoformat()
+    elif isinstance(value, uuid.UUID):
+        return str(value)
     else:
         return value
 
