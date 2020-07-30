@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_13:
+
+2.13 (2020-07-29)
+-----------------
+
+- ``memoryview`` and ``uuid.UUID`` objects are now supported. ``memoryview`` objects will be stored using ``BLOB`` and ``uuid.UUID`` objects will be stored using ``TEXT``. (`#128 <https://github.com/simonw/sqlite-utils/issues/128>`__)
+
 .. _v2_12:
 
 2.12 (2020-07-27)
