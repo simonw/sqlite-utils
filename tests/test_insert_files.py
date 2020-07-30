@@ -7,7 +7,6 @@ def test_insert_files():
     runner = CliRunner()
     with runner.isolated_filesystem():
         tmpdir = pathlib.Path(".")
-        print("tmpdir = ", tmpdir.resolve())
         db_path = str(tmpdir / "files.db")
         (tmpdir / "one.txt").write_text("This is file one", "utf-8")
         (tmpdir / "two.txt").write_text("Two is shorter", "utf-8")
@@ -83,3 +82,20 @@ def test_insert_files():
         for colname, expected_type in expected_types.items():
             for row in (one, two, three):
                 assert isinstance(row[colname], expected_type)
+
+
+def test_insert_files_stdin():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        tmpdir = pathlib.Path(".")
+        db_path = str(tmpdir / "files.db")
+        result = runner.invoke(
+            cli.cli,
+            ["insert-files", db_path, "files", "-", "--name", "stdin-name"],
+            catch_exceptions=False,
+            input="hello world",
+        )
+        assert result.exit_code == 0, result.stdout
+        db = Database(db_path)
+        row = list(db["files"].rows)[0]
+        assert {"path": "stdin-name", "content": b"hello world", "size": 11} == row

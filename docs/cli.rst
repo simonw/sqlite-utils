@@ -459,6 +459,14 @@ The full list of column definitions you can use is as follows:
 ``size``
     The integer size of the file in bytes
 
+You can insert data piped from standard input like this::
+
+    cat dog.jpg | sqlite-utils insert-files dogs.db pics - --name=dog.jpg
+
+The ``-`` argument indicates data should be read from standard input. The string passed using the ``--name`` option will be used for the file name and path values.
+
+When inserting data from standard input only the following column definitions are supported: ``name``, ``path``, ``content``, ``sha256``, ``md5`` and ``size``.
+
 .. _cli_create_table:
 
 Creating tables

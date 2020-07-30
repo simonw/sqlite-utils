@@ -764,7 +764,8 @@ def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt, json_cols)
 @click.option("--alter", is_flag=True, help="Alter table to add missing columns")
 @click.option("--replace", is_flag=True, help="Replace files with matching primary key")
 @click.option("--upsert", is_flag=True, help="Upsert files with matching primary key")
-def insert_files(path, table, file_or_dir, column, pk, alter, replace, upsert):
+@click.option("--name", type=str, help="File name to use")
+def insert_files(path, table, file_or_dir, column, pk, alter, replace, upsert, name):
     """
     Insert one or more files using BLOB columns in the specified table
 
@@ -788,7 +789,9 @@ def insert_files(path, table, file_or_dir, column, pk, alter, replace, upsert):
     def yield_paths_and_relative_paths():
         for f_or_d in file_or_dir:
             path = pathlib.Path(f_or_d)
-            if path.is_dir():
+            if f_or_d == "-":
+                yield "-", "-"
+            elif path.is_dir():
                 for subpath in path.rglob("*"):
                     if subpath.is_file():
                         yield subpath, subpath.relative_to(path)
@@ -803,23 +806,35 @@ def insert_files(path, table, file_or_dir, column, pk, alter, replace, upsert):
         def to_insert():
             for path, relative_path in bar:
                 row = {}
+                lookups = FILE_COLUMNS
+                if path == "-":
+                    stdin_data = sys.stdin.buffer.read()
+                    # We only support a subset of columns for this case
+                    lookups = {
+                        "name": lambda p: name or "-",
+                        "path": lambda p: name or "-",
+                        "content": lambda p: stdin_data,
+                        "sha256": lambda p: hashlib.sha256(stdin_data).hexdigest(),
+                        "md5": lambda p: hashlib.md5(stdin_data).hexdigest(),
+                        "size": lambda p: len(stdin_data),
+                    }
                 for coldef in column:
                     if ":" in coldef:
                         colname, coltype = coldef.rsplit(":", 1)
                     else:
                         colname, coltype = coldef, coldef
                     try:
-                        if coltype == "path":
-                            value = str(relative_path)
-                        else:
-                            value = FILE_COLUMNS[coltype](path)
+                        value = lookups[coltype](path)
                         row[colname] = value
                     except KeyError:
                         raise click.ClickException(
                             "'{}' is not a valid column definition - options are {}".format(
-                                coltype, ", ".join(FILE_COLUMNS.keys())
+                                coltype, ", ".join(lookups.keys())
                             )
                         )
+                    # Special case for --name
+                    if coltype == "name" and name:
+                        row[colname] = name
                 yield row
 
         db = sqlite_utils.Database(path)
