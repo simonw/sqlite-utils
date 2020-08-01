@@ -2,6 +2,15 @@
  Changelog
 ===========
 
+.. _v2_14:
+
+2.14 (2020-08-01)
+-----------------
+
+- The :ref:`insert-files command <cli_insert_files>` can now read from standard input: ``cat dog.jpg | sqlite-utils insert-files dogs.db pics - --name=dog.jpg``. (`#127 <https://github.com/simonw/sqlite-utils/issues/127>`__)
+- You can now specify a full-text search tokenizer using the new ``tokenize=`` parameter to :ref:`enable_fts() <python_api_fts>`. This means you can enable Porter stemming on a table by running ``db["articles"].enable_fts(["headline", "body"], tokenize="porter")``. (`#130 <https://github.com/simonw/sqlite-utils/issues/130>`__)
+- You can also set a custom tokenizer using the :ref:`sqlite-utils enable-fts <cli_fts>` CLI command, via the new ``--tokenize`` option.
+
 .. _v2_13:
 
 2.13 (2020-07-29)
