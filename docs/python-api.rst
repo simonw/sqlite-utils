@@ -1135,6 +1135,14 @@ A better solution is to use database triggers. You can set up database triggers 
 
     dogs.enable_fts(["name", "twitter"], fts_version="FTS4")
 
+You can customize the tokenizer configured for the table using the ``tokenize=`` parameter. For example, to enable Porter stemming, where English words like "running" will match stemmed alternatives such as "run", use ``tokenize="porter"``:
+
+.. code-block:: python
+
+    db["articles"].enable_fts(["headline", "body"], tokenize="porter")
+
+The SQLite documentation has more on `FTS5 tokenizers <https://www.sqlite.org/fts5.html#tokenizers>`__ and `FTS4 tokenizers <https://www.sqlite.org/fts3.html#tokenizer>`__. ``porter`` is a valid option for both.
+
 To remove the FTS tables and triggers you created, use the ``disable_fts()`` table method:
 
 .. code-block:: python
