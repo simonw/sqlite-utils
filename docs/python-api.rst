@@ -342,7 +342,7 @@ You can set default values for these methods by accessing the table through the 
     # Now you can call .insert() like so:
     table.insert({"id": 1, "name": "Tracy", "score": 5})
 
-The configuration options that can be specified in this way are ``pk``, ``foreign_keys``, ``column_order``, ``not_null``, ``defaults``, ``upsert``, ``batch_size``, ``hash_id``, ``alter``, ``ignore``. These are all documented below.
+The configuration options that can be specified in this way are ``pk``, ``foreign_keys``, ``column_order``, ``not_null``, ``defaults``, ``batch_size``, ``hash_id``, ``alter``, ``ignore``, ``replace``, ``extracts``, ``conversions``, ``columns``. These are all documented below.
 
 .. _python_api_defaults_not_null:
 
