@@ -776,7 +776,7 @@ class Table(Queryable):
             table=self.name,
             columns=", ".join("[{}]".format(c) for c in columns),
             fts_version=fts_version,
-            tokenize="\n                tokenize='{}',\n".format(tokenize)
+            tokenize="\n                tokenize='{}',".format(tokenize)
             if tokenize
             else "",
         )

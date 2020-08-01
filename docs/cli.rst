@@ -676,6 +676,10 @@ A better solution here is to use database triggers. You can set up database trig
 
     $ sqlite-utils enable-fts mydb.db documents title summary --create-triggers
 
+To set a custom FTS tokenizer, e.g. to enable Porter stemming, use ``--tokenize=``::
+
+    $ sqlite-utils populate-fts mydb.db documents title summary --tokenize=porter
+
 To remove the FTS tables and triggers you created, use ``disable-fts``::
 
     $ sqlite-utils disable-fts mydb.db documents

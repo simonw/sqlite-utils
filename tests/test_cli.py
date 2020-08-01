@@ -344,25 +344,41 @@ def test_index_foreign_keys(db_path):
 
 
 def test_enable_fts(db_path):
-    assert None == Database(db_path)["Gosh"].detect_fts()
+    db = Database(db_path)
+    assert None == db["Gosh"].detect_fts()
     result = CliRunner().invoke(
         cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"]
     )
     assert 0 == result.exit_code
-    assert "Gosh_fts" == Database(db_path)["Gosh"].detect_fts()
+    assert "Gosh_fts" == db["Gosh"].detect_fts()
 
     # Table names with restricted chars are handled correctly.
     # colons and dots are restricted characters for table names.
-    Database(db_path)["http://example.com"].create({"c1": str, "c2": str, "c3": str})
-    assert None == Database(db_path)["http://example.com"].detect_fts()
+    db["http://example.com"].create({"c1": str, "c2": str, "c3": str})
+    assert None == db["http://example.com"].detect_fts()
     result = CliRunner().invoke(
-        cli.cli, ["enable-fts", db_path, "http://example.com", "c1", "--fts4"]
+        cli.cli,
+        [
+            "enable-fts",
+            db_path,
+            "http://example.com",
+            "c1",
+            "--fts4",
+            "--tokenize",
+            "porter",
+        ],
     )
     assert 0 == result.exit_code
+    assert "http://example.com_fts" == db["http://example.com"].detect_fts()
+    # Check tokenize was set to porter
     assert (
-        "http://example.com_fts" == Database(db_path)["http://example.com"].detect_fts()
-    )
-    Database(db_path)["http://example.com"].drop()
+        "CREATE VIRTUAL TABLE [http://example.com_fts] USING FTS4 (\n"
+        "                [c1],\n"
+        "                tokenize='porter',\n"
+        "                content=[http://example.com]"
+        "\n            )"
+    ) == db["http://example.com_fts"].schema
+    db["http://example.com"].drop()
 
 
 def test_enable_fts_with_triggers(db_path):

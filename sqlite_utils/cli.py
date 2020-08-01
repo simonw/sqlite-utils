@@ -325,13 +325,14 @@ def create_index(path, table, column, name, unique, if_not_exists):
 @click.argument("column", nargs=-1, required=True)
 @click.option("--fts4", help="Use FTS4", default=False, is_flag=True)
 @click.option("--fts5", help="Use FTS5", default=False, is_flag=True)
+@click.option("--tokenize", help="Tokenizer to use, e.g. porter")
 @click.option(
     "--create-triggers",
     help="Create triggers to update the FTS tables when the parent table changes.",
     default=False,
     is_flag=True,
 )
-def enable_fts(path, table, column, fts4, fts5, create_triggers):
+def enable_fts(path, table, column, fts4, fts5, tokenize, create_triggers):
     "Enable FTS for specific table and columns"
     fts_version = "FTS5"
     if fts4 and fts5:
@@ -342,7 +343,10 @@ def enable_fts(path, table, column, fts4, fts5, create_triggers):
 
     db = sqlite_utils.Database(path)
     db[table].enable_fts(
-        column, fts_version=fts_version, create_triggers=create_triggers
+        column,
+        fts_version=fts_version,
+        tokenize=tokenize,
+        create_triggers=create_triggers,
     )
 
 
