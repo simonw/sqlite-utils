@@ -1093,6 +1093,13 @@ The ``.triggers`` property lists database triggers. It can be used on both datab
     >>> db.triggers
     ... similar output to db["authors"].triggers
 
+The ``detect_fts()`` method returns the associated SQLite FTS table name, if one exists for this table. If the table has not been configured for full-text search it returns ``None``.
+
+::
+
+    >> db["authors"].detect_fts()
+    "authors_fts"
+
 .. _python_api_fts:
 
 Enabling full-text search
