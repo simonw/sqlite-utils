@@ -1195,6 +1195,8 @@ You can create a unique index by passing ``unique=True``:
 
 Use ``if_not_exists=True`` to do nothing if an index with that name already exists.
 
+.. _python_api_vacuum:
+
 Vacuum
 ======
 
@@ -1203,6 +1205,31 @@ You can optimize your database by running VACUUM against it like so:
 .. code-block:: python
 
     Database("my_database.db").vacuum()
+
+.. _python_api_wal:
+
+WAL mode
+========
+
+You can enable `Write-Ahead Logging <https://www.sqlite.org/wal.html>`__ for a database with ``.enable_wal()``:
+
+.. code-block:: python
+
+    Database("my_database.db").enable_wal()
+
+You can disable WAL mode using ``.disable_wal()``:
+
+.. code-block:: python
+
+    Database("my_database.db").disable_wal()
+
+You can check the current journal mode for a database using the ``journal_mode`` property:
+
+.. code-block:: python
+
+    journal_mode = Database("my_database.db").journal_mode
+
+This will usually be ``wal`` or ``delete`` (meaning WAL is disabled), but can have other values - see the `PRAGMA journal_mode <https://www.sqlite.org/pragma.html#pragma_journal_mode>`__ documentation.
 
 .. _python_api_suggest_column_types:
 

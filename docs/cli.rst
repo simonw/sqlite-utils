@@ -684,12 +684,16 @@ To remove the FTS tables and triggers you created, use ``disable-fts``::
 
     $ sqlite-utils disable-fts mydb.db documents
 
+.. _cli_vacuum:
+
 Vacuum
 ======
 
 You can run VACUUM to optimize your database like so::
 
     $ sqlite-utils vacuum mydb.db
+
+.. _cli_optimize:
 
 Optimize
 ========
@@ -705,3 +709,18 @@ If you just want to run OPTIMIZE without the VACUUM, use the ``--no-vacuum`` fla
 
     # Optimize but skip the VACUUM
     $ sqlite-utils optimize --no-vacuum mydb.db
+
+.. _cli_wal:
+
+WAL mode
+========
+
+You can enable `Write-Ahead Logging <https://www.sqlite.org/wal.html>`__ for a database file using the ``enable-wal`` command::
+
+    $ sqlite-utils enable-wal mydb.db
+
+You can disable WAL mode using ``disable-wal``::
+
+    $ sqlite-utils disable-wal mydb.db
+
+Both of these commands accept one or more database files as arguments.

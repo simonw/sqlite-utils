@@ -377,6 +377,32 @@ def disable_fts(path, table):
     db[table].disable_fts()
 
 
+@cli.command(name="enable-wal")
+@click.argument(
+    "path",
+    nargs=-1,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+def enable_wal(path):
+    "Enable WAL for database files"
+    for path_ in path:
+        sqlite_utils.Database(path_).enable_wal()
+
+
+@cli.command(name="disable-wal")
+@click.argument(
+    "path",
+    nargs=-1,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+def disable_wal(path):
+    "Disable WAL for database files"
+    for path_ in path:
+        sqlite_utils.Database(path_).disable_wal()
+
+
 def insert_upsert_options(fn):
     for decorator in reversed(
         (

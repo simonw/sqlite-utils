@@ -170,6 +170,18 @@ class Database:
             ).fetchall()
         ]
 
+    @property
+    def journal_mode(self):
+        return self.conn.execute("PRAGMA journal_mode;").fetchone()[0]
+
+    def enable_wal(self):
+        if self.journal_mode != "wal":
+            self.conn.execute("PRAGMA journal_mode=wal;")
+
+    def disable_wal(self):
+        if self.journal_mode != "delete":
+            self.conn.execute("PRAGMA journal_mode=delete;")
+
     def execute_returning_dicts(self, sql, params=None):
         cursor = self.conn.execute(sql, params or tuple())
         keys = [d[0] for d in cursor.description]

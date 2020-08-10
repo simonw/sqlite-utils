@@ -1230,6 +1230,37 @@ def test_drop_view_error():
         assert 'Error: View "t2" does not exist' == result.output.strip()
 
 
+def test_enable_wal():
+    runner = CliRunner()
+    dbs = ["test.db", "test2.db"]
+    with runner.isolated_filesystem():
+        for dbname in dbs:
+            db = Database(dbname)
+            db["t"].create({"pk": int}, pk="pk")
+            assert db.journal_mode == "delete"
+        result = runner.invoke(cli.cli, ["enable-wal"] + dbs)
+        assert 0 == result.exit_code
+        for dbname in dbs:
+            db = Database(dbname)
+            assert db.journal_mode == "wal"
+
+
+def test_disable_wal():
+    runner = CliRunner()
+    dbs = ["test.db", "test2.db"]
+    with runner.isolated_filesystem():
+        for dbname in dbs:
+            db = Database(dbname)
+            db["t"].create({"pk": int}, pk="pk")
+            db.enable_wal()
+            assert db.journal_mode == "wal"
+        result = runner.invoke(cli.cli, ["disable-wal"] + dbs)
+        assert 0 == result.exit_code
+        for dbname in dbs:
+            db = Database(dbname)
+            assert db.journal_mode == "delete"
+
+
 @pytest.mark.parametrize(
     "args,expected",
     [
