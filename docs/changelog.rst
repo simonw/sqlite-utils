@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+.. _v2_15:
+
+2.15 (2020-08-10)
+-----------------
+
+- New ``db.enable_wal()`` and ``db.disable_wal()`` methods for enabling and disabling `Write-Ahead Logging <https://www.sqlite.org/wal.html>`__ for a database file - see :ref:`python_api_wal` in the Python API documentation.
+- Also ``sqlite-utils enable-wal file.db`` and ``sqlite-utils disable-wal file.db`` commands for doing the same thing on the command-line, see :ref:`WAL mode (CLI) <cli_wal>`. (`#132 <https://github.com/simonw/sqlite-utils/issues/132>`__)
+
 .. _v2_14_1:
 
 2.14.1 (2020-08-05)
