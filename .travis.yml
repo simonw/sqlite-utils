@@ -32,6 +32,6 @@ jobs:
           distributions: bdist_wheel
           password: ${PYPI_PASSWORD}
           on:
-            branch: master
+            branch: main
             tags: true
             repo: simonw/sqlite-utils

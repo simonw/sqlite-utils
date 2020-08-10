@@ -8,10 +8,10 @@
    :target: https://pypi.org/project/sqlite-utils/
 .. |Changelog| image:: https://img.shields.io/github/v/release/simonw/sqlite-utils?include_prereleases&label=changelog
    :target: https://sqlite-utils.readthedocs.io/en/stable/changelog.html
-.. |Travis CI| image:: https://travis-ci.com/simonw/sqlite-utils.svg?branch=master
+.. |Travis CI| image:: https://travis-ci.com/simonw/sqlite-utils.svg?branch=main
    :target: https://travis-ci.com/simonw/sqlite-utils
 .. |License| image:: https://img.shields.io/badge/license-Apache%202.0-blue.svg
-   :target: https://github.com/simonw/sqlite-utils/blob/master/LICENSE
+   :target: https://github.com/simonw/sqlite-utils/blob/main/LICENSE
 
 *Python utility functions for manipulating SQLite databases*
 
