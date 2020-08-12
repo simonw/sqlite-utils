@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v2_15_1:
+
+2.15.1 (2020-08-12)
+-------------------
+
+- Now available as a ``sdist`` package on PyPI in addition to a wheel. (`#133 <https://github.com/simonw/sqlite-utils/issues/133>`__)
+
 .. _v2_15:
 
 2.15 (2020-08-10)
