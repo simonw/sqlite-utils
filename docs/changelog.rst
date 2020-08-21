@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+.. _v2_16:
+
+2.16 (2020-08-21)
+-----------------
+
+- ``--load-extension`` option for ``sqlite-utils query`` for loading SQLite extensions. (`#134 <https://github.com/simonw/sqlite-utils/issues/134>`__)
+- New ``sqlite_utils.utils.find_spatialite()`` function for finding SpatiaLite in common locations. (`#135 <https://github.com/simonw/sqlite-utils/issues/135>`__)
+
 .. _v2_15_1:
 
 2.15.1 (2020-08-12)
