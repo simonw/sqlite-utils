@@ -7,6 +7,11 @@ python:
   - "3.7"
   - "3.8"
 
+before_install:
+  # SpatiaLite needed for the --load-extension test:
+  - sudo apt-get update
+  - sudo apt-get -y install libsqlite3-mod-spatialite
+
 script:
   - pip install -U pip wheel
   - pip install .[test]
