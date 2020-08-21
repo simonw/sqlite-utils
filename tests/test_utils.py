@@ -20,3 +20,8 @@ def test_decode_base64_values(input, expected, should_be_is):
         assert actual is input
     else:
         assert actual == expected
+
+
+def test_find_spatialite():
+    spatialite = utils.find_spatialite()
+    assert spatialite is None or isinstance(spatialite, str)

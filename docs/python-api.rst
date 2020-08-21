@@ -1298,3 +1298,23 @@ For example:
     #    [age] INTEGER,
     #    [thumbnail] BLOB
     # )
+
+.. _find_spatialite:
+
+Finding SpatiaLite
+==================
+
+The ``find_spatialite()`` function searches for the `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ SQLite extension in some common places. It returns a string path to the location, or ``None`` if SpatiaLite was not found.
+
+You can use it in code like this:
+
+.. code-block:: python
+
+    from sqlite_utils import Database
+    from sqlite_utils.utils import find_spatialite
+
+    db = Database("mydb.db")
+    spatialite = find_spatialite()
+    if spatialite:
+        db.conn.enable_load_extension(True)
+        db.conn.load_extension(spatialite)
