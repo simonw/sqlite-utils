@@ -83,6 +83,11 @@ You can run queries against a temporary in-memory database by passing ``:memory:
     $ sqlite-utils :memory: "select sqlite_version()"
     [{"sqlite_version()": "3.29.0"}]
 
+You can load SQLite extension modules using the `--load-extension` option::
+
+    $ sqlite-utils :memory: "select spatialite_version()" --load-extension=/usr/local/lib/mod_spatialite.dylib
+    [{"spatialite_version()": "4.3.0a"}]
+
 .. _cli_json_values:
 
 Nested JSON values

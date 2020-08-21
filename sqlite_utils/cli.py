@@ -719,9 +719,29 @@ def drop_view(path, view):
     type=(str, str),
     help="Named :parameters for SQL query",
 )
-def query(path, sql, nl, arrays, csv, no_headers, table, fmt, json_cols, raw, param):
+@click.option(
+    "--load-extension", multiple=True, help="SQLite extensions to load",
+)
+def query(
+    path,
+    sql,
+    nl,
+    arrays,
+    csv,
+    no_headers,
+    table,
+    fmt,
+    json_cols,
+    raw,
+    param,
+    load_extension,
+):
     "Execute SQL query and return the results as JSON"
     db = sqlite_utils.Database(path)
+    if load_extension:
+        db.conn.enable_load_extension(True)
+        for ext in load_extension:
+            db.conn.load_extension(ext)
     with db.conn:
         cursor = db.conn.execute(sql, dict(param))
         if cursor.description is None:
