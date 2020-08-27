@@ -1074,6 +1074,14 @@ class Table(Queryable):
                 all_columns = list(sorted(all_columns))
                 if hash_id:
                     all_columns.insert(0, hash_id)
+            else:
+                all_columns += [
+                    column
+                    for record in chunk
+                    for column in record
+                    if column not in all_columns
+                ]
+
             validate_column_names(all_columns)
             first = False
             # values is the list of insert data that is passed to the
