@@ -8,6 +8,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
+        numpy: [0, 1]
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -24,6 +25,9 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -e '.[test]'
+    - name: Optionally install numpy
+      if: matrix.numpy == 1
+      run: pip install numpy
     - name: Run tests
       run: |
         pytest
