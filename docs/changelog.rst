@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+.. _v2_16_1:
+
+2.16.1 (2020-08-28)
+-------------------
+
+- ``insert_all(..., alter=True)`` now works for columns introduced after the first 100 records. Thanks, Simon Wiles! (`#139 <https://github.com/simonw/sqlite-utils/issues/139>`__)
+- Continuous Integration is now powered by GitHub Actions. (`#143 <https://github.com/simonw/sqlite-utils/issues/143>`__)
+
 .. _v2_16:
 
 2.16 (2020-08-21)
