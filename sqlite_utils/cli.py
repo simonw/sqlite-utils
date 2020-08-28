@@ -84,7 +84,10 @@ def cli():
     default=False,
 )
 @click.option(
-    "--schema", help="Include schema for each table", is_flag=True, default=False,
+    "--schema",
+    help="Include schema for each table",
+    is_flag=True,
+    default=False,
 )
 def tables(
     path,
@@ -161,10 +164,23 @@ def tables(
     default=False,
 )
 @click.option(
-    "--schema", help="Include schema for each view", is_flag=True, default=False,
+    "--schema",
+    help="Include schema for each view",
+    is_flag=True,
+    default=False,
 )
 def views(
-    path, counts, nl, arrays, csv, no_headers, table, fmt, json_cols, columns, schema,
+    path,
+    counts,
+    nl,
+    arrays,
+    csv,
+    no_headers,
+    table,
+    fmt,
+    json_cols,
+    columns,
+    schema,
 ):
     """List the views in the database"""
     tables.callback(
@@ -585,7 +601,9 @@ def upsert(
 @click.argument("columns", nargs=-1, required=True)
 @click.option("--pk", help="Column to use as primary key")
 @click.option(
-    "--not-null", multiple=True, help="Columns that should be created as NOT NULL",
+    "--not-null",
+    multiple=True,
+    help="Columns that should be created as NOT NULL",
 )
 @click.option(
     "--default",
@@ -600,10 +618,14 @@ def upsert(
     help="Column, other table, other column to set as a foreign key",
 )
 @click.option(
-    "--ignore", is_flag=True, help="If table already exists, do nothing",
+    "--ignore",
+    is_flag=True,
+    help="If table already exists, do nothing",
 )
 @click.option(
-    "--replace", is_flag=True, help="If table already exists, replace it",
+    "--replace",
+    is_flag=True,
+    help="If table already exists, replace it",
 )
 def create_table(path, table, columns, pk, not_null, default, fk, ignore, replace):
     "Add an index to the specified table covering the specified columns"
@@ -664,10 +686,14 @@ def drop_table(path, table):
 @click.argument("view")
 @click.argument("select")
 @click.option(
-    "--ignore", is_flag=True, help="If view already exists, do nothing",
+    "--ignore",
+    is_flag=True,
+    help="If view already exists, do nothing",
 )
 @click.option(
-    "--replace", is_flag=True, help="If view already exists, replace it",
+    "--replace",
+    is_flag=True,
+    help="If view already exists, replace it",
 )
 def create_view(path, view, select, ignore, replace):
     "Create a view for the provided SELECT query"
@@ -720,7 +746,9 @@ def drop_view(path, view):
     help="Named :parameters for SQL query",
 )
 @click.option(
-    "--load-extension", multiple=True, help="SQLite extensions to load",
+    "--load-extension",
+    multiple=True,
+    help="SQLite extensions to load",
 )
 def query(
     path,
@@ -808,7 +836,11 @@ def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt, json_cols)
     type=click.Path(file_okay=True, dir_okay=True, allow_dash=True),
 )
 @click.option(
-    "-c", "--column", type=str, multiple=True, help="Column definitions for the table",
+    "-c",
+    "--column",
+    type=str,
+    multiple=True,
+    help="Column definitions for the table",
 )
 @click.option("--pk", type=str, help="Column to use as primary key")
 @click.option("--alter", is_flag=True, help="Alter table to add missing columns")

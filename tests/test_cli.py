@@ -800,7 +800,11 @@ def test_query_json_binary(db_path):
     db = Database(db_path)
     with db.conn:
         db["files"].insert(
-            {"name": "lorem.txt", "sz": 16984, "data": LOREM_IPSUM_COMPRESSED,},
+            {
+                "name": "lorem.txt",
+                "sz": 16984,
+                "data": LOREM_IPSUM_COMPRESSED,
+            },
             pk="name",
         )
     result = CliRunner().invoke(cli.cli, [db_path, "select name, sz, data from files"])
@@ -1002,9 +1006,9 @@ def test_upsert_alter(db_path, tmpdir):
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id", "--alter"]
     )
     assert 0 == result.exit_code
-    assert [{"id": 1, "name": "Cleo", "age": 5},] == db.execute_returning_dicts(
-        "select * from dogs order by id"
-    )
+    assert [
+        {"id": 1, "name": "Cleo", "age": 5},
+    ] == db.execute_returning_dicts("select * from dogs order by id")
 
 
 @pytest.mark.parametrize(
@@ -1012,7 +1016,12 @@ def test_upsert_alter(db_path, tmpdir):
     [
         # No primary key
         (
-            ["name", "text", "age", "integer",],
+            [
+                "name",
+                "text",
+                "age",
+                "integer",
+            ],
             ("CREATE TABLE [t] (\n   [name] TEXT,\n   [age] INTEGER\n)"),
         ),
         # All types:
@@ -1057,7 +1066,14 @@ def test_create_table(args, schema):
     runner = CliRunner()
     with runner.isolated_filesystem():
         result = runner.invoke(
-            cli.cli, ["create-table", "test.db", "t",] + args, catch_exceptions=False
+            cli.cli,
+            [
+                "create-table",
+                "test.db",
+                "t",
+            ]
+            + args,
+            catch_exceptions=False,
         )
         assert 0 == result.exit_code
         db = Database("test.db")
@@ -1217,7 +1233,14 @@ def test_drop_table():
         db = Database("test.db")
         db["t"].create({"pk": int}, pk="pk")
         assert "t" in db.table_names()
-        result = runner.invoke(cli.cli, ["drop-table", "test.db", "t",],)
+        result = runner.invoke(
+            cli.cli,
+            [
+                "drop-table",
+                "test.db",
+                "t",
+            ],
+        )
         assert 0 == result.exit_code
         assert "t" not in db.table_names()
 
@@ -1227,7 +1250,14 @@ def test_drop_table_error():
     with runner.isolated_filesystem():
         db = Database("test.db")
         db["t"].create({"pk": int}, pk="pk")
-        result = runner.invoke(cli.cli, ["drop-table", "test.db", "t2",],)
+        result = runner.invoke(
+            cli.cli,
+            [
+                "drop-table",
+                "test.db",
+                "t2",
+            ],
+        )
         assert 1 == result.exit_code
         assert 'Error: Table "t2" does not exist' == result.output.strip()
 
@@ -1238,7 +1268,14 @@ def test_drop_view():
         db = Database("test.db")
         db.create_view("hello", "select 1")
         assert "hello" in db.view_names()
-        result = runner.invoke(cli.cli, ["drop-view", "test.db", "hello",],)
+        result = runner.invoke(
+            cli.cli,
+            [
+                "drop-view",
+                "test.db",
+                "hello",
+            ],
+        )
         assert 0 == result.exit_code
         assert "hello" not in db.view_names()
 
@@ -1248,7 +1285,14 @@ def test_drop_view_error():
     with runner.isolated_filesystem():
         db = Database("test.db")
         db["t"].create({"pk": int}, pk="pk")
-        result = runner.invoke(cli.cli, ["drop-view", "test.db", "t2",],)
+        result = runner.invoke(
+            cli.cli,
+            [
+                "drop-view",
+                "test.db",
+                "t2",
+            ],
+        )
         assert 1 == result.exit_code
         assert 'Error: View "t2" does not exist' == result.output.strip()
 
@@ -1287,7 +1331,10 @@ def test_disable_wal():
 @pytest.mark.parametrize(
     "args,expected",
     [
-        ([], '[{"rows_affected": 1}]',),
+        (
+            [],
+            '[{"rows_affected": 1}]',
+        ),
         (["-t"], "rows_affected\n---------------\n              1"),
     ],
 )
@@ -1295,7 +1342,9 @@ def test_query_update(db_path, args, expected):
     db = Database(db_path)
     with db.conn:
         db["dogs"].insert_all(
-            [{"id": 1, "age": 4, "name": "Cleo"},]
+            [
+                {"id": 1, "age": 4, "name": "Cleo"},
+            ]
         )
     result = CliRunner().invoke(
         cli.cli, [db_path, "update dogs set age = 5 where name = 'Cleo'"] + args

@@ -669,7 +669,12 @@ def test_create_index_if_not_exists(fresh_db):
         ["list with", "two items"],
         {"dictionary": "simple"},
         {"dictionary": {"nested": "complex"}},
-        collections.OrderedDict([("key1", {"nested": "complex"}), ("key2", "foo"),]),
+        collections.OrderedDict(
+            [
+                ("key1", {"nested": "complex"}),
+                ("key2", "foo"),
+            ]
+        ),
         [{"list": "of"}, {"two": "dicts"}],
     ),
 )

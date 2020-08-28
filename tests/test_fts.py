@@ -98,7 +98,8 @@ def test_fts_tokenize(fresh_db):
         table.insert_all(search_records)
         # Test without porter stemming
         table.enable_fts(
-            ["text", "country"], fts_version="FTS{}".format(fts_version),
+            ["text", "country"],
+            fts_version="FTS{}".format(fts_version),
         )
         assert [] == table.search("bite")
         # Test WITH stemming
