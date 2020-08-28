@@ -707,13 +707,24 @@ def test_insert_thousands_using_generator(fresh_db):
     assert 10000 == fresh_db["test"].count
 
 
-def test_insert_thousands_ignores_extra_columns_after_first_100(fresh_db):
+def test_insert_thousands_raises_exception_wtih_extra_columns_after_first_100(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/139
+    with pytest.raises(Exception, match="table test has no column named extra"):
+        fresh_db["test"].insert_all(
+            [{"i": i, "word": "word_{}".format(i)} for i in range(100)]
+            + [{"i": 101, "extra": "This extra column should cause an exception"}],
+        )
+
+
+def test_insert_thousands_adds_extra_columns_after_first_100_with_alter(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/139
     fresh_db["test"].insert_all(
         [{"i": i, "word": "word_{}".format(i)} for i in range(100)]
-        + [{"i": 101, "extra": "This extra column should cause an exception"}]
+        + [{"i": 101, "extra": "Should trigger ALTER"}],
+        alter=True,
     )
     rows = fresh_db.execute_returning_dicts("select * from test where i = 101")
-    assert [{"i": 101, "word": None}] == rows
+    assert [{"i": 101, "word": None, "extra": "Should trigger ALTER"}] == rows
 
 
 def test_insert_ignore(fresh_db):
