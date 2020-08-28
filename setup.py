@@ -39,7 +39,7 @@ setup(
         "Changelog": "https://sqlite-utils.readthedocs.io/en/stable/changelog.html",
         "Source code": "https://github.com/simonw/sqlite-utils",
         "Issues": "https://github.com/simonw/sqlite-utils/issues",
-        "CI": "https://travis-ci.com/simonw/sqlite-utils",
+        "CI": "https://github.com/simonw/sqlite-utils/actions",
     },
     classifiers=[
         "Development Status :: 5 - Production/Stable",
