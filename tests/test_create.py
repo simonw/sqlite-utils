@@ -561,7 +561,7 @@ def test_bulk_insert_more_than_999_values(fresh_db):
                 "c6": 6,
                 "c7": 7,
                 "c8": 8,
-                "c8": 9,
+                "c9": 9,
                 "c10": 10,
                 "c11": 11,
             }
