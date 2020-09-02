@@ -802,7 +802,7 @@ The ``table.add_foreign_key(column, other_table, other_column)`` method takes th
 - If the column is of format ``author_id``, look for tables called ``author`` or ``authors``
 - If the column does not end in ``_id``, try looking for a table with the exact name of the column or that name with an added ``s``
 
-This method first checks that the specified foreign key references tables and columns that exist and does not clash with an existing foreign key. It will raise a ``sqlite_utils.AlterError`` exception if these checks fail.
+This method first checks that the specified foreign key references tables and columns that exist and does not clash with an existing foreign key. It will raise a ``sqlite_utils.db.AlterError`` exception if these checks fail.
 
 .. _python_api_add_foreign_keys:
 
@@ -824,7 +824,7 @@ Here's an example adding two foreign keys at once:
         ("dogs", "home_town_id", "towns", "id")
     ])
 
-This method runs the same checks as ``.add_foreign_keys()`` and will raise ``sqlite_utils.AlterError`` if those checks fail.
+This method runs the same checks as ``.add_foreign_keys()`` and will raise ``sqlite_utils.db.AlterError`` if those checks fail.
 
 .. _python_api_index_foreign_keys:
 
