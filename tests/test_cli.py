@@ -373,10 +373,10 @@ def test_enable_fts(db_path):
     # Check tokenize was set to porter
     assert (
         "CREATE VIRTUAL TABLE [http://example.com_fts] USING FTS4 (\n"
-        "                [c1],\n"
-        "                tokenize='porter',\n"
-        "                content=[http://example.com]"
-        "\n            )"
+        "    [c1],\n"
+        "    tokenize='porter',\n"
+        "    content=[http://example.com]"
+        "\n)"
     ) == db["http://example.com_fts"].schema
     db["http://example.com"].drop()
 

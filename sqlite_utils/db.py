@@ -7,6 +7,7 @@ import itertools
 import json
 import os
 import pathlib
+import textwrap
 import uuid
 
 SQLITE_MAX_VARS = 999
@@ -658,10 +659,10 @@ class Table(Queryable):
             index_name = "idx_{}_{}".format(
                 self.name.replace(" ", "_"), "_".join(columns)
             )
-        sql = """
+        sql = textwrap.dedent("""
             CREATE {unique}INDEX {if_not_exists}[{index_name}]
                 ON [{table_name}] ({columns});
-        """.format(
+        """).strip().format(
             index_name=index_name,
             table_name=self.name,
             columns=", ".join("[{}]".format(c) for c in columns),
@@ -779,16 +780,16 @@ class Table(Queryable):
         self, columns, fts_version="FTS5", create_triggers=False, tokenize=None
     ):
         "Enables FTS on the specified columns."
-        sql = """
+        sql = textwrap.dedent("""
             CREATE VIRTUAL TABLE [{table}_fts] USING {fts_version} (
                 {columns},{tokenize}
                 content=[{table}]
             );
-        """.format(
+        """).strip().format(
             table=self.name,
             columns=", ".join("[{}]".format(c) for c in columns),
             fts_version=fts_version,
-            tokenize="\n                tokenize='{}',".format(tokenize)
+            tokenize="\n    tokenize='{}',".format(tokenize)
             if tokenize
             else "",
         )
@@ -798,7 +799,7 @@ class Table(Queryable):
         if create_triggers:
             old_cols = ", ".join("old.[{}]".format(c) for c in columns)
             new_cols = ", ".join("new.[{}]".format(c) for c in columns)
-            triggers = """
+            triggers = textwrap.dedent("""
                 CREATE TRIGGER [{table}_ai] AFTER INSERT ON [{table}] BEGIN
                   INSERT INTO [{table}_fts] (rowid, {columns}) VALUES (new.rowid, {new_cols});
                 END;
@@ -809,7 +810,7 @@ class Table(Queryable):
                   INSERT INTO [{table}_fts] ([{table}_fts], rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
                   INSERT INTO [{table}_fts] (rowid, {columns}) VALUES (new.rowid, {new_cols});
                 END;
-            """.format(
+            """).strip().format(
                 table=self.name,
                 columns=", ".join("[{}]".format(c) for c in columns),
                 old_cols=old_cols,
