@@ -1125,6 +1125,92 @@ class Table(Queryable):
 
         return queries_and_params
 
+    def insert_chunk(
+        self,
+        alter,
+        extracts,
+        chunk,
+        all_columns,
+        hash_id,
+        upsert,
+        pk,
+        conversions,
+        num_records_processed,
+        replace,
+        ignore,
+    ):
+        queries_and_params = self.build_insert_queries_and_params(
+            extracts,
+            chunk,
+            all_columns,
+            hash_id,
+            upsert,
+            pk,
+            conversions,
+            num_records_processed,
+            replace,
+            ignore,
+        )
+
+        with self.db.conn:
+            for query, params in queries_and_params:
+                try:
+                    result = self.db.execute(query, params)
+                except OperationalError as e:
+                    if alter and (" column" in e.args[0]):
+                        # Attempt to add any missing columns, then try again
+                        self.add_missing_columns(chunk)
+                        result = self.db.execute(query, params)
+                    elif e.args[0] == "too many SQL variables":
+
+                        first_half = chunk[: len(chunk) // 2]
+                        second_half = chunk[len(chunk) // 2 :]
+
+                        self.insert_chunk(
+                            alter,
+                            extracts,
+                            first_half,
+                            all_columns,
+                            hash_id,
+                            upsert,
+                            pk,
+                            conversions,
+                            num_records_processed,
+                            replace,
+                            ignore,
+                        )
+
+                        self.insert_chunk(
+                            alter,
+                            extracts,
+                            second_half,
+                            all_columns,
+                            hash_id,
+                            upsert,
+                            pk,
+                            conversions,
+                            num_records_processed,
+                            replace,
+                            ignore,
+                        )
+
+                    else:
+                        raise
+            if num_records_processed == 1 and not upsert:
+                self.last_rowid = result.lastrowid
+                self.last_pk = self.last_rowid
+                # self.last_rowid will be 0 if a "INSERT OR IGNORE" happened
+                if (hash_id or pk) and self.last_rowid:
+                    row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
+                    if hash_id:
+                        self.last_pk = row[hash_id]
+                    elif isinstance(pk, str):
+                        self.last_pk = row[pk]
+                    else:
+                        self.last_pk = tuple(row[p] for p in pk)
+
+        return
+
     def insert(
         self,
         record,
@@ -1259,7 +1345,8 @@ class Table(Queryable):
             validate_column_names(all_columns)
             first = False
 
-            queries_and_params = self.build_insert_queries_and_params(
+            self.insert_chunk(
+                alter,
                 extracts,
                 chunk,
                 all_columns,
@@ -1272,29 +1359,6 @@ class Table(Queryable):
                 ignore,
             )
 
-            with self.db.conn:
-                for query, params in queries_and_params:
-                    try:
-                        result = self.db.execute(query, params)
-                    except OperationalError as e:
-                        if alter and (" column" in e.args[0]):
-                            # Attempt to add any missing columns, then try again
-                            self.add_missing_columns(chunk)
-                            result = self.db.execute(query, params)
-                        else:
-                            raise
-                if num_records_processed == 1 and not upsert:
-                    self.last_rowid = result.lastrowid
-                    self.last_pk = self.last_rowid
-                    # self.last_rowid will be 0 if a "INSERT OR IGNORE" happened
-                    if (hash_id or pk) and self.last_rowid:
-                        row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
-                        if hash_id:
-                            self.last_pk = row[hash_id]
-                        elif isinstance(pk, str):
-                            self.last_pk = row[pk]
-                        else:
-                            self.last_pk = tuple(row[p] for p in pk)
         return self
 
     def upsert(
