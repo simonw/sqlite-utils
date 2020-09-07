@@ -903,6 +903,16 @@ class Table(Queryable):
                     table=fts_table
                 )
             )
+            self.db.conn.execute(
+                """
+                DELETE FROM [{table}_docsize] WHERE {column} NOT IN (
+                    SELECT rowid FROM [{table}]);
+            """.format(
+                    # FTS5 uses 'id' but FTS4 uses 'docid'
+                    column=self.db["{}_docsize".format(fts_table)].columns[0].name,
+                    table=fts_table,
+                )
+            )
         return self
 
     def search(self, q):

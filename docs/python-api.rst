@@ -1178,6 +1178,10 @@ Once you have populated a FTS table you can optimize it to dramatically reduce i
 This runs the following SQL::
 
     INSERT INTO dogs_fts (dogs_fts) VALUES ("optimize");
+    DELETE FROM [dogs_fts_docsize] WHERE id NOT IN (
+        SELECT rowid FROM [dogs_fts]);
+
+That ``DELETE`` statement cleans up rows that may have been created by `an obscure bug <https://github.com/simonw/sqlite-utils/issues/153>`__ in previous versions of ``sqlite-utils``.
 
 Creating indexes
 ================
