@@ -103,7 +103,13 @@ class PrimaryKeyRequired(Exception):
 
 
 class Database:
-    def __init__(self, filename_or_conn=None, memory=False, recreate=False):
+    def __init__(
+        self,
+        filename_or_conn=None,
+        memory=False,
+        recreate=False,
+        recursive_triggers=True,
+    ):
         assert (filename_or_conn is not None and not memory) or (
             filename_or_conn is None and memory
         ), "Either specify a filename_or_conn or pass memory=True"
@@ -116,6 +122,8 @@ class Database:
         else:
             assert not recreate, "recreate cannot be used with connections, only paths"
             self.conn = filename_or_conn
+        if recursive_triggers:
+            self.conn.execute("PRAGMA recursive_triggers=on;")
 
     def __getitem__(self, table_name):
         return self.table(table_name)

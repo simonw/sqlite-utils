@@ -37,6 +37,12 @@ If you want to create an in-memory database, you can do so like this:
 
     db = Database(memory=True)
 
+Connections use ``PRAGMA recursive_triggers=on`` by default. If you don't want to use `recursive triggers <https://www.sqlite.org/pragma.html#pragma_recursive_triggers>`__ you can turn them off using:
+
+.. code-block:: python
+
+    db = Database(memory=True, recursive_triggers=False)
+
 Tables are accessed using the indexing operator, like so:
 
 .. code-block:: python
