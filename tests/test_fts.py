@@ -160,7 +160,7 @@ def test_disable_fts(fresh_db, create_triggers):
         expected_triggers = set()
     assert expected_triggers == set(
         r[0]
-        for r in fresh_db.conn.execute(
+        for r in fresh_db.execute(
             "select name from sqlite_master where type = 'trigger'"
         ).fetchall()
     )
@@ -168,7 +168,7 @@ def test_disable_fts(fresh_db, create_triggers):
     table.disable_fts()
     assert (
         0
-        == fresh_db.conn.execute(
+        == fresh_db.execute(
             "select count(*) from sqlite_master where type = 'trigger'"
         ).fetchone()[0]
     )

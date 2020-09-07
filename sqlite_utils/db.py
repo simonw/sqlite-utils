@@ -1,5 +1,6 @@
 from .utils import sqlite3, OperationalError, suggest_column_types, column_affinity
 from collections import namedtuple, OrderedDict
+import contextlib
 import datetime
 import decimal
 import hashlib
@@ -109,6 +110,7 @@ class Database:
         memory=False,
         recreate=False,
         recursive_triggers=True,
+        tracer=None,
     ):
         assert (filename_or_conn is not None and not memory) or (
             filename_or_conn is None and memory
@@ -122,14 +124,37 @@ class Database:
         else:
             assert not recreate, "recreate cannot be used with connections, only paths"
             self.conn = filename_or_conn
+        self._tracer = tracer
         if recursive_triggers:
-            self.conn.execute("PRAGMA recursive_triggers=on;")
+            self.execute("PRAGMA recursive_triggers=on;")
+
+    @contextlib.contextmanager
+    def tracer(self, tracer=None):
+        prev_tracer = self._tracer
+        self._tracer = tracer or print
+        try:
+            yield self
+        finally:
+            self._tracer = prev_tracer
 
     def __getitem__(self, table_name):
         return self.table(table_name)
 
     def __repr__(self):
         return "<Database {}>".format(self.conn)
+
+    def execute(self, sql, parameters=None):
+        if self._tracer:
+            self._tracer(sql, parameters)
+        if parameters is not None:
+            return self.conn.execute(sql, parameters)
+        else:
+            return self.conn.execute(sql)
+
+    def executescript(self, sql):
+        if self._tracer:
+            self._tracer(sql, None)
+        return self.conn.executescript(sql)
 
     def table(self, table_name, **kwargs):
         klass = View if table_name in self.view_names() else Table
@@ -139,7 +164,7 @@ class Database:
         # Normally we would use .execute(sql, [params]) for escaping, but
         # occasionally that isn't available - most notable when we need
         # to include a "... DEFAULT 'value'" in a column definition.
-        return self.conn.execute(
+        return self.execute(
             # Use SQLite itself to correctly escape this string:
             "SELECT quote(:value)",
             {"value": value},
@@ -152,12 +177,12 @@ class Database:
         if fts5:
             where.append("sql like '%FTS5%'")
         sql = "select name from sqlite_master where {}".format(" AND ".join(where))
-        return [r[0] for r in self.conn.execute(sql).fetchall()]
+        return [r[0] for r in self.execute(sql).fetchall()]
 
     def view_names(self):
         return [
             r[0]
-            for r in self.conn.execute(
+            for r in self.execute(
                 "select name from sqlite_master where type = 'view'"
             ).fetchall()
         ]
@@ -174,25 +199,25 @@ class Database:
     def triggers(self):
         return [
             Trigger(*r)
-            for r in self.conn.execute(
+            for r in self.execute(
                 "select name, tbl_name, sql from sqlite_master where type = 'trigger'"
             ).fetchall()
         ]
 
     @property
     def journal_mode(self):
-        return self.conn.execute("PRAGMA journal_mode;").fetchone()[0]
+        return self.execute("PRAGMA journal_mode;").fetchone()[0]
 
     def enable_wal(self):
         if self.journal_mode != "wal":
-            self.conn.execute("PRAGMA journal_mode=wal;")
+            self.execute("PRAGMA journal_mode=wal;")
 
     def disable_wal(self):
         if self.journal_mode != "delete":
-            self.conn.execute("PRAGMA journal_mode=delete;")
+            self.execute("PRAGMA journal_mode=delete;")
 
     def execute_returning_dicts(self, sql, params=None):
-        cursor = self.conn.execute(sql, params or tuple())
+        cursor = self.execute(sql, params or tuple())
         keys = [d[0] for d in cursor.description]
         return [dict(zip(keys, row)) for row in cursor.fetchall()]
 
@@ -337,7 +362,7 @@ class Database:
         """.format(
             table=name, columns_sql=columns_sql, extra_pk=extra_pk
         )
-        self.conn.execute(sql)
+        self.execute(sql)
         return self.table(
             name,
             pk=pk,
@@ -363,7 +388,7 @@ class Database:
                     if create_sql == self[name].schema:
                         return self
                     self[name].drop()
-        self.conn.execute(create_sql)
+        self.execute(create_sql)
         return self
 
     def m2m_table_candidates(self, table, other_table):
@@ -451,7 +476,7 @@ class Database:
                     table.create_index([fk.column])
 
     def vacuum(self):
-        self.conn.execute("VACUUM;")
+        self.execute("VACUUM;")
 
 
 class Queryable:
@@ -464,7 +489,7 @@ class Queryable:
 
     @property
     def count(self):
-        return self.db.conn.execute(
+        return self.db.execute(
             "select count(*) from [{}]".format(self.name)
         ).fetchone()[0]
 
@@ -480,7 +505,7 @@ class Queryable:
             sql += " where " + where
         if order_by is not None:
             sql += " order by " + order_by
-        cursor = self.db.conn.execute(sql, where_args or [])
+        cursor = self.db.execute(sql, where_args or [])
         columns = [c[0] for c in cursor.description]
         for row in cursor:
             yield dict(zip(columns, row))
@@ -489,9 +514,7 @@ class Queryable:
     def columns(self):
         if not self.exists():
             return []
-        rows = self.db.conn.execute(
-            "PRAGMA table_info([{}])".format(self.name)
-        ).fetchall()
+        rows = self.db.execute("PRAGMA table_info([{}])".format(self.name)).fetchall()
         return [Column(*row) for row in rows]
 
     @property
@@ -501,7 +524,7 @@ class Queryable:
 
     @property
     def schema(self):
-        return self.db.conn.execute(
+        return self.db.execute(
             "select sql from sqlite_master where name = ?", (self.name,)
         ).fetchone()[0]
 
@@ -587,7 +610,7 @@ class Table(Queryable):
     @property
     def foreign_keys(self):
         fks = []
-        for row in self.db.conn.execute(
+        for row in self.db.execute(
             "PRAGMA foreign_key_list([{}])".format(self.name)
         ).fetchall():
             if row is not None:
@@ -615,7 +638,7 @@ class Table(Queryable):
             )
             column_sql = "PRAGMA index_info({})".format(index_name_quoted)
             columns = []
-            for seqno, cid, name in self.db.conn.execute(column_sql).fetchall():
+            for seqno, cid, name in self.db.execute(column_sql).fetchall():
                 columns.append(name)
             row["columns"] = columns
             # These columns may be missing on older SQLite versions:
@@ -629,7 +652,7 @@ class Table(Queryable):
     def triggers(self):
         return [
             Trigger(*r)
-            for r in self.db.conn.execute(
+            for r in self.db.execute(
                 "select name, tbl_name, sql from sqlite_master where type = 'trigger'"
                 " and tbl_name = ?",
                 (self.name,),
@@ -683,7 +706,7 @@ class Table(Queryable):
                 if_not_exists="IF NOT EXISTS " if if_not_exists else "",
             )
         )
-        self.db.conn.execute(sql)
+        self.db.execute(sql)
         return self
 
     def add_column(
@@ -720,13 +743,13 @@ class Table(Queryable):
             col_type=fk_col_type or COLUMN_TYPE_MAPPING[col_type],
             not_null_default=(" " + not_null_sql) if not_null_sql else "",
         )
-        self.db.conn.execute(sql)
+        self.db.execute(sql)
         if fk is not None:
             self.add_foreign_key(col_name, fk, fk_col)
         return self
 
     def drop(self):
-        self.db.conn.execute("DROP TABLE [{}]".format(self.name))
+        self.db.execute("DROP TABLE [{}]".format(self.name))
 
     def guess_foreign_table(self, column):
         column = column.lower()
@@ -811,7 +834,7 @@ class Table(Queryable):
                 tokenize="\n    tokenize='{}',".format(tokenize) if tokenize else "",
             )
         )
-        self.db.conn.executescript(sql)
+        self.db.executescript(sql)
         self.populate_fts(columns)
 
         if create_triggers:
@@ -840,17 +863,23 @@ class Table(Queryable):
                     new_cols=new_cols,
                 )
             )
-            self.db.conn.executescript(triggers)
+            self.db.executescript(triggers)
         return self
 
     def populate_fts(self, columns):
-        sql = """
+        sql = (
+            textwrap.dedent(
+                """
             INSERT INTO [{table}_fts] (rowid, {columns})
                 SELECT rowid, {columns} FROM [{table}];
-        """.format(
-            table=self.name, columns=", ".join("[{}]".format(c) for c in columns)
+        """
+            )
+            .strip()
+            .format(
+                table=self.name, columns=", ".join("[{}]".format(c) for c in columns)
+            )
         )
-        self.db.conn.executescript(sql)
+        self.db.executescript(sql)
         return self
 
     def disable_fts(self):
@@ -858,23 +887,29 @@ class Table(Queryable):
         if fts_table:
             self.db[fts_table].drop()
         # Now delete the triggers that related to that table
-        sql = """
+        sql = (
+            textwrap.dedent(
+                """
             SELECT name FROM sqlite_master
                 WHERE type = 'trigger'
                 AND sql LIKE '% INSERT INTO [{}]%'
-        """.format(
-            fts_table
+        """
+            )
+            .strip()
+            .format(fts_table)
         )
         trigger_names = []
-        for row in self.db.conn.execute(sql).fetchall():
+        for row in self.db.execute(sql).fetchall():
             trigger_names.append(row[0])
         with self.db.conn:
             for trigger_name in trigger_names:
-                self.db.conn.execute("DROP TRIGGER IF EXISTS [{}]".format(trigger_name))
+                self.db.execute("DROP TRIGGER IF EXISTS [{}]".format(trigger_name))
 
     def detect_fts(self):
         "Detect if table has a corresponding FTS virtual table and return it"
-        sql = """
+        sql = (
+            textwrap.dedent(
+                """
             SELECT name FROM sqlite_master
                 WHERE rootpage = 0
                 AND (
@@ -884,10 +919,12 @@ class Table(Queryable):
                         AND sql LIKE '%VIRTUAL TABLE%USING FTS%'
                     )
                 )
-        """.format(
-            table=self.name
+        """
+            )
+            .strip()
+            .format(table=self.name)
         )
-        rows = self.db.conn.execute(sql).fetchall()
+        rows = self.db.execute(sql).fetchall()
         if len(rows) == 0:
             return None
         else:
@@ -896,18 +933,22 @@ class Table(Queryable):
     def optimize(self):
         fts_table = self.detect_fts()
         if fts_table is not None:
-            self.db.conn.execute(
+            self.db.execute(
                 """
                 INSERT INTO [{table}] ([{table}]) VALUES ("optimize");
-            """.format(
+            """.strip().format(
                     table=fts_table
                 )
             )
-            self.db.conn.execute(
-                """
+            self.db.execute(
+                textwrap.dedent(
+                    """
                 DELETE FROM [{table}_docsize] WHERE {column} NOT IN (
                     SELECT rowid FROM [{table}]);
-            """.format(
+            """
+                )
+                .strip()
+                .format(
                     # FTS5 uses 'id' but FTS4 uses 'docid'
                     column=self.db["{}_docsize".format(fts_table)].columns[0].name,
                     table=fts_table,
@@ -916,16 +957,20 @@ class Table(Queryable):
         return self
 
     def search(self, q):
-        sql = """
+        sql = (
+            textwrap.dedent(
+                """
             select * from "{table}" where rowid in (
                 select rowid from [{table}_fts]
                 where [{table}_fts] match :search
             )
             order by rowid
-        """.format(
-            table=self.name
+        """
+            )
+            .strip()
+            .format(table=self.name)
         )
-        return self.db.conn.execute(sql, (q,)).fetchall()
+        return self.db.execute(sql, (q,)).fetchall()
 
     def value_or_default(self, key, value):
         return self._defaults[key] if value is DEFAULT else value
@@ -939,7 +984,7 @@ class Table(Queryable):
             table=self.name, wheres=" and ".join(wheres)
         )
         with self.db.conn:
-            self.db.conn.execute(sql, pk_values)
+            self.db.execute(sql, pk_values)
 
     def delete_where(self, where=None, where_args=None):
         if not self.exists():
@@ -947,7 +992,7 @@ class Table(Queryable):
         sql = "delete from [{}]".format(self.name)
         if where is not None:
             sql += " where " + where
-        self.db.conn.execute(sql, where_args or [])
+        self.db.execute(sql, where_args or [])
 
     def update(self, pk_values, updates=None, alter=False, conversions=None):
         updates = updates or {}
@@ -972,12 +1017,12 @@ class Table(Queryable):
         )
         with self.db.conn:
             try:
-                rowcount = self.db.conn.execute(sql, args).rowcount
+                rowcount = self.db.execute(sql, args).rowcount
             except OperationalError as e:
                 if alter and (" column" in e.args[0]):
                     # Attempt to add any missing columns, then try again
                     self.add_missing_columns([updates])
-                    rowcount = self.db.conn.execute(sql, args).rowcount
+                    rowcount = self.db.execute(sql, args).rowcount
                 else:
                     raise
 
@@ -1084,7 +1129,7 @@ class Table(Queryable):
         self.last_rowid = None
         self.last_pk = None
         if truncate and self.exists():
-            self.db.conn.execute("DELETE FROM [{}];".format(self.name))
+            self.db.execute("DELETE FROM [{}];".format(self.name))
         for chunk in chunks(itertools.chain([first_record], records), batch_size):
             chunk = list(chunk)
             num_records_processed += len(chunk)
@@ -1184,14 +1229,12 @@ class Table(Queryable):
                     or_what = "OR IGNORE "
                 sql = """
                     INSERT {or_what}INTO [{table}] ({columns}) VALUES {rows};
-                """.format(
+                """.strip().format(
                     or_what=or_what,
                     table=self.name,
                     columns=", ".join("[{}]".format(c) for c in all_columns),
                     rows=", ".join(
-                        """
-                        ({placeholders})
-                    """.format(
+                        "({placeholders})".format(
                             placeholders=", ".join(
                                 [conversions.get(col, "?") for col in all_columns]
                             )
@@ -1205,12 +1248,12 @@ class Table(Queryable):
             with self.db.conn:
                 for query, params in queries_and_params:
                     try:
-                        result = self.db.conn.execute(query, params)
+                        result = self.db.execute(query, params)
                     except OperationalError as e:
                         if alter and (" column" in e.args[0]):
                             # Attempt to add any missing columns, then try again
                             self.add_missing_columns(chunk)
-                            result = self.db.conn.execute(query, params)
+                            result = self.db.execute(query, params)
                         else:
                             raise
                 if num_records_processed == 1 and not upsert:
@@ -1383,7 +1426,7 @@ class View(Queryable):
         )
 
     def drop(self):
-        self.db.conn.execute("DROP VIEW [{}]".format(self.name))
+        self.db.execute("DROP VIEW [{}]".format(self.name))
 
 
 def chunks(sequence, size):

@@ -396,7 +396,7 @@ def test_enable_fts_with_triggers(db_path):
     def search(q):
         return (
             Database(db_path)
-            .conn.execute("select c1 from Gosh_fts where c1 match ?", [q])
+            .execute("select c1 from Gosh_fts where c1 match ?", [q])
             .fetchall()
         )
 
@@ -417,7 +417,7 @@ def test_populate_fts(db_path):
     def search(q):
         return (
             Database(db_path)
-            .conn.execute("select c1 from Gosh_fts where c1 match ?", [q])
+            .execute("select c1 from Gosh_fts where c1 match ?", [q])
             .fetchall()
         )
 

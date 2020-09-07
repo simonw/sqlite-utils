@@ -43,6 +43,53 @@ Connections use ``PRAGMA recursive_triggers=on`` by default. If you don't want t
 
     db = Database(memory=True, recursive_triggers=False)
 
+.. _python_api_tracing:
+
+Tracing queries
+---------------
+
+You can use the ``tracer`` mechanism to see SQL queries that are being executed by SQLite. A tracer is a function that you provide which will be called with ``sql`` and ``params`` arguments every time SQL is executed, for example:
+
+.. code-block:: python
+
+    def tracer(sql, params):
+        print("SQL: {} - params: {}".format(sql, params))
+
+You can pass this function to the ``Database()`` constructor like so:
+
+.. code-block:: python
+
+    db = Database(memory=True, tracer=tracer)
+
+You can also turn on a tracer function temporarily for a block of code using the ``with db.tracer(...)`` context manager:
+
+.. code-block:: python
+
+    db = Database(memory=True)
+    # ... later
+    with db.tracer(tracer):
+        db["dogs"].insert({"name": "Cleo"})
+
+Queries will be passed to your ``tracer()`` function only for the duration of the ``with`` block.
+
+.. _python_api_execute:
+
+Executing queries
+=================
+
+The ``db.execute()`` and ``db.executescript()`` methods provide wrappers around ``.execute()`` and ``.executescript()`` on the underlying SQLite connection. These wrappers log to the tracer function if one has been registered.
+
+.. code-block:: python
+
+    db = Database(memory=True)
+    db["dogs"].insert({"name": "Cleo"})
+    db.execute("update dogs set name = 'Cleopaws'")
+
+.. _python_api_table:
+
+Accessing tables
+================
+
 Tables are accessed using the indexing operator, like so:
 
 .. code-block:: python
@@ -930,7 +977,7 @@ For example:
             "postalCode": "95018"
         }
     })
-    db.conn.execute("""
+    db.execute("""
         select json_extract(address, '$.addressLocality')
         from niche_museums
     """).fetchall()
@@ -979,8 +1026,8 @@ A more useful example: if you are working with `SpatiaLite <https://www.gaia-gis
     places = db["places"].create({"id": int, "name": str,})
 
     # Add a SpatiaLite 'geometry' column:
-    db.conn.execute("select InitSpatialMetadata(1)")
-    db.conn.execute(
+    db.execute("select InitSpatialMetadata(1)")
+    db.execute(
         "SELECT AddGeometryColumn('places', 'geometry', 4326, 'MULTIPOLYGON', 2);"
     )
 

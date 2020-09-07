@@ -771,7 +771,7 @@ def query(
         for ext in load_extension:
             db.conn.load_extension(ext)
     with db.conn:
-        cursor = db.conn.execute(sql, dict(param))
+        cursor = db.execute(sql, dict(param))
         if cursor.description is None:
             # This was an update/insert
             headers = ["rows_affected"]
