@@ -72,6 +72,8 @@ You can also turn on a tracer function temporarily for a block of code using the
 
 Queries will be passed to your ``tracer()`` function only for the duration of the ``with`` block.
 
+.. _python_api_execute:
+
 Executing queries
 =================
 
