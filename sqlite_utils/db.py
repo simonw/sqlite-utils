@@ -130,7 +130,7 @@ class Database:
 
     @contextlib.contextmanager
     def tracer(self, tracer=None):
-        prev_tracer = self.tracer
+        prev_tracer = self._tracer
         self._tracer = tracer or print
         try:
             yield self

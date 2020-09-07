@@ -31,3 +31,31 @@ def test_tracer():
             ("Cleopaws",),
         ),
     ]
+
+
+def test_with_tracer():
+    collected = []
+    tracer = lambda sql, params: collected.append((sql, params))
+
+    db = Database(memory=True)
+
+    db["dogs"].insert({"name": "Cleopaws"})
+    db["dogs"].enable_fts(["name"])
+
+    assert len(collected) == 0
+
+    with db.tracer(tracer):
+        db["dogs"].search("Cleopaws")
+
+    assert len(collected) == 2
+    assert collected == [
+        ("select name from sqlite_master where type = 'view'", None),
+        (
+            'select * from "dogs" where rowid in (\n    select rowid from [dogs_fts]\n    where [dogs_fts] match :search\n)\norder by rowid',
+            ("Cleopaws",),
+        ),
+    ]
+
+    # Outside the with block collected should not be appended to
+    db["dogs"].insert({"name": "Cleopaws"})
+    assert len(collected) == 2
