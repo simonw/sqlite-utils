@@ -153,7 +153,7 @@ class Database:
 
     def executescript(self, sql):
         if self._tracer:
-            self._tracer(sql)
+            self._tracer(sql, None)
         return self.conn.executescript(sql)
 
     def table(self, table_name, **kwargs):
