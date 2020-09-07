@@ -867,11 +867,17 @@ class Table(Queryable):
         return self
 
     def populate_fts(self, columns):
-        sql = """
+        sql = (
+            textwrap.dedent(
+                """
             INSERT INTO [{table}_fts] (rowid, {columns})
                 SELECT rowid, {columns} FROM [{table}];
-        """.format(
-            table=self.name, columns=", ".join("[{}]".format(c) for c in columns)
+        """
+            )
+            .strip()
+            .format(
+                table=self.name, columns=", ".join("[{}]".format(c) for c in columns)
+            )
         )
         self.db.executescript(sql)
         return self
@@ -881,12 +887,16 @@ class Table(Queryable):
         if fts_table:
             self.db[fts_table].drop()
         # Now delete the triggers that related to that table
-        sql = """
+        sql = (
+            textwrap.dedent(
+                """
             SELECT name FROM sqlite_master
                 WHERE type = 'trigger'
                 AND sql LIKE '% INSERT INTO [{}]%'
-        """.format(
-            fts_table
+        """
+            )
+            .strip()
+            .format(fts_table)
         )
         trigger_names = []
         for row in self.db.execute(sql).fetchall():
@@ -897,7 +907,9 @@ class Table(Queryable):
 
     def detect_fts(self):
         "Detect if table has a corresponding FTS virtual table and return it"
-        sql = """
+        sql = (
+            textwrap.dedent(
+                """
             SELECT name FROM sqlite_master
                 WHERE rootpage = 0
                 AND (
@@ -907,8 +919,10 @@ class Table(Queryable):
                         AND sql LIKE '%VIRTUAL TABLE%USING FTS%'
                     )
                 )
-        """.format(
-            table=self.name
+        """
+            )
+            .strip()
+            .format(table=self.name)
         )
         rows = self.db.execute(sql).fetchall()
         if len(rows) == 0:
@@ -922,15 +936,19 @@ class Table(Queryable):
             self.db.execute(
                 """
                 INSERT INTO [{table}] ([{table}]) VALUES ("optimize");
-            """.format(
+            """.strip().format(
                     table=fts_table
                 )
             )
             self.db.conn.execute(
-                """
+                textwrap.dedent(
+                    """
                 DELETE FROM [{table}_docsize] WHERE {column} NOT IN (
                     SELECT rowid FROM [{table}]);
-            """.format(
+            """
+                )
+                .strip()
+                .format(
                     # FTS5 uses 'id' but FTS4 uses 'docid'
                     column=self.db["{}_docsize".format(fts_table)].columns[0].name,
                     table=fts_table,
@@ -939,14 +957,18 @@ class Table(Queryable):
         return self
 
     def search(self, q):
-        sql = """
+        sql = (
+            textwrap.dedent(
+                """
             select * from "{table}" where rowid in (
                 select rowid from [{table}_fts]
                 where [{table}_fts] match :search
             )
             order by rowid
-        """.format(
-            table=self.name
+        """
+            )
+            .strip()
+            .format(table=self.name)
         )
         return self.db.execute(sql, (q,)).fetchall()
 
@@ -1207,14 +1229,12 @@ class Table(Queryable):
                     or_what = "OR IGNORE "
                 sql = """
                     INSERT {or_what}INTO [{table}] ({columns}) VALUES {rows};
-                """.format(
+                """.strip().format(
                     or_what=or_what,
                     table=self.name,
                     columns=", ".join("[{}]".format(c) for c in all_columns),
                     rows=", ".join(
-                        """
-                        ({placeholders})
-                    """.format(
+                        "({placeholders})".format(
                             placeholders=", ".join(
                                 [conversions.get(col, "?") for col in all_columns]
                             )
