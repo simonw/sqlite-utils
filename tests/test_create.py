@@ -736,7 +736,7 @@ def test_insert_thousands_using_generator(fresh_db):
     assert 10000 == fresh_db["test"].count
 
 
-def test_insert_thousands_raises_exception_wtih_extra_columns_after_first_100(fresh_db):
+def test_insert_thousands_raises_exception_with_extra_columns_after_first_100(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/139
     with pytest.raises(Exception, match="table test has no column named extra"):
         fresh_db["test"].insert_all(
