@@ -680,7 +680,7 @@ def test_create_index_if_not_exists(fresh_db):
 )
 def test_insert_dictionaries_and_lists_as_json(fresh_db, data_structure):
     fresh_db["test"].insert({"id": 1, "data": data_structure}, pk="id")
-    row = fresh_db.conn.execute("select id, data from test").fetchone()
+    row = fresh_db.execute("select id, data from test").fetchone()
     assert row[0] == 1
     assert data_structure == json.loads(row[1])
 

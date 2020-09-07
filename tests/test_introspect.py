@@ -73,7 +73,7 @@ def test_table_repr(fresh_db):
 
 
 def test_indexes(fresh_db):
-    fresh_db.conn.executescript(
+    fresh_db.executescript(
         """
         create table Gosh (c1 text, c2 text, c3 text);
         create index Gosh_c1 on Gosh(c1);

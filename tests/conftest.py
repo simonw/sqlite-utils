@@ -10,7 +10,7 @@ def fresh_db():
 @pytest.fixture
 def existing_db():
     database = Database(memory=True)
-    database.conn.executescript(
+    database.executescript(
         """
         CREATE TABLE foo (text TEXT);
         INSERT INTO foo (text) values ("one");

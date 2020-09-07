@@ -124,9 +124,9 @@ class Database:
         else:
             assert not recreate, "recreate cannot be used with connections, only paths"
             self.conn = filename_or_conn
-        if recursive_triggers:
-            self.conn.execute("PRAGMA recursive_triggers=on;")
         self._tracer = tracer
+        if recursive_triggers:
+            self.execute("PRAGMA recursive_triggers=on;")
 
     @contextlib.contextmanager
     def tracer(self, tracer=None):
@@ -940,7 +940,7 @@ class Table(Queryable):
                     table=fts_table
                 )
             )
-            self.db.conn.execute(
+            self.db.execute(
                 textwrap.dedent(
                     """
                 DELETE FROM [{table}_docsize] WHERE {column} NOT IN (

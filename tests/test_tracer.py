@@ -11,6 +11,7 @@ def test_tracer():
     db["dogs"].enable_fts(["name"])
     db["dogs"].search("Cleopaws")
     assert collected == [
+        ("PRAGMA recursive_triggers=on;", None),
         ("select name from sqlite_master where type = 'view'", None),
         ("select name from sqlite_master where type = 'table'", None),
         ("CREATE TABLE [dogs] (\n   [name] TEXT\n);\n        ", None),
