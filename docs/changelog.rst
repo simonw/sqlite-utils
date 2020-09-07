@@ -2,6 +2,19 @@
  Changelog
 ===========
 
+.. _v2_17:
+
+2.17 (2020-09-07)
+-----------------
+
+This release handles a bug where replacing rows in FTS tables could result in growing numbers of unneccessary rows in the associated ``*_fts_docsize`` table. (`#149 <https://github.com/simonw/sqlite-utils/issues/149>`__)
+
+- ``PRAGMA recursive_triggers=on`` by default for all connections. You can turn it off with ``Database(recursive_triggers=False)``. (`#152 <https://github.com/simonw/sqlite-utils/issues/152>`__)
+- ``table.optimize()`` method now deletes unnecessary rows from the ``*_fts_docsize`` table. (`#153 <https://github.com/simonw/sqlite-utils/issues/153>`__)
+- New tracer method for tracking underlying SQL queries, see :ref:`python_api_tracing`. (`#150 <https://github.com/simonw/sqlite-utils/issues/150>`__)
+- Neater indentation for schema SQL. (`#148 <https://github.com/simonw/sqlite-utils/issues/148>`__)
+- Documentation for ``sqlite_utils.AlterError`` exception thrown by in ``add_foreign_keys()``.
+
 .. _v2_16_1:
 
 2.16.1 (2020-08-28)
