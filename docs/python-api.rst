@@ -67,10 +67,10 @@ You can also turn on a tracer function temporarily for a block of code using the
 
     db = Database(memory=True)
     # ... later
-    with db.tracer(tracer):
+    with db.tracer(print):
         db["dogs"].insert({"name": "Cleo"})
 
-Queries will be passed to your ``tracer()`` function only for the duration of the ``with`` block.
+This example will print queries only for the duration of the ``with`` block.
 
 .. _python_api_execute:
 
