@@ -454,7 +454,8 @@ def test_vacuum(db_path):
     assert 0 == result.exit_code
 
 
-def test_optimize(db_path):
+@pytest.mark.parametrize("tables", ([], ["Gosh"], ["Gosh2"]))
+def test_optimize(db_path, tables):
     db = Database(db_path)
     with db.conn:
         for table in ("Gosh", "Gosh2"):
@@ -471,7 +472,7 @@ def test_optimize(db_path):
         db["Gosh"].enable_fts(["c1", "c2", "c3"], fts_version="FTS4")
         db["Gosh2"].enable_fts(["c1", "c2", "c3"], fts_version="FTS5")
     size_before_optimize = os.stat(db_path).st_size
-    result = CliRunner().invoke(cli.cli, ["optimize", db_path])
+    result = CliRunner().invoke(cli.cli, ["optimize", db_path] + tables)
     assert 0 == result.exit_code
     size_after_optimize = os.stat(db_path).st_size
     assert size_after_optimize < size_before_optimize

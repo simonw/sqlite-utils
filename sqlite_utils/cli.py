@@ -218,11 +218,13 @@ def vacuum(path):
     type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
+@click.argument("tables", nargs=-1)
 @click.option("--no-vacuum", help="Don't run VACUUM", default=False, is_flag=True)
-def optimize(path, no_vacuum):
+def optimize(path, tables, no_vacuum):
     """Optimize all FTS tables and then run VACUUM - should shrink the database file"""
     db = sqlite_utils.Database(path)
-    tables = db.table_names(fts4=True) + db.table_names(fts5=True)
+    if not tables:
+        tables = db.table_names(fts4=True) + db.table_names(fts5=True)
     with db.conn:
         for table in tables:
             db[table].optimize()
