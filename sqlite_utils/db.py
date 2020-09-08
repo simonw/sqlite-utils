@@ -905,6 +905,17 @@ class Table(Queryable):
             for trigger_name in trigger_names:
                 self.db.execute("DROP TRIGGER IF EXISTS [{}]".format(trigger_name))
 
+    def rebuild_fts(self):
+        fts_table = self.detect_fts()
+        if fts_table is None:
+            # Assume this is itself an FTS table
+            fts_table = self.name
+        self.db.execute(
+            "INSERT INTO [{table}]([{table}]) VALUES('rebuild');".format(
+                table=fts_table
+            )
+        )
+
     def detect_fts(self):
         "Detect if table has a corresponding FTS virtual table and return it"
         sql = (

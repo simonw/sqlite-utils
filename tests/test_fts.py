@@ -1,4 +1,5 @@
 import pytest
+from sqlite_utils.utils import sqlite3
 
 search_records = [
     {
@@ -173,3 +174,28 @@ def test_disable_fts(fresh_db, create_triggers):
         ).fetchone()[0]
     )
     assert ["searchable"] == fresh_db.table_names()
+
+
+@pytest.mark.parametrize("table_to_fix", ["searchable", "searchable_fts"])
+def test_rebuild_fts(fresh_db, table_to_fix):
+    table = fresh_db["searchable"]
+    table.insert(search_records[0])
+    table.enable_fts(["text", "country"])
+    # Run a search
+    assert [("tanuki are running tricksters", "Japan", "foo")] == table.search("tanuki")
+    # Delete from searchable_fts_data
+    fresh_db["searchable_fts_data"].delete_where()
+    # This should have broken the index
+    with pytest.raises(sqlite3.DatabaseError):
+        table.search("tanuki")
+    # Running rebuild_fts() should fix it
+    fresh_db[table_to_fix].rebuild_fts()
+    assert [("tanuki are running tricksters", "Japan", "foo")] == table.search("tanuki")
+
+
+@pytest.mark.parametrize("invalid_table", ["does_not_exist", "not_searchable"])
+def test_rebuild_fts_invalid(fresh_db, invalid_table):
+    fresh_db["not_searchable"].insert({"foo": "bar"})
+    # Raise OperationalError on invalid table
+    with pytest.raises(sqlite3.OperationalError):
+        fresh_db[invalid_table].rebuild_fts()

@@ -1213,6 +1213,21 @@ To remove the FTS tables and triggers you created, use the ``disable_fts()`` tab
 
     dogs.disable_fts()
 
+Rebuilding a full-text search table
+===================================
+
+You can rebuild a table using the ``table.rebuild_fts()`` method. This is useful for if the table configuration changes or the indexed data has become corrupted in some way.
+
+.. code-block:: python
+
+    dogs.rebuild_fts()
+
+This method can be called on a table that has been configured for full-text search - ``dogs`` in this instance -  or directly on a ``_fts`` table:
+
+.. code-block:: python
+
+    db["dogs_fts"].rebuild_fts()
+
 Optimizing a full-text search table
 ===================================
 
