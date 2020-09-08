@@ -232,6 +232,34 @@ def optimize(path, tables, no_vacuum):
         db.vacuum()
 
 
+@cli.command(name="rebuild-fts")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("tables", nargs=-1)
+def rebuild_fts(path, tables):
+    """Rebuild specific FTS tables, or all FTS tables if none are specified"""
+    db = sqlite_utils.Database(path)
+    if not tables:
+        tables = db.table_names(fts4=True) + db.table_names(fts5=True)
+    with db.conn:
+        for table in tables:
+            db[table].rebuild_fts()
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+def vacuum(path):
+    """Run VACUUM against the database"""
+    sqlite_utils.Database(path).vacuum()
+
+
 @cli.command(name="add-column")
 @click.argument(
     "path",

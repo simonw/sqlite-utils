@@ -1213,6 +1213,8 @@ To remove the FTS tables and triggers you created, use the ``disable_fts()`` tab
 
     dogs.disable_fts()
 
+.. _python_api_fts_rebuild:
+
 Rebuilding a full-text search table
 ===================================
 
@@ -1231,6 +1233,8 @@ This method can be called on a table that has been configured for full-text sear
 This runs the following SQL::
 
     INSERT INTO dogs_fts (dogs_fts) VALUES ("rebuild");
+
+.. _python_api_fts_optimize:
 
 Optimizing a full-text search table
 ===================================

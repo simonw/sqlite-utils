@@ -173,9 +173,9 @@ class Database:
     def table_names(self, fts4=False, fts5=False):
         where = ["type = 'table'"]
         if fts4:
-            where.append("sql like '%FTS4%'")
+            where.append("sql like '%USING FTS4%'")
         if fts5:
-            where.append("sql like '%FTS5%'")
+            where.append("sql like '%USING FTS5%'")
         sql = "select name from sqlite_master where {}".format(" AND ".join(where))
         return [r[0] for r in self.execute(sql).fetchall()]
 

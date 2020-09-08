@@ -689,6 +689,14 @@ To remove the FTS tables and triggers you created, use ``disable-fts``::
 
     $ sqlite-utils disable-fts mydb.db documents
 
+To rebuild one or more FTS tables (see :ref:`python_api_fts_rebuild`), use ``rebuild-fts``::
+
+    $ sqlite-utils rebuild-fts mydb.db documents
+
+You can rebuild every FTS table by running ``rebuild-fts`` without passing any table names::
+
+    $ sqlite-utils rebuild-fts mydb.db
+
 .. _cli_vacuum:
 
 Vacuum
