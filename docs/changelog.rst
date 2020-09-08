@@ -2,6 +2,16 @@
  Changelog
 ===========
 
+.. _v2_18:
+
+2.18 (2020-09-08)
+-----------------
+
+- ``table.rebuild_fts()`` method for rebuilding a FTS index, see :ref:`python_api_fts_rebuild`. (`#155 <https://github.com/simonw/sqlite-utils/issues/155>`__)
+- ``sqlite-utils rebuild-fts data.db`` command for rebuilding FTS indexes across all tables, or just specific tables. (`#155 <https://github.com/simonw/sqlite-utils/issues/155>`__)
+- ``table.optimize()`` method no longer deletes junk rows from the ``*_fts_docsize`` table. This was added in 2.17 but it turns out running ``table.rebuild_fts()`` is a better solution to this problem.
+- Fixed a bug where rows with additional columns that are inserted after the first batch of records could cause an error due to breaking SQLite's maximum number of parameters. Thanks, Simon Wiles. (`#145 <https://github.com/simonw/sqlite-utils/issues/145>`__)
+
 .. _v2_17:
 
 2.17 (2020-09-07)
