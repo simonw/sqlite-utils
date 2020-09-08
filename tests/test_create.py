@@ -584,6 +584,30 @@ def test_error_if_more_than_999_columns(fresh_db, num_columns, should_error):
         fresh_db["big"].insert(record)
 
 
+def test_columns_not_in_first_record_should_not_cause_batch_to_be_too_large(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/145
+    # sqlite on homebrew and Debian/Ubuntu etc. is typically compiled with
+    #  SQLITE_MAX_VARIABLE_NUMBER set to 250,000, so we need to exceed this value to
+    #  trigger the error on these systems.
+    THRESHOLD = 250000
+    batch_size = 999
+    extra_columns = 1 + (THRESHOLD - 1) // (batch_size - 1)
+    records = [
+        {"c0": "first record"},  # one column in first record -> batch size = 999
+        # fill out the batch with 99 records with enough columns to exceed THRESHOLD
+        *[
+            dict([("c{}".format(i), j) for i in range(extra_columns)])
+            for j in range(batch_size - 1)
+        ],
+    ]
+    try:
+        fresh_db["too_many_columns"].insert_all(
+            records, alter=True, batch_size=batch_size
+        )
+    except sqlite3.OperationalError:
+        raise
+
+
 @pytest.mark.parametrize(
     "columns,index_name,expected_index",
     (
