@@ -286,7 +286,7 @@ class Database:
             foreign_keys_by_column[extract_column] = ForeignKey(
                 name, extract_column, extract_table, "id"
             )
-        # Sanity check not_null, and defaults if provided
+        # Soundness check not_null, and defaults if provided
         not_null = not_null or set()
         defaults = defaults or {}
         assert all(
@@ -308,7 +308,7 @@ class Database:
         if hash_id:
             column_items.insert(0, (hash_id, str))
             pk = hash_id
-        # Sanity check foreign_keys point to existing tables
+        # Soundness check foreign_keys point to existing tables
         for fk in foreign_keys:
             if not any(
                 c for c in self[fk.other_table].columns if c.name == fk.other_column
@@ -792,7 +792,7 @@ class Table(Queryable):
         if other_column is None:
             other_column = self.guess_foreign_column(other_table)
 
-        # Sanity check that the other column exists
+        # Soundness check that the other column exists
         if (
             not [c for c in self.db[other_table].columns if c.name == other_column]
             and other_column != "rowid"
@@ -996,7 +996,7 @@ class Table(Queryable):
         conversions = conversions or {}
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
-        # Sanity check that the record exists (raises error if not):
+        # Soundness check that the record exists (raises error if not):
         self.get(pk_values)
         if not updates:
             return self

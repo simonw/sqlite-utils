@@ -475,7 +475,7 @@ def test_optimize(db_path):
     assert 0 == result.exit_code
     size_after_optimize = os.stat(db_path).st_size
     assert size_after_optimize < size_before_optimize
-    # Sanity check that --no-vacuum doesn't throw errors:
+    # Soundness check that --no-vacuum doesn't throw errors:
     result = CliRunner().invoke(cli.cli, ["optimize", "--no-vacuum", db_path])
     assert 0 == result.exit_code
 
@@ -724,7 +724,7 @@ def test_insert_alter(db_path, tmpdir):
         input='{"foo": "bar", "baz": 5}',
     )
     assert 0 == result.exit_code, result.output
-    # Sanity check the database itself
+    # Soundness check the database itself
     db = Database(db_path)
     assert {"foo": str, "n": int, "baz": int} == db["from_json_nl"].columns_dict
     assert [
