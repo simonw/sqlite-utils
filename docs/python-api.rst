@@ -431,7 +431,8 @@ Here's an example that uses these features:
     # Outputs:
     # [{'id': 1, 'name': 'Sally', 'score': 2},
     #  {'id': 3, 'name': 'Dharma', 'score': 1}]
-    print(db["authors"].schema)                                                                                                                    # Outputs:
+    print(db["authors"].schema)
+    # Outputs:
     # CREATE TABLE [authors] (
     #     [id] INTEGER PRIMARY KEY,
     #     [name] TEXT NOT NULL,
