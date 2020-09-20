@@ -323,6 +323,36 @@ def add_foreign_key(path, table, column, other_table, other_column):
         raise click.ClickException(e)
 
 
+@cli.command(name="add-foreign-keys")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("foreign_key", nargs=-1)
+def add_foreign_keys(path, foreign_key):
+    """
+    Add multiple new foreign key constraints to a database. Example usage:
+
+    \b
+    sqlite-utils add-foreign-keys my.db \\
+        books author_id authors id \\
+        authors country_id countries id
+    """
+    db = sqlite_utils.Database(path)
+    if len(foreign_key) % 4 != 0:
+        raise click.ClickException(
+            "Each foreign key requires four values: table, column, other_table, other_column"
+        )
+    tuples = []
+    for i in range(len(foreign_key) // 4):
+        tuples.append(tuple(foreign_key[i * 4 : (i * 4) + 4]))
+    try:
+        db.add_foreign_keys(tuples)
+    except AlterError as e:
+        raise click.ClickException(e)
+
+
 @cli.command(name="index-foreign-keys")
 @click.argument(
     "path",

@@ -1405,3 +1405,41 @@ def test_query_update(db_path, args, expected):
     assert db.execute_returning_dicts("select * from dogs") == [
         {"id": 1, "age": 5, "name": "Cleo"},
     ]
+
+
+def test_add_foreign_keys(db_path):
+    db = Database(db_path)
+    db["countries"].insert({"id": 7, "name": "Panama"}, pk="id")
+    db["authors"].insert({"id": 3, "name": "Matilda", "country_id": 7}, pk="id")
+    db["books"].insert({"id": 2, "title": "Wolf anatomy", "author_id": 3}, pk="id")
+    assert db["authors"].foreign_keys == []
+    assert db["books"].foreign_keys == []
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "add-foreign-keys",
+            db_path,
+            "authors",
+            "country_id",
+            "countries",
+            "id",
+            "books",
+            "author_id",
+            "authors",
+            "id",
+        ],
+    )
+    assert result.exit_code == 0
+    assert db["authors"].foreign_keys == [
+        ForeignKey(
+            table="authors",
+            column="country_id",
+            other_table="countries",
+            other_column="id",
+        )
+    ]
+    assert db["books"].foreign_keys == [
+        ForeignKey(
+            table="books", column="author_id", other_table="authors", other_column="id"
+        )
+    ]

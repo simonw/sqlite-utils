@@ -621,6 +621,19 @@ If you omit the other table and other column references ``sqlite-utils`` will at
 
 See :ref:`python_api_add_foreign_key` in the Python API documentation for further details, including how the automatic table guessing mechanism works.
 
+.. _cli_add_foreign_keys:
+
+Adding multiple foreign keys at once
+------------------------------------
+
+Adding a foreign key requires a ``VACUUM``. On large databases this can be an expensive operation, so if you are adding multiple foreign keys you can combine them into one operation (and hence one ``VACUUM``) using ``add-foreign-keys``::
+
+    $ sqlite-utils add-foreign-keys books.db \
+        books author_id authors id \
+        authors country_id countries id
+
+When you are using this command each foreign key needs to be defined in full, as four arguments - the table, column, other table and other column.
+
 .. _cli_index_foreign_keys:
 
 Adding indexes for all foreign keys
