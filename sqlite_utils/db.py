@@ -814,16 +814,21 @@ class Table(Queryable):
         self.db.add_foreign_keys([(self.name, column, other_table, other_column)])
 
     def enable_fts(
-        self, columns, fts_version="FTS5", create_triggers=False, tokenize=None
+        self,
+        columns,
+        fts_version="FTS5",
+        create_triggers=False,
+        tokenize=None,
+        replace=False,
     ):
         "Enables FTS on the specified columns."
-        sql = (
+        create_fts_sql = (
             textwrap.dedent(
                 """
             CREATE VIRTUAL TABLE [{table}_fts] USING {fts_version} (
                 {columns},{tokenize}
                 content=[{table}]
-            );
+            )
         """
             )
             .strip()
@@ -834,7 +839,25 @@ class Table(Queryable):
                 tokenize="\n    tokenize='{}',".format(tokenize) if tokenize else "",
             )
         )
-        self.db.executescript(sql)
+        should_recreate = False
+        if replace and self.db["{}_fts".format(self.name)].exists():
+            # Does the table need to be recreated?
+            fts_schema = self.db["{}_fts".format(self.name)].schema
+            if fts_schema != create_fts_sql:
+                should_recreate = True
+            expected_triggers = {self.name + suffix for suffix in ("_ai", "_ad", "_au")}
+            existing_triggers = {t.name for t in self.triggers}
+            has_triggers = existing_triggers.issuperset(expected_triggers)
+            if has_triggers != create_triggers:
+                should_recreate = True
+            if not should_recreate:
+                # Table with correct configuration already exists
+                return self
+
+        if should_recreate:
+            self.disable_fts()
+
+        self.db.executescript(create_fts_sql)
         self.populate_fts(columns)
 
         if create_triggers:

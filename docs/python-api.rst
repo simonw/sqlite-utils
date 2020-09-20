@@ -1208,6 +1208,16 @@ You can customize the tokenizer configured for the table using the ``tokenize=``
 
 The SQLite documentation has more on `FTS5 tokenizers <https://www.sqlite.org/fts5.html#tokenizers>`__ and `FTS4 tokenizers <https://www.sqlite.org/fts3.html#tokenizer>`__. ``porter`` is a valid option for both.
 
+If you attempt to configure a FTS table where one already exists, a ``sqlite3.OperationalError`` exception will be raised.
+
+You can replace the existing table with a new configuration using ``replace=True``:
+
+.. code-block:: python
+
+    db["articles"].enable_fts(["headline"], tokenize="porter", replace=True)
+
+This will have no effect if the FTS table already exists, otherwise it will drop and recreate the table with the new settings. This takes into consideration the columns, the tokenizer, the FTS version used and whether or not the table has triggers.
+
 To remove the FTS tables and triggers you created, use the ``disable_fts()`` table method:
 
 .. code-block:: python

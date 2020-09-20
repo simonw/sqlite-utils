@@ -217,3 +217,62 @@ def test_rebuild_removes_junk_docsize_rows(tmpdir, fts_version):
     # rebuild should fix this:
     db["licenses_fts"].rebuild_fts()
     assert db["licenses_fts_docsize"].count == 2
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"columns": ["title"]},
+        {"fts_version": "FTS4"},
+        {"create_triggers": True},
+        {"tokenize": "porter"},
+    ],
+)
+def test_enable_fts_replace(kwargs):
+    db = Database(memory=True)
+    db["books"].insert(
+        {
+            "id": 1,
+            "title": "Habits of Australian Marsupials",
+            "author": "Marlee Hawkins",
+        },
+        pk="id",
+    )
+    db["books"].enable_fts(["title", "author"])
+    assert not db["books"].triggers
+    assert db["books_fts"].columns_dict.keys() == {"title", "author"}
+    assert "FTS5" in db["books_fts"].schema
+    assert "porter" not in db["books_fts"].schema
+    # Now modify the FTS configuration
+    should_have_changed_columns = "columns" in kwargs
+    if "columns" not in kwargs:
+        kwargs["columns"] = ["title", "author"]
+    db["books"].enable_fts(**kwargs, replace=True)
+    # Check that the new configuration is correct
+    if should_have_changed_columns:
+        assert db["books_fts"].columns_dict.keys() == set(["title"])
+    if "create_triggers" in kwargs:
+        assert db["books"].triggers
+    if "fts_version" in kwargs:
+        assert "FTS4" in db["books_fts"].schema
+    if "tokenize" in kwargs:
+        assert "porter" in db["books_fts"].schema
+
+
+def test_enable_fts_replace_does_nothing_if_args_the_same():
+    queries = []
+    db = Database(memory=True, tracer=lambda sql, params: queries.append((sql, params)))
+    db["books"].insert(
+        {
+            "id": 1,
+            "title": "Habits of Australian Marsupials",
+            "author": "Marlee Hawkins",
+        },
+        pk="id",
+    )
+    db["books"].enable_fts(["title", "author"], create_triggers=True)
+    queries.clear()
+    # Running that again shouldn't run much SQL:
+    db["books"].enable_fts(["title", "author"], create_triggers=True, replace=True)
+    # The only SQL that executed should be select statements
+    assert all(q[0].startswith("select ") for q in queries)
