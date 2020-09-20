@@ -5,6 +5,7 @@ from sqlite_utils.db import (
     AlterError,
     NoObviousTable,
     ForeignKey,
+    Table,
 )
 from sqlite_utils.utils import sqlite3
 import collections
@@ -348,7 +349,9 @@ def test_add_foreign_key(fresh_db):
         ]
     )
     assert [] == fresh_db["books"].foreign_keys
-    fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+    t = fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+    # Ensure it returned self:
+    assert isinstance(t, Table) and t.name == "books"
     assert [
         ForeignKey(
             table="books", column="author_id", other_table="authors", other_column="id"
@@ -377,6 +380,13 @@ def test_add_foreign_key_error_if_already_exists(fresh_db):
     with pytest.raises(AlterError) as ex:
         fresh_db["books"].add_foreign_key("author_id", "authors", "id")
     assert "Foreign key already exists for author_id => authors.id" == ex.value.args[0]
+
+
+def test_add_foreign_key_no_error_if_exists_and_ignore_true(fresh_db):
+    fresh_db["books"].insert({"title": "Hedgehogs of the world", "author_id": 1})
+    fresh_db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
+    fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+    fresh_db["books"].add_foreign_key("author_id", "authors", "id", ignore=True)
 
 
 def test_add_foreign_keys(fresh_db):

@@ -308,7 +308,12 @@ def add_column(path, table, col_name, col_type, fk, fk_col, not_null_default):
 @click.argument("column")
 @click.argument("other_table", required=False)
 @click.argument("other_column", required=False)
-def add_foreign_key(path, table, column, other_table, other_column):
+@click.option(
+    "--ignore",
+    is_flag=True,
+    help="If foreign key already exists, do nothing",
+)
+def add_foreign_key(path, table, column, other_table, other_column, ignore):
     """
     Add a new foreign key constraint to an existing table. Example usage:
 
@@ -318,7 +323,7 @@ def add_foreign_key(path, table, column, other_table, other_column):
     """
     db = sqlite_utils.Database(path)
     try:
-        db[table].add_foreign_key(column, other_table, other_column)
+        db[table].add_foreign_key(column, other_table, other_column, ignore=ignore)
     except AlterError as e:
         raise click.ClickException(e)
 

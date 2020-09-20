@@ -858,6 +858,12 @@ The ``table.add_foreign_key(column, other_table, other_column)`` method takes th
 
 This method first checks that the specified foreign key references tables and columns that exist and does not clash with an existing foreign key. It will raise a ``sqlite_utils.db.AlterError`` exception if these checks fail.
 
+To ignore the case where the key already exists, use ``ignore=True``:
+
+.. code-block:: python
+
+    db["books"].add_foreign_key("author_id", "authors", "id", ignore=True)
+
 .. _python_api_add_foreign_keys:
 
 Adding multiple foreign key constraints at once

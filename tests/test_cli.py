@@ -272,16 +272,24 @@ def test_add_foreign_key(db_path, args, assert_message):
             table="books", column="author_id", other_table="authors", other_column="id"
         )
     ] == db["books"].foreign_keys
+
     # Error if we try to add it twice:
     result = CliRunner().invoke(
         cli.cli, ["add-foreign-key", db_path, "books", "author_id", "authors", "id"]
     )
-
     assert 0 != result.exit_code
     assert (
         "Error: Foreign key already exists for author_id => authors.id"
         == result.output.strip()
     )
+
+    # No error if we add it twice with --ignore
+    result = CliRunner().invoke(
+        cli.cli,
+        ["add-foreign-key", db_path, "books", "author_id", "authors", "id", "--ignore"],
+    )
+    assert 0 == result.exit_code
+
     # Error if we try against an invalid column
     result = CliRunner().invoke(
         cli.cli, ["add-foreign-key", db_path, "books", "author_id", "authors", "bad"]

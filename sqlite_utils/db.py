@@ -781,7 +781,9 @@ class Table(Queryable):
         else:
             return pks[0].name
 
-    def add_foreign_key(self, column, other_table=None, other_column=None):
+    def add_foreign_key(
+        self, column, other_table=None, other_column=None, ignore=False
+    ):
         # Ensure column exists
         if column not in self.columns_dict:
             raise AlterError("No such column: {}".format(column))
@@ -806,12 +808,16 @@ class Table(Queryable):
             and fk.other_table == other_table
             and fk.other_column == other_column
         ):
-            raise AlterError(
-                "Foreign key already exists for {} => {}.{}".format(
-                    column, other_table, other_column
+            if ignore:
+                return self
+            else:
+                raise AlterError(
+                    "Foreign key already exists for {} => {}.{}".format(
+                        column, other_table, other_column
+                    )
                 )
-            )
         self.db.add_foreign_keys([(self.name, column, other_table, other_column)])
+        return self
 
     def enable_fts(
         self,

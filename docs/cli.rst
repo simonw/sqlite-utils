@@ -619,6 +619,10 @@ If you omit the other table and other column references ``sqlite-utils`` will at
 
     $ sqlite-utils add-foreign-key books.db books author_id
 
+Add ``--ignore`` to ignore an existing foreign key (as opposed to returning an error)::
+
+    $ sqlite-utils add-foreign-key books.db books author_id --ignore
+
 See :ref:`python_api_add_foreign_key` in the Python API documentation for further details, including how the automatic table guessing mechanism works.
 
 .. _cli_add_foreign_keys:
