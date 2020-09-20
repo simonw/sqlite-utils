@@ -2,6 +2,15 @@
  Changelog
 ===========
 
+.. _v2_19:
+
+2.19 (2020-09-20)
+-----------------
+
+- New ``sqlite-utils add-foreign-keys`` command for :ref:`cli_add_foreign_keys`. (`#157 <https://github.com/simonw/sqlite-utils/issues/157>`__)
+- New ``table.enable_fts(..., replace=True)`` argument for replacing an existing FTS table with a new configuration. (`#160 <https://github.com/simonw/sqlite-utils/issues/160>`__)
+- New ``table.add_foreign_key(..., ignore=True)`` argument for ignoring a foreign key if it already exists. (`#112 <https://github.com/simonw/sqlite-utils/issues/112>`__)
+
 .. _v2_18:
 
 2.18 (2020-09-08)
