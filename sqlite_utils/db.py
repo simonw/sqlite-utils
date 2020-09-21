@@ -387,7 +387,7 @@ class Database:
             hash_id=hash_id,
             extracts=extracts,
         )
-        self.conn.execute(sql)
+        self.execute(sql)
         return self.table(
             name,
             pk=pk,
@@ -710,7 +710,7 @@ class Table(Queryable):
             )
         return self
 
-    def transform_table(
+    def transform(
         self,
         columns=None,
         rename=None,
@@ -724,7 +724,7 @@ class Table(Queryable):
         extracts=None,
     ):
         assert self.exists(), "Cannot transform a table that doesn't exist yet"
-        sqls = self.transform_table_sql(
+        sqls = self.transform_sql(
             columns=columns,
             rename=rename,
             change_type=change_type,
@@ -741,7 +741,7 @@ class Table(Queryable):
                 self.db.conn.execute(sql)
         return self
 
-    def transform_table_sql(
+    def transform_sql(
         self,
         columns=None,
         rename=None,
@@ -783,15 +783,13 @@ class Table(Queryable):
             )
         )
         # Copy across data, respecting any renamed columns
-        new_columns = set(columns.keys())
-        columns_to_copy = new_columns.intersection(previous_columns)
+        new_columns = columns.keys()
+        columns_to_copy = set(new_columns).intersection(previous_columns)
         copy_sql = "INSERT INTO [{new_table}] ({new_cols}) SELECT {old_cols} FROM [{old_table}]".format(
             new_table=new_table_name,
             old_table=self.name,
             old_cols=", ".join(sorted("[{}]".format(col) for col in columns_to_copy)),
-            new_cols=", ".join(
-                sorted("[{}]".format(col) for col in new_columns)
-            ),
+            new_cols=", ".join(sorted("[{}]".format(col) for col in new_columns)),
         )
         sqls.append(copy_sql)
         # Drop the old table

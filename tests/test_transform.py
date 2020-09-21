@@ -24,9 +24,9 @@ import pytest
         ),
     ],
 )
-def test_transform_table_sql(fresh_db, params, expected_sql):
+def test_transform_sql(fresh_db, params, expected_sql):
     dogs = fresh_db["dogs"]
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
     params["tmp_suffix"] = "suffix"
-    sql = dogs.transform_table_sql(**params)
+    sql = dogs.transform_sql(**params)
     assert sql == expected_sql
