@@ -7,7 +7,7 @@ import pytest
         (
             {},
             [
-                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] TEXT\n);\n        ",
+                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] TEXT\n);",
                 "INSERT INTO [dogs_new_suffix] ([id], [name], [age]) SELECT [id], [name], [age] FROM [dogs]",
                 "DROP TABLE [dogs]",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
@@ -16,8 +16,17 @@ import pytest
         (
             {"rename": {"age": "dog_age"}},
             [
-                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [dog_age] TEXT\n);\n        ",
+                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [dog_age] TEXT\n);",
                 "INSERT INTO [dogs_new_suffix] ([id], [name], [dog_age]) SELECT [id], [name], [age] FROM [dogs]",
+                "DROP TABLE [dogs]",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
+            ],
+        ),
+        (
+            {"drop": ["age"]},
+            [
+                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n);",
+                "INSERT INTO [dogs_new_suffix] ([id], [name]) SELECT [id], [name] FROM [dogs]",
                 "DROP TABLE [dogs]",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
             ],

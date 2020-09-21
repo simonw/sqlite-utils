@@ -714,7 +714,7 @@ class Table(Queryable):
         self,
         columns=None,
         rename=None,
-        change_type=None,
+        drop=None,
         pk=None,
         foreign_keys=None,
         column_order=None,
@@ -727,14 +727,14 @@ class Table(Queryable):
         sqls = self.transform_sql(
             columns=columns,
             rename=rename,
-            change_type=change_type,
-            pk=pk,
-            foreign_keys=foreign_keys,
-            column_order=column_order,
-            not_null=not_null,
-            defaults=defaults,
-            hash_id=hash_id,
-            extracts=extracts,
+            drop=None,
+            # pk=pk,
+            # foreign_keys=foreign_keys,
+            # column_order=column_order,
+            # not_null=not_null,
+            # defaults=defaults,
+            # hash_id=hash_id,
+            # extracts=extracts,
         )
         with self.db.conn:
             for sql in sqls:
@@ -745,51 +745,57 @@ class Table(Queryable):
         self,
         columns=None,
         rename=None,
-        change_type=None,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        hash_id=None,
-        extracts=None,
+        drop=None,
         tmp_suffix=None,
     ):
-        columns = columns or self.columns_dict
+        columns = columns or {}
         rename = rename or {}
-        change_type = change_type or {}
-        if rename or change_type:
-            columns = {
-                rename.get(key, key): change_type.get(key, value)
-                for key, value in columns.items()
-            }
+        drop = drop or set()
         new_table_name = "{}_new_{}".format(
             self.name, tmp_suffix or os.urandom(6).hex()
         )
-        previous_columns = set(self.columns_dict.keys())
+        current_column_pairs = list(self.columns_dict.items())
+        new_column_pairs = []
+        copy_from_to = {column: column for column, _ in current_column_pairs}
+        for name, type_ in current_column_pairs:
+            type_ = columns.get(name) or type_
+            if name in drop:
+                del [copy_from_to[name]]
+                continue
+            new_name = rename.get(name) or name
+            new_column_pairs.append((new_name, type_))
+            copy_from_to[name] = new_name
+
         sqls = []
-        columns = {name: value for (name, value) in columns.items()}
+        pk = None
+        if len(self.pks) == 1:
+            pk = self.pks[0]
+        else:
+            pk = self.pks
         sqls.append(
             self.db.create_table_sql(
                 new_table_name,
-                columns,
+                dict(new_column_pairs),
                 pk=pk,
-                foreign_keys=foreign_keys,
-                column_order=column_order,
-                not_null=not_null,
-                defaults=defaults,
-                hash_id=hash_id,
-                extracts=extracts,
-            )
+                # foreign_keys=foreign_keys,
+                # column_order=column_order,
+                # not_null=not_null,
+                # defaults=defaults,
+                # hash_id=hash_id,
+                # extracts=extracts,
+            ).strip()
         )
         # Copy across data, respecting any renamed columns
-        new_columns = columns.keys()
-        columns_to_copy = set(new_columns).intersection(previous_columns)
+        new_cols = []
+        old_cols = []
+        for from_, to_ in copy_from_to.items():
+            old_cols.append(from_)
+            new_cols.append(to_)
         copy_sql = "INSERT INTO [{new_table}] ({new_cols}) SELECT {old_cols} FROM [{old_table}]".format(
             new_table=new_table_name,
             old_table=self.name,
-            old_cols=", ".join(sorted("[{}]".format(col) for col in columns_to_copy)),
-            new_cols=", ".join(sorted("[{}]".format(col) for col in new_columns)),
+            old_cols=", ".join("[{}]".format(col) for col in old_cols),
+            new_cols=", ".join("[{}]".format(col) for col in new_cols),
         )
         sqls.append(copy_sql)
         # Drop the old table
