@@ -4,6 +4,7 @@ import pytest
 @pytest.mark.parametrize(
     "params,expected_sql",
     [
+        # Identity transform - nothing changes
         (
             {},
             [
@@ -13,6 +14,17 @@ import pytest
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
             ],
         ),
+        # Change column type
+        (
+            {"columns": {"age": int}},
+            [
+                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] INTEGER\n);",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [age]) SELECT [id], [name], [age] FROM [dogs]",
+                "DROP TABLE [dogs]",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
+            ],
+        ),
+        # Rename a column
         (
             {"rename": {"age": "dog_age"}},
             [
@@ -22,11 +34,22 @@ import pytest
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
             ],
         ),
+        # Drop a column
         (
             {"drop": ["age"]},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n);",
                 "INSERT INTO [dogs_new_suffix] ([id], [name]) SELECT [id], [name] FROM [dogs]",
+                "DROP TABLE [dogs]",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
+            ],
+        ),
+        # Convert type AND rename column
+        (
+            {"columns": {"age": int}, "rename": {"age": "dog_age"}},
+            [
+                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [dog_age] INTEGER\n);",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [dog_age]) SELECT [id], [name], [age] FROM [dogs]",
                 "DROP TABLE [dogs]",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
             ],
