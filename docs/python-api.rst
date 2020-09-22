@@ -908,6 +908,99 @@ You can drop a table or view using the ``.drop()`` method:
 
     db["my_table"].drop()
 
+.. _python_api_transform:
+
+Transforming a table
+====================
+
+The SQLite ``ALTER TABLE`` statement is limited. It can add columns and rename tables, but it cannot rename columns, drop columns, change column types, change ``NOT NULL`` status or change the primary key for a table.
+
+The ``table.transform()`` method can do all of these things, by implementing a multi-step pattern `described in the SQLite documentation <https://www.sqlite.org/lang_altertable.html#otheralter>`__:
+
+1. Start a transaction
+2. ``CREATE TABLE tablename_new_x123`` with the required changes
+3. Copy the old data into the new table using ``INSERT INTO tablename_new_x123 SELECT * FROM tablename;``
+4. ``DROP TABLE tablename;``
+5. ``ALTER TABLE tablename_new_x123 RENAME TO tablename;``
+6. Commit the transaction
+
+The ``.transform()`` method takes a number of parameters, all of which are optional.
+
+To alter the type of a column, use the first argument:
+
+.. code-block:: python
+
+    # Convert the 'age' column to an integer, and 'weight' to a float
+    table.transform({"age": int, "weight": float})
+
+The ``rename=`` parameter can rename columns:
+
+.. code-block:: python
+
+    # Rename 'age' to 'initial_age':
+    table.transform(rename={"age": "initial_age"})
+
+To drop columns, pass them in the ``drop=`` set:
+
+.. code-block:: python
+
+    # Drop the 'age' column:
+    table.transform(drop={"age"})
+
+To change the primary key for a table, use ``pk=``. This can be passed a single column for a regular primary key, or a tuple of columns to create a compound primary key. Passing ``pk=None`` will remove the primary key and convert the table into a ``rowid`` table.
+
+.. code-block:: python
+
+    # Make `user_id` the new primary key
+    table.transform(pk="user_id")
+
+You can change the ``NOT NULL`` status of columns by using ``not_null=``. You can pass this a set of columns to make those columns ``NOT NULL``:
+
+.. code-block:: python
+
+    # Make the 'age' and 'weight' columns NOT NULL
+    table.transform(not_null={"age", "weight"})
+
+If you want to take existing ``NOT NULL`` columns and change them to allow null values, you can do so by passing a dictionary of true/false values instead:
+
+.. code-block:: python
+
+    # 'age' is NOT NULL but we want to allow NULL:
+    table.transform(not_null={"age": False})
+
+    # Make age allow NULL and switch weight to being NOT NULL:
+    table.transform(not_null={"age": False, "weight": True})
+
+The ``defaults=`` parameter can be used to set or change the defaults for different columns:
+
+.. code-block:: python
+
+    # Set default age to 1:
+    table.transform(defaults={"age": 1})
+
+    # Now remove the default from that column:
+    table.transform(defaults={"age": None})
+
+You can use ``.transform()`` to remove foreign key constraints from a table. You will need to know the name of the column, the name of the table it points to and the name of the column it references on that other table.
+
+This example drops two foreign keys - the one from ``places.country`` to ``country.id`` and the one from ``places.continent`` to ``continent.id``:
+
+.. code-block:: python
+
+    db["places"].transform(
+        drop_foreign_keys=(
+            ("country", "country", "id"),
+            ("continent", "continent", "id"),
+        )
+    )
+
+.. _python_api_transform_sql:
+
+Custom transformations with .transform_sql()
+--------------------------------------------
+
+If you want to do something more advanced, you can call the ``table.transform_sql(...)`` method with the same arguments that you would have passed to ``table.transform(...)``. This method will return a list of SQL statements that should be executed to implement the change. You can then make modifications to that SQL before executing it yourself.
+
 .. _python_api_hash:
 
 Setting an ID based on the hash of the row contents

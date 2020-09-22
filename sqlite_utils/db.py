@@ -268,7 +268,7 @@ class Database:
                 )
         return fks
 
-    def create_table(
+    def create_table_sql(
         self,
         name,
         columns,
@@ -336,7 +336,7 @@ class Database:
                 column_extras.append("PRIMARY KEY")
             if column_name in not_null:
                 column_extras.append("NOT NULL")
-            if column_name in defaults:
+            if column_name in defaults and defaults[column_name] is not None:
                 column_extras.append(
                     "DEFAULT {}".format(self.escape(defaults[column_name]))
                 )
@@ -367,6 +367,31 @@ class Database:
 );
         """.format(
             table=name, columns_sql=columns_sql, extra_pk=extra_pk
+        )
+        return sql
+
+    def create_table(
+        self,
+        name,
+        columns,
+        pk=None,
+        foreign_keys=None,
+        column_order=None,
+        not_null=None,
+        defaults=None,
+        hash_id=None,
+        extracts=None,
+    ):
+        sql = self.create_table_sql(
+            name=name,
+            columns=columns,
+            pk=pk,
+            foreign_keys=foreign_keys,
+            column_order=column_order,
+            not_null=not_null,
+            defaults=defaults,
+            hash_id=hash_id,
+            extracts=extracts,
         )
         self.execute(sql)
         return self.table(
@@ -690,6 +715,156 @@ class Table(Queryable):
                 extracts=extracts,
             )
         return self
+
+    def transform(
+        self,
+        columns=None,
+        rename=None,
+        drop=None,
+        pk=DEFAULT,
+        not_null=None,
+        defaults=None,
+        drop_foreign_keys=None,
+    ):
+        assert self.exists(), "Cannot transform a table that doesn't exist yet"
+        sqls = self.transform_sql(
+            columns=columns,
+            rename=rename,
+            drop=None,
+            pk=pk,
+            not_null=not_null,
+            defaults=defaults,
+            drop_foreign_keys=drop_foreign_keys,
+        )
+        initial_pragma_foreign_keys = self.db.execute("PRAGMA foreign_keys").fetchone()[
+            0
+        ]
+        try:
+            with self.db.conn:
+                for sql in sqls:
+                    self.db.execute(sql)
+        finally:
+            # Make sure we reset PRAGMA foreign_keys correctly
+            if (
+                initial_pragma_foreign_keys
+                and not self.db.execute("PRAGMA foreign_keys").fetchone()[0]
+            ):
+                self.db.execute("PRAGMA foreign_keys=1")
+        return self
+
+    def transform_sql(
+        self,
+        columns=None,
+        rename=None,
+        drop=None,
+        pk=DEFAULT,
+        not_null=None,
+        defaults=None,
+        drop_foreign_keys=None,
+        tmp_suffix=None,
+    ):
+        columns = columns or {}
+        rename = rename or {}
+        drop = drop or set()
+        new_table_name = "{}_new_{}".format(
+            self.name, tmp_suffix or os.urandom(6).hex()
+        )
+        current_column_pairs = list(self.columns_dict.items())
+        new_column_pairs = []
+        copy_from_to = {column: column for column, _ in current_column_pairs}
+        for name, type_ in current_column_pairs:
+            type_ = columns.get(name) or type_
+            if name in drop:
+                del [copy_from_to[name]]
+                continue
+            new_name = rename.get(name) or name
+            new_column_pairs.append((new_name, type_))
+            copy_from_to[name] = new_name
+
+        should_flip_foreign_keys_pragma = self.db.execute(
+            "PRAGMA foreign_keys"
+        ).fetchone()[0]
+
+        sqls = []
+
+        if should_flip_foreign_keys_pragma:
+            sqls.append("PRAGMA foreign_keys=OFF")
+
+        if pk is DEFAULT:
+            pks_renamed = tuple(rename.get(p) or p for p in self.pks)
+            if len(pks_renamed) == 1:
+                pk = pks_renamed[0]
+            else:
+                pk = pks_renamed
+
+        # not_null may be a set or dict, need to convert to a set
+        create_table_not_null = {c.name for c in self.columns if c.notnull}
+        if isinstance(not_null, dict):
+            # Remove any columns with a value of False
+            for key, value in not_null.items():
+                # Column may have been renamed
+                key = rename.get(key) or key
+                if value is False and key in create_table_not_null:
+                    create_table_not_null.remove(key)
+                else:
+                    create_table_not_null.add(key)
+        elif isinstance(not_null, set):
+            create_table_not_null.update(rename.get(k) or k for k in not_null)
+
+        # defaults=
+        create_table_defaults = {
+            (rename.get(c.name) or c.name): c.default_value
+            for c in self.columns
+            if c.default_value is not None
+        }
+        if defaults is not None:
+            create_table_defaults.update(
+                {rename.get(c) or c: v for c, v in defaults.items()}
+            )
+
+        # foreign_keys
+        create_table_foreign_keys = []
+        for table, column, other_table, other_column in self.foreign_keys:
+            if (drop_foreign_keys is None) or (
+                (column, other_table, other_column) not in drop_foreign_keys
+            ):
+                create_table_foreign_keys.append(
+                    (rename.get(column) or column, other_table, other_column)
+                )
+
+        sqls.append(
+            self.db.create_table_sql(
+                new_table_name,
+                dict(new_column_pairs),
+                pk=pk,
+                not_null=create_table_not_null,
+                defaults=create_table_defaults,
+                foreign_keys=create_table_foreign_keys,
+            ).strip()
+        )
+        # Copy across data, respecting any renamed columns
+        new_cols = []
+        old_cols = []
+        for from_, to_ in copy_from_to.items():
+            old_cols.append(from_)
+            new_cols.append(to_)
+        copy_sql = "INSERT INTO [{new_table}] ({new_cols}) SELECT {old_cols} FROM [{old_table}]".format(
+            new_table=new_table_name,
+            old_table=self.name,
+            old_cols=", ".join("[{}]".format(col) for col in old_cols),
+            new_cols=", ".join("[{}]".format(col) for col in new_cols),
+        )
+        sqls.append(copy_sql)
+        # Drop the old table
+        sqls.append("DROP TABLE [{}]".format(self.name))
+        # Rename the new one
+        sqls.append("ALTER TABLE [{}] RENAME TO [{}]".format(new_table_name, self.name))
+
+        if should_flip_foreign_keys_pragma:
+            sqls.append("PRAGMA foreign_key_check")
+            sqls.append("PRAGMA foreign_keys=ON")
+
+        return sqls
 
     def create_index(self, columns, index_name=None, unique=False, if_not_exists=False):
         if index_name is None:
