@@ -926,12 +926,12 @@ The ``table.transform()`` method can do all of these things, by implementing a m
 
 The ``.transform()`` method takes a number of parameters, all of which are optional.
 
-To alter the type of a column, use the first argument:
+To alter the type of a column, use the ``types=`` argument:
 
 .. code-block:: python
 
     # Convert the 'age' column to an integer, and 'weight' to a float
-    table.transform({"age": int, "weight": float})
+    table.transform(types={"age": int, "weight": float})
 
 The ``rename=`` parameter can rename columns:
 

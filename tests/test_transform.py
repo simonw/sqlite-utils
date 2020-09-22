@@ -18,7 +18,7 @@ import pytest
         ),
         # Change column type
         (
-            {"columns": {"age": int}},
+            {"types": {"age": int}},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] INTEGER\n);",
                 "INSERT INTO [dogs_new_suffix] ([id], [name], [age]) SELECT [id], [name], [age] FROM [dogs]",
@@ -48,7 +48,7 @@ import pytest
         ),
         # Convert type AND rename column
         (
-            {"columns": {"age": int}, "rename": {"age": "dog_age"}},
+            {"types": {"age": int}, "rename": {"age": "dog_age"}},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [dog_age] INTEGER\n);",
                 "INSERT INTO [dogs_new_suffix] ([id], [name], [dog_age]) SELECT [id], [name], [age] FROM [dogs]",
