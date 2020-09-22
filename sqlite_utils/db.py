@@ -336,7 +336,7 @@ class Database:
                 column_extras.append("PRIMARY KEY")
             if column_name in not_null:
                 column_extras.append("NOT NULL")
-            if column_name in defaults:
+            if column_name in defaults and defaults[column_name] is not None:
                 column_extras.append(
                     "DEFAULT {}".format(self.escape(defaults[column_name]))
                 )
@@ -736,9 +736,9 @@ class Table(Queryable):
             drop=None,
             pk=pk,
             not_null=not_null,
+            defaults=defaults,
             # foreign_keys=foreign_keys,
             # column_order=column_order,
-            # defaults=defaults,
             # hash_id=hash_id,
             # extracts=extracts,
         )
@@ -754,6 +754,7 @@ class Table(Queryable):
         drop=None,
         pk=None,
         not_null=None,
+        defaults=None,
         tmp_suffix=None,
     ):
         columns = columns or {}
@@ -795,16 +796,27 @@ class Table(Queryable):
         elif isinstance(not_null, set):
             create_table_not_null.update(rename.get(k) or k for k in not_null)
 
+        # defaults=
+        create_table_defaults = {
+            (rename.get(c.name) or c.name): c.default_value
+            for c in self.columns
+            if c.default_value is not None
+        }
+        if defaults is not None:
+            create_table_defaults.update(
+                {rename.get(c) or c: v for c, v in defaults.items()}
+            )
+
         sqls.append(
             self.db.create_table_sql(
                 new_table_name,
                 dict(new_column_pairs),
                 pk=pk,
                 not_null=create_table_not_null,
+                defaults=create_table_defaults,
                 # foreign_keys=foreign_keys,
                 # column_order=column_order,
                 # not_null=not_null,
-                # defaults=defaults,
                 # hash_id=hash_id,
                 # extracts=extracts,
             ).strip()

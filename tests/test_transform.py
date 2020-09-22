@@ -129,3 +129,33 @@ def test_transform_add_not_null_with_rename(fresh_db, not_null):
         dogs.schema
         == 'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [dog_age] TEXT NOT NULL\n)'
     )
+
+
+def test_transform_defaults(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
+    dogs.transform(defaults={"age": 1})
+    assert (
+        dogs.schema
+        == 'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] INTEGER DEFAULT 1\n)'
+    )
+
+
+def test_transform_defaults_and_rename_column(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
+    dogs.transform(rename={"age": "dog_age"}, defaults={"age": 1})
+    assert (
+        dogs.schema
+        == 'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [dog_age] INTEGER DEFAULT 1\n)'
+    )
+
+
+def test_remove_defaults(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": 5}, defaults={"age": 1}, pk="id")
+    dogs.transform(defaults={"age": None})
+    assert (
+        dogs.schema
+        == 'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] INTEGER\n)'
+    )
