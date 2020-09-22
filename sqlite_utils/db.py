@@ -869,7 +869,9 @@ class Table(Queryable):
         # Drop the old table
         sqls.append("DROP TABLE [{}];".format(self.name))
         # Rename the new one
-        sqls.append("ALTER TABLE [{}] RENAME TO [{}];".format(new_table_name, self.name))
+        sqls.append(
+            "ALTER TABLE [{}] RENAME TO [{}];".format(new_table_name, self.name)
+        )
 
         if should_flip_foreign_keys_pragma:
             sqls.append("PRAGMA foreign_key_check;")
