@@ -145,7 +145,7 @@ View objects are similar to Table objects, except that any attempts to insert or
 * ``count``
 * ``schema``
 * ``rows``
-* ``rows_where(where, where_args, order_by)``
+* ``rows_where(where, where_args, order_by, select)``
 * ``drop()``
 
 .. _python_api_rows:
@@ -167,6 +167,13 @@ You can filter rows by a WHERE clause using ``.rows_where(where, where_args)``::
     >>> for row in db["dogs"].rows_where("age > ?", [3]):
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
+
+To return custom columns (instead of using ``select *``) pass ``select=``::
+
+    >>> db = sqlite_utils.Database("dogs.db")
+    >>> for row in db["dogs"].rows_where(select='name, age'):
+    ...     print(row)
+    {'name': 'Cleo', 'age': 4}
 
 To specify an order, use the ``order_by=`` argument::
 

@@ -532,10 +532,10 @@ class Queryable:
     def rows(self):
         return self.rows_where()
 
-    def rows_where(self, where=None, where_args=None, order_by=None):
+    def rows_where(self, where=None, where_args=None, order_by=None, select="*"):
         if not self.exists():
             return []
-        sql = "select * from [{}]".format(self.name)
+        sql = "select {} from [{}]".format(select, self.name)
         if where is not None:
             sql += " where " + where
         if order_by is not None:

@@ -26,7 +26,7 @@ def test_rows_where(where, where_args, expected_ids, fresh_db):
         ],
         pk="id",
     )
-    assert expected_ids == {r["id"] for r in table.rows_where(where, where_args)}
+    assert expected_ids == {r["id"] for r in table.rows_where(where, where_args, select="id")}
 
 
 @pytest.mark.parametrize(
