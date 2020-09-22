@@ -734,7 +734,7 @@ class Table(Queryable):
             columns=columns,
             rename=rename,
             drop=None,
-            # pk=pk,
+            pk=pk,
             # foreign_keys=foreign_keys,
             # column_order=column_order,
             # not_null=not_null,
@@ -752,6 +752,7 @@ class Table(Queryable):
         columns=None,
         rename=None,
         drop=None,
+        pk=None,
         tmp_suffix=None,
     ):
         columns = columns or {}
@@ -773,11 +774,11 @@ class Table(Queryable):
             copy_from_to[name] = new_name
 
         sqls = []
-        pk = None
-        if len(self.pks) == 1:
-            pk = self.pks[0]
-        else:
-            pk = self.pks
+        if pk is None:
+            if len(self.pks) == 1:
+                pk = self.pks[0]
+            else:
+                pk = self.pks
         sqls.append(
             self.db.create_table_sql(
                 new_table_name,
