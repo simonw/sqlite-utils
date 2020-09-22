@@ -792,7 +792,7 @@ class Table(Queryable):
                     create_table_not_null.remove(key)
                 else:
                     create_table_not_null.add(key)
-        else:
+        elif isinstance(not_null, set):
             create_table_not_null.update(rename.get(k) or k for k in not_null)
 
         sqls.append(
