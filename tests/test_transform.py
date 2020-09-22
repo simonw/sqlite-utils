@@ -83,3 +83,12 @@ def test_transform_sql(fresh_db, params, expected_sql):
     assert sql == expected_sql
     # Check that .transform() runs without exceptions:
     dogs.transform(**params)
+
+
+def test_transform_sql_rowid_to_id(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": "5"})
+    assert dogs.schema == 'CREATE TABLE [dogs] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] TEXT\n)'
+    dogs.transform(pk="id")
+    # Slight oddity: [dogs] becomes "dogs" during the rename:
+    assert dogs.schema == 'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] TEXT\n)'
