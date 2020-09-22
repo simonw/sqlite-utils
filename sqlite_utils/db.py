@@ -731,7 +731,7 @@ class Table(Queryable):
         sqls = self.transform_sql(
             types=types,
             rename=rename,
-            drop=None,
+            drop=drop,
             pk=pk,
             not_null=not_null,
             defaults=defaults,
@@ -790,7 +790,7 @@ class Table(Queryable):
         sqls = []
 
         if should_flip_foreign_keys_pragma:
-            sqls.append("PRAGMA foreign_keys=OFF")
+            sqls.append("PRAGMA foreign_keys=OFF;")
 
         if pk is DEFAULT:
             pks_renamed = tuple(rename.get(p) or p for p in self.pks)
@@ -800,7 +800,12 @@ class Table(Queryable):
                 pk = pks_renamed
 
         # not_null may be a set or dict, need to convert to a set
-        create_table_not_null = {c.name for c in self.columns if c.notnull}
+        create_table_not_null = {
+            rename.get(c.name) or c.name
+            for c in self.columns
+            if c.notnull
+            if c.name not in drop
+        }
         if isinstance(not_null, dict):
             # Remove any columns with a value of False
             for key, value in not_null.items():
@@ -811,13 +816,16 @@ class Table(Queryable):
                 else:
                     create_table_not_null.add(key)
         elif isinstance(not_null, set):
-            create_table_not_null.update(rename.get(k) or k for k in not_null)
-
+            create_table_not_null.update((rename.get(k) or k) for k in not_null)
+        elif not_null is None:
+            pass
+        else:
+            assert False, "not_null must be a dict or a set or None"
         # defaults=
         create_table_defaults = {
             (rename.get(c.name) or c.name): c.default_value
             for c in self.columns
-            if c.default_value is not None
+            if c.default_value is not None and c.name not in drop
         }
         if defaults is not None:
             create_table_defaults.update(
@@ -844,13 +852,14 @@ class Table(Queryable):
                 foreign_keys=create_table_foreign_keys,
             ).strip()
         )
+
         # Copy across data, respecting any renamed columns
         new_cols = []
         old_cols = []
         for from_, to_ in copy_from_to.items():
             old_cols.append(from_)
             new_cols.append(to_)
-        copy_sql = "INSERT INTO [{new_table}] ({new_cols}) SELECT {old_cols} FROM [{old_table}]".format(
+        copy_sql = "INSERT INTO [{new_table}] ({new_cols})\n   SELECT {old_cols} FROM [{old_table}];".format(
             new_table=new_table_name,
             old_table=self.name,
             old_cols=", ".join("[{}]".format(col) for col in old_cols),
@@ -858,13 +867,13 @@ class Table(Queryable):
         )
         sqls.append(copy_sql)
         # Drop the old table
-        sqls.append("DROP TABLE [{}]".format(self.name))
+        sqls.append("DROP TABLE [{}];".format(self.name))
         # Rename the new one
-        sqls.append("ALTER TABLE [{}] RENAME TO [{}]".format(new_table_name, self.name))
+        sqls.append("ALTER TABLE [{}] RENAME TO [{}];".format(new_table_name, self.name))
 
         if should_flip_foreign_keys_pragma:
-            sqls.append("PRAGMA foreign_key_check")
-            sqls.append("PRAGMA foreign_keys=ON")
+            sqls.append("PRAGMA foreign_key_check;")
+            sqls.append("PRAGMA foreign_keys=ON;")
 
         return sqls
 

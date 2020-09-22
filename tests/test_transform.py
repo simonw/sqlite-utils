@@ -11,9 +11,9 @@ import pytest
             {},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] TEXT\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age]) SELECT [id], [name], [age] FROM [dogs]",
-                "DROP TABLE [dogs]",
-                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "DROP TABLE [dogs];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
         ),
         # Change column type
@@ -21,9 +21,9 @@ import pytest
             {"types": {"age": int}},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] INTEGER\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age]) SELECT [id], [name], [age] FROM [dogs]",
-                "DROP TABLE [dogs]",
-                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "DROP TABLE [dogs];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
         ),
         # Rename a column
@@ -31,9 +31,9 @@ import pytest
             {"rename": {"age": "dog_age"}},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [dog_age] TEXT\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [dog_age]) SELECT [id], [name], [age] FROM [dogs]",
-                "DROP TABLE [dogs]",
-                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [dog_age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "DROP TABLE [dogs];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
         ),
         # Drop a column
@@ -41,9 +41,9 @@ import pytest
             {"drop": ["age"]},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name]) SELECT [id], [name] FROM [dogs]",
-                "DROP TABLE [dogs]",
-                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
+                "INSERT INTO [dogs_new_suffix] ([id], [name])\n   SELECT [id], [name] FROM [dogs];",
+                "DROP TABLE [dogs];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
         ),
         # Convert type AND rename column
@@ -51,9 +51,9 @@ import pytest
             {"types": {"age": int}, "rename": {"age": "dog_age"}},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [dog_age] INTEGER\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [dog_age]) SELECT [id], [name], [age] FROM [dogs]",
-                "DROP TABLE [dogs]",
-                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [dog_age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "DROP TABLE [dogs];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
         ),
         # Change primary key
@@ -61,9 +61,9 @@ import pytest
             {"pk": "age"},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] TEXT PRIMARY KEY\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age]) SELECT [id], [name], [age] FROM [dogs]",
-                "DROP TABLE [dogs]",
-                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "DROP TABLE [dogs];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
         ),
         # Change primary key to a compound pk
@@ -71,9 +71,9 @@ import pytest
             {"pk": ("age", "name")},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] TEXT,\n   PRIMARY KEY ([age], [name])\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age]) SELECT [id], [name], [age] FROM [dogs]",
-                "DROP TABLE [dogs]",
-                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "DROP TABLE [dogs];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
         ),
         # Remove primary key, creating a rowid table
@@ -81,9 +81,9 @@ import pytest
             {"pk": None},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] TEXT\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age]) SELECT [id], [name], [age] FROM [dogs]",
-                "DROP TABLE [dogs]",
-                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "DROP TABLE [dogs];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
         ),
     ],
@@ -93,9 +93,9 @@ def test_transform_sql(fresh_db, params, expected_sql, use_pragma_foreign_keys):
     dogs = fresh_db["dogs"]
     if use_pragma_foreign_keys:
         fresh_db.conn.execute("PRAGMA foreign_keys=ON")
-        expected_sql.insert(0, "PRAGMA foreign_keys=OFF")
-        expected_sql.append("PRAGMA foreign_key_check")
-        expected_sql.append("PRAGMA foreign_keys=ON")
+        expected_sql.insert(0, "PRAGMA foreign_keys=OFF;")
+        expected_sql.append("PRAGMA foreign_key_check;")
+        expected_sql.append("PRAGMA foreign_keys=ON;")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
     sql = dogs.transform_sql(**{**params, **{"tmp_suffix": "suffix"}})
     assert sql == expected_sql

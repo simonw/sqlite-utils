@@ -545,7 +545,70 @@ Dropping tables
 
 You can drop a table using the ``drop-table`` command::
 
-    $ sqlite-utils drop-table mytable
+    $ sqlite-utils drop-table mydb.db mytable
+
+.. _cli_transform_table:
+
+Transforming tables
+===================
+
+The ``transform`` command allows you to apply complex transformations to a table that cannot be implemented using a regular SQLite ``ALTER TABLE`` command. See :ref:`python_api_transform` for details of how this works.
+
+::
+
+    $ sqlite-utils transform mydb.db mytable \
+        --drop column1 \
+        --rename column2 column_renamed
+
+Every option for this table (with the exception of ``--pk-none``) can be specified multiple times. The options are as follows:
+
+``--type column-name new-type``
+    Change the type of the specified column. Valid types are ``integer``, ``text``, ``float``, ``blob``.
+
+``--drop column-name``
+    Drop the specified column.
+
+``--rename column-name new-name``
+    Rename this column to a new name.
+
+``--not-null column-name``
+    Set this column as ``NOT NULL``.
+
+``--not-null-false column-name``
+    For a column that is currently set as ``NOT NULL``, remove the ``NOT NULL``.
+
+``--pk column-name``
+    Change the primary key column for this table. Pass ``--pk`` multiple times if you want to create a compound primary key.
+
+``--pk-none``
+    Remove the primary key from this table, turning it into a ``rowid`` table.
+
+``--default column-name value``
+    Set the default value of this column.
+
+``--default-none column``
+    Remove the default value for this column.
+
+``--drop-foreign-key col other_table other_column``
+    Drop the specified foreign key.
+
+If you want to see the SQL that will be executed to make the change without actually executing it, add the ``--sql`` flag. For example::
+
+    % sqlite-utils transform fixtures.db roadside_attractions \
+        --rename pk id \
+        --default name Untitled \
+        --drop address \
+        --sql
+    CREATE TABLE [roadside_attractions_new_4033a60276b9] (
+       [id] INTEGER PRIMARY KEY,
+       [name] TEXT DEFAULT 'Untitled',
+       [latitude] FLOAT,
+       [longitude] FLOAT
+    );
+    INSERT INTO [roadside_attractions_new_4033a60276b9] ([id], [name], [latitude], [longitude])
+       SELECT [pk], [name], [latitude], [longitude] FROM [roadside_attractions];
+    DROP TABLE [roadside_attractions];
+    ALTER TABLE [roadside_attractions_new_4033a60276b9] RENAME TO [roadside_attractions];
 
 .. _cli_create_view:
 

@@ -887,6 +887,106 @@ def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt, json_cols)
     )
 
 
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.option(
+    "--type",
+    type=(str, str),
+    multiple=True,
+    help="Change column type to X",
+)
+@click.option("--drop", type=str, multiple=True, help="Drop this column")
+@click.option(
+    "--rename", type=(str, str), multiple=True, help="Rename this column to X"
+)
+@click.option("--not-null", type=str, multiple=True, help="Set this column to NOT NULL")
+@click.option(
+    "--not-null-false", type=str, multiple=True, help="Remove NOT NULL from this column"
+)
+@click.option("--pk", type=str, multiple=True, help="Make this column the primary key")
+@click.option(
+    "--pk-none", is_flag=True, help="Remove primary key (convert to rowid table)"
+)
+@click.option(
+    "--default",
+    type=(str, str),
+    multiple=True,
+    help="Set default value for this column",
+)
+@click.option(
+    "--default-none", type=str, multiple=True, help="Remove default from this column"
+)
+@click.option(
+    "--drop-foreign-key",
+    type=(str, str, str),
+    multiple=True,
+    help="Drop this foreign key constraint",
+)
+@click.option("--sql", is_flag=True, help="Output SQL without executing it")
+def transform(
+    path,
+    table,
+    type,
+    drop,
+    rename,
+    not_null,
+    not_null_false,
+    pk,
+    pk_none,
+    default,
+    default_none,
+    drop_foreign_key,
+    sql,
+):
+    db = sqlite_utils.Database(path)
+    types = {}
+    kwargs = {}
+    for column, ctype in type:
+        if ctype.upper() not in VALID_COLUMN_TYPES:
+            raise click.ClickException(
+                "column types must be one of {}".format(VALID_COLUMN_TYPES)
+            )
+        types[column] = ctype.upper()
+
+    not_null_dict = {}
+    for column in not_null:
+        not_null_dict[column] = True
+    for column in not_null_false:
+        not_null_dict[column] = False
+
+    default_dict = {}
+    for column, value in default:
+        default_dict[column] = value
+    for column in default_none:
+        default_dict[column] = None
+
+    kwargs["types"] = types
+    kwargs["drop"] = set(drop)
+    kwargs["rename"] = dict(rename)
+    kwargs["not_null"] = not_null_dict
+    if pk:
+        if len(pk) == 1:
+            kwargs["pk"] = pk[0]
+        else:
+            kwargs["pk"] = pk
+    elif pk_none:
+        kwargs["pk"] = None
+    kwargs["defaults"] = default_dict
+    if drop_foreign_key:
+        kwargs["drop_foreign_keys"] = drop_foreign_key
+
+    if sql:
+        for line in db[table].transform_sql(**kwargs):
+            click.echo(line)
+    else:
+        db[table].transform(**kwargs)
+
+
 @cli.command(name="insert-files")
 @click.argument(
     "path",

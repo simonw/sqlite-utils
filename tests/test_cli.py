@@ -1451,3 +1451,101 @@ def test_add_foreign_keys(db_path):
             table="books", column="author_id", other_table="authors", other_column="id"
         )
     ]
+
+
+@pytest.mark.parametrize(
+    "args,expected_schema",
+    [
+        (
+            [],
+            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT\n)",
+        ),
+        (
+            ["--type", "age", "text"],
+            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] TEXT NOT NULL DEFAULT '1',\n   [name] TEXT\n)",
+        ),
+        (
+            ["--drop", "age"],
+            'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n)',
+        ),
+        (
+            ["--rename", "age", "age2", "--rename", "id", "pk"],
+            "CREATE TABLE \"dogs\" (\n   [pk] INTEGER PRIMARY KEY,\n   [age2] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT\n)",
+        ),
+        (
+            ["--not-null", "name"],
+            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT NOT NULL\n)",
+        ),
+        (
+            ["--not-null-false", "age"],
+            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER DEFAULT '1',\n   [name] TEXT\n)",
+        ),
+        (
+            ["--pk", "name"],
+            "CREATE TABLE \"dogs\" (\n   [id] INTEGER,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT PRIMARY KEY\n)",
+        ),
+        (
+            ["--pk-none"],
+            "CREATE TABLE \"dogs\" (\n   [id] INTEGER,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT\n)",
+        ),
+        (
+            ["--default", "name", "Turnip"],
+            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT DEFAULT 'Turnip'\n)",
+        ),
+        (
+            ["--default-none", "age"],
+            'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL,\n   [name] TEXT\n)',
+        ),
+    ],
+)
+def test_transform(db_path, args, expected_schema):
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert(
+            {"id": 1, "age": 4, "name": "Cleo"},
+            not_null={"age"},
+            defaults={"age": 1},
+            pk="id",
+        )
+    result = CliRunner().invoke(cli.cli, ["transform", db_path, "dogs"] + args)
+    print(result.output)
+    assert result.exit_code == 0
+    schema = db["dogs"].schema
+    assert schema == expected_schema
+
+
+def test_transform_drop_foreign_key(db_path):
+    db = Database(db_path)
+    with db.conn:
+        # Create table with three foreign keys so we can drop two of them
+        db["country"].insert({"id": 1, "name": "France"}, pk="id")
+        db["city"].insert({"id": 24, "name": "Paris"}, pk="id")
+        db["places"].insert(
+            {
+                "id": 32,
+                "name": "Caveau de la Huchette",
+                "country": 1,
+                "city": 24,
+            },
+            foreign_keys=("country", "city"),
+            pk="id",
+        )
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "transform",
+            db_path,
+            "places",
+            "--drop-foreign-key",
+            "country",
+            "country",
+            "id",
+        ],
+    )
+    print(result.output)
+    assert result.exit_code == 0
+    schema = db["places"].schema
+    assert (
+        schema
+        == 'CREATE TABLE "places" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [country] INTEGER,\n   [city] INTEGER REFERENCES [city]([id])\n)'
+    )
