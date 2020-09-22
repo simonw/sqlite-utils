@@ -736,9 +736,20 @@ class Table(Queryable):
             defaults=defaults,
             drop_foreign_keys=drop_foreign_keys,
         )
-        with self.db.conn:
-            for sql in sqls:
-                self.db.conn.execute(sql)
+        initial_pragma_foreign_keys = self.db.execute("PRAGMA foreign_keys").fetchone()[
+            0
+        ]
+        try:
+            with self.db.conn:
+                for sql in sqls:
+                    self.db.execute(sql)
+        finally:
+            # Make sure we reset PRAGMA foreign_keys correctly
+            if (
+                initial_pragma_foreign_keys
+                and not self.db.execute("PRAGMA foreign_keys").fetchone()[0]
+            ):
+                self.db.execute("PRAGMA foreign_keys=1")
         return self
 
     def transform_sql(
@@ -770,12 +781,21 @@ class Table(Queryable):
             new_column_pairs.append((new_name, type_))
             copy_from_to[name] = new_name
 
+        should_flip_foreign_keys_pragma = self.db.execute(
+            "PRAGMA foreign_keys"
+        ).fetchone()[0]
+
         sqls = []
+
+        if should_flip_foreign_keys_pragma:
+            sqls.append("PRAGMA foreign_keys=OFF")
+
         if pk is DEFAULT:
-            if len(self.pks) == 1:
-                pk = self.pks[0]
+            pks_renamed = tuple(rename.get(p) or p for p in self.pks)
+            if len(pks_renamed) == 1:
+                pk = pks_renamed[0]
             else:
-                pk = self.pks
+                pk = pks_renamed
 
         # not_null may be a set or dict, need to convert to a set
         create_table_not_null = {c.name for c in self.columns if c.notnull}
@@ -839,6 +859,11 @@ class Table(Queryable):
         sqls.append("DROP TABLE [{}]".format(self.name))
         # Rename the new one
         sqls.append("ALTER TABLE [{}] RENAME TO [{}]".format(new_table_name, self.name))
+
+        if should_flip_foreign_keys_pragma:
+            sqls.append("PRAGMA foreign_key_check")
+            sqls.append("PRAGMA foreign_keys=ON")
+
         return sqls
 
     def create_index(self, columns, index_name=None, unique=False, if_not_exists=False):

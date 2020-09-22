@@ -1,4 +1,5 @@
 from sqlite_utils.db import ForeignKey
+from sqlite_utils.utils import OperationalError
 import pytest
 
 
@@ -87,8 +88,14 @@ import pytest
         ),
     ],
 )
-def test_transform_sql(fresh_db, params, expected_sql):
+@pytest.mark.parametrize("use_pragma_foreign_keys", [False, True])
+def test_transform_sql(fresh_db, params, expected_sql, use_pragma_foreign_keys):
     dogs = fresh_db["dogs"]
+    if use_pragma_foreign_keys:
+        fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+        expected_sql.insert(0, "PRAGMA foreign_keys=OFF")
+        expected_sql.append("PRAGMA foreign_key_check")
+        expected_sql.append("PRAGMA foreign_keys=ON")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
     sql = dogs.transform_sql(**{**params, **{"tmp_suffix": "suffix"}})
     assert sql == expected_sql
@@ -108,6 +115,16 @@ def test_transform_sql_rowid_to_id(fresh_db):
     assert (
         dogs.schema
         == 'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] TEXT\n)'
+    )
+
+
+def test_transform_rename_pk(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
+    dogs.transform(rename={"id": "pk"})
+    assert (
+        dogs.schema
+        == 'CREATE TABLE "dogs" (\n   [pk] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] TEXT\n)'
     )
 
 
@@ -199,7 +216,12 @@ def test_transform_foreign_keys_persist(authors_db):
     ]
 
 
-def test_transform_foreign_keys_survive_renamed_column(authors_db):
+@pytest.mark.parametrize("use_pragma_foreign_keys", [False, True])
+def test_transform_foreign_keys_survive_renamed_column(
+    authors_db, use_pragma_foreign_keys
+):
+    if use_pragma_foreign_keys:
+        authors_db.conn.execute("PRAGMA foreign_keys=ON")
     authors_db["books"].transform(rename={"author_id": "author_id_2"})
     assert authors_db["books"].foreign_keys == [
         ForeignKey(
@@ -211,7 +233,10 @@ def test_transform_foreign_keys_survive_renamed_column(authors_db):
     ]
 
 
-def test_transform_drop_foreign_keys(fresh_db):
+@pytest.mark.parametrize("use_pragma_foreign_keys", [False, True])
+def test_transform_drop_foreign_keys(fresh_db, use_pragma_foreign_keys):
+    if use_pragma_foreign_keys:
+        fresh_db.conn.execute("PRAGMA foreign_keys=ON")
     # Create table with three foreign keys so we can drop two of them
     fresh_db["country"].insert({"id": 1, "name": "France"}, pk="id")
     fresh_db["continent"].insert({"id": 2, "name": "Europe"}, pk="id")
@@ -251,3 +276,23 @@ def test_transform_drop_foreign_keys(fresh_db):
     assert fresh_db["places"].foreign_keys == [
         ForeignKey(table="places", column="city", other_table="city", other_column="id")
     ]
+    if use_pragma_foreign_keys:
+        assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
+
+
+def test_transform_verify_foreign_keys(fresh_db):
+    fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    fresh_db["authors"].insert({"id": 3, "name": "Tina"}, pk="id")
+    fresh_db["books"].insert(
+        {"id": 1, "title": "Book", "author_id": 3}, pk="id", foreign_keys={"author_id"}
+    )
+    # Renaming the id column on authors should break everything
+    with pytest.raises(OperationalError) as e:
+        fresh_db["authors"].transform(rename={"id": "id2"})
+    assert e.value.args[0] == 'foreign key mismatch - "books" referencing "authors"'
+    # This should have rolled us back
+    assert (
+        fresh_db["authors"].schema
+        == "CREATE TABLE [authors] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n)"
+    )
+    assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
