@@ -1001,6 +1001,141 @@ Custom transformations with .transform_sql()
 
 If you want to do something more advanced, you can call the ``table.transform_sql(...)`` method with the same arguments that you would have passed to ``table.transform(...)``. This method will return a list of SQL statements that should be executed to implement the change. You can then make modifications to that SQL before executing it yourself.
 
+.. _python_api_extract:
+
+Extracting columns into a separate table
+========================================
+
+The ``table.extract()`` method can be used to extract specified columns into a separate table.
+
+Imagine a ``Trees`` table that looks like this:
+
+===  ============  =======
+ id  TreeAddress   Species
+===  ============  =======
+  1  52 Vine St    Palm
+  2  12 Draft St   Oak
+  3  51 Dark Ave   Palm
+  4  1252 Left St  Palm
+===  ============  =======
+
+The ``Species`` column contains duplicate values. This database could be improved by extracting that column out into a separate ``Species`` table and pointing to it using a foreign key column.
+
+The schema of the above table is:
+
+.. code-block:: sql
+
+    CREATE TABLE [Trees] (
+        [id] INTEGER PRIMARY KEY,
+        [TreeAddress] TEXT,
+        [Species] TEXT
+    )
+
+Here's how to extract the ``Species`` column using ``.extract()``:
+
+.. code-block:: python
+
+    db["Trees"].extract("Species")
+
+After running this code the table schema now looks like this:
+
+.. code-block:: sql
+
+    CREATE TABLE "Trees" (
+        [id] INTEGER PRIMARY KEY,
+        [TreeAddress] TEXT,
+        [Species_id] INTEGER,
+        FOREIGN KEY(Species_id) REFERENCES Species(id)
+    )
+
+A new ``Species`` table will have been created with the following schema:
+
+.. code-block:: sql
+
+    CREATE TABLE [Species] (
+        [id] INTEGER PRIMARY KEY,
+        [Species] TEXT
+    )
+
+The ``.extract()`` method defaults to creating a table with the same name as the column that was extracted, and adding a foreign key column called ``tablename_id``.
+
+You can specify a custom table name using ``table=``, and a custom foreign key name using ``fk_column=``. This example creates a table called ``tree_species`` and a foreign key column called ``tree_species_id``:
+
+.. code-block:: python
+
+    db["Trees"].extract("Species", table="tree_species", fk_column="tree_species_id")
+
+The resulting schema looks like this:
+
+.. code-block:: sql
+
+    CREATE TABLE "Trees" (
+        [id] INTEGER PRIMARY KEY,
+        [TreeAddress] TEXT,
+        [tree_species_id] INTEGER,
+        FOREIGN KEY(tree_species_id) REFERENCES tree_species(id)
+    )
+
+    CREATE TABLE [tree_species] (
+        [id] INTEGER PRIMARY KEY,
+        [Species] TEXT
+    )
+
+You can also extract multiple columns into the same external table. Say for example you have a table like this:
+
+===  ============  ==========  =========
+ id  TreeAddress   CommonName  LatinName
+===  ============  ==========  =========
+  1  52 Vine St    Palm        Arecaceae
+  2  12 Draft St   Oak         Quercus
+  3  51 Dark Ave   Palm        Arecaceae
+  4  1252 Left St  Palm        Arecaceae
+===  ============  ==========  =========
+
+You can pass ``["CommonName", "LatinName"]`` to ``.extract()`` to extract both of those columns:
+
+.. code-block:: python
+
+    db["Trees"].extract(["CommonName", "LatinName"])
+
+This produces the following schema:
+
+.. code-block:: sql
+
+    CREATE TABLE "Trees" (
+        [id] INTEGER PRIMARY KEY,
+        [TreeAddress] TEXT,
+        [CommonName_LatinName_id] INTEGER,
+        FOREIGN KEY(CommonName_LatinName_id) REFERENCES CommonName_LatinName(id)
+    )
+    CREATE TABLE [CommonName_LatinName] (
+        [id] INTEGER PRIMARY KEY,
+        [CommonName] TEXT,
+        [LatinName] TEXT
+    )
+
+The table name ``CommonName_LatinName`` is derived from the extract columns. You can use ``table=`` and ``fk_column=`` to specify custom names like this:
+
+.. code-block:: python
+
+    db["Trees"].extract(["CommonName", "LatinName"], table="Species", fk_column="species_id")
+
+This produces the following schema:
+
+.. code-block:: sql
+
+    CREATE TABLE "Trees" (
+        [id] INTEGER PRIMARY KEY,
+        [TreeAddress] TEXT,
+        [species_id] INTEGER,
+        FOREIGN KEY(species_id) REFERENCES Species(id)
+    )
+    CREATE TABLE [Species] (
+        [id] INTEGER PRIMARY KEY,
+        [CommonName] TEXT,
+        [LatinName] TEXT
+    )
+
 .. _python_api_hash:
 
 Setting an ID based on the hash of the row contents

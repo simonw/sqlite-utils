@@ -104,6 +104,10 @@ class PrimaryKeyRequired(Exception):
     pass
 
 
+class InvalidColumns(Exception):
+    pass
+
+
 class Database:
     def __init__(
         self,
@@ -878,6 +882,34 @@ class Table(Queryable):
             sqls.append("PRAGMA foreign_keys=ON;")
 
         return sqls
+
+    def extract(self, columns, table=None, fk_column=None):
+        if isinstance(columns, str):
+            columns = [columns]
+        if not set(columns).issubset(self.columns_dict.keys()):
+            raise InvalidColumns(
+                "Invalid columns {} for table with columns {}".format(
+                    columns, list(self.columns_dict.keys())
+                )
+            )
+        table = table or "_".join(columns)
+        first_column = columns[0]
+        pks = self.pks
+        lookup_table = self.db[table]
+        for row in self.rows:
+            row_pks = tuple(row[pk] for pk in pks)
+            lookups = {column: row[column] for column in columns}
+            self.update(row_pks, {first_column: lookup_table.lookup(lookups)})
+        fk_column = fk_column or "{}_id".format(table)
+        # Now rename first_column and change its type to integer, and drop
+        # any other extracted columns:
+        self.transform(
+            types={first_column: int},
+            drop=set(columns[1:]),
+            rename={first_column: fk_column},
+        )
+        # And add the foreign key constraint
+        self.add_foreign_key(fk_column, table, "id")
 
     def create_index(self, columns, index_name=None, unique=False, if_not_exists=False):
         if index_name is None:

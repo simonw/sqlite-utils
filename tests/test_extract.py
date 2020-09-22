@@ -1,0 +1,105 @@
+from sqlite_utils.db import Index, InvalidColumns
+import itertools
+import pytest
+
+
+@pytest.mark.parametrize("table", [None, "Species"])
+@pytest.mark.parametrize("fk_column", [None, "species"])
+def test_extract_single_column(fresh_db, table, fk_column):
+    expected_table = table or "species"
+    expected_fk = fk_column or "{}_id".format(expected_table)
+    iter_species = itertools.cycle(["Palm", "Spruce", "Mangrove", "Oak"])
+    fresh_db["tree"].insert_all(
+        (
+            {"id": i, "name": "Tree {}".format(i), "species": next(iter_species)}
+            for i in range(1, 1001)
+        ),
+        pk="id",
+    )
+    fresh_db["tree"].extract("species", table=table, fk_column=fk_column)
+    assert fresh_db["tree"].schema == (
+        'CREATE TABLE "tree" (\n'
+        "   [id] INTEGER PRIMARY KEY,\n"
+        "   [name] TEXT,\n"
+        "   [{}] INTEGER,\n".format(expected_fk)
+        + "   FOREIGN KEY({}) REFERENCES {}(id)\n".format(expected_fk, expected_table)
+        + ")"
+    )
+    assert fresh_db[expected_table].schema == (
+        "CREATE TABLE [{}] (\n".format(expected_table)
+        + "   [id] INTEGER PRIMARY KEY,\n"
+        "   [species] TEXT\n"
+        ")"
+    )
+    assert list(fresh_db[expected_table].rows) == [
+        {"id": 1, "species": "Palm"},
+        {"id": 2, "species": "Spruce"},
+        {"id": 3, "species": "Mangrove"},
+        {"id": 4, "species": "Oak"},
+    ]
+    assert list(itertools.islice(fresh_db["tree"].rows, 0, 4)) == [
+        {"id": 1, "name": "Tree 1", expected_fk: 1},
+        {"id": 2, "name": "Tree 2", expected_fk: 2},
+        {"id": 3, "name": "Tree 3", expected_fk: 3},
+        {"id": 4, "name": "Tree 4", expected_fk: 4},
+    ]
+
+
+def test_extract_multiple_columns(fresh_db):
+    iter_common = itertools.cycle(["Palm", "Spruce", "Mangrove", "Oak"])
+    iter_latin = itertools.cycle(["Arecaceae", "Picea", "Rhizophora", "Quercus"])
+    fresh_db["tree"].insert_all(
+        (
+            {
+                "id": i,
+                "name": "Tree {}".format(i),
+                "common_name": next(iter_common),
+                "latin_name": next(iter_latin),
+            }
+            for i in range(1, 1001)
+        ),
+        pk="id",
+    )
+
+    fresh_db["tree"].extract(["common_name", "latin_name"])
+    assert fresh_db["tree"].schema == (
+        'CREATE TABLE "tree" (\n'
+        "   [id] INTEGER PRIMARY KEY,\n"
+        "   [name] TEXT,\n"
+        "   [common_name_latin_name_id] INTEGER,\n"
+        "   FOREIGN KEY(common_name_latin_name_id) REFERENCES common_name_latin_name(id)\n"
+        ")"
+    )
+    assert fresh_db["common_name_latin_name"].schema == (
+        "CREATE TABLE [common_name_latin_name] (\n"
+        "   [id] INTEGER PRIMARY KEY,\n"
+        "   [common_name] TEXT,\n"
+        "   [latin_name] TEXT\n"
+        ")"
+    )
+    assert list(fresh_db["common_name_latin_name"].rows) == [
+        {"common_name": "Palm", "id": 1, "latin_name": "Arecaceae"},
+        {"common_name": "Spruce", "id": 2, "latin_name": "Picea"},
+        {"common_name": "Mangrove", "id": 3, "latin_name": "Rhizophora"},
+        {"common_name": "Oak", "id": 4, "latin_name": "Quercus"},
+    ]
+    assert list(itertools.islice(fresh_db["tree"].rows, 0, 4)) == [
+        {"id": 1, "name": "Tree 1", "common_name_latin_name_id": 1},
+        {"id": 2, "name": "Tree 2", "common_name_latin_name_id": 2},
+        {"id": 3, "name": "Tree 3", "common_name_latin_name_id": 3},
+        {"id": 4, "name": "Tree 4", "common_name_latin_name_id": 4},
+    ]
+
+
+def test_extract_invalid_columns(fresh_db):
+    fresh_db["tree"].insert(
+        {
+            "id": 1,
+            "name": "Tree 1",
+            "common_name": "Palm",
+            "latin_name": "Arecaceae",
+        },
+        pk="id",
+    )
+    with pytest.raises(InvalidColumns):
+        fresh_db["tree"].extract(["bad_column"])
