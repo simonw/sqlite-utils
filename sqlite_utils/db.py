@@ -718,7 +718,8 @@ class Table(Queryable):
 
     def transform(
         self,
-        columns=None,
+        *,
+        types=None,
         rename=None,
         drop=None,
         pk=DEFAULT,
@@ -728,7 +729,7 @@ class Table(Queryable):
     ):
         assert self.exists(), "Cannot transform a table that doesn't exist yet"
         sqls = self.transform_sql(
-            columns=columns,
+            types=types,
             rename=rename,
             drop=None,
             pk=pk,
@@ -754,7 +755,8 @@ class Table(Queryable):
 
     def transform_sql(
         self,
-        columns=None,
+        *,
+        types=None,
         rename=None,
         drop=None,
         pk=DEFAULT,
@@ -763,7 +765,7 @@ class Table(Queryable):
         drop_foreign_keys=None,
         tmp_suffix=None,
     ):
-        columns = columns or {}
+        types = types or {}
         rename = rename or {}
         drop = drop or set()
         new_table_name = "{}_new_{}".format(
@@ -773,7 +775,7 @@ class Table(Queryable):
         new_column_pairs = []
         copy_from_to = {column: column for column, _ in current_column_pairs}
         for name, type_ in current_column_pairs:
-            type_ = columns.get(name) or type_
+            type_ = types.get(name) or type_
             if name in drop:
                 del [copy_from_to[name]]
                 continue
