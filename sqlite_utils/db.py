@@ -4,6 +4,7 @@ import contextlib
 import datetime
 import decimal
 import hashlib
+import inspect
 import itertools
 import json
 import os
@@ -142,6 +143,11 @@ class Database:
 
     def __repr__(self):
         return "<Database {}>".format(self.conn)
+
+    def register_function(self, fn):
+        name = fn.__name__
+        arity = len(inspect.signature(fn).parameters)
+        self.conn.create_function(name, arity, fn)
 
     def execute(self, sql, parameters=None):
         if self._tracer:
