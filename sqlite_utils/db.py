@@ -735,9 +735,9 @@ class Table(Queryable):
             rename=rename,
             drop=None,
             pk=pk,
+            not_null=not_null,
             # foreign_keys=foreign_keys,
             # column_order=column_order,
-            # not_null=not_null,
             # defaults=defaults,
             # hash_id=hash_id,
             # extracts=extracts,
@@ -753,6 +753,7 @@ class Table(Queryable):
         rename=None,
         drop=None,
         pk=None,
+        not_null=None,
         tmp_suffix=None,
     ):
         columns = columns or {}
@@ -779,11 +780,27 @@ class Table(Queryable):
                 pk = self.pks[0]
             else:
                 pk = self.pks
+
+        # not_null may be a set or dict, need to convert to a set
+        create_table_not_null = {c.name for c in self.columns if c.notnull}
+        if isinstance(not_null, dict):
+            # Remove any columns with a value of False
+            for key, value in not_null.items():
+                # Column may have been renamed
+                key = rename.get(key) or key
+                if value is False and key in create_table_not_null:
+                    create_table_not_null.remove(key)
+                else:
+                    create_table_not_null.add(key)
+        else:
+            create_table_not_null.update(rename.get(k) or k for k in not_null)
+
         sqls.append(
             self.db.create_table_sql(
                 new_table_name,
                 dict(new_column_pairs),
                 pk=pk,
+                not_null=create_table_not_null,
                 # foreign_keys=foreign_keys,
                 # column_order=column_order,
                 # not_null=not_null,

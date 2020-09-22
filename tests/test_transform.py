@@ -98,3 +98,34 @@ def test_transform_sql_rowid_to_id(fresh_db):
         dogs.schema
         == 'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] TEXT\n)'
     )
+
+
+def test_transform_not_null(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
+    dogs.transform(not_null={"name"})
+    assert (
+        dogs.schema
+        == 'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT NOT NULL,\n   [age] TEXT\n)'
+    )
+
+
+def test_transform_remove_a_not_null(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, not_null={"age"}, pk="id")
+    dogs.transform(not_null={"name": True, "age": False})
+    assert (
+        dogs.schema
+        == 'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT NOT NULL,\n   [age] TEXT\n)'
+    )
+
+
+@pytest.mark.parametrize("not_null", [{"age"}, {"age": True}])
+def test_transform_add_not_null_with_rename(fresh_db, not_null):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
+    dogs.transform(not_null=not_null, rename={"age": "dog_age"})
+    assert (
+        dogs.schema
+        == 'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [dog_age] TEXT NOT NULL\n)'
+    )
