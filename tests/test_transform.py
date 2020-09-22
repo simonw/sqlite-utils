@@ -79,6 +79,7 @@ import pytest
 def test_transform_sql(fresh_db, params, expected_sql):
     dogs = fresh_db["dogs"]
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
-    params["tmp_suffix"] = "suffix"
-    sql = dogs.transform_sql(**params)
+    sql = dogs.transform_sql(**{**params, **{"tmp_suffix": "suffix"}})
     assert sql == expected_sql
+    # Check that .transform() runs without exceptions:
+    dogs.transform(**params)
