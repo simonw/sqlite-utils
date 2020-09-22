@@ -75,6 +75,16 @@ import pytest
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
             ],
         ),
+        # Remove primary key, creating a rowid table
+        (
+            {"pk": None},
+            [
+                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] TEXT\n);",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [age]) SELECT [id], [name], [age] FROM [dogs]",
+                "DROP TABLE [dogs]",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs]",
+            ],
+        ),
     ],
 )
 def test_transform_sql(fresh_db, params, expected_sql):

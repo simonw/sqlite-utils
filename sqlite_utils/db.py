@@ -721,7 +721,7 @@ class Table(Queryable):
         columns=None,
         rename=None,
         drop=None,
-        pk=None,
+        pk=DEFAULT,
         not_null=None,
         defaults=None,
         drop_foreign_keys=None,
@@ -746,7 +746,7 @@ class Table(Queryable):
         columns=None,
         rename=None,
         drop=None,
-        pk=None,
+        pk=DEFAULT,
         not_null=None,
         defaults=None,
         drop_foreign_keys=None,
@@ -771,7 +771,7 @@ class Table(Queryable):
             copy_from_to[name] = new_name
 
         sqls = []
-        if pk is None:
+        if pk is DEFAULT:
             if len(self.pks) == 1:
                 pk = self.pks[0]
             else:
@@ -820,9 +820,6 @@ class Table(Queryable):
                 not_null=create_table_not_null,
                 defaults=create_table_defaults,
                 foreign_keys=create_table_foreign_keys,
-                # column_order=column_order,
-                # hash_id=hash_id,
-                # extracts=extracts,
             ).strip()
         )
         # Copy across data, respecting any renamed columns
