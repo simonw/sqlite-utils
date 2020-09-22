@@ -718,6 +718,7 @@ class Table(Queryable):
 
     def transform(
         self,
+        *,
         columns=None,
         rename=None,
         drop=None,
@@ -754,6 +755,7 @@ class Table(Queryable):
 
     def transform_sql(
         self,
+        *,
         columns=None,
         rename=None,
         drop=None,
