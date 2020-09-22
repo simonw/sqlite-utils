@@ -1415,3 +1415,25 @@ You can use it in code like this:
     if spatialite:
         db.conn.enable_load_extension(True)
         db.conn.load_extension(spatialite)
+
+.. _python_api_register_function:
+
+Registering custom SQL functions
+================================
+
+SQLite supports registering custom SQL functions written in Python. The ``@db.register_function`` decorator provides syntactic sugar for registering these functions.
+
+.. code-block:: python
+
+    from sqlite_utils import Database
+
+    db = Database(memory=True)
+
+    @db.register_function
+    def reverse_string(s):
+        return "".join(reversed(list(s)))
+
+    print(db.execute('select reverse_string("hello")').fetchone())[0]
+    # This prints "olleh"
+
+If your Python function accepts multiple arguments the SQL version will accept the same number of arguments.
