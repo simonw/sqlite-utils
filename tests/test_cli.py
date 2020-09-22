@@ -1549,3 +1549,53 @@ def test_transform_drop_foreign_key(db_path):
         schema
         == 'CREATE TABLE "places" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [country] INTEGER,\n   [city] INTEGER REFERENCES [city]([id])\n)'
     )
+
+
+_common_other_schema = (
+    "CREATE TABLE [species] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)"
+)
+
+
+@pytest.mark.parametrize(
+    "args,expected_table_schema,expected_other_schema",
+    [
+        (
+            [],
+            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [species_id] INTEGER,\n   FOREIGN KEY(species_id) REFERENCES species(id)\n)',
+            _common_other_schema,
+        ),
+        (
+            ["--table", "custom_table"],
+            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [custom_table_id] INTEGER,\n   FOREIGN KEY(custom_table_id) REFERENCES custom_table(id)\n)',
+            "CREATE TABLE [custom_table] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)",
+        ),
+        (
+            ["--fk-column", "custom_fk"],
+            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [custom_fk] INTEGER,\n   FOREIGN KEY(custom_fk) REFERENCES species(id)\n)',
+            _common_other_schema,
+        ),
+        (
+            ["--rename", "name", "name2"],
+            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [species_id] INTEGER,\n   FOREIGN KEY(species_id) REFERENCES species(id)\n)',
+            "CREATE TABLE [species] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)",
+        ),
+    ],
+)
+def test_extract(db_path, args, expected_table_schema, expected_other_schema):
+    db = Database(db_path)
+    with db.conn:
+        db["trees"].insert(
+            {"id": 1, "address": "4 Park Ave", "species": "Palm"},
+            pk="id",
+        )
+    result = CliRunner().invoke(
+        cli.cli, ["extract", db_path, "trees", "species"] + args
+    )
+    print(result.output)
+    assert result.exit_code == 0
+    schema = db["trees"].schema
+    assert schema == expected_table_schema
+    other_schema = [t for t in db.tables if t.name not in ("trees", "Gosh", "Gosh2")][
+        0
+    ].schema
+    assert other_schema == expected_other_schema

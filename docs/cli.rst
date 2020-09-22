@@ -610,6 +610,97 @@ If you want to see the SQL that will be executed to make the change without actu
     DROP TABLE [roadside_attractions];
     ALTER TABLE [roadside_attractions_new_4033a60276b9] RENAME TO [roadside_attractions];
 
+.. _cli_extract:
+
+Extracting columns into a separate table
+========================================
+
+The ``sqlite-utils extract`` command can be used to extract specified columns into a separate table.
+
+Take a look at the Python API documentation for :ref:`python_api_extract` for a detailed description of how this works, including examples of table schemas before and after running an extraction operation.
+
+The command takes a database, table and one or more columns that should be extracted. To extract the ``species`` column from the ``trees`` table you would run::
+
+    $ sqlite-utils extract my.db trees species
+
+This would produce the following schema:
+
+.. code-block:: sql
+
+    CREATE TABLE "trees" (
+        [id] INTEGER PRIMARY KEY,
+        [TreeAddress] TEXT,
+        [species_id] INTEGER,
+        FOREIGN KEY(species_id) REFERENCES species(id)
+    )
+
+    CREATE TABLE [species] (
+        [id] INTEGER PRIMARY KEY,
+        [species] TEXT
+    )
+
+The command takes the following options:
+
+``--table TEXT``
+    The name of the lookup to extract columns to. This defaults to using the name of the columns that are being extracted.
+
+``--fk-column TEXT``
+    The name of the foreign key column to add to the table. Defaults to ``columnname_id``.
+
+``--rename <TEXT TEXT>``
+    Use this option to rename the columns created in the new lookup table.
+
+Here's a more complex example that makes use of these options. It converts `this CSV file <https://github.com/wri/global-power-plant-database/blob/232a666653e14d803ab02717efc01cdd437e7601/output_database/global_power_plant_database.csv>`__ full of global power plants into SQLite, then extracts the ``country`` and ``country_long`` columns into a separate ``countries`` table::
+
+    wget 'https://github.com/wri/global-power-plant-database/blob/232a6666/output_database/global_power_plant_database.csv?raw=true'
+    sqlite-utils insert global.db power_plants \
+        'global_power_plant_database.csv?raw=true' --csv
+    # Extract those columns:
+    sqlite-utils extract global.db power_plants country country_long \
+        --table countries \
+        --fk-column country_id \
+        --rename country_long name
+
+After running the above, the command ``sqlite3 global.db .schema`` reveals the following schema:
+
+.. code-block:: sql
+
+    CREATE TABLE [countries] (
+        [id] INTEGER PRIMARY KEY,
+        [country] TEXT,
+        [name] TEXT
+    );
+    CREATE UNIQUE INDEX [idx_countries_country_name]
+        ON [countries] ([country], [name]);
+    CREATE TABLE IF NOT EXISTS "power_plants" (
+        [rowid] INTEGER PRIMARY KEY,
+        [country_id] INTEGER,
+        [name] TEXT,
+        [gppd_idnr] TEXT,
+        [capacity_mw] TEXT,
+        [latitude] TEXT,
+        [longitude] TEXT,
+        [primary_fuel] TEXT,
+        [other_fuel1] TEXT,
+        [other_fuel2] TEXT,
+        [other_fuel3] TEXT,
+        [commissioning_year] TEXT,
+        [owner] TEXT,
+        [source] TEXT,
+        [url] TEXT,
+        [geolocation_source] TEXT,
+        [wepp_id] TEXT,
+        [year_of_capacity_data] TEXT,
+        [generation_gwh_2013] TEXT,
+        [generation_gwh_2014] TEXT,
+        [generation_gwh_2015] TEXT,
+        [generation_gwh_2016] TEXT,
+        [generation_gwh_2017] TEXT,
+        [generation_data_source] TEXT,
+        [estimated_generation_gwh] TEXT,
+        FOREIGN KEY(country_id) REFERENCES countries(id)
+    );
+
 .. _cli_create_view:
 
 Creating views

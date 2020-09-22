@@ -988,6 +988,39 @@ def transform(
         db[table].transform(**kwargs)
 
 
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.argument("columns", nargs=-1, required=True)
+@click.option(
+    "--table", "other_table", help="Name of the other table to extract columns to"
+)
+@click.option("--fk-column", help="Name of the foreign key column to add to the table")
+@click.option(
+    "--rename",
+    type=(str, str),
+    multiple=True,
+    help="Rename this column in extracted table",
+)
+def extract(
+    path,
+    table,
+    columns,
+    other_table,
+    fk_column,
+    rename,
+):
+    "Extract one or more columns into a separate table"
+    db = sqlite_utils.Database(path)
+    db[table].extract(
+        columns, table=other_table, fk_column=fk_column, rename=dict(rename)
+    )
+
+
 @cli.command(name="insert-files")
 @click.argument(
     "path",
