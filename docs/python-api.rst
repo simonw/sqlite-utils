@@ -1136,6 +1136,27 @@ This produces the following schema:
         [LatinName] TEXT
     )
 
+You can use the ``rename=`` argument to rename columns in the lookup table. To create a ``Species`` table with columns called ``name`` and ``latin`` you can do this:
+
+.. code-block:: python
+
+    db["Trees"].extract(
+        ["CommonName", "LatinName"],
+        table="Species",
+        fk_column="species_id",
+        rename={"CommonName": "name", "LatinName": "latin"}
+    )
+
+This produces a lookup table like so:
+
+.. code-block:: sql
+
+    CREATE TABLE [Species] (
+        [id] INTEGER PRIMARY KEY,
+        [name] TEXT,
+        [latin] TEXT
+    )
+
 .. _python_api_hash:
 
 Setting an ID based on the hash of the row contents

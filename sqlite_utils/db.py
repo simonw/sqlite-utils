@@ -883,7 +883,8 @@ class Table(Queryable):
 
         return sqls
 
-    def extract(self, columns, table=None, fk_column=None):
+    def extract(self, columns, table=None, fk_column=None, rename=None):
+        rename = rename or {}
         if isinstance(columns, str):
             columns = [columns]
         if not set(columns).issubset(self.columns_dict.keys()):
@@ -898,7 +899,7 @@ class Table(Queryable):
         lookup_table = self.db[table]
         for row in self.rows:
             row_pks = tuple(row[pk] for pk in pks)
-            lookups = {column: row[column] for column in columns}
+            lookups = {rename.get(column) or column: row[column] for column in columns}
             self.update(row_pks, {first_column: lookup_table.lookup(lookups)})
         fk_column = fk_column or "{}_id".format(table)
         # Now rename first_column and change its type to integer, and drop

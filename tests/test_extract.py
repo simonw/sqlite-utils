@@ -45,7 +45,7 @@ def test_extract_single_column(fresh_db, table, fk_column):
     ]
 
 
-def test_extract_multiple_columns(fresh_db):
+def test_extract_multiple_columns_with_rename(fresh_db):
     iter_common = itertools.cycle(["Palm", "Spruce", "Mangrove", "Oak"])
     iter_latin = itertools.cycle(["Arecaceae", "Picea", "Rhizophora", "Quercus"])
     fresh_db["tree"].insert_all(
@@ -61,7 +61,9 @@ def test_extract_multiple_columns(fresh_db):
         pk="id",
     )
 
-    fresh_db["tree"].extract(["common_name", "latin_name"])
+    fresh_db["tree"].extract(["common_name", "latin_name"], rename={
+        "common_name": "name"
+    })
     assert fresh_db["tree"].schema == (
         'CREATE TABLE "tree" (\n'
         "   [id] INTEGER PRIMARY KEY,\n"
@@ -73,15 +75,15 @@ def test_extract_multiple_columns(fresh_db):
     assert fresh_db["common_name_latin_name"].schema == (
         "CREATE TABLE [common_name_latin_name] (\n"
         "   [id] INTEGER PRIMARY KEY,\n"
-        "   [common_name] TEXT,\n"
+        "   [name] TEXT,\n"
         "   [latin_name] TEXT\n"
         ")"
     )
     assert list(fresh_db["common_name_latin_name"].rows) == [
-        {"common_name": "Palm", "id": 1, "latin_name": "Arecaceae"},
-        {"common_name": "Spruce", "id": 2, "latin_name": "Picea"},
-        {"common_name": "Mangrove", "id": 3, "latin_name": "Rhizophora"},
-        {"common_name": "Oak", "id": 4, "latin_name": "Quercus"},
+        {"name": "Palm", "id": 1, "latin_name": "Arecaceae"},
+        {"name": "Spruce", "id": 2, "latin_name": "Picea"},
+        {"name": "Mangrove", "id": 3, "latin_name": "Rhizophora"},
+        {"name": "Oak", "id": 4, "latin_name": "Quercus"},
     ]
     assert list(itertools.islice(fresh_db["tree"].rows, 0, 4)) == [
         {"id": 1, "name": "Tree 1", "common_name_latin_name_id": 1},
