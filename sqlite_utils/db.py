@@ -722,12 +722,9 @@ class Table(Queryable):
         rename=None,
         drop=None,
         pk=None,
-        foreign_keys=None,
-        column_order=None,
         not_null=None,
         defaults=None,
-        hash_id=None,
-        extracts=None,
+        drop_foreign_keys=None,
     ):
         assert self.exists(), "Cannot transform a table that doesn't exist yet"
         sqls = self.transform_sql(
@@ -737,10 +734,7 @@ class Table(Queryable):
             pk=pk,
             not_null=not_null,
             defaults=defaults,
-            # foreign_keys=foreign_keys,
-            # column_order=column_order,
-            # hash_id=hash_id,
-            # extracts=extracts,
+            drop_foreign_keys=drop_foreign_keys,
         )
         with self.db.conn:
             for sql in sqls:
@@ -755,6 +749,7 @@ class Table(Queryable):
         pk=None,
         not_null=None,
         defaults=None,
+        drop_foreign_keys=None,
         tmp_suffix=None,
     ):
         columns = columns or {}
@@ -807,6 +802,16 @@ class Table(Queryable):
                 {rename.get(c) or c: v for c, v in defaults.items()}
             )
 
+        # foreign_keys
+        create_table_foreign_keys = []
+        for table, column, other_table, other_column in self.foreign_keys:
+            if (drop_foreign_keys is None) or (
+                (column, other_table, other_column) not in drop_foreign_keys
+            ):
+                create_table_foreign_keys.append(
+                    (rename.get(column) or column, other_table, other_column)
+                )
+
         sqls.append(
             self.db.create_table_sql(
                 new_table_name,
@@ -814,9 +819,8 @@ class Table(Queryable):
                 pk=pk,
                 not_null=create_table_not_null,
                 defaults=create_table_defaults,
-                # foreign_keys=foreign_keys,
+                foreign_keys=create_table_foreign_keys,
                 # column_order=column_order,
-                # not_null=not_null,
                 # hash_id=hash_id,
                 # extracts=extracts,
             ).strip()

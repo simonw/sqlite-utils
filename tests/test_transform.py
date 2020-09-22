@@ -1,3 +1,4 @@
+from sqlite_utils.db import ForeignKey
 import pytest
 
 
@@ -159,3 +160,84 @@ def test_remove_defaults(fresh_db):
         dogs.schema
         == 'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] INTEGER\n)'
     )
+
+
+@pytest.fixture
+def authors_db(fresh_db):
+    books = fresh_db["books"]
+    authors = fresh_db["authors"]
+    authors.insert({"id": 5, "name": "Jane McGonical"}, pk="id")
+    books.insert(
+        {"id": 2, "title": "Reality is Broken", "author_id": 5},
+        foreign_keys=("author_id",),
+        pk="id",
+    )
+    return fresh_db
+
+
+def test_transform_foreign_keys_persist(authors_db):
+    assert authors_db["books"].foreign_keys == [
+        ForeignKey(
+            table="books", column="author_id", other_table="authors", other_column="id"
+        )
+    ]
+    authors_db["books"].transform(rename={"title": "book_title"})
+    assert authors_db["books"].foreign_keys == [
+        ForeignKey(
+            table="books", column="author_id", other_table="authors", other_column="id"
+        )
+    ]
+
+
+def test_transform_foreign_keys_survive_renamed_column(authors_db):
+    authors_db["books"].transform(rename={"author_id": "author_id_2"})
+    assert authors_db["books"].foreign_keys == [
+        ForeignKey(
+            table="books",
+            column="author_id_2",
+            other_table="authors",
+            other_column="id",
+        )
+    ]
+
+
+def test_transform_drop_foreign_keys(fresh_db):
+    # Create table with three foreign keys so we can drop two of them
+    fresh_db["country"].insert({"id": 1, "name": "France"}, pk="id")
+    fresh_db["continent"].insert({"id": 2, "name": "Europe"}, pk="id")
+    fresh_db["city"].insert({"id": 24, "name": "Paris"}, pk="id")
+    fresh_db["places"].insert(
+        {
+            "id": 32,
+            "name": "Caveau de la Huchette",
+            "country": 1,
+            "continent": 2,
+            "city": 24,
+        },
+        foreign_keys=("country", "continent", "city"),
+    )
+    assert fresh_db["places"].foreign_keys == [
+        ForeignKey(
+            table="places", column="city", other_table="city", other_column="id"
+        ),
+        ForeignKey(
+            table="places",
+            column="continent",
+            other_table="continent",
+            other_column="id",
+        ),
+        ForeignKey(
+            table="places", column="country", other_table="country", other_column="id"
+        ),
+    ]
+    # Drop two of those foreign keys
+    fresh_db["places"].transform(
+        drop_foreign_keys=(
+            ("country", "country", "id"),
+            ("continent", "continent", "id"),
+        )
+    )
+    # Should be only one foreign key now
+    assert fresh_db["places"].foreign_keys == [
+        ForeignKey(table="places", column="city", other_table="city", other_column="id")
+    ]
