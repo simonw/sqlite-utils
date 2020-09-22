@@ -943,6 +943,7 @@ def transform(
     drop_foreign_key,
     sql,
 ):
+    "Transform a table beyond the capabilities of ALTER TABLE"
     db = sqlite_utils.Database(path)
     types = {}
     kwargs = {}
