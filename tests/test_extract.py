@@ -61,9 +61,9 @@ def test_extract_multiple_columns_with_rename(fresh_db):
         pk="id",
     )
 
-    fresh_db["tree"].extract(["common_name", "latin_name"], rename={
-        "common_name": "name"
-    })
+    fresh_db["tree"].extract(
+        ["common_name", "latin_name"], rename={"common_name": "name"}
+    )
     assert fresh_db["tree"].schema == (
         'CREATE TABLE "tree" (\n'
         "   [id] INTEGER PRIMARY KEY,\n"
@@ -105,3 +105,22 @@ def test_extract_invalid_columns(fresh_db):
     )
     with pytest.raises(InvalidColumns):
         fresh_db["tree"].extract(["bad_column"])
+
+
+def test_extract_rowid_table(fresh_db):
+    fresh_db["tree"].insert(
+        {
+            "name": "Tree 1",
+            "common_name": "Palm",
+            "latin_name": "Arecaceae",
+        }
+    )
+    fresh_db["tree"].extract(["common_name", "latin_name"])
+    assert fresh_db["tree"].schema == (
+        'CREATE TABLE "tree" (\n'
+        "   [rowid] INTEGER PRIMARY KEY,\n"
+        "   [name] TEXT,\n"
+        "   [common_name_latin_name_id] INTEGER,\n"
+        "   FOREIGN KEY(common_name_latin_name_id) REFERENCES common_name_latin_name(id)\n"
+        ")"
+    )

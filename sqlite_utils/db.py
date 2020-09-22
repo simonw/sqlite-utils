@@ -897,7 +897,11 @@ class Table(Queryable):
         first_column = columns[0]
         pks = self.pks
         lookup_table = self.db[table]
-        for row in self.rows:
+        if pks == ["rowid"]:
+            rows_iter = self.rows_where(select="rowid, *")
+        else:
+            rows_iter = self.rows
+        for row in rows_iter:
             row_pks = tuple(row[pk] for pk in pks)
             lookups = {rename.get(column) or column: row[column] for column in columns}
             self.update(row_pks, {first_column: lookup_table.lookup(lookups)})
