@@ -24,4 +24,4 @@ def test_commands_are_documented(documented_commands, command):
 
 @pytest.mark.parametrize("command", cli.cli.commands.values())
 def test_commands_have_docstrings(command):
-    assert command.__doc__, '{} is missing a docstring'.format(command)
+    assert command.__doc__, "{} is missing a docstring".format(command)
