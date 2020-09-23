@@ -103,12 +103,12 @@ def test_transform_sql(fresh_db, params, expected_sql, use_pragma_foreign_keys):
         dogs.transform(**params)
     # If use_pragma_foreign_keys, check that we did the right thing
     if use_pragma_foreign_keys:
-        assert ('PRAGMA foreign_keys=0;', None) in captured
-        assert captured[-2] == ('PRAGMA foreign_key_check;', None)
-        assert captured[-1] == ('PRAGMA foreign_keys=1;', None)
+        assert ("PRAGMA foreign_keys=0;", None) in captured
+        assert captured[-2] == ("PRAGMA foreign_key_check;", None)
+        assert captured[-1] == ("PRAGMA foreign_keys=1;", None)
     else:
-        assert ('PRAGMA foreign_keys=0;', None) not in captured
-        assert ('PRAGMA foreign_keys=1;', None) not in captured
+        assert ("PRAGMA foreign_keys=0;", None) not in captured
+        assert ("PRAGMA foreign_keys=1;", None) not in captured
 
 
 def test_transform_sql_rowid_to_id(fresh_db):

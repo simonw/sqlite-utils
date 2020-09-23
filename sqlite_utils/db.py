@@ -741,9 +741,9 @@ class Table(Queryable):
             defaults=defaults,
             drop_foreign_keys=drop_foreign_keys,
         )
-        pragma_foreign_keys_was_on = self.db.execute(
-            "PRAGMA foreign_keys"
-        ).fetchone()[0]
+        pragma_foreign_keys_was_on = self.db.execute("PRAGMA foreign_keys").fetchone()[
+            0
+        ]
         try:
             if pragma_foreign_keys_was_on:
                 self.db.execute("PRAGMA foreign_keys=0;")
