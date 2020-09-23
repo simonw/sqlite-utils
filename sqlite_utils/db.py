@@ -3,6 +3,7 @@ from collections import namedtuple, OrderedDict
 import contextlib
 import datetime
 import decimal
+import functools
 import hashlib
 import inspect
 import itertools
@@ -885,14 +886,26 @@ class Table(Queryable):
         first_column = columns[0]
         pks = self.pks
         lookup_table = self.db[table]
+
+        @functools.lru_cache(maxsize=128)
+        def cached_lookup(lookups):
+            return lookup_table.lookup(dict(lookups))
+
         if pks == ["rowid"]:
             rows_iter = self.rows_where(select="rowid, *")
         else:
             rows_iter = self.rows
         for row in rows_iter:
             row_pks = tuple(row[pk] for pk in pks)
-            lookups = {rename.get(column) or column: row[column] for column in columns}
-            self.update(row_pks, {first_column: lookup_table.lookup(lookups)})
+            lookups = tuple(
+                (rename.get(column) or column, row[column]) for column in columns
+            )
+            self.update(
+                row_pks,
+                {first_column: cached_lookup(lookups)},
+                assume_exists=True,
+                pks=self.pks,
+            )
             if progress:
                 progress(1)
         fk_column = fk_column or "{}_id".format(table)
@@ -1241,13 +1254,23 @@ class Table(Queryable):
             sql += " where " + where
         self.db.execute(sql, where_args or [])
 
-    def update(self, pk_values, updates=None, alter=False, conversions=None):
+    def update(
+        self,
+        pk_values,
+        updates=None,
+        alter=False,
+        conversions=None,
+        assume_exists=False,
+        pks=None,
+    ):
         updates = updates or {}
+        pks = pks or self.pks
         conversions = conversions or {}
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
         # Soundness check that the record exists (raises error if not):
-        self.get(pk_values)
+        if not assume_exists:
+            self.get(pk_values)
         if not updates:
             return self
         args = []
@@ -1257,7 +1280,7 @@ class Table(Queryable):
         for key, value in updates.items():
             sets.append("[{}] = {}".format(key, conversions.get(key, "?")))
             args.append(value)
-        wheres = ["[{}] = ?".format(pk_name) for pk_name in self.pks]
+        wheres = ["[{}] = ?".format(pk_name) for pk_name in pks]
         args.extend(pk_values)
         sql = "update [{table}] set {sets} where {wheres}".format(
             table=self.name, sets=", ".join(sets), wheres=" and ".join(wheres)
@@ -1275,7 +1298,7 @@ class Table(Queryable):
 
             # TODO: Test this works (rolls back) - use better exception:
             assert rowcount == 1
-        self.last_pk = pk_values[0] if len(self.pks) == 1 else pk_values
+        self.last_pk = pk_values[0] if len(pks) == 1 else pk_values
         return self
 
     def build_insert_queries_and_params(
