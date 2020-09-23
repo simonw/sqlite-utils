@@ -741,20 +741,21 @@ class Table(Queryable):
             defaults=defaults,
             drop_foreign_keys=drop_foreign_keys,
         )
-        initial_pragma_foreign_keys = self.db.execute("PRAGMA foreign_keys").fetchone()[
-            0
-        ]
+        pragma_foreign_keys_was_on = self.db.execute(
+            "PRAGMA foreign_keys"
+        ).fetchone()[0]
         try:
+            if pragma_foreign_keys_was_on:
+                self.db.execute("PRAGMA foreign_keys=0;")
             with self.db.conn:
                 for sql in sqls:
                     self.db.execute(sql)
+                # Run the foreign_key_check before we commit
+                if pragma_foreign_keys_was_on:
+                    self.db.execute("PRAGMA foreign_key_check;")
         finally:
-            # Make sure we reset PRAGMA foreign_keys correctly
-            if (
-                initial_pragma_foreign_keys
-                and not self.db.execute("PRAGMA foreign_keys").fetchone()[0]
-            ):
-                self.db.execute("PRAGMA foreign_keys=1")
+            if pragma_foreign_keys_was_on:
+                self.db.execute("PRAGMA foreign_keys=1;")
         return self
 
     def transform_sql(
@@ -787,15 +788,7 @@ class Table(Queryable):
             new_column_pairs.append((new_name, type_))
             copy_from_to[name] = new_name
 
-        should_flip_foreign_keys_pragma = self.db.execute(
-            "PRAGMA foreign_keys"
-        ).fetchone()[0]
-
         sqls = []
-
-        if should_flip_foreign_keys_pragma:
-            sqls.append("PRAGMA foreign_keys=OFF;")
-
         if pk is DEFAULT:
             pks_renamed = tuple(rename.get(p) or p for p in self.pks)
             if len(pks_renamed) == 1:
@@ -876,11 +869,6 @@ class Table(Queryable):
         sqls.append(
             "ALTER TABLE [{}] RENAME TO [{}];".format(new_table_name, self.name)
         )
-
-        if should_flip_foreign_keys_pragma:
-            sqls.append("PRAGMA foreign_key_check;")
-            sqls.append("PRAGMA foreign_keys=ON;")
-
         return sqls
 
     def extract(self, columns, table=None, fk_column=None, rename=None, progress=None):
