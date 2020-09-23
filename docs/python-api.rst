@@ -1006,7 +1006,11 @@ This example drops two foreign keys - the one from ``places.country`` to ``count
 Custom transformations with .transform_sql()
 --------------------------------------------
 
-If you want to do something more advanced, you can call the ``table.transform_sql(...)`` method with the same arguments that you would have passed to ``table.transform(...)``. This method will return a list of SQL statements that should be executed to implement the change. You can then make modifications to that SQL before executing it yourself.
+The ``.transform()`` method can handle most cases, but it does not automatically upgrade indexes, views or triggers associated with the table that is being transformed.
+
+If you want to do something more advanced, you can call the ``table.transform_sql(...)`` method with the same arguments that you would have passed to ``table.transform(...)``.
+
+This method will return a list of SQL statements that should be executed to implement the change. You can then make modifications to that SQL - or add additional SQL statements - before executing it yourself.
 
 .. _python_api_extract:
 
