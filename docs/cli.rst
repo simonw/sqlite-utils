@@ -650,6 +650,9 @@ The command takes the following options:
 ``--rename <TEXT TEXT>``
     Use this option to rename the columns created in the new lookup table.
 
+``--silent``
+    Don't display the progress bar.
+
 Here's a more complex example that makes use of these options. It converts `this CSV file <https://github.com/wri/global-power-plant-database/blob/232a666653e14d803ab02717efc01cdd437e7601/output_database/global_power_plant_database.csv>`__ full of global power plants into SQLite, then extracts the ``country`` and ``country_long`` columns into a separate ``countries`` table::
 
     wget 'https://github.com/wri/global-power-plant-database/blob/232a6666/output_database/global_power_plant_database.csv?raw=true'
