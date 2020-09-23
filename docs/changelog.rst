@@ -28,7 +28,7 @@ The Python library :ref:`extract() documentation <python_api_extract>` describes
 Other changes
 ~~~~~~~~~~~~~
 
-- The ``@db.register_function`` decorator can be used to quickly register Python functions as custom SQL functions, see :ref;`python_api_register_function`. (`#162 <https://github.com/simonw/sqlite-utils/issues/162>`__)
+- The ``@db.register_function`` decorator can be used to quickly register Python functions as custom SQL functions, see :ref:`python_api_register_function`. (`#162 <https://github.com/simonw/sqlite-utils/issues/162>`__)
 - The ``table.rows_where()`` method now accepts an optional ``select=`` argument for specifying which columns should be selected, see :ref:`python_api_rows`.
 
 .. _v2_19:
