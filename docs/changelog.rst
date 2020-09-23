@@ -2,6 +2,35 @@
  Changelog
 ===========
 
+.. _v2_20:
+
+2.20 (2020-09-22)
+-----------------
+
+This release introduces two key new capabilities: **transform** (`#114 <https://github.com/simonw/sqlite-utils/issues/114>`__) and **extract** (`#42 <https://github.com/simonw/sqlite-utils/issues/42>`__).
+
+Transform
+~~~~~~~~~
+
+SQLite's ALTER TABLE has `several documented limitations <https://sqlite.org/lang_altertable.html>`__. The ``table.transform()`` Python method and ``sqlite-utils transform`` CLI command work around these limitations using a pattern where a new table with the desired structure is created, data is copied over to it and the old table is then dropped and replaced by the new one.
+
+You can use these tools to drop columns, change column types, rename columns, add and remove ``NOT NULL`` and defaults, remove foreign key constraints and more. See the :ref:`transforming tables (CLI) <cli_transform_table>` and :ref:`transforming tables (Python library) <python_api_transform>` documentation for full details of how to use them.
+
+Extract
+~~~~~~~
+
+Sometimes a database table - especially one imported from a CSV file - will contain duplicate data. A ``Trees`` table may include a ``Species`` column with only a few dozen unique values, when the table itself contains thousands of rows.
+
+The ``table.extract()`` method and ``sqlite-utils extract`` commands can extract a column - or multiple columns - out into a separate lookup table, and set up a foreign key relationship from the original table.
+
+The Python library :ref:`extract() documentation <python_api_extract>` describes how extraction works in detail, and :ref:`cli_extract` in the CLI documentation includes a detailed example.
+
+Other changes
+~~~~~~~~~~~~~
+
+- The ``@db.register_function`` decorator can be used to quickly register Python functions as custom SQL functions, see :ref;`python_api_register_function`. (`#162 <https://github.com/simonw/sqlite-utils/issues/162>`__)
+- The ``table.rows_where()`` method now accepts an optional ``select=`` argument for specifying which columns should be selected, see :ref:`python_api_rows`.
+
 .. _v2_19:
 
 2.19 (2020-09-20)
