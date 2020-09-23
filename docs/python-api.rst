@@ -920,7 +920,7 @@ You can drop a table or view using the ``.drop()`` method:
 Transforming a table
 ====================
 
-The SQLite ``ALTER TABLE`` statement is limited. It can add columns and rename tables, but it cannot rename columns, drop columns, change column types, change ``NOT NULL`` status or change the primary key for a table.
+The SQLite ``ALTER TABLE`` statement is limited. It can add columns and rename tables, but it cannot drop columns, change column types, change ``NOT NULL`` status or change the primary key for a table.
 
 The ``table.transform()`` method can do all of these things, by implementing a multi-step pattern `described in the SQLite documentation <https://www.sqlite.org/lang_altertable.html#otheralter>`__:
 

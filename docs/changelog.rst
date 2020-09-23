@@ -14,7 +14,7 @@ Transform
 
 SQLite's ALTER TABLE has `several documented limitations <https://sqlite.org/lang_altertable.html>`__. The ``table.transform()`` Python method and ``sqlite-utils transform`` CLI command work around these limitations using a pattern where a new table with the desired structure is created, data is copied over to it and the old table is then dropped and replaced by the new one.
 
-You can use these tools to drop columns, change column types, rename columns, add and remove ``NOT NULL`` and defaults, remove foreign key constraints and more. See the :ref:`transforming tables (CLI) <cli_transform_table>` and :ref:`transforming tables (Python library) <python_api_transform>` documentation for full details of how to use them.
+You can use these tools to change column types, rename columns, drop columns, add and remove ``NOT NULL`` and defaults, remove foreign key constraints and more. See the :ref:`transforming tables (CLI) <cli_transform_table>` and :ref:`transforming tables (Python library) <python_api_transform>` documentation for full details of how to use them.
 
 Extract
 ~~~~~~~
