@@ -872,7 +872,7 @@ class Table(Queryable):
         )
         return sqls
 
-    def extract(self, columns, table=None, fk_column=None, rename=None, progress=None):
+    def extract(self, columns, table=None, fk_column=None, rename=None):
         rename = rename or {}
         if isinstance(columns, str):
             columns = [columns]
