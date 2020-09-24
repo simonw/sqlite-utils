@@ -592,7 +592,7 @@ Every option for this table (with the exception of ``--pk-none``) can be specifi
 ``--default-none column``
     Remove the default value for this column.
 
-``--drop-foreign-key col other_table other_column``
+``--drop-foreign-key column``
     Drop the specified foreign key.
 
 If you want to see the SQL that will be executed to make the change without actually executing it, add the ``--sql`` flag. For example::

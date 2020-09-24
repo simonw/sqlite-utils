@@ -835,9 +835,7 @@ class Table(Queryable):
         # foreign_keys
         create_table_foreign_keys = []
         for table, column, other_table, other_column in self.foreign_keys:
-            if (drop_foreign_keys is None) or (
-                (column, other_table, other_column) not in drop_foreign_keys
-            ):
+            if (drop_foreign_keys is None) or (column not in drop_foreign_keys):
                 create_table_foreign_keys.append(
                     (rename.get(column) or column, other_table, other_column)
                 )

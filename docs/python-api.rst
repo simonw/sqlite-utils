@@ -995,17 +995,14 @@ The ``column_order=`` parameter can be used to change the order of the columns. 
     # Change column order
     table.transform(column_order=("name", "age", "id")
 
-You can use ``.transform()`` to remove foreign key constraints from a table. You will need to know the name of the column, the name of the table it points to and the name of the column it references on that other table.
+You can use ``.transform()`` to remove foreign key constraints from a table.
 
 This example drops two foreign keys - the one from ``places.country`` to ``country.id`` and the one from ``places.continent`` to ``continent.id``:
 
 .. code-block:: python
 
     db["places"].transform(
-        drop_foreign_keys=(
-            ("country", "country", "id"),
-            ("continent", "continent", "id"),
-        )
+        drop_foreign_keys=("country", "continent")
     )
 
 .. _python_api_transform_sql:

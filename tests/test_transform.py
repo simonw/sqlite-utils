@@ -274,12 +274,7 @@ def test_transform_drop_foreign_keys(fresh_db, use_pragma_foreign_keys):
         ),
     ]
     # Drop two of those foreign keys
-    fresh_db["places"].transform(
-        drop_foreign_keys=(
-            ("country", "country", "id"),
-            ("continent", "continent", "id"),
-        )
-    )
+    fresh_db["places"].transform(drop_foreign_keys=("country", "continent"))
     # Should be only one foreign key now
     assert fresh_db["places"].foreign_keys == [
         ForeignKey(table="places", column="city", other_table="city", other_column="id")

@@ -924,7 +924,7 @@ def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt, json_cols)
 )
 @click.option(
     "--drop-foreign-key",
-    type=(str, str, str),
+    type=str,
     multiple=True,
     help="Drop this foreign key constraint",
 )

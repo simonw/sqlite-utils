@@ -1542,8 +1542,6 @@ def test_transform_drop_foreign_key(db_path):
             "places",
             "--drop-foreign-key",
             "country",
-            "country",
-            "id",
         ],
     )
     print(result.output)
