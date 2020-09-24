@@ -1496,6 +1496,10 @@ def test_add_foreign_keys(db_path):
             ["--default-none", "age"],
             'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL,\n   [name] TEXT\n)',
         ),
+        (
+            ["-o", "name", "--column-order", "age", "-o", "id"],
+            "CREATE TABLE \"dogs\" (\n   [name] TEXT,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [id] INTEGER PRIMARY KEY\n)",
+        ),
     ],
 )
 def test_transform(db_path, args, expected_schema):

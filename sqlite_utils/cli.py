@@ -904,6 +904,7 @@ def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt, json_cols)
 @click.option(
     "--rename", type=(str, str), multiple=True, help="Rename this column to X"
 )
+@click.option("-o", "--column-order", type=str, multiple=True, help="Reorder columns")
 @click.option("--not-null", type=str, multiple=True, help="Set this column to NOT NULL")
 @click.option(
     "--not-null-false", type=str, multiple=True, help="Remove NOT NULL from this column"
@@ -934,6 +935,7 @@ def transform(
     type,
     drop,
     rename,
+    column_order,
     not_null,
     not_null_false,
     pk,
@@ -969,6 +971,7 @@ def transform(
     kwargs["types"] = types
     kwargs["drop"] = set(drop)
     kwargs["rename"] = dict(rename)
+    kwargs["column_order"] = column_order or None
     kwargs["not_null"] = not_null_dict
     if pk:
         if len(pk) == 1:

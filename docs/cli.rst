@@ -571,6 +571,9 @@ Every option for this table (with the exception of ``--pk-none``) can be specifi
 ``--rename column-name new-name``
     Rename this column to a new name.
 
+``--column-order column``
+    Use this multiple times to specify a new order for your columns. ``-o`` shortcut is also available.
+
 ``--not-null column-name``
     Set this column as ``NOT NULL``.
 
