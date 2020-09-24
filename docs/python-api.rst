@@ -988,6 +988,13 @@ The ``defaults=`` parameter can be used to set or change the defaults for differ
     # Now remove the default from that column:
     table.transform(defaults={"age": None})
 
+The ``column_order=`` parameter can be used to change the order of the columns. If you pass the names of a subset of the columns those will go first and columns you omitted will appear in their existing order after them.
+
+.. code-block:: python
+
+    # Change column order
+    table.transform(column_order=("name", "age", "id")
+
 You can use ``.transform()`` to remove foreign key constraints from a table. You will need to know the name of the column, the name of the table it points to and the name of the column it references on that other table.
 
 This example drops two foreign keys - the one from ``places.country`` to ``country.id`` and the one from ``places.continent`` to ``continent.id``:
