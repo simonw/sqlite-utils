@@ -1167,6 +1167,7 @@ class Table(Queryable):
         with self.db.conn:
             for trigger_name in trigger_names:
                 self.db.execute("DROP TRIGGER IF EXISTS [{}]".format(trigger_name))
+        return self
 
     def rebuild_fts(self):
         fts_table = self.detect_fts()
@@ -1178,6 +1179,7 @@ class Table(Queryable):
                 table=fts_table
             )
         )
+        return self
 
     def detect_fts(self):
         "Detect if table has a corresponding FTS virtual table and return it"
@@ -1245,6 +1247,7 @@ class Table(Queryable):
         )
         with self.db.conn:
             self.db.execute(sql, pk_values)
+        return self
 
     def delete_where(self, where=None, where_args=None):
         if not self.exists():
@@ -1253,6 +1256,7 @@ class Table(Queryable):
         if where is not None:
             sql += " where " + where
         self.db.execute(sql, where_args or [])
+        return self
 
     def update(
         self,
@@ -1696,6 +1700,7 @@ class Table(Queryable):
         for col_name, col_type in needed_columns.items():
             if col_name not in current_columns:
                 self.add_column(col_name, col_type)
+        return self
 
     def lookup(self, column_values):
         # lookups is a dictionary - all columns will be used for a unique index
