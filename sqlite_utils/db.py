@@ -730,6 +730,7 @@ class Table(Queryable):
         not_null=None,
         defaults=None,
         drop_foreign_keys=None,
+        column_order=None,
     ):
         assert self.exists(), "Cannot transform a table that doesn't exist yet"
         sqls = self.transform_sql(
@@ -740,6 +741,7 @@ class Table(Queryable):
             not_null=not_null,
             defaults=defaults,
             drop_foreign_keys=drop_foreign_keys,
+            column_order=column_order,
         )
         pragma_foreign_keys_was_on = self.db.execute("PRAGMA foreign_keys").fetchone()[
             0
@@ -768,6 +770,7 @@ class Table(Queryable):
         not_null=None,
         defaults=None,
         drop_foreign_keys=None,
+        column_order=None,
         tmp_suffix=None,
     ):
         types = types or {}
@@ -839,6 +842,9 @@ class Table(Queryable):
                     (rename.get(column) or column, other_table, other_column)
                 )
 
+        if column_order is not None:
+            column_order = [rename.get(col) or col for col in column_order]
+
         sqls.append(
             self.db.create_table_sql(
                 new_table_name,
@@ -847,6 +853,7 @@ class Table(Queryable):
                 not_null=create_table_not_null,
                 defaults=create_table_defaults,
                 foreign_keys=create_table_foreign_keys,
+                column_order=column_order,
             ).strip()
         )
 
@@ -889,20 +896,30 @@ class Table(Queryable):
         magic_lookup_column = "{}_{}".format(fk_column, os.urandom(6).hex())
 
         # Populate the lookup table with all of the extracted unique values
-        lookup_cols = {
+        lookup_columns_definition = {
             (rename.get(col) or col): typ
             for col, typ in self.columns_dict.items()
             if col in columns
         }
-        lookup_table.create(
-            {
-                **{
-                    "id": int,
+        if lookup_table.exists() and not set(lookup_columns_definition.keys()).issubset(
+            lookup_table.columns_dict.keys()
+        ):
+            # TODO: Write test for this
+            raise InvalidColumns(
+                "Lookup table {} already exists but does not have columns {}".format(
+                    table, lookup_columns_definition.keys()
+                )
+            )
+        else:
+            lookup_table.create(
+                {
+                    **{
+                        "id": int,
+                    },
+                    **lookup_columns_definition,
                 },
-                **lookup_cols,
-            },
-            pk="id",
-        )
+                pk="id",
+            )
         lookup_columns = [(rename.get(col) or col) for col in columns]
         lookup_table.create_index(lookup_columns, unique=True)
         self.db.execute(
@@ -934,9 +951,22 @@ class Table(Queryable):
                 ),
             )
         )
+        # Figure out the right column order
+        column_order = []
+        for c in self.columns:
+            if c.name in columns and magic_lookup_column not in column_order:
+                column_order.append(magic_lookup_column)
+            elif c.name == magic_lookup_column:
+                continue
+            else:
+                column_order.append(c.name)
 
         # Drop the unnecessary columns and rename lookup column
-        self.transform(drop=set(columns), rename={magic_lookup_column: fk_column})
+        self.transform(
+            drop=set(columns),
+            rename={magic_lookup_column: fk_column},
+            column_order=column_order,
+        )
 
         # And add the foreign key constraint
         self.add_foreign_key(fk_column, table, "id")

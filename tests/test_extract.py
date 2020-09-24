@@ -11,7 +11,12 @@ def test_extract_single_column(fresh_db, table, fk_column):
     iter_species = itertools.cycle(["Palm", "Spruce", "Mangrove", "Oak"])
     fresh_db["tree"].insert_all(
         (
-            {"id": i, "name": "Tree {}".format(i), "species": next(iter_species)}
+            {
+                "id": i,
+                "name": "Tree {}".format(i),
+                "species": next(iter_species),
+                "end": 1,
+            }
             for i in range(1, 1001)
         ),
         pk="id",
@@ -22,6 +27,7 @@ def test_extract_single_column(fresh_db, table, fk_column):
         "   [id] INTEGER PRIMARY KEY,\n"
         "   [name] TEXT,\n"
         "   [{}] INTEGER,\n".format(expected_fk)
+        + "   [end] INTEGER,\n"
         + "   FOREIGN KEY({}) REFERENCES {}(id)\n".format(expected_fk, expected_table)
         + ")"
     )
@@ -38,10 +44,10 @@ def test_extract_single_column(fresh_db, table, fk_column):
         {"id": 4, "species": "Oak"},
     ]
     assert list(itertools.islice(fresh_db["tree"].rows, 0, 4)) == [
-        {"id": 1, "name": "Tree 1", expected_fk: 1},
-        {"id": 2, "name": "Tree 2", expected_fk: 2},
-        {"id": 3, "name": "Tree 3", expected_fk: 3},
-        {"id": 4, "name": "Tree 4", expected_fk: 4},
+        {"id": 1, "name": "Tree 1", expected_fk: 1, "end": 1},
+        {"id": 2, "name": "Tree 2", expected_fk: 2, "end": 1},
+        {"id": 3, "name": "Tree 3", expected_fk: 3, "end": 1},
+        {"id": 4, "name": "Tree 4", expected_fk: 4, "end": 1},
     ]
 
 
