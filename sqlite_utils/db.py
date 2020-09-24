@@ -901,15 +901,15 @@ class Table(Queryable):
             for col, typ in self.columns_dict.items()
             if col in columns
         }
-        if lookup_table.exists() and not set(lookup_columns_definition.keys()).issubset(
-            lookup_table.columns_dict.keys()
-        ):
-            # TODO: Write test for this
-            raise InvalidColumns(
-                "Lookup table {} already exists but does not have columns {}".format(
-                    table, lookup_columns_definition.keys()
+        if lookup_table.exists():
+            if not set(lookup_columns_definition.items()).issubset(
+                lookup_table.columns_dict.items()
+            ):
+                raise InvalidColumns(
+                    "Lookup table {} already exists but does not have columns {}".format(
+                        table, lookup_columns_definition
+                    )
                 )
-            )
         else:
             lookup_table.create(
                 {
@@ -921,9 +921,9 @@ class Table(Queryable):
                 pk="id",
             )
         lookup_columns = [(rename.get(col) or col) for col in columns]
-        lookup_table.create_index(lookup_columns, unique=True)
+        lookup_table.create_index(lookup_columns, unique=True, if_not_exists=True)
         self.db.execute(
-            "INSERT INTO [{lookup_table}] ({lookup_columns}) SELECT DISTINCT {table_cols} FROM [{table}]".format(
+            "INSERT OR IGNORE INTO [{lookup_table}] ({lookup_columns}) SELECT DISTINCT {table_cols} FROM [{table}]".format(
                 lookup_table=table,
                 lookup_columns=", ".join("[{}]".format(c) for c in lookup_columns),
                 table_cols=", ".join("[{}]".format(c) for c in columns),
