@@ -886,38 +886,62 @@ class Table(Queryable):
         first_column = columns[0]
         pks = self.pks
         lookup_table = self.db[table]
-
-        @functools.lru_cache(maxsize=128)
-        def cached_lookup(lookups):
-            return lookup_table.lookup(dict(lookups))
-
-        if pks == ["rowid"]:
-            rows_iter = self.rows_where(select="rowid, *")
-        else:
-            rows_iter = self.rows
-        for row in rows_iter:
-            row_pks = tuple(row[pk] for pk in pks)
-            lookups = tuple(
-                (rename.get(column) or column, row[column]) for column in columns
-            )
-            self.update(
-                row_pks,
-                {first_column: cached_lookup(lookups)},
-                assume_exists=True,
-                pks=self.pks,
-            )
-            if progress:
-                progress(1)
         fk_column = fk_column or "{}_id".format(table)
-        # Now rename first_column and change its type to integer, and drop
-        # any other extracted columns:
-        self.transform(
-            types={first_column: int},
-            drop=set(columns[1:]),
-            rename={first_column: fk_column},
+        magic_lookup_column = "{}_{}".format(fk_column, os.urandom(6).hex())
+
+        # Populate the lookup table with all of the extracted unique values
+        lookup_cols = {
+            (rename.get(col) or col): typ
+            for col, typ in self.columns_dict.items()
+            if col in columns
+        }
+        lookup_table.create(
+            {
+                **{
+                    "id": int,
+                },
+                **lookup_cols,
+            },
+            pk="id",
         )
+        lookup_columns = [(rename.get(col) or col) for col in columns]
+        lookup_table.create_index(lookup_columns, unique=True)
+        self.db.execute(
+            "INSERT INTO [{lookup_table}] ({lookup_columns}) SELECT DISTINCT {table_cols} FROM [{table}]".format(
+                lookup_table=table,
+                lookup_columns=", ".join("[{}]".format(c) for c in lookup_columns),
+                table_cols=", ".join("[{}]".format(c) for c in columns),
+                table=self.name,
+            )
+        )
+
+        # Now add the new fk_column
+        self.add_column(magic_lookup_column, int)
+
+        # And populate it
+        self.db.execute(
+            "UPDATE [{table}] SET [{magic_lookup_column}] = (SELECT id FROM [{lookup_table}] WHERE {where})".format(
+                table=self.name,
+                magic_lookup_column=magic_lookup_column,
+                lookup_table=table,
+                where=" AND ".join(
+                    "[{table}].[{column}] = [{lookup_table}].[{lookup_column}]".format(
+                        table=self.name,
+                        lookup_table=table,
+                        column=column,
+                        lookup_column=rename.get(column) or column,
+                    )
+                    for column in columns
+                ),
+            )
+        )
+
+        # Drop the unnecessary columns and rename lookup column
+        self.transform(drop=set(columns), rename={magic_lookup_column: fk_column})
+
         # And add the foreign key constraint
         self.add_foreign_key(fk_column, table, "id")
+        return self
 
     def create_index(self, columns, index_name=None, unique=False, if_not_exists=False):
         if index_name is None:
