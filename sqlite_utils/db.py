@@ -3,7 +3,6 @@ from collections import namedtuple, OrderedDict
 import contextlib
 import datetime
 import decimal
-import functools
 import hashlib
 import inspect
 import itertools
@@ -1278,28 +1277,19 @@ class Table(Queryable):
             sql += " where " + where
         self.db.execute(sql, where_args or [])
 
-    def update(
-        self,
-        pk_values,
-        updates=None,
-        alter=False,
-        conversions=None,
-        assume_exists=False,
-        pks=None,
-    ):
+    def update(self, pk_values, updates=None, alter=False, conversions=None):
         updates = updates or {}
-        pks = pks or self.pks
         conversions = conversions or {}
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
         # Soundness check that the record exists (raises error if not):
-        if not assume_exists:
-            self.get(pk_values)
+        self.get(pk_values)
         if not updates:
             return self
         args = []
         sets = []
         wheres = []
+        pks = self.pks
         validate_column_names(updates.keys())
         for key, value in updates.items():
             sets.append("[{}] = {}".format(key, conversions.get(key, "?")))
