@@ -1,4 +1,4 @@
-from sqlite_utils.db import Index
+from sqlite_utils.db import Index, ForeignKey
 import pytest
 
 
@@ -41,6 +41,12 @@ def test_extracts(fresh_db, kwargs, expected_table, use_table_factory):
         )
         == fresh_db["Trees"].schema
     )
+    # Should have a foreign key reference
+    assert len(fresh_db["Trees"].foreign_keys) == 1
+    fk = fresh_db["Trees"].foreign_keys[0]
+    assert fk.table == "Trees"
+    assert fk.column == "species_id"
+
     # Should have unique index on Species
     assert [
         Index(
