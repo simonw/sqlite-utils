@@ -2,6 +2,18 @@
  Changelog
 ===========
 
+.. _v2_21:
+
+2.21 (2020-09-24)
+-----------------
+
+- ``table.extract()`` and ``sqlite-utils extract`` now apply much, much faster - one example operation reduced from twelve minutes to just four seconds! (`#172 <https://github.com/simonw/sqlite-utils/issues/172>`__)
+- ``sqlite-utils extract`` no longer shows a progress bar, because it's fast enough not to need one.
+- New ``column_order=`` option for ``table.transform()`` which can be used to alter the order of columns in a table. (`#175 <https://github.com/simonw/sqlite-utils/issues/175>`__)
+- ``sqlite-utils transform --column-order=`` option (with a ``-o`` shortcut) for changing column order. (`#176 <https://github.com/simonw/sqlite-utils/issues/176>`__)
+- The ``table.transform(drop_foreign_keys=)`` parameter and the ``sqlite-utils transform --drop-foreign-key`` option have changed. They now accept just the name of the column rather than requiring all three of the column, other table and other column. This is technically a backwards-incompatible change but I chose not to bump the major version number because the transform feature is so new. (`#177 <https://github.com/simonw/sqlite-utils/issues/177>`__)
+- The table ``.disable_fts()``, ``.rebuild_fts()``, ``.delete()``, ``.delete_where()`` and ``.add_missing_columns()`` methods all now ``return self``, which means they can be chained together with other table operations.
+
 .. _v2_20:
 
 2.20 (2020-09-22)
