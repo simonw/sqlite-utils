@@ -11,7 +11,12 @@ def test_extract_single_column(fresh_db, table, fk_column):
     iter_species = itertools.cycle(["Palm", "Spruce", "Mangrove", "Oak"])
     fresh_db["tree"].insert_all(
         (
-            {"id": i, "name": "Tree {}".format(i), "species": next(iter_species)}
+            {
+                "id": i,
+                "name": "Tree {}".format(i),
+                "species": next(iter_species),
+                "end": 1,
+            }
             for i in range(1, 1001)
         ),
         pk="id",
@@ -22,6 +27,7 @@ def test_extract_single_column(fresh_db, table, fk_column):
         "   [id] INTEGER PRIMARY KEY,\n"
         "   [name] TEXT,\n"
         "   [{}] INTEGER,\n".format(expected_fk)
+        + "   [end] INTEGER,\n"
         + "   FOREIGN KEY({}) REFERENCES {}(id)\n".format(expected_fk, expected_table)
         + ")"
     )
@@ -38,10 +44,10 @@ def test_extract_single_column(fresh_db, table, fk_column):
         {"id": 4, "species": "Oak"},
     ]
     assert list(itertools.islice(fresh_db["tree"].rows, 0, 4)) == [
-        {"id": 1, "name": "Tree 1", expected_fk: 1},
-        {"id": 2, "name": "Tree 2", expected_fk: 2},
-        {"id": 3, "name": "Tree 3", expected_fk: 3},
-        {"id": 4, "name": "Tree 4", expected_fk: 4},
+        {"id": 1, "name": "Tree 1", expected_fk: 1, "end": 1},
+        {"id": 2, "name": "Tree 2", expected_fk: 2, "end": 1},
+        {"id": 3, "name": "Tree 3", expected_fk: 3, "end": 1},
+        {"id": 4, "name": "Tree 4", expected_fk: 4, "end": 1},
     ]
 
 
@@ -124,3 +130,44 @@ def test_extract_rowid_table(fresh_db):
         "   FOREIGN KEY(common_name_latin_name_id) REFERENCES common_name_latin_name(id)\n"
         ")"
     )
+
+
+def test_reuse_lookup_table(fresh_db):
+    fresh_db["species"].insert({"id": 1, "name": "Wolf"}, pk="id")
+    fresh_db["sightings"].insert({"id": 10, "species": "Wolf"}, pk="id")
+    fresh_db["individuals"].insert(
+        {"id": 10, "name": "Terriana", "species": "Fox"}, pk="id"
+    )
+    fresh_db["sightings"].extract("species", rename={"species": "name"})
+    fresh_db["individuals"].extract("species", rename={"species": "name"})
+    assert fresh_db["sightings"].schema == (
+        'CREATE TABLE "sightings" (\n'
+        "   [id] INTEGER PRIMARY KEY,\n"
+        "   [species_id] INTEGER,\n"
+        "   FOREIGN KEY(species_id) REFERENCES species(id)\n"
+        ")"
+    )
+    assert fresh_db["individuals"].schema == (
+        'CREATE TABLE "individuals" (\n'
+        "   [id] INTEGER PRIMARY KEY,\n"
+        "   [name] TEXT,\n"
+        "   [species_id] INTEGER,\n"
+        "   FOREIGN KEY(species_id) REFERENCES species(id)\n"
+        ")"
+    )
+    assert list(fresh_db["species"].rows) == [
+        {"id": 1, "name": "Wolf"},
+        {"id": 2, "name": "Fox"},
+    ]
+
+
+def test_extract_error_on_incompatible_existing_lookup_table(fresh_db):
+    fresh_db["species"].insert({"id": 1})
+    fresh_db["tree"].insert({"name": "Tree 1", "common_name": "Palm"})
+    with pytest.raises(InvalidColumns):
+        fresh_db["tree"].extract("common_name", table="species")
+
+    # Try again with incompatible existing column type
+    fresh_db["species2"].insert({"id": 1, "common_name": 3.5})
+    with pytest.raises(InvalidColumns):
+        fresh_db["tree"].extract("common_name", table="species2")

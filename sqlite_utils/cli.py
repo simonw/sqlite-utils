@@ -1006,12 +1006,6 @@ def transform(
     multiple=True,
     help="Rename this column in extracted table",
 )
-@click.option(
-    "-s",
-    "--silent",
-    is_flag=True,
-    help="Don't show progress bar",
-)
 def extract(
     path,
     table,
@@ -1019,7 +1013,6 @@ def extract(
     other_table,
     fk_column,
     rename,
-    silent,
 ):
     "Extract one or more columns into a separate table"
     db = sqlite_utils.Database(path)
@@ -1029,14 +1022,7 @@ def extract(
         fk_column=fk_column,
         rename=dict(rename),
     )
-    if silent:
-        db[table].extract(**kwargs)
-    else:
-        with click.progressbar(
-            length=db[table].count, label="Extracting columns"
-        ) as bar:
-            kwargs["progress"] = bar.update
-            db[table].extract(**kwargs)
+    db[table].extract(**kwargs)
 
 
 @cli.command(name="insert-files")

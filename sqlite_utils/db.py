@@ -3,7 +3,6 @@ from collections import namedtuple, OrderedDict
 import contextlib
 import datetime
 import decimal
-import functools
 import hashlib
 import inspect
 import itertools
@@ -731,6 +730,7 @@ class Table(Queryable):
         not_null=None,
         defaults=None,
         drop_foreign_keys=None,
+        column_order=None,
     ):
         assert self.exists(), "Cannot transform a table that doesn't exist yet"
         sqls = self.transform_sql(
@@ -741,6 +741,7 @@ class Table(Queryable):
             not_null=not_null,
             defaults=defaults,
             drop_foreign_keys=drop_foreign_keys,
+            column_order=column_order,
         )
         pragma_foreign_keys_was_on = self.db.execute("PRAGMA foreign_keys").fetchone()[
             0
@@ -769,6 +770,7 @@ class Table(Queryable):
         not_null=None,
         defaults=None,
         drop_foreign_keys=None,
+        column_order=None,
         tmp_suffix=None,
     ):
         types = types or {}
@@ -840,6 +842,9 @@ class Table(Queryable):
                     (rename.get(column) or column, other_table, other_column)
                 )
 
+        if column_order is not None:
+            column_order = [rename.get(col) or col for col in column_order]
+
         sqls.append(
             self.db.create_table_sql(
                 new_table_name,
@@ -848,6 +853,7 @@ class Table(Queryable):
                 not_null=create_table_not_null,
                 defaults=create_table_defaults,
                 foreign_keys=create_table_foreign_keys,
+                column_order=column_order,
             ).strip()
         )
 
@@ -872,7 +878,7 @@ class Table(Queryable):
         )
         return sqls
 
-    def extract(self, columns, table=None, fk_column=None, rename=None, progress=None):
+    def extract(self, columns, table=None, fk_column=None, rename=None):
         rename = rename or {}
         if isinstance(columns, str):
             columns = [columns]
@@ -886,38 +892,85 @@ class Table(Queryable):
         first_column = columns[0]
         pks = self.pks
         lookup_table = self.db[table]
-
-        @functools.lru_cache(maxsize=128)
-        def cached_lookup(lookups):
-            return lookup_table.lookup(dict(lookups))
-
-        if pks == ["rowid"]:
-            rows_iter = self.rows_where(select="rowid, *")
-        else:
-            rows_iter = self.rows
-        for row in rows_iter:
-            row_pks = tuple(row[pk] for pk in pks)
-            lookups = tuple(
-                (rename.get(column) or column, row[column]) for column in columns
-            )
-            self.update(
-                row_pks,
-                {first_column: cached_lookup(lookups)},
-                assume_exists=True,
-                pks=self.pks,
-            )
-            if progress:
-                progress(1)
         fk_column = fk_column or "{}_id".format(table)
-        # Now rename first_column and change its type to integer, and drop
-        # any other extracted columns:
-        self.transform(
-            types={first_column: int},
-            drop=set(columns[1:]),
-            rename={first_column: fk_column},
+        magic_lookup_column = "{}_{}".format(fk_column, os.urandom(6).hex())
+
+        # Populate the lookup table with all of the extracted unique values
+        lookup_columns_definition = {
+            (rename.get(col) or col): typ
+            for col, typ in self.columns_dict.items()
+            if col in columns
+        }
+        if lookup_table.exists():
+            if not set(lookup_columns_definition.items()).issubset(
+                lookup_table.columns_dict.items()
+            ):
+                raise InvalidColumns(
+                    "Lookup table {} already exists but does not have columns {}".format(
+                        table, lookup_columns_definition
+                    )
+                )
+        else:
+            lookup_table.create(
+                {
+                    **{
+                        "id": int,
+                    },
+                    **lookup_columns_definition,
+                },
+                pk="id",
+            )
+        lookup_columns = [(rename.get(col) or col) for col in columns]
+        lookup_table.create_index(lookup_columns, unique=True, if_not_exists=True)
+        self.db.execute(
+            "INSERT OR IGNORE INTO [{lookup_table}] ({lookup_columns}) SELECT DISTINCT {table_cols} FROM [{table}]".format(
+                lookup_table=table,
+                lookup_columns=", ".join("[{}]".format(c) for c in lookup_columns),
+                table_cols=", ".join("[{}]".format(c) for c in columns),
+                table=self.name,
+            )
         )
+
+        # Now add the new fk_column
+        self.add_column(magic_lookup_column, int)
+
+        # And populate it
+        self.db.execute(
+            "UPDATE [{table}] SET [{magic_lookup_column}] = (SELECT id FROM [{lookup_table}] WHERE {where})".format(
+                table=self.name,
+                magic_lookup_column=magic_lookup_column,
+                lookup_table=table,
+                where=" AND ".join(
+                    "[{table}].[{column}] = [{lookup_table}].[{lookup_column}]".format(
+                        table=self.name,
+                        lookup_table=table,
+                        column=column,
+                        lookup_column=rename.get(column) or column,
+                    )
+                    for column in columns
+                ),
+            )
+        )
+        # Figure out the right column order
+        column_order = []
+        for c in self.columns:
+            if c.name in columns and magic_lookup_column not in column_order:
+                column_order.append(magic_lookup_column)
+            elif c.name == magic_lookup_column:
+                continue
+            else:
+                column_order.append(c.name)
+
+        # Drop the unnecessary columns and rename lookup column
+        self.transform(
+            drop=set(columns),
+            rename={magic_lookup_column: fk_column},
+            column_order=column_order,
+        )
+
         # And add the foreign key constraint
         self.add_foreign_key(fk_column, table, "id")
+        return self
 
     def create_index(self, columns, index_name=None, unique=False, if_not_exists=False):
         if index_name is None:
@@ -1258,28 +1311,19 @@ class Table(Queryable):
         self.db.execute(sql, where_args or [])
         return self
 
-    def update(
-        self,
-        pk_values,
-        updates=None,
-        alter=False,
-        conversions=None,
-        assume_exists=False,
-        pks=None,
-    ):
+    def update(self, pk_values, updates=None, alter=False, conversions=None):
         updates = updates or {}
-        pks = pks or self.pks
         conversions = conversions or {}
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
         # Soundness check that the record exists (raises error if not):
-        if not assume_exists:
-            self.get(pk_values)
+        self.get(pk_values)
         if not updates:
             return self
         args = []
         sets = []
         wheres = []
+        pks = self.pks
         validate_column_names(updates.keys())
         for key, value in updates.items():
             sets.append("[{}] = {}".format(key, conversions.get(key, "?")))
