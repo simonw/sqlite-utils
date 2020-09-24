@@ -600,16 +600,19 @@ If you want to see the SQL that will be executed to make the change without actu
     % sqlite-utils transform fixtures.db roadside_attractions \
         --rename pk id \
         --default name Untitled \
+        --column-order id \
+        --column-order longitude \
+        --column-order latitude \
         --drop address \
         --sql
     CREATE TABLE [roadside_attractions_new_4033a60276b9] (
        [id] INTEGER PRIMARY KEY,
-       [name] TEXT DEFAULT 'Untitled',
+       [longitude] FLOAT,
        [latitude] FLOAT,
-       [longitude] FLOAT
+       [name] TEXT DEFAULT 'Untitled'
     );
-    INSERT INTO [roadside_attractions_new_4033a60276b9] ([id], [name], [latitude], [longitude])
-       SELECT [pk], [name], [latitude], [longitude] FROM [roadside_attractions];
+    INSERT INTO [roadside_attractions_new_4033a60276b9] ([longitude], [latitude], [id], [name])
+       SELECT [longitude], [latitude], [pk], [name] FROM [roadside_attractions];
     DROP TABLE [roadside_attractions];
     ALTER TABLE [roadside_attractions_new_4033a60276b9] RENAME TO [roadside_attractions];
 
