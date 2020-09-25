@@ -40,7 +40,7 @@ Now you can do things with the CLI utility like this:
 You can even import data into a new database table like this:
 
     $ curl https://api.github.com/repos/simonw/sqlite-utils/releases \
-        | sqlite-utils insert releases.db releases - --pk
+        | sqlite-utils insert releases.db releases - --pk "id"
 
 Full CLI documentation: https://sqlite-utils.readthedocs.io/en/stable/cli.html
 
