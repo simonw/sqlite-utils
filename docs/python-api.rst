@@ -274,7 +274,7 @@ If you want to explicitly set the order of the columns you can do so using the `
 
 .. code-block:: python
 
-    dogs.insert({
+    db["dogs"].insert({
         "id": 1,
         "name": "Cleo",
         "twitter": "cleopaws",
@@ -288,7 +288,7 @@ Column types are detected based on the example data provided. Sometimes you may 
 
 .. code-block:: python
 
-    dogs.insert({
+    db["dogs"].insert({
         "id": 1,
         "name": "Cleo",
         "age": "5",
@@ -457,7 +457,7 @@ Use it like this:
 
 .. code-block:: python
 
-    dogs.insert_all([{
+    db["dogs"].insert_all([{
         "id": 1,
         "name": "Cleo",
         "twitter": "cleopaws",
@@ -494,7 +494,7 @@ Insert-replacing data
 
 If you want to insert a record or replace an existing record with the same primary key, using the ``replace=True`` argument to ``.insert()`` or ``.insert_all()``::
 
-    dogs.insert_all([{
+    db["dogs"].insert_all([{
         "id": 1,
         "name": "Cleo",
         "twitter": "cleopaws",
@@ -573,7 +573,7 @@ For example, given the dogs database you could upsert the record for Cleo like s
 
 .. code-block:: python
 
-    dogs.upsert([{
+    db["dogs"].upsert([{
         "id": 1,
         "name": "Cleo",
         "twitter": "cleopaws",
@@ -1437,38 +1437,38 @@ You can enable full-text search on a table using ``.enable_fts(columns)``:
 
 .. code-block:: python
 
-    dogs.enable_fts(["name", "twitter"])
+    db["dogs"].enable_fts(["name", "twitter"])
 
 You can then run searches using the ``.search()`` method:
 
 .. code-block:: python
 
-    rows = dogs.search("cleo")
+    rows = db["dogs"].search("cleo")
 
 If you insert additional records into the table you will need to refresh the search index using ``populate_fts()``:
 
 .. code-block:: python
 
-    dogs.insert({
+    db["dogs"].insert({
         "id": 2,
         "name": "Marnie",
         "twitter": "MarnieTheDog",
         "age": 16,
         "is_good_dog": True,
     }, pk="id")
-    dogs.populate_fts(["name", "twitter"])
+    db["dogs"].populate_fts(["name", "twitter"])
 
 A better solution is to use database triggers. You can set up database triggers to automatically update the full-text index using ``create_triggers=True``:
 
 .. code-block:: python
 
-    dogs.enable_fts(["name", "twitter"], create_triggers=True)
+    db["dogs"].enable_fts(["name", "twitter"], create_triggers=True)
 
 ``.enable_fts()`` defaults to using `FTS5 <https://www.sqlite.org/fts5.html>`__. If you wish to use `FTS4 <https://www.sqlite.org/fts3.html>`__ instead, use the following:
 
 .. code-block:: python
 
-    dogs.enable_fts(["name", "twitter"], fts_version="FTS4")
+    db["dogs"].enable_fts(["name", "twitter"], fts_version="FTS4")
 
 You can customize the tokenizer configured for the table using the ``tokenize=`` parameter. For example, to enable Porter stemming, where English words like "running" will match stemmed alternatives such as "run", use ``tokenize="porter"``:
 
@@ -1492,7 +1492,7 @@ To remove the FTS tables and triggers you created, use the ``disable_fts()`` tab
 
 .. code-block:: python
 
-    dogs.disable_fts()
+    db["dogs"].disable_fts()
 
 .. _python_api_fts_rebuild:
 
@@ -1503,7 +1503,7 @@ You can rebuild a table using the ``table.rebuild_fts()`` method. This is useful
 
 .. code-block:: python
 
-    dogs.rebuild_fts()
+    db["dogs"].rebuild_fts()
 
 This method can be called on a table that has been configured for full-text search - ``dogs`` in this instance -  or directly on a ``_fts`` table:
 
@@ -1524,7 +1524,7 @@ Once you have populated a FTS table you can optimize it to dramatically reduce i
 
 .. code-block:: python
 
-    dogs.optimize()
+    db["dogs"].optimize()
 
 This runs the following SQL::
 
@@ -1537,13 +1537,13 @@ You can create an index on a table using the ``.create_index(columns)`` method. 
 
 .. code-block:: python
 
-    dogs.create_index(["is_good_dog"])
+    db["dogs"].create_index(["is_good_dog"])
 
 By default the index will be named ``idx_{table-name}_{columns}`` - if you want to customize the name of the created index you can pass the ``index_name`` parameter:
 
 .. code-block:: python
 
-    dogs.create_index(
+    db["dogs"].create_index(
         ["is_good_dog", "age"],
         index_name="good_dogs_by_age"
     )
@@ -1552,7 +1552,7 @@ You can create a unique index by passing ``unique=True``:
 
 .. code-block:: python
 
-    dogs.create_index(["name"], unique=True)
+    db["dogs"].create_index(["name"], unique=True)
 
 Use ``if_not_exists=True`` to do nothing if an index with that name already exists.
 
