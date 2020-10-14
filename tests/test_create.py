@@ -73,11 +73,12 @@ def test_create_table_compound_primary_key(fresh_db):
     assert ["id1", "id2"] == table.pks
 
 
-def test_create_table_with_bad_defaults(fresh_db):
-    with pytest.raises(AssertionError):
-        fresh_db.create_table(
-            "players", {"name": str, "score": int}, defaults={"mouse": 1}
-        )
+@pytest.mark.parametrize("pk", ("id", ["id"]))
+def test_create_table_with_single_primary_key(fresh_db, pk):
+    fresh_db["foo"].insert({"id": 1}, pk=pk)
+    assert (
+        fresh_db["foo"].schema == "CREATE TABLE [foo] (\n   [id] INTEGER PRIMARY KEY\n)"
+    )
 
 
 def test_create_table_with_invalid_column_characters(fresh_db):

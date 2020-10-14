@@ -330,6 +330,8 @@ class Database:
         column_defs = []
         # ensure pk is a tuple
         single_pk = None
+        if isinstance(pk, list) and len(pk) == 1 and isinstance(pk[0], str):
+            pk = pk[0]
         if isinstance(pk, str):
             single_pk = pk
             if pk not in [c[0] for c in column_items]:
