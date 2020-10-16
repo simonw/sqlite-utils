@@ -685,7 +685,9 @@ def test_insert_csv_tsv(content, option, db_path, tmpdir):
     db = Database(db_path)
     file_path = str(tmpdir / "insert.csv-tsv")
     open(file_path, "w").write(content)
-    result = CliRunner().invoke(cli.cli, ["insert", db_path, "data", file_path, option])
+    result = CliRunner().invoke(
+        cli.cli, ["insert", db_path, "data", file_path, option], catch_exceptions=False
+    )
     assert 0 == result.exit_code
     assert [{"foo": "1", "bar": "2", "baz": "3"}] == list(db["data"].rows)
 
@@ -1024,7 +1026,9 @@ def test_upsert(db_path, tmpdir):
     ]
     open(json_path, "w").write(json.dumps(insert_dogs))
     result = CliRunner().invoke(
-        cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
+        cli.cli,
+        ["insert", db_path, "dogs", json_path, "--pk", "id"],
+        catch_exceptions=False,
     )
     assert 0 == result.exit_code, result.output
     assert 2 == db["dogs"].count
@@ -1035,7 +1039,9 @@ def test_upsert(db_path, tmpdir):
     ]
     open(json_path, "w").write(json.dumps(insert_dogs))
     result = CliRunner().invoke(
-        cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id"]
+        cli.cli,
+        ["upsert", db_path, "dogs", json_path, "--pk", "id"],
+        catch_exceptions=False,
     )
     assert 0 == result.exit_code, result.output
     assert [
@@ -1601,3 +1607,52 @@ def test_extract(db_path, args, expected_table_schema, expected_other_schema):
         0
     ].schema
     assert other_schema == expected_other_schema
+
+
+def test_insert_encoding(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    latin1_csv = (
+        b"date,name,latitude,longitude\n"
+        b"2020-01-01,Barra da Lagoa,-27.574,-48.422\n"
+        b"2020-03-04,S\xe3o Paulo,-23.561,-46.645\n"
+        b"2020-04-05,Salta,-24.793:-65.408"
+    )
+    assert latin1_csv.decode("latin-1").split("\n")[2].split(",")[1] == "São Paulo"
+    csv_path = str(tmpdir / "test.csv")
+    open(csv_path, "wb").write(latin1_csv)
+    # First attempt should error:
+    bad_result = CliRunner().invoke(
+        cli.cli, ["insert", db_path, "places", csv_path, "--csv"]
+    )
+    assert bad_result.exit_code == 1
+    assert (
+        "The input you provided uses a character encoding other than utf-8"
+        in bad_result.output
+    )
+    # Using --encoding=latin-1 should work
+    good_result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "places", csv_path, "--encoding", "latin-1", "--csv"],
+    )
+    assert good_result.exit_code == 0
+    db = Database(db_path)
+    assert list(db["places"].rows) == [
+        {
+            "date": "2020-01-01",
+            "name": "Barra da Lagoa",
+            "latitude": "-27.574",
+            "longitude": "-48.422",
+        },
+        {
+            "date": "2020-03-04",
+            "name": "São Paulo",
+            "latitude": "-23.561",
+            "longitude": "-46.645",
+        },
+        {
+            "date": "2020-04-05",
+            "name": "Salta",
+            "latitude": "-24.793:-65.408",
+            "longitude": None,
+        },
+    ]

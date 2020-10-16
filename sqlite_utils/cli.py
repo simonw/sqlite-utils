@@ -1,5 +1,6 @@
 import base64
 import click
+import codecs
 from click_default_group import DefaultGroup
 from datetime import datetime
 import hashlib
@@ -14,6 +15,18 @@ import tabulate
 from .utils import sqlite3, decode_base64_values
 
 VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "BLOB")
+
+UNICODE_ERROR = """
+{}
+
+The input you provided uses a character encoding other than utf-8.
+
+You can fix this by passing the --encoding= option with the encoding of the file.
+
+If you do not know the encoding, running 'file filename.csv' may tell you.
+
+It's often worth trying: --encoding=latin-1
+""".strip()
 
 
 def output_options(fn):
@@ -493,7 +506,7 @@ def insert_upsert_options(fn):
                 required=True,
             ),
             click.argument("table"),
-            click.argument("json_file", type=click.File(), required=True),
+            click.argument("json_file", type=click.File("rb"), required=True),
             click.option(
                 "--pk", help="Columns to use as the primary key, e.g. id", multiple=True
             ),
@@ -519,6 +532,10 @@ def insert_upsert_options(fn):
                 type=(str, str),
                 help="Default value that should be set for a column",
             ),
+            click.option(
+                "--encoding",
+                help="Character encoding for input, defaults to utf-8",
+            ),
         )
     ):
         fn = decorator(fn)
@@ -541,10 +558,15 @@ def insert_upsert_implementation(
     truncate=False,
     not_null=None,
     default=None,
+    encoding=None,
 ):
     db = sqlite_utils.Database(path)
     if (nl + csv + tsv) >= 2:
         raise click.ClickException("Use just one of --nl, --csv or --tsv")
+    if encoding and not (csv or tsv):
+        raise click.ClickException("--encoding must be used with --csv or --tsv")
+    encoding = encoding or "utf-8"
+    json_file = codecs.getreader(encoding)(json_file)
     if pk and len(pk) == 1:
         pk = pk[0]
     if csv or tsv:
@@ -599,6 +621,7 @@ def insert(
     tsv,
     batch_size,
     alter,
+    encoding,
     ignore,
     replace,
     truncate,
@@ -611,49 +634,68 @@ def insert(
 
     Input should be a JSON array of objects, unless --nl or --csv is used.
     """
-    insert_upsert_implementation(
-        path,
-        table,
-        json_file,
-        pk,
-        nl,
-        csv,
-        tsv,
-        batch_size,
-        alter=alter,
-        upsert=False,
-        ignore=ignore,
-        replace=replace,
-        truncate=truncate,
-        not_null=not_null,
-        default=default,
-    )
+    try:
+        insert_upsert_implementation(
+            path,
+            table,
+            json_file,
+            pk,
+            nl,
+            csv,
+            tsv,
+            batch_size,
+            alter=alter,
+            upsert=False,
+            ignore=ignore,
+            replace=replace,
+            truncate=truncate,
+            encoding=encoding,
+            not_null=not_null,
+            default=default,
+        )
+    except UnicodeDecodeError as ex:
+        raise click.ClickException(UNICODE_ERROR.format(ex))
 
 
 @cli.command()
 @insert_upsert_options
 def upsert(
-    path, table, json_file, pk, nl, csv, tsv, batch_size, alter, not_null, default
+    path,
+    table,
+    json_file,
+    pk,
+    nl,
+    csv,
+    tsv,
+    batch_size,
+    alter,
+    not_null,
+    default,
+    encoding,
 ):
     """
     Upsert records based on their primary key. Works like 'insert' but if
     an incoming record has a primary key that matches an existing record
     the existing record will be updated.
     """
-    insert_upsert_implementation(
-        path,
-        table,
-        json_file,
-        pk,
-        nl,
-        csv,
-        tsv,
-        batch_size,
-        alter=alter,
-        upsert=True,
-        not_null=not_null,
-        default=default,
-    )
+    try:
+        insert_upsert_implementation(
+            path,
+            table,
+            json_file,
+            pk,
+            nl,
+            csv,
+            tsv,
+            batch_size,
+            alter=alter,
+            upsert=True,
+            not_null=not_null,
+            default=default,
+            encoding=encoding,
+        )
+    except UnicodeDecodeError as ex:
+        raise click.ClickException(UNICODE_ERROR.format(ex))
 
 
 @cli.command(name="create-table")

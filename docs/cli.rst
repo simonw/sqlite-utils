@@ -354,6 +354,10 @@ For tab-delimited data, use ``--tsv``::
 
     $ sqlite-utils insert dogs.db dogs docs.tsv --tsv
 
+Data is expected to be encoded as Unicode UTF-8. If your data is an another character encoding you can specify it using the ``--encoding`` option::
+
+    $ sqlite-utils insert dogs.db dogs docs.tsv --tsv --encoding=latin-1
+
 .. _cli_insert_replace:
 
 Insert-replacing data
