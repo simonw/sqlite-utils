@@ -2,6 +2,17 @@
  Changelog
 ===========
 
+.. _v2_22:
+
+2.22 (2020-10-16)
+-----------------
+
+- New ``--encoding`` option for processing CSV and TSV files that use a non-utf-8 encoding, for both the ``insert`` and ``update`` commands. (`#182 <https://github.com/simonw/sqlite-utils/issues/182>`__)
+- The ``--load-extension`` option is now available to many more commands. (`#137 <https://github.com/simonw/sqlite-utils/issues/137>`__)
+- ``--load-extension=spatialite`` can be used to load SpatiaLite from common installation locations, if it is available. (`#136 <https://github.com/simonw/sqlite-utils/issues/136>`__)
+- Tests now also run against Python 3.9. (`#184 <https://github.com/simonw/sqlite-utils/issues/184>`__)
+- Passing ``pk=["id"]`` now has the same effect as passing ``pk="id"``. (`#181 <https://github.com/simonw/sqlite-utils/issues/181>`__)
+
 .. _v2_21:
 
 2.21 (2020-09-24)
