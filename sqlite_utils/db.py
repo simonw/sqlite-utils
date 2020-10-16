@@ -289,6 +289,8 @@ class Database:
         # any extracts will be treated as integer columns with a foreign key
         extracts = resolve_extracts(extracts)
         for extract_column, extract_table in extracts.items():
+            if isinstance(extract_column, tuple):
+                assert False
             # Ensure other table exists
             if not self[extract_table].exists():
                 self.create_table(extract_table, {"id": int, "value": str}, pk="id")

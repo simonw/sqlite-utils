@@ -4,6 +4,8 @@
  Python API
 ============
 
+.. contents:: :local:
+
 Connecting to or creating a database
 ====================================
 

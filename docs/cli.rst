@@ -6,6 +6,8 @@
 
 The ``sqlite-utils`` command-line tool can be used to manipulate SQLite databases in a number of different ways.
 
+.. contents:: :local:
+
 .. _cli_query_json:
 
 Running queries and returning JSON
@@ -910,6 +912,7 @@ If you just want to run OPTIMIZE without the VACUUM, use the ``--no-vacuum`` fla
 To optimize specific tables rather than every FTS table, pass those tables as extra arguments:
 
 ::
+
     $ sqlite-utils optimize mydb.db table_1 table_2
 
 .. _cli_wal:
@@ -926,3 +929,17 @@ You can disable WAL mode using ``disable-wal``::
     $ sqlite-utils disable-wal mydb.db
 
 Both of these commands accept one or more database files as arguments.
+
+.. _cli_load_extension:
+
+Loading SQLite extensions
+=========================
+
+Many of these commands have the ablity to load additional SQLite extensions using the ``--load-extension=/path/to/extension`` option - use ``--help`` to check for support, e.g. ``sqlite-utils rows --help``.
+
+This option can be applied multiple times to load multiple extensions.
+
+Since `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ is commonly used with SQLite, the value ``spatialite`` is special: it will search for SpatiaLite in the most common installation locations, saving you from needing to remember exactly where that module is located::
+
+    $ sqlite-utils :memory: "select spatialite_version()" --load-extension=spatialite
+    [{"spatialite_version()": "4.3.0a"}]

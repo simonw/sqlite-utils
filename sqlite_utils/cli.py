@@ -9,10 +9,11 @@ import sqlite_utils
 from sqlite_utils.db import AlterError
 import itertools
 import json
+import os
 import sys
 import csv as csv_std
 import tabulate
-from .utils import sqlite3, decode_base64_values
+from .utils import find_spatialite, sqlite3, decode_base64_values
 
 VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "BLOB")
 
@@ -67,6 +68,14 @@ def output_options(fn):
     return fn
 
 
+def load_extension_option(fn):
+    return click.option(
+        "--load-extension",
+        multiple=True,
+        help="SQLite extensions to load",
+    )(fn)
+
+
 @click.group(cls=DefaultGroup, default="query", default_if_no_args=True)
 @click.version_option()
 def cli():
@@ -102,6 +111,7 @@ def cli():
     is_flag=True,
     default=False,
 )
+@load_extension_option
 def tables(
     path,
     fts4,
@@ -116,10 +126,12 @@ def tables(
     json_cols,
     columns,
     schema,
+    load_extension,
     views=False,
 ):
     """List the tables in the database"""
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     headers = ["view" if views else "table"]
     if counts:
         headers.append("count")
@@ -182,6 +194,7 @@ def tables(
     is_flag=True,
     default=False,
 )
+@load_extension_option
 def views(
     path,
     counts,
@@ -194,6 +207,7 @@ def views(
     json_cols,
     columns,
     schema,
+    load_extension,
 ):
     """List the views in the database"""
     tables.callback(
@@ -210,6 +224,7 @@ def views(
         json_cols=json_cols,
         columns=columns,
         schema=schema,
+        load_extension=load_extension,
         views=True,
     )
 
@@ -233,9 +248,11 @@ def vacuum(path):
 )
 @click.argument("tables", nargs=-1)
 @click.option("--no-vacuum", help="Don't run VACUUM", default=False, is_flag=True)
-def optimize(path, tables, no_vacuum):
+@load_extension_option
+def optimize(path, tables, no_vacuum, load_extension):
     """Optimize all FTS tables and then run VACUUM - should shrink the database file"""
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     if not tables:
         tables = db.table_names(fts4=True) + db.table_names(fts5=True)
     with db.conn:
@@ -252,9 +269,11 @@ def optimize(path, tables, no_vacuum):
     required=True,
 )
 @click.argument("tables", nargs=-1)
-def rebuild_fts(path, tables):
+@load_extension_option
+def rebuild_fts(path, tables, load_extension):
     """Rebuild specific FTS tables, or all FTS tables if none are specified"""
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     if not tables:
         tables = db.table_names(fts4=True) + db.table_names(fts5=True)
     with db.conn:
@@ -303,9 +322,13 @@ def vacuum(path):
     required=False,
     help="Add NOT NULL DEFAULT 'TEXT' constraint",
 )
-def add_column(path, table, col_name, col_type, fk, fk_col, not_null_default):
+@load_extension_option
+def add_column(
+    path, table, col_name, col_type, fk, fk_col, not_null_default, load_extension
+):
     "Add a column to the specified table"
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     db[table].add_column(
         col_name, col_type, fk=fk, fk_col=fk_col, not_null_default=not_null_default
     )
@@ -326,7 +349,10 @@ def add_column(path, table, col_name, col_type, fk, fk_col, not_null_default):
     is_flag=True,
     help="If foreign key already exists, do nothing",
 )
-def add_foreign_key(path, table, column, other_table, other_column, ignore):
+@load_extension_option
+def add_foreign_key(
+    path, table, column, other_table, other_column, ignore, load_extension
+):
     """
     Add a new foreign key constraint to an existing table. Example usage:
 
@@ -335,6 +361,7 @@ def add_foreign_key(path, table, column, other_table, other_column, ignore):
     WARNING: Could corrupt your database! Back up your database file first.
     """
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     try:
         db[table].add_foreign_key(column, other_table, other_column, ignore=ignore)
     except AlterError as e:
@@ -348,7 +375,8 @@ def add_foreign_key(path, table, column, other_table, other_column, ignore):
     required=True,
 )
 @click.argument("foreign_key", nargs=-1)
-def add_foreign_keys(path, foreign_key):
+@load_extension_option
+def add_foreign_keys(path, foreign_key, load_extension):
     """
     Add multiple new foreign key constraints to a database. Example usage:
 
@@ -358,6 +386,7 @@ def add_foreign_keys(path, foreign_key):
         authors country_id countries id
     """
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     if len(foreign_key) % 4 != 0:
         raise click.ClickException(
             "Each foreign key requires four values: table, column, other_table, other_column"
@@ -377,11 +406,13 @@ def add_foreign_keys(path, foreign_key):
     type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
-def index_foreign_keys(path):
+@load_extension_option
+def index_foreign_keys(path, load_extension):
     """
     Ensure every foreign key column has an index on it.
     """
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     db.index_foreign_keys()
 
 
@@ -401,9 +432,11 @@ def index_foreign_keys(path):
     default=False,
     is_flag=True,
 )
-def create_index(path, table, column, name, unique, if_not_exists):
+@load_extension_option
+def create_index(path, table, column, name, unique, if_not_exists, load_extension):
     "Add an index to the specified table covering the specified columns"
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     db[table].create_index(
         column, index_name=name, unique=unique, if_not_exists=if_not_exists
     )
@@ -426,7 +459,10 @@ def create_index(path, table, column, name, unique, if_not_exists):
     default=False,
     is_flag=True,
 )
-def enable_fts(path, table, column, fts4, fts5, tokenize, create_triggers):
+@load_extension_option
+def enable_fts(
+    path, table, column, fts4, fts5, tokenize, create_triggers, load_extension
+):
     "Enable FTS for specific table and columns"
     fts_version = "FTS5"
     if fts4 and fts5:
@@ -436,6 +472,7 @@ def enable_fts(path, table, column, fts4, fts5, tokenize, create_triggers):
         fts_version = "FTS4"
 
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     db[table].enable_fts(
         column,
         fts_version=fts_version,
@@ -452,9 +489,11 @@ def enable_fts(path, table, column, fts4, fts5, tokenize, create_triggers):
 )
 @click.argument("table")
 @click.argument("column", nargs=-1, required=True)
-def populate_fts(path, table, column):
+@load_extension_option
+def populate_fts(path, table, column, load_extension):
     "Re-populate FTS for specific table and columns"
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     db[table].populate_fts(column)
 
 
@@ -465,9 +504,11 @@ def populate_fts(path, table, column):
     required=True,
 )
 @click.argument("table")
-def disable_fts(path, table):
+@load_extension_option
+def disable_fts(path, table, load_extension):
     "Disable FTS for specific table"
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     db[table].disable_fts()
 
 
@@ -478,10 +519,13 @@ def disable_fts(path, table):
     type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
-def enable_wal(path):
+@load_extension_option
+def enable_wal(path, load_extension):
     "Enable WAL for database files"
     for path_ in path:
-        sqlite_utils.Database(path_).enable_wal()
+        db = sqlite_utils.Database(path_)
+        _load_extensions(db, load_extension)
+        db.enable_wal()
 
 
 @cli.command(name="disable-wal")
@@ -491,10 +535,13 @@ def enable_wal(path):
     type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
-def disable_wal(path):
+@load_extension_option
+def disable_wal(path, load_extension):
     "Disable WAL for database files"
     for path_ in path:
-        sqlite_utils.Database(path_).disable_wal()
+        db = sqlite_utils.Database(path_)
+        _load_extensions(db, load_extension)
+        db.disable_wal()
 
 
 def insert_upsert_options(fn):
@@ -536,6 +583,7 @@ def insert_upsert_options(fn):
                 "--encoding",
                 help="Character encoding for input, defaults to utf-8",
             ),
+            load_extension_option,
         )
     ):
         fn = decorator(fn)
@@ -559,8 +607,10 @@ def insert_upsert_implementation(
     not_null=None,
     default=None,
     encoding=None,
+    load_extension=None,
 ):
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     if (nl + csv + tsv) >= 2:
         raise click.ClickException("Use just one of --nl, --csv or --tsv")
     if encoding and not (csv or tsv):
@@ -622,6 +672,7 @@ def insert(
     batch_size,
     alter,
     encoding,
+    load_extension,
     ignore,
     replace,
     truncate,
@@ -650,6 +701,7 @@ def insert(
             replace=replace,
             truncate=truncate,
             encoding=encoding,
+            load_extension=load_extension,
             not_null=not_null,
             default=default,
         )
@@ -672,6 +724,7 @@ def upsert(
     not_null,
     default,
     encoding,
+    load_extension,
 ):
     """
     Upsert records based on their primary key. Works like 'insert' but if
@@ -693,6 +746,7 @@ def upsert(
             not_null=not_null,
             default=default,
             encoding=encoding,
+            load_extension=load_extension,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
@@ -734,9 +788,13 @@ def upsert(
     is_flag=True,
     help="If table already exists, replace it",
 )
-def create_table(path, table, columns, pk, not_null, default, fk, ignore, replace):
+@load_extension_option
+def create_table(
+    path, table, columns, pk, not_null, default, fk, ignore, replace, load_extension
+):
     "Add an index to the specified table covering the specified columns"
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     if len(columns) % 2 == 1:
         raise click.ClickException(
             "columns must be an even number of 'name' 'type' pairs"
@@ -775,9 +833,11 @@ def create_table(path, table, columns, pk, not_null, default, fk, ignore, replac
     required=True,
 )
 @click.argument("table")
-def drop_table(path, table):
+@load_extension_option
+def drop_table(path, table, load_extension):
     "Drop the specified table"
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     if table in db.table_names():
         db[table].drop()
     else:
@@ -802,9 +862,11 @@ def drop_table(path, table):
     is_flag=True,
     help="If view already exists, replace it",
 )
-def create_view(path, view, select, ignore, replace):
+@load_extension_option
+def create_view(path, view, select, ignore, replace, load_extension):
     "Create a view for the provided SELECT query"
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     # Does view already exist?
     if view in db.view_names():
         if ignore:
@@ -827,9 +889,11 @@ def create_view(path, view, select, ignore, replace):
     required=True,
 )
 @click.argument("view")
-def drop_view(path, view):
+@load_extension_option
+def drop_view(path, view, load_extension):
     "Drop the specified view"
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     if view in db.view_names():
         db[view].drop()
     else:
@@ -852,11 +916,7 @@ def drop_view(path, view):
     type=(str, str),
     help="Named :parameters for SQL query",
 )
-@click.option(
-    "--load-extension",
-    multiple=True,
-    help="SQLite extensions to load",
-)
+@load_extension_option
 def query(
     path,
     sql,
@@ -873,10 +933,7 @@ def query(
 ):
     "Execute SQL query and return the results as JSON"
     db = sqlite_utils.Database(path)
-    if load_extension:
-        db.conn.enable_load_extension(True)
-        for ext in load_extension:
-            db.conn.load_extension(ext)
+    _load_extensions(db, load_extension)
     with db.conn:
         cursor = db.execute(sql, dict(param))
         if cursor.description is None:
@@ -912,8 +969,21 @@ def query(
 )
 @click.argument("dbtable")
 @output_options
+@load_extension_option
 @click.pass_context
-def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt, json_cols):
+def rows(
+    ctx,
+    path,
+    dbtable,
+    nl,
+    arrays,
+    csv,
+    no_headers,
+    table,
+    fmt,
+    json_cols,
+    load_extension,
+):
     "Output all rows in the specified table"
     ctx.invoke(
         query,
@@ -926,6 +996,7 @@ def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt, json_cols)
         table=table,
         fmt=fmt,
         json_cols=json_cols,
+        load_extension=load_extension,
     )
 
 
@@ -971,6 +1042,7 @@ def rows(ctx, path, dbtable, nl, arrays, csv, no_headers, table, fmt, json_cols)
     help="Drop this foreign key constraint",
 )
 @click.option("--sql", is_flag=True, help="Output SQL without executing it")
+@load_extension_option
 def transform(
     path,
     table,
@@ -986,9 +1058,11 @@ def transform(
     default_none,
     drop_foreign_key,
     sql,
+    load_extension,
 ):
     "Transform a table beyond the capabilities of ALTER TABLE"
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     types = {}
     kwargs = {}
     for column, ctype in type:
@@ -1051,6 +1125,7 @@ def transform(
     multiple=True,
     help="Rename this column in extracted table",
 )
+@load_extension_option
 def extract(
     path,
     table,
@@ -1058,9 +1133,11 @@ def extract(
     other_table,
     fk_column,
     rename,
+    load_extension,
 ):
     "Extract one or more columns into a separate table"
     db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
     kwargs = dict(
         columns=columns,
         table=other_table,
@@ -1095,7 +1172,10 @@ def extract(
 @click.option("--replace", is_flag=True, help="Replace files with matching primary key")
 @click.option("--upsert", is_flag=True, help="Upsert files with matching primary key")
 @click.option("--name", type=str, help="File name to use")
-def insert_files(path, table, file_or_dir, column, pk, alter, replace, upsert, name):
+@load_extension_option
+def insert_files(
+    path, table, file_or_dir, column, pk, alter, replace, upsert, name, load_extension
+):
     """
     Insert one or more files using BLOB columns in the specified table
 
@@ -1168,6 +1248,7 @@ def insert_files(path, table, file_or_dir, column, pk, alter, replace, upsert, n
                 yield row
 
         db = sqlite_utils.Database(path)
+        _load_extensions(db, load_extension)
         with db.conn:
             db[table].insert_all(
                 to_insert(), pk=pk, alter=alter, replace=replace, upsert=upsert
@@ -1234,3 +1315,12 @@ def json_binary(value):
         return {"$base64": True, "encoded": base64.b64encode(value).decode("latin-1")}
     else:
         raise TypeError
+
+
+def _load_extensions(db, load_extension):
+    if load_extension:
+        db.conn.enable_load_extension(True)
+        for ext in load_extension:
+            if ext == "spatialite" and not os.path.exists(ext):
+                ext = find_spatialite()
+            db.conn.load_extension(ext)
