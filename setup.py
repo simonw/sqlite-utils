@@ -25,7 +25,7 @@ setup(
     install_requires=["click", "click-default-group", "tabulate"],
     setup_requires=["pytest-runner"],
     extras_require={
-        "test": ["pytest", "black"],
+        "test": ["pytest", "black", "hypothesis"],
         "docs": ["sphinx_rtd_theme", "sphinx-autobuild"],
     },
     entry_points="""
