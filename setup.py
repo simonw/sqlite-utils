@@ -41,6 +41,7 @@ setup(
         "Issues": "https://github.com/simonw/sqlite-utils/issues",
         "CI": "https://github.com/simonw/sqlite-utils/actions",
     },
+    python_requires=">=3.6",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
