@@ -554,6 +554,19 @@ def test_insert_simple(tmpdir):
     assert [] == db["dogs"].indexes
 
 
+def test_insert_from_stdin(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "dogs", "-"],
+        input=json.dumps({"name": "Cleo", "age": 4}),
+    )
+    assert 0 == result.exit_code
+    assert [{"age": 4, "name": "Cleo"}] == Database(db_path).execute_returning_dicts(
+        "select * from dogs"
+    )
+
+
 def test_insert_with_primary_key(db_path, tmpdir):
     json_path = str(tmpdir / "dog.json")
     open(json_path, "w").write(json.dumps({"id": 1, "name": "Cleo", "age": 4}))
