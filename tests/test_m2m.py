@@ -31,16 +31,52 @@ def test_insert_m2m_list(fresh_db):
         humans.rows
     )
     assert [
-        ForeignKey(
-            table="dogs_humans", column="dogs_id", other_table="dogs", other_column="id"
-        ),
-        ForeignKey(
-            table="dogs_humans",
-            column="humans_id",
-            other_table="humans",
-            other_column="id",
-        ),
-    ] == dogs_humans.foreign_keys
+               ForeignKey(
+                   table="dogs_humans", column="dogs_id", other_table="dogs", other_column="id"
+               ),
+               ForeignKey(
+                   table="dogs_humans",
+                   column="humans_id",
+                   other_table="humans",
+                   other_column="id",
+               ),
+           ] == dogs_humans.foreign_keys
+
+
+def test_insert_m2m_iterable(fresh_db):
+    iterable_records = ({"id": 1, "name": "Phineas"}, {"id": 2, "name": "Ferb"})
+
+    def iterable():
+        for record in iterable_records:
+            yield record
+
+    platypuses = fresh_db["platypuses"]
+    platypuses.insert({"id": 1, "name": "Perry"}, pk="id").m2m(
+        "humans",
+        iterable(),
+        pk="id",
+    )
+
+    assert {"platypuses", "humans", "humans_platypuses"} == set(fresh_db.table_names())
+    humans = fresh_db["humans"]
+    humans_platypuses = fresh_db["humans_platypuses"]
+    assert [{"humans_id": 1, "platypuses_id": 1}, {"humans_id": 2, "platypuses_id": 1}] == list(
+        humans_platypuses.rows
+    )
+    assert [{"id": 1, "name": "Phineas"}, {"id": 2, "name": "Ferb"}] == list(
+        humans.rows
+    )
+    assert [
+               ForeignKey(
+                   table="humans_platypuses", column="platypuses_id", other_table="platypuses", other_column="id"
+               ),
+               ForeignKey(
+                   table="humans_platypuses",
+                   column="humans_id",
+                   other_table="humans",
+                   other_column="id",
+               ),
+           ] == humans_platypuses.foreign_keys
 
 
 def test_m2m_with_table_objects(fresh_db):
@@ -64,16 +100,16 @@ def test_m2m_lookup(fresh_db):
     assert people_tags.exists()
     assert tags.exists()
     assert [
-        ForeignKey(
-            table="people_tags",
-            column="people_id",
-            other_table="people",
-            other_column="id",
-        ),
-        ForeignKey(
-            table="people_tags", column="tags_id", other_table="tags", other_column="id"
-        ),
-    ] == people_tags.foreign_keys
+               ForeignKey(
+                   table="people_tags",
+                   column="people_id",
+                   other_table="people",
+                   other_column="id",
+               ),
+               ForeignKey(
+                   table="people_tags", column="tags_id", other_table="tags", other_column="id"
+               ),
+           ] == people_tags.foreign_keys
     assert [{"people_id": 1, "tags_id": 1}] == list(people_tags.rows)
     assert [{"id": 1, "name": "Wahyu"}] == list(people.rows)
     assert [{"id": 1, "tag": "Coworker"}] == list(tags.rows)
