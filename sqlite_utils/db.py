@@ -1773,7 +1773,12 @@ class Table(Queryable):
             return pk
 
     def m2m(
-        self, other_table, record_or_iterable=None, pk=DEFAULT, lookup=None, m2m_table=None
+        self,
+        other_table,
+        record_or_iterable=None,
+        pk=DEFAULT,
+        lookup=None,
+        m2m_table=None,
     ):
         if isinstance(other_table, str):
             other_table = self.db.table(other_table, pk=pk)
