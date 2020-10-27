@@ -1,5 +1,6 @@
 from .utils import sqlite3, OperationalError, suggest_column_types, column_affinity
 from collections import namedtuple, OrderedDict
+from collections.abc import Mapping
 import contextlib
 import datetime
 import decimal
@@ -1772,15 +1773,15 @@ class Table(Queryable):
             return pk
 
     def m2m(
-        self, other_table, record_or_list=None, pk=DEFAULT, lookup=None, m2m_table=None
+        self, other_table, record_or_iterable=None, pk=DEFAULT, lookup=None, m2m_table=None
     ):
         if isinstance(other_table, str):
             other_table = self.db.table(other_table, pk=pk)
         our_id = self.last_pk
         if lookup is not None:
-            assert record_or_list is None, "Provide lookup= or record, not both"
+            assert record_or_iterable is None, "Provide lookup= or record, not both"
         else:
-            assert record_or_list is not None, "Provide lookup= or record, not both"
+            assert record_or_iterable is not None, "Provide lookup= or record, not both"
         tables = list(sorted([self.name, other_table.name]))
         columns = ["{}_id".format(t) for t in tables]
         if m2m_table is not None:
@@ -1801,10 +1802,11 @@ class Table(Queryable):
                 m2m_table_name = m2m_table or "{}_{}".format(*tables)
         m2m_table = self.db.table(m2m_table_name, pk=columns, foreign_keys=columns)
         if lookup is None:
+            # if records is only one record, put the record in a list
             records = (
-                [record_or_list]
-                if not isinstance(record_or_list, (list, tuple))
-                else record_or_list
+                [record_or_iterable]
+                if isinstance(record_or_iterable, Mapping)
+                else record_or_iterable
             )
             # Ensure each record exists in other table
             for record in records:
