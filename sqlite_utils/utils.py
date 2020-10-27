@@ -92,20 +92,15 @@ def find_spatialite():
     return None
 
 
-class UpdateReader(io.TextIOWrapper):
-    def __init__(self, raw, update):
-        super().__init__(raw)
+class UpdateWrapper:
+    def __init__(self, wrapped, update):
+        self._wrapped = wrapped
         self._update = update
 
-    def read(self, size=-1):
-        bytes = super().read(size)
-        self._update(len(bytes))
-        return bytes
-
-    def readline(self, size=-1):
-        bytes = super().readline(size)
-        self._update(len(bytes))
-        return bytes
+    def __iter__(self):
+        for line in self._wrapped:
+            self._update(len(line))
+            yield line
 
 
 @contextlib.contextmanager
@@ -115,4 +110,4 @@ def file_progress(file, silent=False, **kwargs):
     else:
         file_length = os.path.getsize(file.raw.name)
         with click.progressbar(length=file_length, **kwargs) as bar:
-            yield UpdateReader(file, update=bar.update)
+            yield UpdateWrapper(file, bar.update)
