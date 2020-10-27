@@ -1640,7 +1640,7 @@ def test_insert_encoding(tmpdir):
     open(csv_path, "wb").write(latin1_csv)
     # First attempt should error:
     bad_result = CliRunner().invoke(
-        cli.cli, ["insert", db_path, "places", csv_path, "--csv"]
+        cli.cli, ["insert", db_path, "places", csv_path, "--csv"], catch_exceptions=False
     )
     assert bad_result.exit_code == 1
     assert (
@@ -1651,6 +1651,7 @@ def test_insert_encoding(tmpdir):
     good_result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "places", csv_path, "--encoding", "latin-1", "--csv"],
+        catch_exceptions=False
     )
     assert good_result.exit_code == 0
     db = Database(db_path)
