@@ -1,4 +1,7 @@
 import base64
+import click
+import contextlib
+import io
 import os
 
 try:
@@ -87,3 +90,24 @@ def find_spatialite():
         if os.path.exists(path):
             return path
     return None
+
+
+class UpdateWrapper:
+    def __init__(self, wrapped, update):
+        self._wrapped = wrapped
+        self._update = update
+
+    def __iter__(self):
+        for line in self._wrapped:
+            self._update(len(line))
+            yield line
+
+
+@contextlib.contextmanager
+def file_progress(file, silent=False, **kwargs):
+    if silent or file.raw.fileno() == 0:  # 0 = stdin
+        yield file
+    else:
+        file_length = os.path.getsize(file.raw.name)
+        with click.progressbar(length=file_length, **kwargs) as bar:
+            yield UpdateWrapper(file, bar.update)

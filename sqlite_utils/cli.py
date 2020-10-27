@@ -13,7 +13,7 @@ import os
 import sys
 import csv as csv_std
 import tabulate
-from .utils import find_spatialite, sqlite3, decode_base64_values
+from .utils import file_progress, find_spatialite, sqlite3, decode_base64_values
 
 VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "BLOB")
 
@@ -584,6 +584,7 @@ def insert_upsert_options(fn):
                 help="Character encoding for input, defaults to utf-8",
             ),
             load_extension_option,
+            click.option("--silent", is_flag=True, help="Do not show progress bar"),
         )
     ):
         fn = decorator(fn)
@@ -608,6 +609,7 @@ def insert_upsert_implementation(
     default=None,
     encoding=None,
     load_extension=None,
+    silent=False,
 ):
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
@@ -621,9 +623,10 @@ def insert_upsert_implementation(
         pk = pk[0]
     if csv or tsv:
         dialect = "excel-tab" if tsv else "excel"
-        reader = csv_std.reader(json_file, dialect=dialect)
-        headers = next(reader)
-        docs = (dict(zip(headers, row)) for row in reader)
+        with file_progress(json_file, silent=silent) as json_file:
+            reader = csv_std.reader(json_file, dialect=dialect)
+            headers = next(reader)
+            docs = (dict(zip(headers, row)) for row in reader)
     elif nl:
         docs = (json.loads(line) for line in json_file)
     else:
@@ -673,6 +676,7 @@ def insert(
     alter,
     encoding,
     load_extension,
+    silent,
     ignore,
     replace,
     truncate,
@@ -702,6 +706,7 @@ def insert(
             truncate=truncate,
             encoding=encoding,
             load_extension=load_extension,
+            silent=silent,
             not_null=not_null,
             default=default,
         )
@@ -725,6 +730,7 @@ def upsert(
     default,
     encoding,
     load_extension,
+    silent,
 ):
     """
     Upsert records based on their primary key. Works like 'insert' but if
@@ -747,6 +753,7 @@ def upsert(
             default=default,
             encoding=encoding,
             load_extension=load_extension,
+            silent=silent,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
