@@ -2,6 +2,15 @@
  Changelog
 ===========
 
+.. _v2_23:
+
+2.23 (2020-10-28)
+-----------------
+
+- ``table.m2m(other_table, records)`` method now takes any iterable, not just a list or tuple. Thanks, Adam Wolf. (`#189 <https://github.com/simonw/sqlite-utils/pull/189>`__)
+- ``sqlite-utils insert`` now displays a progress bar for CSV or TSV imports. (`#173 <https://github.com/simonw/sqlite-utils/issues/173>`__)
+- New ``@db.register_function(deterministic=True)`` option for registering deterministic SQLite functions in Python 3.8 or higher. (`#191 <https://github.com/simonw/sqlite-utils/issues/191>`__)
+
 .. _v2_22:
 
 2.22 (2020-10-16)
