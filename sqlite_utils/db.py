@@ -10,6 +10,7 @@ import itertools
 import json
 import os
 import pathlib
+import sys
 import textwrap
 import uuid
 
@@ -149,10 +150,20 @@ class Database:
     def __repr__(self):
         return "<Database {}>".format(self.conn)
 
-    def register_function(self, fn):
-        name = fn.__name__
-        arity = len(inspect.signature(fn).parameters)
-        self.conn.create_function(name, arity, fn)
+    def register_function(self, fn=None, deterministic=None):
+        def register(fn):
+            name = fn.__name__
+            arity = len(inspect.signature(fn).parameters)
+            kwargs = {}
+            if deterministic and sys.version_info >= (3, 8):
+                kwargs["deterministic"] = True
+            self.conn.create_function(name, arity, fn, **kwargs)
+            return fn
+
+        if fn is None:
+            return register
+        else:
+            register(fn)
 
     def execute(self, sql, parameters=None):
         if self._tracer:

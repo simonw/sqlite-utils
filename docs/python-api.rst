@@ -1703,3 +1703,13 @@ SQLite supports registering custom SQL functions written in Python. The ``@db.re
     # This prints "olleh"
 
 If your Python function accepts multiple arguments the SQL version will accept the same number of arguments.
+
+Python 3.8 added the ability to register `deterministic SQLite functions <https://sqlite.org/deterministic.html>`__, allowing you to indicate that a function will return the exact same result for any given inputs and hence allowing SQLite to apply some performance optimizations. You can mark a function as deterministic using ``deterministic=True``, like this:
+
+.. code-block:: python
+
+    @db.register_function(deterministic=True)
+    def reverse_string(s):
+        return "".join(reversed(list(s)))
+
+If you run this on a version of Python prior to 3.8 your code will still work, but the ``deterministic=True`` parameter will be ignored.
