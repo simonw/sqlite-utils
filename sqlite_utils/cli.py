@@ -7,6 +7,7 @@ import hashlib
 import pathlib
 import sqlite_utils
 from sqlite_utils.db import AlterError
+import textwrap
 import itertools
 import json
 import os
@@ -45,7 +46,7 @@ def output_options(fn):
                 is_flag=True,
                 default=False,
             ),
-            click.option("-c", "--csv", is_flag=True, help="Output CSV"),
+            click.option("--csv", is_flag=True, help="Output CSV"),
             click.option("--no-headers", is_flag=True, help="Omit CSV headers"),
             click.option("-t", "--table", is_flag=True, help="Output as a table"),
             click.option(
@@ -966,6 +967,114 @@ def query(
         else:
             for line in output_rows(cursor, headers, nl, arrays, json_cols):
                 click.echo(line)
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("dbtable")
+@click.argument("q")
+@click.option("-o", "--order", type=str, help="Order by ('column' or 'column desc')")
+@click.option("-c", "--column", type=str, multiple=True, help="Columns to return")
+@click.option(
+    "--sql", "show_sql", is_flag=True, help="Show SQL query that would be run"
+)
+@output_options
+@load_extension_option
+@click.pass_context
+def search(
+    ctx,
+    path,
+    dbtable,
+    q,
+    order,
+    show_sql,
+    column,
+    nl,
+    arrays,
+    csv,
+    no_headers,
+    table,
+    fmt,
+    json_cols,
+    load_extension,
+):
+    "Execute a full-text search against this table"
+    db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
+    # Check table exists
+    table_obj = db[dbtable]
+    if not table_obj.exists():
+        raise click.ClickException("Table '{}' does not exist".format(dbtable))
+    fts_table = table_obj.detect_fts()
+    if not fts_table:
+        raise click.ClickException(
+            "Table '{}' is not configured for full-text search".format(dbtable)
+        )
+    # Pick names for table and rank column that don't clash
+    original = "original_" if dbtable == "original" else "original"
+    rank = "rank"
+    while rank in table_obj.columns_dict:
+        rank = rank + "_"
+    columns = "*"
+    if column:
+        # Check they all exist
+        for c in column:
+            if c not in table_obj.columns_dict:
+                raise click.ClickException(
+                    "Table '{}' has no column '{}".format(dbtable, c)
+                )
+        columns = ", ".join("[{}]".format(c) for c in column)
+    sql = textwrap.dedent(
+        """
+    with {original} as (
+        select
+            rowid,
+            {columns}
+        from [{dbtable}]
+    )
+    select
+        {original}.*,
+        [{fts}].rank as {rank}
+    from
+        [{original}]
+        join [{fts}] on [{original}].rowid = [{fts}].rowid
+    where
+        [{fts}] match :search
+    order by
+        {order}
+    limit
+        {limit}
+    """.format(
+            dbtable=dbtable,
+            original=original,
+            columns=columns,
+            rank=rank,
+            fts=fts_table,
+            order=order if order else "{} desc".format(rank),
+            limit=20,
+        )
+    ).strip()
+    if show_sql:
+        click.echo(sql)
+        return
+    ctx.invoke(
+        query,
+        path=path,
+        sql=sql,
+        nl=nl,
+        arrays=arrays,
+        csv=csv,
+        no_headers=no_headers,
+        table=table,
+        fmt=fmt,
+        json_cols=json_cols,
+        param=[("search", q)],
+        load_extension=load_extension,
+    )
 
 
 @cli.command()
