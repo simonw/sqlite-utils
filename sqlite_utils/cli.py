@@ -7,7 +7,6 @@ import hashlib
 import pathlib
 import sqlite_utils
 from sqlite_utils.db import AlterError
-import textwrap
 import itertools
 import json
 import os
@@ -980,6 +979,12 @@ def query(
 @click.option("-o", "--order", type=str, help="Order by ('column' or 'column desc')")
 @click.option("-c", "--column", type=str, multiple=True, help="Columns to return")
 @click.option(
+    "--limit",
+    type=int,
+    default=20,
+    help="Number of rows to return, default 20, set to 0 for unlimited",
+)
+@click.option(
     "--sql", "show_sql", is_flag=True, help="Show SQL query that would be run"
 )
 @output_options
@@ -993,6 +998,7 @@ def search(
     order,
     show_sql,
     column,
+    limit,
     nl,
     arrays,
     csv,
@@ -1009,55 +1015,19 @@ def search(
     table_obj = db[dbtable]
     if not table_obj.exists():
         raise click.ClickException("Table '{}' does not exist".format(dbtable))
-    fts_table = table_obj.detect_fts()
-    if not fts_table:
+    if not table_obj.detect_fts():
         raise click.ClickException(
             "Table '{}' is not configured for full-text search".format(dbtable)
         )
-    # Pick names for table and rank column that don't clash
-    original = "original_" if dbtable == "original" else "original"
-    rank = "rank"
-    while rank in table_obj.columns_dict:
-        rank = rank + "_"
-    columns = "*"
     if column:
         # Check they all exist
+        table_columns = table_obj.columns_dict
         for c in column:
-            if c not in table_obj.columns_dict:
+            if c not in table_columns:
                 raise click.ClickException(
                     "Table '{}' has no column '{}".format(dbtable, c)
                 )
-        columns = ", ".join("[{}]".format(c) for c in column)
-    sql = textwrap.dedent(
-        """
-    with {original} as (
-        select
-            rowid,
-            {columns}
-        from [{dbtable}]
-    )
-    select
-        {original}.*,
-        [{fts}].rank as {rank}
-    from
-        [{original}]
-        join [{fts}] on [{original}].rowid = [{fts}].rowid
-    where
-        [{fts}] match :search
-    order by
-        {order}
-    limit
-        {limit}
-    """.format(
-            dbtable=dbtable,
-            original=original,
-            columns=columns,
-            rank=rank,
-            fts=fts_table,
-            order=order if order else "{} desc".format(rank),
-            limit=20,
-        )
-    ).strip()
+    sql = table_obj.search_sql(columns=column, order=order, limit=limit)
     if show_sql:
         click.echo(sql)
         return
@@ -1072,7 +1042,7 @@ def search(
         table=table,
         fmt=fmt,
         json_cols=json_cols,
-        param=[("search", q)],
+        param=[("query", q)],
         load_extension=load_extension,
     )
 

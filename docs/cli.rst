@@ -907,6 +907,8 @@ You can specify a subset of columns to be returned using the ``-c`` option one o
 
     $ sqlite-utils search mydb.db documents searchterm -c title -c created
 
+By default all search results will be returned. You can use ``--limit 20`` to return just the first 20 results.
+
 Use the ``--sql`` option to output the SQL that would be executed, rather than running the query::
 
     $ sqlite-utils search mydb.db documents searchterm --sql                  
@@ -923,11 +925,9 @@ Use the ``--sql`` option to output the SQL that would be executed, rather than r
         [original]
         join [documents_fts] on [original].rowid = [documents_fts].rowid
     where
-        [documents_fts] match :search
+        [documents_fts] match :query
     order by
         rank desc
-    limit
-        20
 
 .. _cli_vacuum:
 
