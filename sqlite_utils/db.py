@@ -1313,6 +1313,49 @@ class Table(Queryable):
             )
         return self
 
+    def search_sql(self, columns=None, order=None, limit=None):
+        # Pick names for table and rank column that don't clash
+        original = "original_" if self.name == "original" else "original"
+        rank = "rank"
+        while rank in self.columns_dict:
+            rank = rank + "_"
+        columns_sql = "*"
+        if columns:
+            columns_sql = ", ".join("[{}]".format(c) for c in columns)
+        fts_table = self.detect_fts()
+        assert fts_table, "Full-text search is not configured for table '{}'".format(
+            self.name
+        )
+        return textwrap.dedent(
+            """
+        with {original} as (
+            select
+                rowid,
+                {columns}
+            from [{dbtable}]
+        )
+        select
+            {original}.*,
+            [{fts}].rank as {rank}
+        from
+            [{original}]
+            join [{fts}] on [{original}].rowid = [{fts}].rowid
+        where
+            [{fts}] match :query
+        order by
+            {order}
+        {limit}
+        """.format(
+                dbtable=self.name,
+                original=original,
+                columns=columns_sql,
+                rank=rank,
+                fts=fts_table,
+                order=order or "{} desc".format(rank),
+                limit="limit {}".format(limit) if limit else "",
+            )
+        ).strip()
+
     def search(self, q):
         sql = (
             textwrap.dedent(

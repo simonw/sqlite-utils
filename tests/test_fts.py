@@ -276,3 +276,64 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
     db["books"].enable_fts(["title", "author"], create_triggers=True, replace=True)
     # The only SQL that executed should be select statements
     assert all(q[0].startswith("select ") for q in queries)
+
+
+@pytest.mark.parametrize(
+    "kwargs,expected",
+    [
+        (
+            {},
+            (
+                "with original as (\n"
+                "    select\n"
+                "        rowid,\n"
+                "        *\n"
+                "    from [books]\n"
+                ")\n"
+                "select\n"
+                "    original.*,\n"
+                "    [books_fts].rank as rank\n"
+                "from\n"
+                "    [original]\n"
+                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                "where\n"
+                "    [books_fts] match :query\n"
+                "order by\n"
+                "    rank desc"
+            ),
+        ),
+        (
+            {"columns": ["title"], "order": "rowid", "limit": 10},
+            (
+                "with original as (\n"
+                "    select\n"
+                "        rowid,\n"
+                "        [title]\n"
+                "    from [books]\n"
+                ")\n"
+                "select\n"
+                "    original.*,\n"
+                "    [books_fts].rank as rank\n"
+                "from\n"
+                "    [original]\n"
+                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                "where\n"
+                "    [books_fts] match :query\n"
+                "order by\n"
+                "    rowid\n"
+                "limit 10"
+            ),
+        ),
+    ],
+)
+def test_search_sql(kwargs, expected):
+    db = Database(memory=True)
+    db["books"].insert(
+        {
+            "title": "Habits of Australian Marsupials",
+            "author": "Marlee Hawkins",
+        }
+    )
+    db["books"].enable_fts(["title", "author"])
+    sql = db["books"].search_sql(**kwargs)
+    assert sql == expected
