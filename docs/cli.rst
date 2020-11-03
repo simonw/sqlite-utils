@@ -885,6 +885,50 @@ You can rebuild every FTS table by running ``rebuild-fts`` without passing any t
 
     $ sqlite-utils rebuild-fts mydb.db
 
+.. _cli_search:
+
+Executing searches
+==================
+
+Once you have configured full-text search for a table, you can search it using ``sqlite-utils search``::
+
+    $ sqlite-utils search mydb.db documents searchterm
+
+This command accepts the same output options as ``sqlite-utils query``: ``--table``, ``--csv``, ``--nl`` etc.
+
+By default it shows the most relevant matches first. You can specify a different sort order using the ``-o`` option, which can take a column or a column followed by ``desc``::
+
+    # Sort by rowid
+    $ sqlite-utils search mydb.db documents searchterm -o rowid
+    # Sort by created in descending order
+    $ sqlite-utils search mydb.db documents searchterm -o 'created desc'
+
+You can specify a subset of columns to be returned using the ``-c`` option one or more times::
+
+    $ sqlite-utils search mydb.db documents searchterm -c title -c created
+
+Use the ``--sql`` option to output the SQL that would be executed, rather than running the query::
+
+    $ sqlite-utils search mydb.db documents searchterm --sql                  
+    with original as (
+        select
+            rowid,
+            *
+        from [documents]
+    )
+    select
+        original.*,
+        [documents_fts].rank as rank
+    from
+        [original]
+        join [documents_fts] on [original].rowid = [documents_fts].rowid
+    where
+        [documents_fts] match :search
+    order by
+        rank desc
+    limit
+        20
+
 .. _cli_vacuum:
 
 Vacuum
