@@ -10,12 +10,32 @@ import itertools
 import json
 import os
 import pathlib
+import re
 import sys
 import textwrap
 import uuid
 
 SQLITE_MAX_VARS = 999
 
+_virtual_table_using_re = re.compile(
+    r"""
+^ # Start of string
+\s*CREATE\s+VIRTUAL\s+TABLE\s+ # CREATE VIRTUAL TABLE
+(
+    '(?P<squoted_table>[^']*(?:''[^']*)*)' | # single quoted name
+    "(?P<dquoted_table>[^"]*(?:""[^"]*)*)" | # double quoted name
+    `(?P<backtick_table>[^`]+)`            | # `backtick` quoted name
+    \[(?P<squarequoted_table>[^\]]+)\]     | # [...] quoted name
+    (?P<identifier>                          # SQLite non-quoted identifier
+        [A-Za-z_\u0080-\uffff]  # \u0080-\uffff = "any character larger than u007f"
+        [A-Za-z_\u0080-\uffff0-9\$]* # zero-or-more alphanemuric or $
+    )
+)
+\s+(IF\s+NOT\s+EXISTS\s+)?      # IF NOT EXISTS (optional)
+USING\s+(?P<using>\w+)          # e.g. USING FTS5
+""",
+    re.VERBOSE | re.IGNORECASE,
+)
 
 try:
     import pandas as pd
@@ -675,6 +695,14 @@ class Table(Queryable):
                     )
                 )
         return fks
+
+    @property
+    def virtual_table_using(self):
+        "Returns type of virtual table or None if this is not a virtual table"
+        match = _virtual_table_using_re.match(self.schema)
+        if match is None:
+            return None
+        return match.groupdict()["using"].upper()
 
     @property
     def indexes(self):
