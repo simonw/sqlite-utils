@@ -112,7 +112,7 @@ def test_fts_tokenize(fresh_db):
             tokenize="porter",
         )
         assert [("racoons are biting trash pandas", "USA", "bar")] == table.search(
-            "bite"
+            "bite", order="rowid"
         )
 
 

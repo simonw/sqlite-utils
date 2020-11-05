@@ -1326,51 +1326,52 @@ class Table(Queryable):
         assert fts_table, "Full-text search is not configured for table '{}'".format(
             self.name
         )
-        return textwrap.dedent(
-            """
-        with {original} as (
-            select
-                rowid,
-                {columns}
-            from [{dbtable}]
-        )
-        select
-            {original}.*,
-            [{fts}].rank as {rank}
-        from
-            [{original}]
-            join [{fts}] on [{original}].rowid = [{fts}].rowid
-        where
-            [{fts}] match :query
-        order by
-            {order}
-        {limit}
-        """.format(
-                dbtable=self.name,
-                original=original,
-                columns=columns_sql,
-                rank=rank,
-                fts=fts_table,
-                order=order or "{} desc".format(rank),
-                limit="limit {}".format(limit) if limit else "",
+        if self.db[fts_table].virtual_table_using == "FTS5":
+            sql = textwrap.dedent(
+                """
+            with {original} as (
+                select
+                    rowid,
+                    {columns}
+                from [{dbtable}]
             )
+            select
+                {original}.*,
+                [{fts}].rank as {rank}
+            from
+                [{original}]
+                join [{fts}] on [{original}].rowid = [{fts}].rowid
+            where
+                [{fts}] match :query
+            order by
+                {order}
+            {limit}
+            """
+            ).strip()
+        else:
+            if order == rank or order is None:
+                order = "rowid"
+            sql = textwrap.dedent(
+                """
+            select * from "{dbtable}" where rowid in (
+                select rowid from [{fts}]
+                where [{fts}] match :query
+            )
+            order by {order}
+            """
+            ).strip()
+        return sql.format(
+            dbtable=self.name,
+            original=original,
+            columns=columns_sql,
+            rank=rank,
+            fts=fts_table,
+            order=order or "{} desc".format(rank),
+            limit="limit {}".format(limit) if limit else "",
         ).strip()
 
-    def search(self, q):
-        sql = (
-            textwrap.dedent(
-                """
-            select * from "{table}" where rowid in (
-                select rowid from [{table}_fts]
-                where [{table}_fts] match :search
-            )
-            order by rowid
-        """
-            )
-            .strip()
-            .format(table=self.name)
-        )
-        return self.db.execute(sql, (q,)).fetchall()
+    def search(self, q, order=None):
+        return self.db.execute(self.search_sql(order=order), {"query": q}).fetchall()
 
     def value_or_default(self, key, value):
         return self._defaults[key] if value is DEFAULT else value
