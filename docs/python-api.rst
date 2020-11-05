@@ -1430,6 +1430,12 @@ The ``detect_fts()`` method returns the associated SQLite FTS table name, if one
     >> db["authors"].detect_fts()
     "authors_fts"
 
+The ``.virtual_table_using`` property reveals if a table is a virtual table. It returns ``None`` for regular tables and the upper case version of the type of virtual table otherwise. For example::
+
+    >> db["authors"].enable_fts(["name"])
+    >> db["authors_fts"].virtual_table_using
+    "FTS5"
+
 .. _python_api_fts:
 
 Enabling full-text search

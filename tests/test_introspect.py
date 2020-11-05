@@ -1,4 +1,4 @@
-from sqlite_utils.db import Index, View
+from sqlite_utils.db import Index, View, Database
 import pytest
 
 
@@ -142,3 +142,49 @@ def test_triggers(fresh_db):
         (t.name, t.table) for t in fresh_db["authors"].triggers
     }
     assert [] == fresh_db["other"].triggers
+
+
+@pytest.mark.parametrize(
+    "sql,expected_name,expected_using",
+    [
+        (
+            """
+            CREATE VIRTUAL TABLE foo USING FTS5(name)
+            """,
+            "foo",
+            "FTS5",
+        ),
+        (
+            """
+            CREATE VIRTUAL TABLE "foo" USING FTS4(name)
+            """,
+            "foo",
+            "FTS4",
+        ),
+        (
+            """
+            CREATE VIRTUAL TABLE IF NOT EXISTS `foo` USING FTS4(name)
+            """,
+            "foo",
+            "FTS4",
+        ),
+        (
+            """
+            CREATE VIRTUAL TABLE IF NOT EXISTS `foo` USING fts5(name)
+            """,
+            "foo",
+            "FTS5",
+        ),
+        (
+            """
+            CREATE TABLE IF NOT EXISTS `foo` (id integer primary key)
+            """,
+            "foo",
+            None,
+        ),
+    ],
+)
+def test_virtual_table_using(sql, expected_name, expected_using):
+    db = Database(memory=True)
+    db.execute(sql)
+    assert db[expected_name].virtual_table_using == expected_using
