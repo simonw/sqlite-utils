@@ -510,14 +510,14 @@ def test_rebuild_fts(db_path, tables):
             ["c1", "c2", "c3"], fts_version="FTS5", create_triggers=True
         )
     # Search should work
-    assert db["fts4_table"].search("verb1")
-    assert db["fts5_table"].search("verb1")
+    assert list(db["fts4_table"].search("verb1"))
+    assert list(db["fts5_table"].search("verb1"))
     # Deleting _fts_segments to break FTS4
     with db.conn:
         db["fts4_table_fts_segments"].delete_where()
     # Now this should error:
     with pytest.raises(sqlite3.DatabaseError):
-        db["fts4_table"].search("verb1")
+        list(db["fts4_table"].search("verb1"))
     # Replicate docsize error from this issue for FTS5
     # https://github.com/simonw/sqlite-utils/issues/149
     assert db["fts5_table_fts_docsize"].count == 10000
@@ -530,10 +530,10 @@ def test_rebuild_fts(db_path, tables):
     assert 0 == result.exit_code
     fixed_tables = tables or ["fts4_table", "fts5_table"]
     if "fts4_table" in fixed_tables:
-        assert db["fts4_table"].search("verb1")
+        assert list(db["fts4_table"].search("verb1"))
     else:
         with pytest.raises(sqlite3.DatabaseError):
-            db["fts4_table"].search("verb1")
+            list(db["fts4_table"].search("verb1"))
     if "fts5_table" in fixed_tables:
         assert db["fts5_table_fts_docsize"].count == 10000
     else:
