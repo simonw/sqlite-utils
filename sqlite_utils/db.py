@@ -154,6 +154,7 @@ class Database:
         self._tracer = tracer
         if recursive_triggers:
             self.execute("PRAGMA recursive_triggers=on;")
+        self._registered_functions = set()
 
     @contextlib.contextmanager
     def tracer(self, tracer=None):
@@ -170,14 +171,17 @@ class Database:
     def __repr__(self):
         return "<Database {}>".format(self.conn)
 
-    def register_function(self, fn=None, deterministic=None):
+    def register_function(self, fn=None, deterministic=None, replace=False):
         def register(fn):
             name = fn.__name__
             arity = len(inspect.signature(fn).parameters)
+            if not replace and (name, arity) in self._registered_functions:
+                return fn
             kwargs = {}
             if deterministic and sys.version_info >= (3, 8):
                 kwargs["deterministic"] = True
             self.conn.create_function(name, arity, fn, **kwargs)
+            self._registered_functions.add((name, arity))
             return fn
 
         if fn is None:

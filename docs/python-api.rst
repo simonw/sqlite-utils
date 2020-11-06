@@ -1719,3 +1719,13 @@ Python 3.8 added the ability to register `deterministic SQLite functions <https:
         return "".join(reversed(list(s)))
 
 If you run this on a version of Python prior to 3.8 your code will still work, but the ``deterministic=True`` parameter will be ignored.
+
+By default registering a function with the same name and number of arguments will have no effect - the ``Database`` instance keeps track of functions that have already been registered and skips registering them if ``@db.register_function`` is called a second time.
+
+If you want to deliberately replace the registered function with a new implementation, use the ``replace=True`` argument:
+
+.. code-block:: python
+
+    @db.register_function(deterministic=True, replace=True)
+    def reverse_string(s):
+        return s[::-1]
