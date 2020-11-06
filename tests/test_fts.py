@@ -116,7 +116,7 @@ def test_populate_fts(fresh_db):
             "text": "racoons are biting trash pandas",
             "country": "USA",
             "not_searchable": "bar",
-            "rank": 0.5108256237659907,
+            "rank": -0.5108256237659907,
         }
     ] == rows
 
@@ -137,7 +137,7 @@ def test_populate_fts_escape_table_names(fresh_db):
             "text": "racoons are biting trash pandas",
             "country": "USA",
             "not_searchable": "bar",
-            "rank": 0.5108256237659907,
+            "rank": -0.5108256237659907,
         }
     ] == list(table.search("usa"))
 

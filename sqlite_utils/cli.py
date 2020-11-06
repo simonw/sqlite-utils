@@ -941,6 +941,7 @@ def query(
     "Execute SQL query and return the results as JSON"
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
+    db.register_fts4_bm25()
     with db.conn:
         cursor = db.execute(sql, dict(param))
         if cursor.description is None:

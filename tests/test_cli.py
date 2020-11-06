@@ -1677,3 +1677,35 @@ def test_insert_encoding(tmpdir):
             "longitude": None,
         },
     ]
+
+
+@pytest.mark.parametrize("fts", ["FTS4", "FTS5"])
+@pytest.mark.parametrize(
+    "extra_arg,expected",
+    [
+        (
+            None,
+            '[{"rowid": 2, "id": 2, "title": "Title the second", "rank": -0.5108256237659907}]\n',
+        ),
+        ("--csv", "rowid,id,title,rank\n2,2,Title the second,-0.5108256237659907\n"),
+    ],
+)
+def test_search(tmpdir, fts, extra_arg, expected):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    db["articles"].insert_all(
+        [
+            {"id": 1, "title": "Title the first"},
+            {"id": 2, "title": "Title the second"},
+            {"id": 3, "title": "Title the third"},
+        ],
+        pk="id",
+    )
+    db["articles"].enable_fts(["title"], fts_version=fts)
+    result = CliRunner().invoke(
+        cli.cli,
+        ["search", db_path, "articles", "second"] + ([extra_arg] if extra_arg else []),
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    assert result.output == expected

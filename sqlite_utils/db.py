@@ -1360,7 +1360,7 @@ class Table(Queryable):
             rank_implementation = "[{}].rank".format(fts_table)
         else:
             self.db.register_fts4_bm25()
-            rank_implementation = "-rank_bm25(matchinfo([{}], 'pcnalx'))".format(
+            rank_implementation = "rank_bm25(matchinfo([{}], 'pcnalx'))".format(
                 fts_table
             )
         return sql.format(
