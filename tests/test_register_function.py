@@ -44,3 +44,25 @@ def test_register_function_deterministic_registered(fresh_db):
     fresh_db.conn.create_function.assert_called_with(
         "to_lower_2", 1, to_lower_2, deterministic=True
     )
+
+
+def test_register_function_replace(fresh_db):
+    @fresh_db.register_function()
+    def one():
+        return "one"
+
+    assert "one" == fresh_db.execute("select one()").fetchone()[0]
+
+    # This will fail to replace the function:
+    @fresh_db.register_function()
+    def one():
+        return "two"
+
+    assert "one" == fresh_db.execute("select one()").fetchone()[0]
+
+    # This will replace it
+    @fresh_db.register_function(replace=True)
+    def one():
+        return "two"
+
+    assert "two" == fresh_db.execute("select one()").fetchone()[0]
