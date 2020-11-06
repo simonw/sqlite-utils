@@ -386,7 +386,7 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
                 "where\n"
                 "    [books_fts] match :query\n"
                 "order by\n"
-                "    rank desc"
+                "    rank"
             ),
         ),
         (

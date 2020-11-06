@@ -56,7 +56,7 @@ def test_with_tracer():
         ("select name from sqlite_master where type = 'view'", None),
         ("select sql from sqlite_master where name = ?", ("dogs_fts",)),
         (
-            "with original as (\n    select\n        rowid,\n        *\n    from [dogs]\n)\nselect\n    original.*,\n    [dogs_fts].rank as rank\nfrom\n    [original]\n    join [dogs_fts] on [original].rowid = [dogs_fts].rowid\nwhere\n    [dogs_fts] match :query\norder by\n    rank desc",
+            "with original as (\n    select\n        rowid,\n        *\n    from [dogs]\n)\nselect\n    original.*,\n    [dogs_fts].rank as rank\nfrom\n    [original]\n    join [dogs_fts] on [original].rowid = [dogs_fts].rowid\nwhere\n    [dogs_fts] match :query\norder by\n    rank",
             {"query": "Cleopaws"},
         ),
     ]

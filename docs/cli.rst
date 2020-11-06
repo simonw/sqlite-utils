@@ -927,7 +927,7 @@ Use the ``--sql`` option to output the SQL that would be executed, rather than r
     where
         [documents_fts] match :query
     order by
-        rank desc
+        rank
 
 .. _cli_vacuum:
 

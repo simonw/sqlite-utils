@@ -1370,7 +1370,7 @@ class Table(Queryable):
             rank=rank,
             rank_implementation=rank_implementation,
             fts_table=fts_table,
-            order=order or "{} desc".format(rank),
+            order=order or rank,
             limit="limit {}".format(limit) if limit else "",
         ).strip()
 
