@@ -29,9 +29,25 @@ def test_enable_fts(fresh_db):
         "searchable_fts_docsize",
         "searchable_fts_stat",
     ] == fresh_db.table_names()
-    assert [("tanuki are running tricksters", "Japan", "foo")] == table.search("tanuki")
-    assert [("racoons are biting trash pandas", "USA", "bar")] == table.search("usa")
-    assert [] == table.search("bar")
+    assert [
+        {
+            "rowid": 1,
+            "text": "tanuki are running tricksters",
+            "country": "Japan",
+            "not_searchable": "foo",
+            "rank": 0.0,
+        }
+    ] == list(table.search("tanuki"))
+    assert [
+        {
+            "rowid": 2,
+            "text": "racoons are biting trash pandas",
+            "country": "USA",
+            "not_searchable": "bar",
+            "rank": 0.0,
+        }
+    ] == list(table.search("usa"))
+    assert [] == list(table.search("bar"))
 
 
 def test_enable_fts_escape_table_names(fresh_db):
@@ -49,9 +65,25 @@ def test_enable_fts_escape_table_names(fresh_db):
         "http://example.com_fts_docsize",
         "http://example.com_fts_stat",
     ] == fresh_db.table_names()
-    assert [("tanuki are running tricksters", "Japan", "foo")] == table.search("tanuki")
-    assert [("racoons are biting trash pandas", "USA", "bar")] == table.search("usa")
-    assert [] == table.search("bar")
+    assert [
+        {
+            "rowid": 1,
+            "text": "tanuki are running tricksters",
+            "country": "Japan",
+            "not_searchable": "foo",
+            "rank": 0.0,
+        }
+    ] == list(table.search("tanuki"))
+    assert [
+        {
+            "rowid": 2,
+            "text": "racoons are biting trash pandas",
+            "country": "USA",
+            "not_searchable": "bar",
+            "rank": 0.0,
+        }
+    ] == list(table.search("usa"))
+    assert [] == list(table.search("bar"))
 
 
 def test_enable_fts_table_names_containing_spaces(fresh_db):
@@ -72,12 +104,21 @@ def test_populate_fts(fresh_db):
     table = fresh_db["populatable"]
     table.insert(search_records[0])
     table.enable_fts(["text", "country"], fts_version="FTS4")
-    assert [] == table.search("trash pandas")
+    assert [] == list(table.search("trash pandas"))
     table.insert(search_records[1])
-    assert [] == table.search("trash pandas")
+    assert [] == list(table.search("trash pandas"))
     # Now run populate_fts to make this record available
     table.populate_fts(["text", "country"])
-    assert [("racoons are biting trash pandas", "USA", "bar")] == table.search("usa")
+    rows = list(table.search("usa"))
+    assert [
+        {
+            "rowid": 2,
+            "text": "racoons are biting trash pandas",
+            "country": "USA",
+            "not_searchable": "bar",
+            "rank": 0.5108256237659907,
+        }
+    ] == rows
 
 
 def test_populate_fts_escape_table_names(fresh_db):
@@ -85,12 +126,20 @@ def test_populate_fts_escape_table_names(fresh_db):
     table = fresh_db["http://example.com"]
     table.insert(search_records[0])
     table.enable_fts(["text", "country"], fts_version="FTS4")
-    assert [] == table.search("trash pandas")
+    assert [] == list(table.search("trash pandas"))
     table.insert(search_records[1])
-    assert [] == table.search("trash pandas")
+    assert [] == list(table.search("trash pandas"))
     # Now run populate_fts to make this record available
     table.populate_fts(["text", "country"])
-    assert [("racoons are biting trash pandas", "USA", "bar")] == table.search("usa")
+    assert [
+        {
+            "rowid": 2,
+            "text": "racoons are biting trash pandas",
+            "country": "USA",
+            "not_searchable": "bar",
+            "rank": 0.5108256237659907,
+        }
+    ] == list(table.search("usa"))
 
 
 def test_fts_tokenize(fresh_db):
@@ -103,7 +152,7 @@ def test_fts_tokenize(fresh_db):
             ["text", "country"],
             fts_version="FTS{}".format(fts_version),
         )
-        assert [] == table.search("bite")
+        assert [] == list(table.search("bite"))
         # Test WITH stemming
         table.disable_fts()
         table.enable_fts(
@@ -111,9 +160,14 @@ def test_fts_tokenize(fresh_db):
             fts_version="FTS{}".format(fts_version),
             tokenize="porter",
         )
-        assert [("racoons are biting trash pandas", "USA", "bar")] == table.search(
-            "bite", order="rowid"
-        )
+        rows = list(table.search("bite", order="rowid"))
+        assert len(rows) == 1
+        assert {
+            "rowid": 2,
+            "text": "racoons are biting trash pandas",
+            "country": "USA",
+            "not_searchable": "bar",
+        }.items() <= rows[0].items()
 
 
 def test_optimize_fts(fresh_db):
@@ -132,15 +186,34 @@ def test_optimize_fts(fresh_db):
         fresh_db[table_name].optimize()
 
 
-def test_enable_fts_w_triggers(fresh_db):
+def test_enable_fts_with_triggers(fresh_db):
     table = fresh_db["searchable"]
     table.insert(search_records[0])
     table.enable_fts(["text", "country"], fts_version="FTS4", create_triggers=True)
-    assert [("tanuki are running tricksters", "Japan", "foo")] == table.search("tanuki")
+    rows1 = list(table.search("tanuki"))
+    assert len(rows1) == 1
+    assert rows1 == [
+        {
+            "rowid": 1,
+            "text": "tanuki are running tricksters",
+            "country": "Japan",
+            "not_searchable": "foo",
+            "rank": 0.0,
+        }
+    ]
     table.insert(search_records[1])
     # Triggers will auto-populate FTS virtual table, not need to call populate_fts()
-    assert [("racoons are biting trash pandas", "USA", "bar")] == table.search("usa")
-    assert [] == table.search("bar")
+    rows2 = list(table.search("usa"))
+    assert rows2 == [
+        {
+            "rowid": 2,
+            "text": "racoons are biting trash pandas",
+            "country": "USA",
+            "not_searchable": "bar",
+            "rank": 0.0,
+        }
+    ]
+    assert [] == list(table.search("bar"))
 
 
 @pytest.mark.parametrize("create_triggers", [True, False])
@@ -183,15 +256,29 @@ def test_rebuild_fts(fresh_db, table_to_fix):
     table.insert(search_records[0])
     table.enable_fts(["text", "country"])
     # Run a search
-    assert [("tanuki are running tricksters", "Japan", "foo")] == table.search("tanuki")
+    rows = list(table.search("tanuki"))
+    assert len(rows) == 1
+    assert {
+        "rowid": 1,
+        "text": "tanuki are running tricksters",
+        "country": "Japan",
+        "not_searchable": "foo",
+    }.items() <= rows[0].items()
     # Delete from searchable_fts_data
     fresh_db["searchable_fts_data"].delete_where()
     # This should have broken the index
     with pytest.raises(sqlite3.DatabaseError):
-        table.search("tanuki")
+        list(table.search("tanuki"))
     # Running rebuild_fts() should fix it
     fresh_db[table_to_fix].rebuild_fts()
-    assert [("tanuki are running tricksters", "Japan", "foo")] == table.search("tanuki")
+    rows2 = list(table.search("tanuki"))
+    assert len(rows2) == 1
+    assert {
+        "rowid": 1,
+        "text": "tanuki are running tricksters",
+        "country": "Japan",
+        "not_searchable": "foo",
+    }.items() <= rows2[0].items()
 
 
 @pytest.mark.parametrize("invalid_table", ["does_not_exist", "not_searchable"])

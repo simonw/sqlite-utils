@@ -27,10 +27,6 @@ def test_tracer():
             None,
         ),
         ("select name from sqlite_master where type = 'view'", None),
-        (
-            'select * from "dogs" where rowid in (\n    select rowid from [dogs_fts]\n    where [dogs_fts] match :search\n)\norder by rowid',
-            ("Cleopaws",),
-        ),
     ]
 
 
@@ -46,17 +42,25 @@ def test_with_tracer():
     assert len(collected) == 0
 
     with db.tracer(tracer):
-        db["dogs"].search("Cleopaws")
+        list(db["dogs"].search("Cleopaws"))
 
-    assert len(collected) == 2
+    assert len(collected) == 7
     assert collected == [
         ("select name from sqlite_master where type = 'view'", None),
+        ("select name from sqlite_master where type = 'table'", None),
+        ("PRAGMA table_info([dogs])", None),
         (
-            'select * from "dogs" where rowid in (\n    select rowid from [dogs_fts]\n    where [dogs_fts] match :search\n)\norder by rowid',
-            ("Cleopaws",),
+            "SELECT name FROM sqlite_master\n    WHERE rootpage = 0\n    AND (\n        sql LIKE '%VIRTUAL TABLE%USING FTS%content=%dogs%'\n        OR (\n            tbl_name = \"dogs\"\n            AND sql LIKE '%VIRTUAL TABLE%USING FTS%'\n        )\n    )",
+            None,
+        ),
+        ("select name from sqlite_master where type = 'view'", None),
+        ("select sql from sqlite_master where name = ?", ("dogs_fts",)),
+        (
+            "with original as (\n    select\n        rowid,\n        *\n    from [dogs]\n)\nselect\n    original.*,\n    [dogs_fts].rank as rank\nfrom\n    [original]\n    join [dogs_fts] on [original].rowid = [dogs_fts].rowid\nwhere\n    [dogs_fts] match :query\norder by\n    rank desc",
+            {"query": "Cleopaws"},
         ),
     ]
 
     # Outside the with block collected should not be appended to
     db["dogs"].insert({"name": "Cleopaws"})
-    assert len(collected) == 2
+    assert len(collected) == 7

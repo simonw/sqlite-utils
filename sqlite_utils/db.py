@@ -11,6 +11,7 @@ import json
 import os
 import pathlib
 import re
+from sqlite_fts4 import rank_bm25
 import sys
 import textwrap
 import uuid
@@ -188,6 +189,9 @@ class Database:
             return register
         else:
             register(fn)
+
+    def register_fts4_bm25(self):
+        self.register_function(rank_bm25, deterministic=True)
 
     def execute(self, sql, parameters=None):
         if self._tracer:
@@ -1330,52 +1334,51 @@ class Table(Queryable):
         assert fts_table, "Full-text search is not configured for table '{}'".format(
             self.name
         )
-        if self.db[fts_table].virtual_table_using == "FTS5":
-            sql = textwrap.dedent(
-                """
-            with {original} as (
-                select
-                    rowid,
-                    {columns}
-                from [{dbtable}]
-            )
+        virtual_table_using = self.db[fts_table].virtual_table_using
+        sql = textwrap.dedent(
+            """
+        with {original} as (
             select
-                {original}.*,
-                [{fts}].rank as {rank}
-            from
-                [{original}]
-                join [{fts}] on [{original}].rowid = [{fts}].rowid
-            where
-                [{fts}] match :query
-            order by
-                {order}
-            {limit}
-            """
-            ).strip()
+                rowid,
+                {columns}
+            from [{dbtable}]
+        )
+        select
+            {original}.*,
+            {rank_implementation} as {rank}
+        from
+            [{original}]
+            join [{fts_table}] on [{original}].rowid = [{fts_table}].rowid
+        where
+            [{fts_table}] match :query
+        order by
+            {order}
+        {limit}
+        """
+        ).strip()
+        if virtual_table_using == "FTS5":
+            rank_implementation = "[{}].rank".format(fts_table)
         else:
-            if order == rank or order is None:
-                order = "rowid"
-            sql = textwrap.dedent(
-                """
-            select * from "{dbtable}" where rowid in (
-                select rowid from [{fts}]
-                where [{fts}] match :query
+            self.db.register_fts4_bm25()
+            rank_implementation = "-rank_bm25(matchinfo([{}], 'pcnalx'))".format(
+                fts_table
             )
-            order by {order}
-            """
-            ).strip()
         return sql.format(
             dbtable=self.name,
             original=original,
             columns=columns_sql,
             rank=rank,
-            fts=fts_table,
+            rank_implementation=rank_implementation,
+            fts_table=fts_table,
             order=order or "{} desc".format(rank),
             limit="limit {}".format(limit) if limit else "",
         ).strip()
 
     def search(self, q, order=None):
-        return self.db.execute(self.search_sql(order=order), {"query": q}).fetchall()
+        cursor = self.db.execute(self.search_sql(order=order), {"query": q})
+        columns = [c[0] for c in cursor.description]
+        for row in cursor:
+            yield dict(zip(columns, row))
 
     def value_or_default(self, key, value):
         return self._defaults[key] if value is DEFAULT else value
