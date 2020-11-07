@@ -46,6 +46,7 @@ def output_options(fn):
                 default=False,
             ),
             click.option("--csv", is_flag=True, help="Output CSV"),
+            click.option("--tsv", is_flag=True, help="Output TSV"),
             click.option("--no-headers", is_flag=True, help="Omit CSV headers"),
             click.option("-t", "--table", is_flag=True, help="Output as a table"),
             click.option(
@@ -120,6 +121,7 @@ def tables(
     nl,
     arrays,
     csv,
+    tsv,
     no_headers,
     table,
     fmt,
@@ -161,8 +163,8 @@ def tables(
 
     if table:
         print(tabulate.tabulate(_iter(), headers=headers, tablefmt=fmt))
-    elif csv:
-        writer = csv_std.writer(sys.stdout)
+    elif csv or tsv:
+        writer = csv_std.writer(sys.stdout, dialect="excel-tab" if tsv else "excel")
         if not no_headers:
             writer.writerow(headers)
         for row in _iter():
@@ -201,6 +203,7 @@ def views(
     nl,
     arrays,
     csv,
+    tsv,
     no_headers,
     table,
     fmt,
@@ -218,6 +221,7 @@ def views(
         nl=nl,
         arrays=arrays,
         csv=csv,
+        tsv=tsv,
         no_headers=no_headers,
         table=table,
         fmt=fmt,
@@ -930,6 +934,7 @@ def query(
     nl,
     arrays,
     csv,
+    tsv,
     no_headers,
     table,
     fmt,
@@ -958,8 +963,8 @@ def query(
                 sys.stdout.write(str(data))
         elif table:
             print(tabulate.tabulate(list(cursor), headers=headers, tablefmt=fmt))
-        elif csv:
-            writer = csv_std.writer(sys.stdout)
+        elif csv or tsv:
+            writer = csv_std.writer(sys.stdout, dialect="excel-tab" if tsv else "excel")
             if not no_headers:
                 writer.writerow(headers)
             for row in cursor:
@@ -1003,6 +1008,7 @@ def search(
     nl,
     arrays,
     csv,
+    tsv,
     no_headers,
     table,
     fmt,
@@ -1039,6 +1045,7 @@ def search(
         nl=nl,
         arrays=arrays,
         csv=csv,
+        tsv=tsv,
         no_headers=no_headers,
         table=table,
         fmt=fmt,
@@ -1065,6 +1072,7 @@ def rows(
     nl,
     arrays,
     csv,
+    tsv,
     no_headers,
     table,
     fmt,
@@ -1079,6 +1087,7 @@ def rows(
         nl=nl,
         arrays=arrays,
         csv=csv,
+        tsv=tsv,
         no_headers=no_headers,
         table=table,
         fmt=fmt,

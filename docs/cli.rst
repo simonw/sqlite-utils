@@ -122,14 +122,14 @@ You can use the ``--json-cols`` option to automatically detect these JSON column
                 }
             ]
         }
-    ]
+    ]-
 
 .. _cli_query_csv:
 
 Running queries and returning CSV
 =================================
 
-You can use the ``--csv`` option (or ``-c`` shortcut) to return results as CSV::
+You can use the ``--csv`` option to return results as CSV::
 
     $ sqlite-utils dogs.db "select * from dogs" --csv
     id,age,name
@@ -141,6 +141,13 @@ This will default to including the column names as a header row. To exclude the 
     $ sqlite-utils dogs.db "select * from dogs" --csv --no-headers
     1,4,Cleo
     2,2,Pancakes
+
+Use ``--tsv`` instead of ``--csv`` to get back tab-separated values::
+
+    $ sqlite-utils dogs.db "select * from dogs" --tsv
+    id	age	name
+    1	4	Cleo
+    2	2	Pancakes
 
 .. _cli_query_table:
 
@@ -189,7 +196,7 @@ You can return every row in a specified table using the ``rows`` command::
     [{"id": 1, "age": 4, "name": "Cleo"},
      {"id": 2, "age": 2, "name": "Pancakes"}]
 
-This command accepts the same output options as ``query`` - so you can pass ``--nl``, ``--csv``, ``--no-headers``, ``--table`` and ``--fmt``.
+This command accepts the same output options as ``query`` - so you can pass ``--nl``, ``--csv``, ``--tsv``, ``--no-headers``, ``--table`` and ``--fmt``.
 
 .. _cli_tables:
 
@@ -203,7 +210,7 @@ You can list the names of tables in a database using the ``tables`` command::
      {"table": "cats"},
      {"table": "chickens"}]
 
-You can output this list in CSV using the ``--csv`` option::
+You can output this list in CSV using the ``--csv`` or ``--tsv`` options::
 
     $ sqlite-utils tables mydb.db --csv --no-headers
     dogs
@@ -241,7 +248,7 @@ Use ``--schema`` to include the schema of each table::
                [age] INTEGER,
                [name] TEXT)
 
-The ``--nl``, ``--csv`` and ``--table`` options are all available.
+The ``--nl``, ``--csv``, ``--tsv`` and ``--table`` options are all available.
 
 .. _cli_views:
 
@@ -263,6 +270,7 @@ It takes the same options as the ``tables`` command:
 * ``--counts``
 * ``--nl``
 * ``--csv``
+* ``--tsv``
 * ``--table``
 
 .. _cli_inserting_data:
@@ -894,7 +902,7 @@ Once you have configured full-text search for a table, you can search it using `
 
     $ sqlite-utils search mydb.db documents searchterm
 
-This command accepts the same output options as ``sqlite-utils query``: ``--table``, ``--csv``, ``--nl`` etc.
+This command accepts the same output options as ``sqlite-utils query``: ``--table``, ``--csv``, ``--tsv``, ``--nl`` etc.
 
 By default it shows the most relevant matches first. You can specify a different sort order using the ``-o`` option, which can take a column or a column followed by ``desc``::
 

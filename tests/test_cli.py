@@ -62,24 +62,37 @@ def test_tables_counts_and_columns(db_path):
     ) == result.output.strip()
 
 
-def test_tables_counts_and_columns_csv(db_path):
+@pytest.mark.parametrize(
+    "format,expected",
+    [
+        (
+            "--csv",
+            (
+                "table,count,columns\n"
+                'Gosh,0,"c1\n'
+                "c2\n"
+                'c3"\n'
+                'Gosh2,0,"c1\n'
+                "c2\n"
+                'c3"\n'
+                'lots,30,"id\n'
+                'age"'
+            ),
+        ),
+        (
+            "--tsv",
+            "table\tcount\tcolumns\nGosh\t0\t['c1', 'c2', 'c3']\nGosh2\t0\t['c1', 'c2', 'c3']\nlots\t30\t['id', 'age']",
+        ),
+    ],
+)
+def test_tables_counts_and_columns_csv(db_path, format, expected):
     db = Database(db_path)
     with db.conn:
         db["lots"].insert_all([{"id": i, "age": i + 1} for i in range(30)])
     result = CliRunner().invoke(
-        cli.cli, ["tables", "--counts", "--columns", "--csv", db_path]
+        cli.cli, ["tables", "--counts", "--columns", format, db_path]
     )
-    assert (
-        "table,count,columns\n"
-        'Gosh,0,"c1\n'
-        "c2\n"
-        'c3"\n'
-        'Gosh2,0,"c1\n'
-        "c2\n"
-        'c3"\n'
-        'lots,30,"id\n'
-        'age"'
-    ) == result.output.strip()
+    assert result.output.strip() == expected
 
 
 def test_tables_schema(db_path):
@@ -809,7 +822,14 @@ def test_insert_alter(db_path, tmpdir):
     ] == db.execute_returning_dicts("select foo, n, baz from from_json_nl")
 
 
-def test_query_csv(db_path):
+@pytest.mark.parametrize(
+    "format,expected",
+    [
+        ("--csv", "id,name,age\n1,Cleo,4\n2,Pancakes,2\n"),
+        ("--tsv", "id\tname\tage\n1\tCleo\t4\n2\tPancakes\t2\n"),
+    ],
+)
+def test_query_csv(db_path, format, expected):
     db = Database(db_path)
     with db.conn:
         db["dogs"].insert_all(
@@ -819,15 +839,15 @@ def test_query_csv(db_path):
             ]
         )
     result = CliRunner().invoke(
-        cli.cli, [db_path, "select id, name, age from dogs", "--csv"]
+        cli.cli, [db_path, "select id, name, age from dogs", format]
     )
     assert 0 == result.exit_code
-    assert "id,name,age\n1,Cleo,4\n2,Pancakes,2\n" == result.output
+    assert result.output == expected
     # Test the no-headers option:
     result = CliRunner().invoke(
-        cli.cli, [db_path, "select id, name, age from dogs", "--no-headers", "--csv"]
+        cli.cli, [db_path, "select id, name, age from dogs", "--no-headers", format]
     )
-    assert "1,Cleo,4\n2,Pancakes,2\n" == result.output
+    assert result.output.strip() == "\n".join(expected.split("\n")[1:]).strip()
 
 
 _all_query = "select id, name, age from dogs"
