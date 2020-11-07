@@ -1039,6 +1039,10 @@ def test_query_memory_does_not_create_file(tmpdir):
         ),
         (["--arrays"], '[[1, "Cleo", 4],\n [2, "Pancakes", 2]]'),
         (["--arrays", "--nl"], '[1, "Cleo", 4]\n[2, "Pancakes", 2]'),
+        (
+            ["--nl", "-c", "age", "-c", "name"],
+            '{"age": 4, "name": "Cleo"}\n{"age": 2, "name": "Pancakes"}',
+        ),
     ],
 )
 def test_rows(db_path, args, expected):

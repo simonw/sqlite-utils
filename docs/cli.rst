@@ -198,6 +198,12 @@ You can return every row in a specified table using the ``rows`` command::
 
 This command accepts the same output options as ``query`` - so you can pass ``--nl``, ``--csv``, ``--tsv``, ``--no-headers``, ``--table`` and ``--fmt``.
 
+You can use the ``-c`` option to specify a subset of columns to return::
+
+    $ sqlite-utils rows dogs.db dogs -c age -c name
+    [{"age": 4, "name": "Cleo"},
+     {"age": 2, "name": "Pancakes"}]
+
 .. _cli_tables:
 
 Listing tables

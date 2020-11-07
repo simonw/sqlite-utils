@@ -1061,6 +1061,7 @@ def search(
     required=True,
 )
 @click.argument("dbtable")
+@click.option("-c", "--column", type=str, multiple=True, help="Columns to return")
 @output_options
 @load_extension_option
 @click.pass_context
@@ -1068,6 +1069,7 @@ def rows(
     ctx,
     path,
     dbtable,
+    column,
     nl,
     arrays,
     csv,
@@ -1079,10 +1081,13 @@ def rows(
     load_extension,
 ):
     "Output all rows in the specified table"
+    columns = "*"
+    if column:
+        columns = ", ".join("[{}]".format(c) for c in column)
     ctx.invoke(
         query,
         path=path,
-        sql="select * from [{}]".format(dbtable),
+        sql="select {} from [{}]".format(columns, dbtable),
         nl=nl,
         arrays=arrays,
         csv=csv,
