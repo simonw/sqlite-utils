@@ -1451,7 +1451,9 @@ You can then run searches using the ``.search()`` method:
 
 .. code-block:: python
 
-    rows = db["dogs"].search("cleo")
+    rows = list(db["dogs"].search("cleo"))
+
+This method returns a generator that can be looped over to get dictionaries for each row, similar to :ref:`python_api_rows`.
 
 If you insert additional records into the table you will need to refresh the search index using ``populate_fts()``:
 
@@ -1501,6 +1503,102 @@ To remove the FTS tables and triggers you created, use the ``disable_fts()`` tab
 .. code-block:: python
 
     db["dogs"].disable_fts()
+
+.. _python_api_fts_search:
+
+Searching with table.search()
+-----------------------------
+
+The ``table.search(q)`` method returns a generator over Python dictionaries representing rows that match the search phrase ``q``, ordered by relevance with the most relevant results first.
+
+.. code-block:: python
+
+    for article in db["articles"].search("jquery"):
+        print(article)
+
+The ``.search()`` method also accepts the following optional parameters:
+
+``order_by`` string
+    The column to sort by. Defaults to relevance score. Can optionally include a ``desc``, e.g. ``rowid desc``.
+
+``columns`` array of strings
+    Columns to return. Defaults to all columns.
+
+``limit`` integer
+    Number of results to return. Defaults to all results.
+
+To return just the title and published columns for three matches for ``"dog"`` ordered by ``published`` with the most recent first, use the following:
+
+.. code-block:: python
+
+    for article in db["articles"].search(
+        "dog",
+        order_by="published desc",
+        limit=3,
+        columns=["title", "published"]
+    ):
+        print(article)
+
+.. _python_api_fts_search_sql:
+
+Building SQL queries with table.search_sql()
+--------------------------------------------
+
+You can generate the SQL query that would be used for a search using the ``table.search_sql()`` method. It takes the same arguments as ``table.search()`` with the exception of the search query itself, since the returned SQL includes a parameter that can be used for the search.
+
+.. code-block:: python
+
+    print(db["articles"].search_sql(columns=["title", "author"]))
+
+Outputs:
+
+.. code-block:: sql
+
+    with original as (
+        select
+            rowid,
+            [title], [author]
+        from [articles]
+    )
+    select
+        original.*,
+        [articles_fts].rank as rank
+    from
+        [original]
+        join [articles_fts] on [original].rowid = [articles_fts].rowid
+    where
+        [articles_fts] match :query
+    order by
+        rank
+
+This method detects if a SQLite table uses FTS4 or FTS5, and outputs the correct SQL for ordering by relevance depending on the search type.
+
+The FTS4 output looks something like this:
+
+.. code-block:: sql
+
+    with original as (
+        select
+            rowid,
+            [title], [author]
+        from [articles]
+    )
+    select
+        original.*,
+        rank_bm25(matchinfo([articles_fts], 'pcnalx')) as rank
+    from
+        [original]
+        join [articles_fts] on [original].rowid = [articles_fts].rowid
+    where
+        [articles_fts] match :query
+    order by
+        rank
+
+This uses the ``rank_bm25()`` custom SQL function from `sqlite-fts4 <https://github.com/simonw/sqlite-fts4>`__. You can register that custom function against a ``Database`` connection using this method:
+
+.. code-block:: python
+
+    db.register_fts4_bm25()
 
 .. _python_api_fts_rebuild:
 
