@@ -13,7 +13,7 @@ The ``table.search()`` method has been redesigned, see :ref:`python_api_fts_sear
 
 The release includes minor backwards-incompatible changes, hence the version bump to 3.0. Those changes, which should not affect most users, are:
 
-- The ``-c`` shortcut` option for outputting CSV is no longer available. The full ``--csv`` option is required instead.
+- The ``-c`` shortcut option for outputting CSV is no longer available. The full ``--csv`` option is required instead.
 - The ``-f`` shortcut for ``--fmt`` has also been removed - use ``--fmt``.
 - The ``table.search()`` method now defaults to sorting by relevance, not sorting by ``rowid``. (`#198 <https://github.com/simonw/sqlite-utils/issues/198>`__)
 - The ``table.search()`` method now returns a generator over a list of Python dictionaries. It previously returned a list of tuples.
