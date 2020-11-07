@@ -2,6 +2,29 @@
  Changelog
 ===========
 
+.. _v3_0_a0:
+
+3.0a0 (2020-11-06)
+------------------
+
+This release introduces a new ``sqlite-utils search`` command for searching tables, see :ref:`cli_search`. (`#192 <https://github.com/simonw/sqlite-utils/issues/192>`__)
+
+The ``table.search()`` method has been redesigned, see :ref:`python_api_fts_search`. (`#197 <https://github.com/simonw/sqlite-utils/issues/197>`__)
+
+The release includes minor backwards-incompatible changes, hence the version bump to 3.0. Those changes, which should not affect most users, are:
+
+- The ``-c`` shortcut` option for outputting CSV is no longer available. The full ``--csv`` option is required instead.
+- The ``-f`` shortcut for ``--fmt`` has also been removed - use ``--fmt``.
+- The ``table.search()`` method now defaults to sorting by relevance, not sorting by ``rowid``. (`#198 <https://github.com/simonw/sqlite-utils/issues/198>`__)
+- The ``table.search()`` method now returns a generator over a list of Python dictionaries. It previously returned a list of tuples.
+
+Also in this release:
+
+- The ``query``, ``tables``, ``rows`` and ``search`` CLI commands now accept a new ``--tsv`` option which outputs the results in TSV. (`#193 <https://github.com/simonw/sqlite-utils/issues/193>`__)
+- A new ``table.virtual_table_using`` property reveals if a table is a virtual table, and returns the upper case type of virtual table (e.g. ``FTS4`` or ``FTS5``) if it is. It returns ``None`` if the table is not a virtual table. (`#196 <https://github.com/simonw/sqlite-utils/issues/196>`__)
+- The new ``table.search_sql()`` method returns the SQL for searching a table, see :ref:`python_api_fts_search_sql`.
+- ``sqlite-utils rows`` now accepts multiple optional ``-c`` parameters specifying the columns to return. (`#200 <https://github.com/simonw/sqlite-utils/issues/200>`__)
+
 .. _v2_23:
 
 2.23 (2020-10-28)
