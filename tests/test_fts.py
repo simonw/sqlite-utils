@@ -160,7 +160,7 @@ def test_fts_tokenize(fresh_db):
             fts_version="FTS{}".format(fts_version),
             tokenize="porter",
         )
-        rows = list(table.search("bite", order="rowid"))
+        rows = list(table.search("bite", order_by="rowid"))
         assert len(rows) == 1
         assert {
             "rowid": 2,
@@ -391,7 +391,7 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
             ),
         ),
         (
-            {"columns": ["title"], "order": "rowid", "limit": 10},
+            {"columns": ["title"], "order_by": "rowid", "limit": 10},
             "FTS5",
             (
                 "with original as (\n"

@@ -1321,7 +1321,7 @@ class Table(Queryable):
             )
         return self
 
-    def search_sql(self, columns=None, order=None, limit=None):
+    def search_sql(self, columns=None, order_by=None, limit=None):
         # Pick names for table and rank column that don't clash
         original = "original_" if self.name == "original" else "original"
         rank = "rank"
@@ -1352,7 +1352,7 @@ class Table(Queryable):
         where
             [{fts_table}] match :query
         order by
-            {order}
+            {order_by}
         {limit}
         """
         ).strip()
@@ -1370,12 +1370,19 @@ class Table(Queryable):
             rank=rank,
             rank_implementation=rank_implementation,
             fts_table=fts_table,
-            order=order or rank,
+            order_by=order_by or rank,
             limit="limit {}".format(limit) if limit else "",
         ).strip()
 
-    def search(self, q, order=None):
-        cursor = self.db.execute(self.search_sql(order=order), {"query": q})
+    def search(self, q, order_by=None, columns=None, limit=None):
+        cursor = self.db.execute(
+            self.search_sql(
+                order_by=order_by,
+                columns=columns,
+                limit=limit,
+            ),
+            {"query": q},
+        )
         columns = [c[0] for c in cursor.description]
         for row in cursor:
             yield dict(zip(columns, row))

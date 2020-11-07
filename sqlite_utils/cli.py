@@ -1033,7 +1033,7 @@ def search(
                 raise click.ClickException(
                     "Table '{}' has no column '{}".format(dbtable, c)
                 )
-    sql = table_obj.search_sql(columns=column, order=order, limit=limit)
+    sql = table_obj.search_sql(columns=column, order_by=order, limit=limit)
     if show_sql:
         click.echo(sql)
         return
