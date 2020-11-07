@@ -366,10 +366,11 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
 
 
 @pytest.mark.parametrize(
-    "kwargs,expected",
+    "kwargs,fts,expected",
     [
         (
             {},
+            "FTS5",
             (
                 "with original as (\n"
                 "    select\n"
@@ -391,6 +392,7 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
         ),
         (
             {"columns": ["title"], "order": "rowid", "limit": 10},
+            "FTS5",
             (
                 "with original as (\n"
                 "    select\n"
@@ -411,9 +413,31 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
                 "limit 10"
             ),
         ),
+        (
+            {"columns": ["title"]},
+            "FTS4",
+            (
+                "with original as (\n"
+                "    select\n"
+                "        rowid,\n"
+                "        [title]\n"
+                "    from [books]\n"
+                ")\n"
+                "select\n"
+                "    original.*,\n"
+                "    rank_bm25(matchinfo([books_fts], 'pcnalx')) as rank\n"
+                "from\n"
+                "    [original]\n"
+                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                "where\n"
+                "    [books_fts] match :query\n"
+                "order by\n"
+                "    rank"
+            ),
+        ),
     ],
 )
-def test_search_sql(kwargs, expected):
+def test_search_sql(kwargs, fts, expected):
     db = Database(memory=True)
     db["books"].insert(
         {
@@ -421,6 +445,6 @@ def test_search_sql(kwargs, expected):
             "author": "Marlee Hawkins",
         }
     )
-    db["books"].enable_fts(["title", "author"])
+    db["books"].enable_fts(["title", "author"], fts_version=fts)
     sql = db["books"].search_sql(**kwargs)
     assert sql == expected
