@@ -149,7 +149,7 @@ def test_output_table(db_path, fmt, expected):
                 for i in range(4)
             ]
         )
-    result = CliRunner().invoke(cli.cli, ["rows", db_path, "rows", "-t", "-f", fmt])
+    result = CliRunner().invoke(cli.cli, ["rows", db_path, "rows", "-t", "--fmt", fmt])
     assert 0 == result.exit_code
     assert expected == result.output.strip()
 

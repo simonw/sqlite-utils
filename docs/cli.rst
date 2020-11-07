@@ -162,7 +162,7 @@ You can use the ``--table`` option (or ``-t`` shortcut) to output query results 
        1      4  Cleo
        2      2  Pancakes
 
-You can use the ``--fmt`` (or ``-f``) option to specify different table formats, for example ``rst`` for reStructuredText::
+You can use the ``--fmt`` option to specify different table formats, for example ``rst`` for reStructuredText::
 
     $ sqlite-utils dogs.db "select * from dogs" --table --fmt rst
     ====  =====  ========

@@ -50,7 +50,6 @@ def output_options(fn):
             click.option("--no-headers", is_flag=True, help="Omit CSV headers"),
             click.option("-t", "--table", is_flag=True, help="Output as a table"),
             click.option(
-                "-f",
                 "--fmt",
                 help="Table format - one of {}".format(
                     ", ".join(tabulate.tabulate_formats)
