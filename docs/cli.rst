@@ -933,15 +933,14 @@ Use the ``--sql`` option to output the SQL that would be executed, rather than r
         from [documents]
     )
     select
-        original.*,
-        [documents_fts].rank as rank
+        [original].*
     from
         [original]
         join [documents_fts] on [original].rowid = [documents_fts].rowid
     where
         [documents_fts] match :query
     order by
-        rank
+        [documents_fts].rank
 
 .. _cli_vacuum:
 

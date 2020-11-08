@@ -986,8 +986,7 @@ def query(
 @click.option(
     "--limit",
     type=int,
-    default=20,
-    help="Number of rows to return, default 20, set to 0 for unlimited",
+    help="Number of rows to return - defaults to everything",
 )
 @click.option(
     "--sql", "show_sql", is_flag=True, help="Show SQL query that would be run"
