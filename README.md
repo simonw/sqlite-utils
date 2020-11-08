@@ -9,6 +9,13 @@
 
 Python CLI utility and library for manipulating SQLite databases.
 
+## Some feature highlights
+
+- [Pipe JSON](https://sqlite-utils.readthedocs.io/en/stable/cli.html#inserting-json-data) (or [CSV or TSV](https://sqlite-utils.readthedocs.io/en/stable/cli.html#inserting-csv-or-tsv-data)) directly into a new SQLite database file, automatically creating a table with the appropriate schema
+- [Configure SQLite full-text search](https://sqlite-utils.readthedocs.io/en/stable/cli.html#configuring-full-text-search) against your database tables and run search queries against them, ordered by relevance
+- Run [transformations against your tables](https://sqlite-utils.readthedocs.io/en/stable/cli.html#transforming-tables) to make schema changes that SQLite `ALTER TABLE` does not directly support, such as dropping columns
+- [Extract columns](https://sqlite-utils.readthedocs.io/en/stable/cli.html#extracting-columns-into-a-separate-table) into separate tables to better normalize your existing data
+
 Read more on my blog: [
 sqlite-utils: a Python library and CLI tool for building SQLite databases](https://simonwillison.net/2019/Feb/25/sqlite-utils/) and other [entries tagged sqliteutils](https://simonwillison.net/tags/sqliteutils/).
 
@@ -43,7 +50,7 @@ You can even import data into a new database table like this:
     $ curl https://api.github.com/repos/simonw/sqlite-utils/releases \
         | sqlite-utils insert releases.db releases - --pk id
 
-Full CLI documentation: https://sqlite-utils.readthedocs.io/en/stable/cli.html
+See the [full CLI documentation](https://sqlite-utils.readthedocs.io/en/stable/cli.html) for comprehensive coverage of many more commands.
 
 ## Using as a library
 
@@ -59,7 +66,7 @@ db["dogs"].insert_all([
 ], pk="id")
 ```
 
-Full library documentation: https://sqlite-utils.readthedocs.io/en/stable/python-api.html
+Check out the [full library documentation](https://sqlite-utils.readthedocs.io/en/stable/python-api.html) for everything else you can do with the Python library.
 
 ## Related projects
 
