@@ -25,6 +25,11 @@ Also in this release:
 - The new ``table.search_sql()`` method returns the SQL for searching a table, see :ref:`python_api_fts_search_sql`.
 - ``sqlite-utils rows`` now accepts multiple optional ``-c`` parameters specifying the columns to return. (`#200 <https://github.com/simonw/sqlite-utils/issues/200>`__)
 
+Changes since the 3.0a0 alpha release:
+
+- The ``sqlite-utils search`` command now defaults to returning every result, unless you add a ``--limit 20`` option.
+- The ``sqlite-utils search -c`` and ``table.search(columns=[])`` options are now fully respected. (`#201 <https://github.com/simonw/sqlite-utils/issues/201>`__)
+
 .. _v2_23:
 
 2.23 (2020-10-28)
