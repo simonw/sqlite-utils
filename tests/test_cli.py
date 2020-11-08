@@ -1709,9 +1709,9 @@ def test_insert_encoding(tmpdir):
     [
         (
             None,
-            '[{"rowid": 2, "id": 2, "title": "Title the second", "rank": -0.5108256237659907}]\n',
+            '[{"rowid": 2, "id": 2, "title": "Title the second"}]\n',
         ),
-        ("--csv", "rowid,id,title,rank\n2,2,Title the second,-0.5108256237659907\n"),
+        ("--csv", "rowid,id,title\n2,2,Title the second\n"),
     ],
 )
 def test_search(tmpdir, fts, extra_arg, expected):

@@ -35,7 +35,6 @@ def test_enable_fts(fresh_db):
             "text": "tanuki are running tricksters",
             "country": "Japan",
             "not_searchable": "foo",
-            "rank": 0.0,
         }
     ] == list(table.search("tanuki"))
     assert [
@@ -44,7 +43,6 @@ def test_enable_fts(fresh_db):
             "text": "racoons are biting trash pandas",
             "country": "USA",
             "not_searchable": "bar",
-            "rank": 0.0,
         }
     ] == list(table.search("usa"))
     assert [] == list(table.search("bar"))
@@ -71,7 +69,6 @@ def test_enable_fts_escape_table_names(fresh_db):
             "text": "tanuki are running tricksters",
             "country": "Japan",
             "not_searchable": "foo",
-            "rank": 0.0,
         }
     ] == list(table.search("tanuki"))
     assert [
@@ -80,7 +77,6 @@ def test_enable_fts_escape_table_names(fresh_db):
             "text": "racoons are biting trash pandas",
             "country": "USA",
             "not_searchable": "bar",
-            "rank": 0.0,
         }
     ] == list(table.search("usa"))
     assert [] == list(table.search("bar"))
@@ -116,7 +112,6 @@ def test_populate_fts(fresh_db):
             "text": "racoons are biting trash pandas",
             "country": "USA",
             "not_searchable": "bar",
-            "rank": -0.5108256237659907,
         }
     ] == rows
 
@@ -137,7 +132,6 @@ def test_populate_fts_escape_table_names(fresh_db):
             "text": "racoons are biting trash pandas",
             "country": "USA",
             "not_searchable": "bar",
-            "rank": -0.5108256237659907,
         }
     ] == list(table.search("usa"))
 
@@ -198,7 +192,6 @@ def test_enable_fts_with_triggers(fresh_db):
             "text": "tanuki are running tricksters",
             "country": "Japan",
             "not_searchable": "foo",
-            "rank": 0.0,
         }
     ]
     table.insert(search_records[1])
@@ -210,7 +203,6 @@ def test_enable_fts_with_triggers(fresh_db):
             "text": "racoons are biting trash pandas",
             "country": "USA",
             "not_searchable": "bar",
-            "rank": 0.0,
         }
     ]
     assert [] == list(table.search("bar"))
@@ -379,15 +371,14 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
                 "    from [books]\n"
                 ")\n"
                 "select\n"
-                "    original.*,\n"
-                "    [books_fts].rank as rank\n"
+                "    [original].*\n"
                 "from\n"
                 "    [original]\n"
                 "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
                 "where\n"
                 "    [books_fts] match :query\n"
                 "order by\n"
-                "    rank"
+                "    [books_fts].rank"
             ),
         ),
         (
@@ -401,8 +392,7 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
                 "    from [books]\n"
                 ")\n"
                 "select\n"
-                "    original.*,\n"
-                "    [books_fts].rank as rank\n"
+                "    [original].[title]\n"
                 "from\n"
                 "    [original]\n"
                 "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
@@ -424,15 +414,14 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
                 "    from [books]\n"
                 ")\n"
                 "select\n"
-                "    original.*,\n"
-                "    rank_bm25(matchinfo([books_fts], 'pcnalx')) as rank\n"
+                "    [original].[title]\n"
                 "from\n"
                 "    [original]\n"
                 "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
                 "where\n"
                 "    [books_fts] match :query\n"
                 "order by\n"
-                "    rank"
+                "    rank_bm25(matchinfo([books_fts], 'pcnalx'))"
             ),
         ),
     ],

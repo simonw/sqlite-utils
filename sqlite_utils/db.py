@@ -1324,12 +1324,13 @@ class Table(Queryable):
     def search_sql(self, columns=None, order_by=None, limit=None):
         # Pick names for table and rank column that don't clash
         original = "original_" if self.name == "original" else "original"
-        rank = "rank"
-        while rank in self.columns_dict:
-            rank = rank + "_"
         columns_sql = "*"
+        columns_with_prefix_sql = "[{}].*".format(original)
         if columns:
             columns_sql = ", ".join("[{}]".format(c) for c in columns)
+            columns_with_prefix_sql = ", ".join(
+                "[{}].[{}]".format(original, c) for c in columns
+            )
         fts_table = self.detect_fts()
         assert fts_table, "Full-text search is not configured for table '{}'".format(
             self.name
@@ -1344,8 +1345,7 @@ class Table(Queryable):
             from [{dbtable}]
         )
         select
-            {original}.*,
-            {rank_implementation} as {rank}
+            {columns_with_prefix}
         from
             [{original}]
             join [{fts_table}] on [{original}].rowid = [{fts_table}].rowid
@@ -1367,10 +1367,9 @@ class Table(Queryable):
             dbtable=self.name,
             original=original,
             columns=columns_sql,
-            rank=rank,
-            rank_implementation=rank_implementation,
+            columns_with_prefix=columns_with_prefix_sql,
             fts_table=fts_table,
-            order_by=order_by or rank,
+            order_by=order_by or rank_implementation,
             limit="limit {}".format(limit) if limit else "",
         ).strip()
 

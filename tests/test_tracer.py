@@ -44,11 +44,9 @@ def test_with_tracer():
     with db.tracer(tracer):
         list(db["dogs"].search("Cleopaws"))
 
-    assert len(collected) == 7
+    assert len(collected) == 5
     assert collected == [
         ("select name from sqlite_master where type = 'view'", None),
-        ("select name from sqlite_master where type = 'table'", None),
-        ("PRAGMA table_info([dogs])", None),
         (
             "SELECT name FROM sqlite_master\n    WHERE rootpage = 0\n    AND (\n        sql LIKE '%VIRTUAL TABLE%USING FTS%content=%dogs%'\n        OR (\n            tbl_name = \"dogs\"\n            AND sql LIKE '%VIRTUAL TABLE%USING FTS%'\n        )\n    )",
             None,
@@ -56,11 +54,11 @@ def test_with_tracer():
         ("select name from sqlite_master where type = 'view'", None),
         ("select sql from sqlite_master where name = ?", ("dogs_fts",)),
         (
-            "with original as (\n    select\n        rowid,\n        *\n    from [dogs]\n)\nselect\n    original.*,\n    [dogs_fts].rank as rank\nfrom\n    [original]\n    join [dogs_fts] on [original].rowid = [dogs_fts].rowid\nwhere\n    [dogs_fts] match :query\norder by\n    rank",
+            "with original as (\n    select\n        rowid,\n        *\n    from [dogs]\n)\nselect\n    [original].*\nfrom\n    [original]\n    join [dogs_fts] on [original].rowid = [dogs_fts].rowid\nwhere\n    [dogs_fts] match :query\norder by\n    [dogs_fts].rank",
             {"query": "Cleopaws"},
         ),
     ]
 
     # Outside the with block collected should not be appended to
     db["dogs"].insert({"name": "Cleopaws"})
-    assert len(collected) == 7
+    assert len(collected) == 5
