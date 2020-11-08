@@ -1557,19 +1557,20 @@ Outputs:
     with original as (
         select
             rowid,
-            [title], [author]
+            [title],
+            [author]
         from [articles]
     )
     select
-        original.*,
-        [articles_fts].rank as rank
+        [original].[title],
+        [original].[author]
     from
         [original]
         join [articles_fts] on [original].rowid = [articles_fts].rowid
     where
         [articles_fts] match :query
     order by
-        rank
+        [articles_fts].rank
 
 This method detects if a SQLite table uses FTS4 or FTS5, and outputs the correct SQL for ordering by relevance depending on the search type.
 
@@ -1580,19 +1581,20 @@ The FTS4 output looks something like this:
     with original as (
         select
             rowid,
-            [title], [author]
+            [title],
+            [author]
         from [articles]
     )
     select
-        original.*,
-        rank_bm25(matchinfo([articles_fts], 'pcnalx')) as rank
+        [original].[title],
+        [original].[author]
     from
         [original]
         join [articles_fts] on [original].rowid = [articles_fts].rowid
     where
         [articles_fts] match :query
     order by
-        rank
+        rank_bm25(matchinfo([articles_fts], 'pcnalx'))
 
 This uses the ``rank_bm25()`` custom SQL function from `sqlite-fts4 <https://github.com/simonw/sqlite-fts4>`__. You can register that custom function against a ``Database`` connection using this method:
 

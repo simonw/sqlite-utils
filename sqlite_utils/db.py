@@ -1327,8 +1327,8 @@ class Table(Queryable):
         columns_sql = "*"
         columns_with_prefix_sql = "[{}].*".format(original)
         if columns:
-            columns_sql = ", ".join("[{}]".format(c) for c in columns)
-            columns_with_prefix_sql = ", ".join(
+            columns_sql = ",\n        ".join("[{}]".format(c) for c in columns)
+            columns_with_prefix_sql = ",\n    ".join(
                 "[{}].[{}]".format(original, c) for c in columns
             )
         fts_table = self.detect_fts()
