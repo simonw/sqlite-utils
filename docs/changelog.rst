@@ -2,10 +2,10 @@
  Changelog
 ===========
 
-.. _v3_0_a0:
+.. _v3_0:
 
-3.0a0 (2020-11-06)
-------------------
+3.0 (2020-11-08)
+----------------
 
 This release introduces a new ``sqlite-utils search`` command for searching tables, see :ref:`cli_search`. (`#192 <https://github.com/simonw/sqlite-utils/issues/192>`__)
 
