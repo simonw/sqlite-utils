@@ -411,7 +411,6 @@ def test_add_foreign_key_error_if_already_exists(fresh_db):
     fresh_db["books"].insert({"title": "Hedgehogs of the world", "author_id": 1})
     fresh_db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
     fresh_db["books"].add_foreign_key("author_id", "authors", "id")
-    print(fresh_db["books"].foreign_keys)
     with pytest.raises(AlterError) as ex:
         fresh_db["books"].add_foreign_key("author_id", "authors", "id")
     assert "Foreign key already exists for author_id => authors.id" == ex.value.args[0]
