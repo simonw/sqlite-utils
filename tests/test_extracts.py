@@ -36,7 +36,7 @@ def test_extracts(fresh_db, kwargs, expected_table, use_table_factory):
         == fresh_db[expected_table].schema
     )
     assert (
-        "CREATE TABLE [Trees] (\n   [id] INTEGER,\n   [species_id] INTEGER REFERENCES [{}]([id])\n)".format(
+        "CREATE TABLE [Trees] (\n   [id] INTEGER,\n   [species_id] INTEGER,\n   FOREIGN KEY([species_id]) REFERENCES [{}]([id])\n)".format(
             expected_table
         )
         == fresh_db["Trees"].schema
@@ -45,7 +45,7 @@ def test_extracts(fresh_db, kwargs, expected_table, use_table_factory):
     assert len(fresh_db["Trees"].foreign_keys) == 1
     fk = fresh_db["Trees"].foreign_keys[0]
     assert fk.table == "Trees"
-    assert fk.column == "species_id"
+    assert fk.column == ("species_id",)
 
     # Should have unique index on Species
     assert [

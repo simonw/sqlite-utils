@@ -30,7 +30,7 @@ def test_insert_m2m_list(fresh_db):
     assert [{"id": 1, "name": "Natalie D"}, {"id": 2, "name": "Simon W"}] == list(
         humans.rows
     )
-    assert [
+    assert sorted([
         ForeignKey(
             table="dogs_humans", column="dogs_id", other_table="dogs", other_column="id"
         ),
@@ -40,7 +40,7 @@ def test_insert_m2m_list(fresh_db):
             other_table="humans",
             other_column="id",
         ),
-    ] == dogs_humans.foreign_keys
+    ]) == sorted(dogs_humans.foreign_keys)
 
 
 def test_insert_m2m_iterable(fresh_db):
@@ -103,7 +103,7 @@ def test_m2m_lookup(fresh_db):
     tags = fresh_db["tags"]
     assert people_tags.exists()
     assert tags.exists()
-    assert [
+    assert sorted([
         ForeignKey(
             table="people_tags",
             column="people_id",
@@ -113,7 +113,7 @@ def test_m2m_lookup(fresh_db):
         ForeignKey(
             table="people_tags", column="tags_id", other_table="tags", other_column="id"
         ),
-    ] == people_tags.foreign_keys
+    ]) == sorted(people_tags.foreign_keys)
     assert [{"people_id": 1, "tags_id": 1}] == list(people_tags.rows)
     assert [{"id": 1, "name": "Wahyu"}] == list(people.rows)
     assert [{"id": 1, "tag": "Coworker"}] == list(tags.rows)

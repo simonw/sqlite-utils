@@ -268,8 +268,8 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(
     ] == [{"name": col.name, "type": col.type} for col in fresh_db["m2m"].columns]
     assert sorted(
         [
-            {"column": "one_id", "other_table": "one", "other_column": "id"},
-            {"column": "two_id", "other_table": "two", "other_column": "id"},
+            {"column": ("one_id",), "other_table": "one", "other_column": ("id",)},
+            {"column": ("two_id",), "other_table": "two", "other_column": ("id",)},
         ],
         key=lambda s: repr(s),
     ) == sorted(
@@ -355,7 +355,37 @@ def test_add_foreign_key(fresh_db):
     assert isinstance(t, Table) and t.name == "books"
     assert [
         ForeignKey(
-            table="books", column="author_id", other_table="authors", other_column="id"
+            table="books", column=("author_id",), other_table="authors", other_column=("id",)
+        )
+    ] == fresh_db["books"].foreign_keys
+
+
+def test_add_compound_foreign_key(fresh_db):
+    fresh_db["authors"].insert_all(
+        [
+            {"id": 1, "person_id": 1, "name": "Sally"},
+            {"id": 2, "person_id": 2, "name": "Asheesh"}
+        ],
+        pk=("id", "person_id")
+    )
+    fresh_db["books"].insert_all(
+        [
+            {"title": "Hedgehogs of the world", "author_id": 1, "author_person_id": 1},
+            {"title": "How to train your wolf", "author_id": 2, "author_person_id": 2},
+        ]
+    )
+    assert [] == fresh_db["books"].foreign_keys
+    t = fresh_db["books"].add_foreign_key(
+        ("author_id", "author_person_id"), "authors", ("id", "person_id")
+    )
+    # Ensure it returned self:
+    assert isinstance(t, Table) and t.name == "books"
+    assert [
+        ForeignKey(
+            table="books",
+            column=("author_id", "author_person_id"),
+            other_table="authors",
+            other_column=("id", "person_id"),
         )
     ] == fresh_db["books"].foreign_keys
 
@@ -378,6 +408,7 @@ def test_add_foreign_key_error_if_already_exists(fresh_db):
     fresh_db["books"].insert({"title": "Hedgehogs of the world", "author_id": 1})
     fresh_db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
     fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+    print(fresh_db["books"].foreign_keys)
     with pytest.raises(AlterError) as ex:
         fresh_db["books"].add_foreign_key("author_id", "authors", "id")
     assert "Foreign key already exists for author_id => authors.id" == ex.value.args[0]
@@ -423,7 +454,7 @@ def test_add_column_foreign_key(fresh_db):
     fresh_db.create_table("breeds", {"name": str})
     fresh_db["dogs"].add_column("breed_id", fk="breeds")
     assert (
-        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, FOREIGN KEY(breed_id) REFERENCES breeds(rowid) )"
+        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, FOREIGN KEY([breed_id]) REFERENCES [breeds]([rowid]) )"
         == collapse_whitespace(fresh_db["dogs"].schema)
     )
     # And again with an explicit primary key column
@@ -431,8 +462,8 @@ def test_add_column_foreign_key(fresh_db):
     fresh_db["dogs"].add_column("subbreed_id", fk="subbreeds")
     assert (
         "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, [subbreed_id] TEXT, "
-        "FOREIGN KEY(breed_id) REFERENCES breeds(rowid), "
-        "FOREIGN KEY(subbreed_id) REFERENCES subbreeds(primkey) )"
+        "FOREIGN KEY([breed_id]) REFERENCES [breeds]([rowid]), "
+        "FOREIGN KEY([subbreed_id]) REFERENCES [subbreeds]([primkey]) )"
         == collapse_whitespace(fresh_db["dogs"].schema)
     )
 
@@ -443,7 +474,7 @@ def test_add_foreign_key_guess_table(fresh_db):
     fresh_db["dogs"].add_column("breed_id", int)
     fresh_db["dogs"].add_foreign_key("breed_id")
     assert (
-        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, FOREIGN KEY(breed_id) REFERENCES breeds(id) )"
+        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, FOREIGN KEY([breed_id]) REFERENCES [breeds]([id]) )"
         == collapse_whitespace(fresh_db["dogs"].schema)
     )
 
