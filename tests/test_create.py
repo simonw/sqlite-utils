@@ -355,7 +355,10 @@ def test_add_foreign_key(fresh_db):
     assert isinstance(t, Table) and t.name == "books"
     assert [
         ForeignKey(
-            table="books", column=("author_id",), other_table="authors", other_column=("id",)
+            table="books",
+            column=("author_id",),
+            other_table="authors",
+            other_column=("id",),
         )
     ] == fresh_db["books"].foreign_keys
 
@@ -364,9 +367,9 @@ def test_add_compound_foreign_key(fresh_db):
     fresh_db["authors"].insert_all(
         [
             {"id": 1, "person_id": 1, "name": "Sally"},
-            {"id": 2, "person_id": 2, "name": "Asheesh"}
+            {"id": 2, "person_id": 2, "name": "Asheesh"},
         ],
-        pk=("id", "person_id")
+        pk=("id", "person_id"),
     )
     fresh_db["books"].insert_all(
         [

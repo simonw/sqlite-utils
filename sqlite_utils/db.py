@@ -67,31 +67,37 @@ class ForeignKey:
             self.other_column = (other_column,)
         elif isinstance(other_column, (tuple, list)):
             self.other_column = tuple(other_column)
-    
+
     @property
     def column_str(self):
         return ",".join(["[{}]".format(c) for c in self.column])
-    
+
     @property
     def other_column_str(self):
         return ",".join(["[{}]".format(c) for c in self.other_column])
 
     def __eq__(self, other):
         if isinstance(other, ForeignKey):
-            return all((
-                self.table == other.table,
-                self.column == other.column,
-                self.other_table == other.other_table,
-                self.other_column == other.other_column,
-            ))
+            return all(
+                (
+                    self.table == other.table,
+                    self.column == other.column,
+                    self.other_table == other.other_table,
+                    self.other_column == other.other_column,
+                )
+            )
         return False
 
     def __lt__(self, other):
         if isinstance(other, ForeignKey):
-            return ((self.table, self.column, self.other_table, self.other_column) < 
-                    (other.table, other.column, other.other_table, other.other_column))
+            return (self.table, self.column, self.other_table, self.other_column) < (
+                other.table,
+                other.column,
+                other.other_table,
+                other.other_column,
+            )
         return False
-    
+
     def __repr__(self):
         return "ForeignKey({table}({column}), {other_table}({other_column}))".format(
             table=self.table,
@@ -102,13 +108,14 @@ class ForeignKey:
 
     @property
     def sql(self):
-        return "FOREIGN KEY({column}) REFERENCES [{other_table}]({other_column})".format(
-            table=self.table,
-            column=self.column_str,
-            other_table=self.other_table,
-            other_column=self.other_column_str,
+        return (
+            "FOREIGN KEY({column}) REFERENCES [{other_table}]({other_column})".format(
+                table=self.table,
+                column=self.column_str,
+                other_table=self.other_table,
+                other_column=self.other_column_str,
+            )
         )
-
 
 
 DEFAULT = object()
@@ -416,12 +423,8 @@ class Database:
         # Soundness check foreign_keys point to existing tables
         for fk in foreign_keys:
             for oc in fk.other_column:
-                if not any(
-                    c for c in self[fk.other_table].columns if c.name == oc
-                ):
-                    raise AlterError(
-                        "No such column: {}.{}".format(fk.other_table, oc)
-                    )
+                if not any(c for c in self[fk.other_table].columns if c.name == oc):
+                    raise AlterError("No such column: {}.{}".format(fk.other_table, oc))
 
         column_defs = []
         # ensure pk is a tuple
@@ -558,10 +561,7 @@ class Database:
             if not self[fk.other_table].exists():
                 raise AlterError("No such other_table: {}".format(fk.other_table))
             for c in fk.other_column:
-                if (
-                    c != "rowid"
-                    and c not in self[fk.other_table].columns_dict
-                ):
+                if c != "rowid" and c not in self[fk.other_table].columns_dict:
                     raise AlterError(
                         "No such other_column: {} in {}".format(c, fk.other_table)
                     )
@@ -613,9 +613,7 @@ class Database:
     def index_foreign_keys(self):
         for table_name in self.table_names():
             table = self[table_name]
-            existing_indexes = {
-                tuple(i.columns) for i in table.indexes
-            }
+            existing_indexes = {tuple(i.columns) for i in table.indexes}
             for fk in table.foreign_keys:
                 if fk.column not in existing_indexes:
                     table.create_index(fk.column)
@@ -769,12 +767,15 @@ class Table(Queryable):
                 fks[id]["column"].append(from_)
                 fks[id]["other_table"] = table_name
                 fks[id]["other_column"].append(to_)
-        return [ForeignKey(
-            table=fk['table'],
-            column=tuple(fk['column']),
-            other_table=fk['other_table'],
-            other_column=tuple(fk['other_column']),
-        ) for fk in fks.values()]
+        return [
+            ForeignKey(
+                table=fk["table"],
+                column=tuple(fk["column"]),
+                other_table=fk["other_table"],
+                other_column=tuple(fk["other_column"]),
+            )
+            for fk in fks.values()
+        ]
 
     @property
     def virtual_table_using(self):

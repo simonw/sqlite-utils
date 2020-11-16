@@ -28,7 +28,9 @@ def test_extract_single_column(fresh_db, table, fk_column):
         "   [name] TEXT,\n"
         "   [{}] INTEGER,\n".format(expected_fk)
         + "   [end] INTEGER,\n"
-        + "   FOREIGN KEY([{}]) REFERENCES [{}]([id])\n".format(expected_fk, expected_table)
+        + "   FOREIGN KEY([{}]) REFERENCES [{}]([id])\n".format(
+            expected_fk, expected_table
+        )
         + ")"
     )
     assert fresh_db[expected_table].schema == (
