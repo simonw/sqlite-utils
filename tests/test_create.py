@@ -355,10 +355,7 @@ def test_add_foreign_key(fresh_db):
     assert isinstance(t, Table) and t.name == "books"
     assert [
         ForeignKey(
-            table="books",
-            column=("author_id",),
-            other_table="authors",
-            other_column=("id",),
+            table="books", column="author_id", other_table="authors", other_column="id"
         )
     ] == fresh_db["books"].foreign_keys
 
