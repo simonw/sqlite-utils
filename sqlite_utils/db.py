@@ -69,7 +69,9 @@ class ForeignKey(ForeignKeyBase):
             other_column = tuple(other_column)
         else:
             other_column = (other_column,)
-        self = super(ForeignKey, cls).__new__(cls, table, column, other_table, other_column)
+        self = super(ForeignKey, cls).__new__(
+            cls, table, column, other_table, other_column
+        )
         return self
 
     @property
