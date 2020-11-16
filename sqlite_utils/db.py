@@ -51,22 +51,26 @@ except ImportError:
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
 )
+ForeignKeyBase = namedtuple(
+    "ForeignKeyBase", ("table", "column", "other_table", "other_column")
+)
 Index = namedtuple("Index", ("seq", "name", "unique", "origin", "partial", "columns"))
 Trigger = namedtuple("Trigger", ("name", "table", "sql"))
 
 
-class ForeignKey:
-    def __init__(self, table, column, other_table, other_column):
-        self.table = table
-        if isinstance(column, str):
-            self.column = (column,)
-        elif isinstance(column, (tuple, list)):
-            self.column = tuple(column)
-        self.other_table = other_table
-        if isinstance(other_column, str):
-            self.other_column = (other_column,)
-        elif isinstance(other_column, (tuple, list)):
-            self.other_column = tuple(other_column)
+class ForeignKey(ForeignKeyBase):
+    def __new__(cls, table, column, other_table, other_column):
+        # column and other_column should be a tuple
+        if isinstance(column, (tuple, list)):
+            column = tuple(column)
+        else:
+            column = (column,)
+        if isinstance(other_column, (tuple, list)):
+            other_column = tuple(other_column)
+        else:
+            other_column = (other_column,)
+        self = super(ForeignKey, cls).__new__(cls, table, column, other_table, other_column)
+        return self
 
     @property
     def column_str(self):
@@ -75,36 +79,6 @@ class ForeignKey:
     @property
     def other_column_str(self):
         return ",".join(["[{}]".format(c) for c in self.other_column])
-
-    def __eq__(self, other):
-        if isinstance(other, ForeignKey):
-            return all(
-                (
-                    self.table == other.table,
-                    self.column == other.column,
-                    self.other_table == other.other_table,
-                    self.other_column == other.other_column,
-                )
-            )
-        return False
-
-    def __lt__(self, other):
-        if isinstance(other, ForeignKey):
-            return (self.table, self.column, self.other_table, self.other_column) < (
-                other.table,
-                other.column,
-                other.other_table,
-                other.other_column,
-            )
-        return False
-
-    def __repr__(self):
-        return "ForeignKey({table}({column}), {other_table}({other_column}))".format(
-            table=self.table,
-            column=self.column_str,
-            other_table=self.other_table,
-            other_column=self.other_column_str,
-        )
 
     @property
     def sql(self):
