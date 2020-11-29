@@ -1,5 +1,9 @@
-from sqlite_utils.db import NotFoundError
+import collections
+import json
+
 import pytest
+
+from sqlite_utils.db import NotFoundError
 
 
 def test_update_rowid_table(fresh_db):
@@ -82,3 +86,27 @@ def test_update_with_no_values_sets_last_pk(fresh_db):
     assert 2 == table.last_pk
     with pytest.raises(NotFoundError):
         table.update(3)
+
+
+@pytest.mark.parametrize(
+    "data_structure",
+    (
+        ["list with one item"],
+        ["list with", "two items"],
+        {"dictionary": "simple"},
+        {"dictionary": {"nested": "complex"}},
+        collections.OrderedDict(
+            [
+                ("key1", {"nested": "complex"}),
+                ("key2", "foo"),
+            ]
+        ),
+        [{"list": "of"}, {"two": "dicts"}],
+    ),
+)
+def test_update_dictionaries_and_lists_as_json(fresh_db, data_structure):
+    fresh_db["test"].insert({"id": 1, "data": ""}, pk="id")
+    fresh_db["test"].update(1, {"data": data_structure})
+    row = fresh_db.execute("select id, data from test").fetchone()
+    assert row[0] == 1
+    assert data_structure == json.loads(row[1])
