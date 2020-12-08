@@ -1426,7 +1426,7 @@ class Table(Queryable):
         validate_column_names(updates.keys())
         for key, value in updates.items():
             sets.append("[{}] = {}".format(key, conversions.get(key, "?")))
-            args.append(value)
+            args.append(jsonify_if_needed(value))
         wheres = ["[{}] = ?".format(pk_name) for pk_name in pks]
         args.extend(pk_values)
         sql = "update [{table}] set {sets} where {wheres}".format(
