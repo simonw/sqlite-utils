@@ -1975,7 +1975,7 @@ class Table(Queryable):
             ]
             if num_distinct <= common_limit:
                 # No need to run the query if it will just return the results in revers order
-                least_common = most_common[::-1]
+                least_common = None
             else:
                 least_common = [
                     (r[0], r[1])
