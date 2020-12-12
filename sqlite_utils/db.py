@@ -1961,7 +1961,6 @@ class Table(Queryable):
                 "select [{}] from [{}] limit 1".format(column, table)
             ).fetchone()[0]
             most_common = [value]
-            least_common = [value]
         else:
             most_common = [
                 (r[0], r[1])
