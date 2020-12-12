@@ -51,6 +51,18 @@ except ImportError:
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
 )
+ColumnDetails = namedtuple(
+    "ColumnDetails",
+    (
+        "table",
+        "column",
+        "num_null",
+        "num_blank",
+        "num_distinct",
+        "most_common",
+        "least_common",
+    ),
+)
 ForeignKey = namedtuple(
     "ForeignKey", ("table", "column", "other_table", "other_column")
 )
@@ -1929,6 +1941,57 @@ class Table(Queryable):
                 replace=True,
             )
         return self
+
+    def analyze_column(self, column, common_limit=10):
+        db = self.db
+        table = self.name
+        num_null = db.execute(
+            "select count(*) from [{}] where [{}] is null".format(table, column)
+        ).fetchone()[0]
+        num_blank = db.execute(
+            "select count(*) from [{}] where [{}] = ''".format(table, column)
+        ).fetchone()[0]
+        num_distinct = db.execute(
+            "select count(distinct [{}]) from [{}]".format(column, table)
+        ).fetchone()[0]
+        most_common = None
+        least_common = None
+        if num_distinct == 1:
+            value = db.execute(
+                "select [{}] from [{}] limit 1".format(column, table)
+            ).fetchone()[0]
+            most_common = [value]
+            least_common = [value]
+        else:
+            most_common = [
+                (r[0], r[1])
+                for r in db.execute(
+                    "select [{}], count(*) from [{}] group by [{}] order by count(*) desc limit {}".format(
+                        column, table, column, common_limit
+                    )
+                ).fetchall()
+            ]
+            if num_distinct <= common_limit:
+                # No need to run the query if it will just return the results in revers order
+                least_common = most_common[::-1]
+            else:
+                least_common = [
+                    (r[0], r[1])
+                    for r in db.execute(
+                        "select [{}], count(*) from [{}] group by [{}] order by count(*) limit {}".format(
+                            column, table, column, common_limit
+                        )
+                    ).fetchall()
+                ]
+        return ColumnDetails(
+            self.name,
+            column,
+            num_null,
+            num_blank,
+            num_distinct,
+            most_common,
+            least_common,
+        )
 
 
 class View(Queryable):

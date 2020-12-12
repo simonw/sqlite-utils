@@ -1354,6 +1354,40 @@ def insert_files(
             )
 
 
+@cli.command(name="analyze-tables")
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("tables", nargs=-1)
+@click.option("--save", is_flag=True, help="Save results to _analyze_tables table")
+@load_extension_option
+def analyze_tables(
+    path,
+    tables,
+    save,
+    load_extension,
+):
+    "Analyze the columns in one or more tables"
+    db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
+    if not tables:
+        tables = db.table_names()
+    todo = []
+    for table in tables:
+        for column in db[table].columns:
+            todo.append((table, column.name))
+    # Now we now how many we need to do
+    for i, (table, column) in enumerate(todo):
+        column_details = db[table].analyze_column(column)
+        if save:
+            db["_analyze_tables"].insert(
+                column_details._asdict(), pk=("table", "column"), replace=True
+            )
+        click.echo("{}/{}: {}".format(i + 1, len(todo), column_details))
+
+
 FILE_COLUMNS = {
     "name": lambda p: p.name,
     "path": lambda p: str(p),
