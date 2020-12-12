@@ -56,6 +56,7 @@ ColumnDetails = namedtuple(
     (
         "table",
         "column",
+        "total_rows",
         "num_null",
         "num_blank",
         "num_distinct",
@@ -1942,9 +1943,11 @@ class Table(Queryable):
             )
         return self
 
-    def analyze_column(self, column, common_limit=10):
+    def analyze_column(self, column, common_limit=10, total_rows=None):
         db = self.db
         table = self.name
+        if total_rows is None:
+            total_rows = db[table].count
         num_null = db.execute(
             "select count(*) from [{}] where [{}] is null".format(table, column)
         ).fetchone()[0]
@@ -1960,8 +1963,8 @@ class Table(Queryable):
             value = db.execute(
                 "select [{}] from [{}] limit 1".format(column, table)
             ).fetchone()[0]
-            most_common = [value]
-        else:
+            most_common = [(value, total_rows)]
+        elif num_distinct != total_rows:
             most_common = [
                 (r[0], r[1])
                 for r in db.execute(
@@ -1985,6 +1988,7 @@ class Table(Queryable):
         return ColumnDetails(
             self.name,
             column,
+            total_rows,
             num_null,
             num_blank,
             num_distinct,
