@@ -747,6 +747,41 @@ You can inspect the database to see the results like this::
         PRIMARY KEY ([characteristics_id], [dogs_id])
     )
 
+.. _python_api_analyze_column:
+
+Analyzing a column
+==================
+
+The ``table.analyze_column(column, common_limit=10, value_truncate=None)`` method is used by the :ref:`analyze-tables <cli_analyze_tables>` CLI command. It returns a ``ColumnDetails`` named tuple with the following fields:
+
+``table``
+    The name of the table
+
+``column``
+    The name of the column
+
+``total_rows``
+    The total number of rows in the table`
+
+``num_null``
+    The number of rows for which this column is null
+
+``num_blank``
+    The number of rows for which this column is blank (the empty string)
+
+``num_distinct``
+    The number of distinct values in this column
+
+``most_common``
+    The ``N`` most common values as a list of ``(value, count)`` tuples`, or ``None`` if the table consists entirely of distinct values
+
+``least_common``
+    The ``N`` least common values as a list of ``(value, count)`` tuples`, or ``None`` if the table is entirely distinct or if the number of distinct values is less than N (since they will already have been returned in ``most_common``)
+
+``N`` defaults to 10, or you can pass a custom ``N`` using the ``common_limit`` parameter.
+
+You can use the ``value_truncate`` parameter to truncate values in the ``most_common`` and ``least_common`` lists to a specified number of characters.
+
 .. _python_api_add_column:
 
 Adding columns
