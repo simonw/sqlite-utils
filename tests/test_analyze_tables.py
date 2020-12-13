@@ -89,12 +89,41 @@ def test_analyze_table(db_to_analyze_path):
     result = CliRunner().invoke(cli.cli, ["analyze-tables", db_to_analyze_path])
     assert (
         result.output.strip()
-        == textwrap.dedent(
+        == (
             """
-    1/3: ColumnDetails(table='stuff', column='id', total_rows=8, num_null=0, num_blank=0, num_distinct=8, most_common=None, least_common=None)
-    2/3: ColumnDetails(table='stuff', column='owner', total_rows=8, num_null=0, num_blank=0, num_distinct=4, most_common=[('Joan', 3), ('Terryterryterry', 2), ('Kumar', 2), ('Anne', 1)], least_common=None)
-    3/3: ColumnDetails(table='stuff', column='size', total_rows=8, num_null=0, num_blank=0, num_distinct=2, most_common=[(5, 5), (4, 3)], least_common=None)
-    """
+stuff.id: (1/3)
+
+  Total rows: 8
+  Null rows: 0
+  Blank rows: 0
+
+  Distinct values: 8
+
+stuff.owner: (2/3)
+
+  Total rows: 8
+  Null rows: 0
+  Blank rows: 0
+
+  Distinct values: 4
+
+  Most common:
+    Joan: 3
+    Terryterryterry: 2
+    Kumar: 2
+    Anne: 1
+
+stuff.size: (3/3)
+
+  Total rows: 8
+  Null rows: 0
+  Blank rows: 0
+
+  Distinct values: 2
+
+  Most common:
+    5: 5
+    4: 3"""
         ).strip()
     )
 

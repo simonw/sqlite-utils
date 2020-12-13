@@ -7,6 +7,7 @@ import hashlib
 import pathlib
 import sqlite_utils
 from sqlite_utils.db import AlterError
+import textwrap
 import itertools
 import json
 import os
@@ -1399,8 +1400,46 @@ def analyze_tables(
             db["_analyze_tables_"].insert(
                 column_details._asdict(), pk=("table", "column"), replace=True
             )
+        most_common_rendered = _render_common(
+            "\n\n  Most common:", column_details.most_common
+        )
+        least_common_rendered = _render_common(
+            "\n\n  Least common:", column_details.least_common
+        )
+        details = (
+            (
+                textwrap.dedent(
+                    """
+        {table}.{column}: ({i}/{total})
 
-        click.echo("{}/{}: {}".format(i + 1, len(todo), column_details))
+          Total rows: {total_rows}
+          Null rows: {num_null}
+          Blank rows: {num_blank}
+
+          Distinct values: {num_distinct}{most_common_rendered}{least_common_rendered}
+        """
+                )
+                .strip()
+                .format(
+                    i=i + 1,
+                    total=len(todo),
+                    most_common_rendered=most_common_rendered,
+                    least_common_rendered=least_common_rendered,
+                    **column_details._asdict()
+                )
+            )
+            + "\n"
+        )
+        click.echo(details)
+
+
+def _render_common(title, values):
+    if values is None:
+        return ""
+    lines = [title]
+    for value, count in values:
+        lines.append("    {}: {}".format(value, count))
+    return "\n".join(lines)
 
 
 FILE_COLUMNS = {
