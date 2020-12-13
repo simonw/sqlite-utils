@@ -1984,6 +1984,7 @@ class Table(Queryable):
                     )
                 ).fetchall()
             ]
+            most_common.sort(key=lambda p: (p[1], p[0]), reverse=True)
             if num_distinct <= common_limit:
                 # No need to run the query if it will just return the results in revers order
                 least_common = None
@@ -1996,6 +1997,7 @@ class Table(Queryable):
                         )
                     ).fetchall()
                 ]
+                least_common.sort(key=lambda p: (p[1], p[0]))
         return ColumnDetails(
             self.name,
             column,
