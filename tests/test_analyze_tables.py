@@ -51,8 +51,8 @@ def db_to_analyze(fresh_db):
                 num_null=0,
                 num_blank=0,
                 num_distinct=4,
-                most_common=[("Joan", 3), ("Terry...", 2)],
-                least_common=[("Anne", 1), ("Kumar", 2)],
+                most_common=[("Joan", 3), ("Kumar", 2)],
+                least_common=[("Anne", 1), ("Terry...", 2)],
             ),
         ),
         (

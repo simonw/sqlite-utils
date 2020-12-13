@@ -1979,8 +1979,8 @@ class Table(Queryable):
             most_common = [
                 (truncate(r[0]), r[1])
                 for r in db.execute(
-                    "select [{}], count(*) from [{}] group by [{}] order by count(*) desc limit {}".format(
-                        column, table, column, common_limit
+                    "select [{}], count(*) from [{}] group by [{}] order by count(*) desc, [{}] limit {}".format(
+                        column, table, column, column, common_limit
                     )
                 ).fetchall()
             ]
@@ -1992,8 +1992,8 @@ class Table(Queryable):
                 least_common = [
                     (truncate(r[0]), r[1])
                     for r in db.execute(
-                        "select [{}], count(*) from [{}] group by [{}] order by count(*) limit {}".format(
-                            column, table, column, common_limit
+                        "select [{}], count(*) from [{}] group by [{}] order by count(*), [{}] desc limit {}".format(
+                            column, table, column, column, common_limit
                         )
                     ).fetchall()
                 ]
