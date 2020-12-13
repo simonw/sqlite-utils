@@ -1943,11 +1943,22 @@ class Table(Queryable):
             )
         return self
 
-    def analyze_column(self, column, common_limit=10, total_rows=None):
+    def analyze_column(
+        self, column, common_limit=10, value_truncate=100, total_rows=None
+    ):
         db = self.db
         table = self.name
         if total_rows is None:
             total_rows = db[table].count
+
+        def truncate(value):
+            if value_truncate is None or isinstance(value, (float, int)):
+                return value
+            value = str(value)
+            if len(value) > value_truncate:
+                value = value[:value_truncate] + "..."
+            return value
+
         num_null = db.execute(
             "select count(*) from [{}] where [{}] is null".format(table, column)
         ).fetchone()[0]
@@ -1963,10 +1974,10 @@ class Table(Queryable):
             value = db.execute(
                 "select [{}] from [{}] limit 1".format(column, table)
             ).fetchone()[0]
-            most_common = [(value, total_rows)]
+            most_common = [(truncate(value), total_rows)]
         elif num_distinct != total_rows:
             most_common = [
-                (r[0], r[1])
+                (truncate(r[0]), r[1])
                 for r in db.execute(
                     "select [{}], count(*) from [{}] group by [{}] order by count(*) desc limit {}".format(
                         column, table, column, common_limit
@@ -1978,7 +1989,7 @@ class Table(Queryable):
                 least_common = None
             else:
                 least_common = [
-                    (r[0], r[1])
+                    (truncate(r[0]), r[1])
                     for r in db.execute(
                         "select [{}], count(*) from [{}] group by [{}] order by count(*) limit {}".format(
                             column, table, column, common_limit
