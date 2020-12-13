@@ -7,7 +7,7 @@
 3.1 (2020-12-12)
 ----------------
 
-- New command: ``sqlite-utils analyze-tables my.db`` outputs useful inforamtion about the table columns in the database, such as the number of distinct values and how many rows are null. See :ref:`cli_analyze_tables` for documentation. (`#207 <https://github.com/simonw/sqlite-utils/issues/207>`__)
+- New command: ``sqlite-utils analyze-tables my.db`` outputs useful information about the table columns in the database, such as the number of distinct values and how many rows are null. See :ref:`cli_analyze_tables` for documentation. (`#207 <https://github.com/simonw/sqlite-utils/issues/207>`__)
 - New ``table.analyze_column(column)`` Python method used by the ``analyze-tables`` command - see :ref:`python_api_analyze_column`.
 - The ``table.update()`` method now correctly handles values that should be stored as JSON. Thanks, Andreas Madsack. (`#204 <https://github.com/simonw/sqlite-utils/pull/204>`__)
 
