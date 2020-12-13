@@ -1394,7 +1394,7 @@ def analyze_tables(
     # Now we now how many we need to do
     for i, (table, column) in enumerate(todo):
         column_details = db[table].analyze_column(
-            column, total_rows=table_counts[table]
+            column, total_rows=table_counts[table], value_truncate=80
         )
         if save:
             db["_analyze_tables_"].insert(
@@ -1438,7 +1438,7 @@ def _render_common(title, values):
         return ""
     lines = [title]
     for value, count in values:
-        lines.append("    {}: {}".format(value, count))
+        lines.append("    {}: {}".format(count, value))
     return "\n".join(lines)
 
 

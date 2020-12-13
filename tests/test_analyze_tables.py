@@ -108,10 +108,10 @@ stuff.owner: (2/3)
   Distinct values: 4
 
   Most common:
-    Joan: 3
-    Terryterryterry: 2
-    Kumar: 2
-    Anne: 1
+    3: Joan
+    2: Terryterryterry
+    2: Kumar
+    1: Anne
 
 stuff.size: (3/3)
 
@@ -123,7 +123,7 @@ stuff.size: (3/3)
 
   Most common:
     5: 5
-    4: 3"""
+    3: 4"""
         ).strip()
     )
 

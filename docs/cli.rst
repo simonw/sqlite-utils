@@ -298,14 +298,14 @@ To inspect the ``tags`` table in the ``github.db`` database, run the following::
       Distinct values: 14
 
       Most common:
-        107914493: 88
-        140912432: 75
-        206156866: 27
+        88: 107914493
+        75: 140912432
+        27: 206156866
 
       Least common:
-        209590345: 1
-        206649770: 2
-        303218369: 2
+        1: 209590345
+        2: 206649770
+        2: 303218369
 
     tags.name: (2/3)
 
@@ -316,14 +316,14 @@ To inspect the ``tags`` table in the ``github.db`` database, run the following::
       Distinct values: 175
 
       Most common:
-        0.2: 10
-        0.1: 9
-        0.3: 7
+        10: 0.2
+        9: 0.1
+        7: 0.3
 
       Least common:
-        0.1.1: 1
-        0.11.1: 1
-        0.1a2: 1
+        1: 0.1.1
+        1: 0.11.1
+        1: 0.1a2
 
     tags.sha: (3/3)
 

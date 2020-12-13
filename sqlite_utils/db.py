@@ -1944,7 +1944,7 @@ class Table(Queryable):
         return self
 
     def analyze_column(
-        self, column, common_limit=10, value_truncate=80, total_rows=None
+        self, column, common_limit=10, value_truncate=None, total_rows=None
     ):
         db = self.db
         table = self.name
