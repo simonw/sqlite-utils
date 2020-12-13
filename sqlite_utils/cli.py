@@ -1361,7 +1361,14 @@ def insert_files(
     required=True,
 )
 @click.argument("tables", nargs=-1)
-@click.option("-c", "--column", "columns", type=str, multiple=True, help="Specific columns to analyze")
+@click.option(
+    "-c",
+    "--column",
+    "columns",
+    type=str,
+    multiple=True,
+    help="Specific columns to analyze",
+)
 @click.option("--save", is_flag=True, help="Save results to _analyze_tables table")
 @load_extension_option
 def analyze_tables(
@@ -1381,11 +1388,13 @@ def analyze_tables(
     for table in tables:
         table_counts[table] = db[table].count
         for column in db[table].columns:
-            if (not columns or column.name in columns):
+            if not columns or column.name in columns:
                 todo.append((table, column.name))
     # Now we now how many we need to do
     for i, (table, column) in enumerate(todo):
-        column_details = db[table].analyze_column(column, total_rows=table_counts[table])
+        column_details = db[table].analyze_column(
+            column, total_rows=table_counts[table]
+        )
         if save:
             db["_analyze_tables"].insert(
                 column_details._asdict(), pk=("table", "column"), replace=True
