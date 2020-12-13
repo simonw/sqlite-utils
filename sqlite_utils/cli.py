@@ -1396,9 +1396,10 @@ def analyze_tables(
             column, total_rows=table_counts[table]
         )
         if save:
-            db["_analyze_tables"].insert(
+            db["_analyze_tables_"].insert(
                 column_details._asdict(), pk=("table", "column"), replace=True
             )
+
         click.echo("{}/{}: {}".format(i + 1, len(todo), column_details))
 
 

@@ -1,4 +1,4 @@
-from sqlite_utils.db import ForeignKey, ColumnDetails
+from sqlite_utils.db import Database, ForeignKey, ColumnDetails
 from sqlite_utils import cli
 from sqlite_utils.utils import OperationalError
 from click.testing import CliRunner
@@ -74,11 +74,16 @@ def test_analyze_column(db_to_analyze, column, expected):
     assert db_to_analyze["stuff"].analyze_column(column, common_limit=2) == expected
 
 
-def test_analyze_table(db_to_analyze, tmpdir):
+@pytest.fixture
+def db_to_analyze_path(db_to_analyze, tmpdir):
     path = str(tmpdir / "test.db")
     db = sqlite3.connect(path)
     db.executescript("\n".join(db_to_analyze.conn.iterdump()))
-    result = CliRunner().invoke(cli.cli, ["analyze-tables", path])
+    return path
+
+
+def test_analyze_table(db_to_analyze_path):
+    result = CliRunner().invoke(cli.cli, ["analyze-tables", db_to_analyze_path])
     assert (
         result.output.strip()
         == textwrap.dedent(
@@ -89,3 +94,42 @@ def test_analyze_table(db_to_analyze, tmpdir):
     """
         ).strip()
     )
+
+
+def test_analyze_table_save(db_to_analyze_path):
+    result = CliRunner().invoke(
+        cli.cli, ["analyze-tables", db_to_analyze_path, "--save"]
+    )
+    rows = list(Database(db_to_analyze_path)["_analyze_tables_"].rows)
+    assert rows == [
+        {
+            "table": "stuff",
+            "column": "id",
+            "total_rows": 8,
+            "num_null": 0,
+            "num_blank": 0,
+            "num_distinct": 8,
+            "most_common": None,
+            "least_common": None,
+        },
+        {
+            "table": "stuff",
+            "column": "owner",
+            "total_rows": 8,
+            "num_null": 0,
+            "num_blank": 0,
+            "num_distinct": 4,
+            "most_common": '[["Joan", 3], ["Terry", 2], ["Kumar", 2], ["Anne", 1]]',
+            "least_common": None,
+        },
+        {
+            "table": "stuff",
+            "column": "size",
+            "total_rows": 8,
+            "num_null": 0,
+            "num_blank": 0,
+            "num_distinct": 2,
+            "most_common": "[[5, 5], [4, 3]]",
+            "least_common": None,
+        },
+    ]
