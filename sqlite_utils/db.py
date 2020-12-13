@@ -51,6 +51,19 @@ except ImportError:
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
 )
+ColumnDetails = namedtuple(
+    "ColumnDetails",
+    (
+        "table",
+        "column",
+        "total_rows",
+        "num_null",
+        "num_blank",
+        "num_distinct",
+        "most_common",
+        "least_common",
+    ),
+)
 ForeignKey = namedtuple(
     "ForeignKey", ("table", "column", "other_table", "other_column")
 )
@@ -1929,6 +1942,72 @@ class Table(Queryable):
                 replace=True,
             )
         return self
+
+    def analyze_column(
+        self, column, common_limit=10, value_truncate=None, total_rows=None
+    ):
+        db = self.db
+        table = self.name
+        if total_rows is None:
+            total_rows = db[table].count
+
+        def truncate(value):
+            if value_truncate is None or isinstance(value, (float, int)):
+                return value
+            value = str(value)
+            if len(value) > value_truncate:
+                value = value[:value_truncate] + "..."
+            return value
+
+        num_null = db.execute(
+            "select count(*) from [{}] where [{}] is null".format(table, column)
+        ).fetchone()[0]
+        num_blank = db.execute(
+            "select count(*) from [{}] where [{}] = ''".format(table, column)
+        ).fetchone()[0]
+        num_distinct = db.execute(
+            "select count(distinct [{}]) from [{}]".format(column, table)
+        ).fetchone()[0]
+        most_common = None
+        least_common = None
+        if num_distinct == 1:
+            value = db.execute(
+                "select [{}] from [{}] limit 1".format(column, table)
+            ).fetchone()[0]
+            most_common = [(truncate(value), total_rows)]
+        elif num_distinct != total_rows:
+            most_common = [
+                (truncate(r[0]), r[1])
+                for r in db.execute(
+                    "select [{}], count(*) from [{}] group by [{}] order by count(*) desc, [{}] limit {}".format(
+                        column, table, column, column, common_limit
+                    )
+                ).fetchall()
+            ]
+            most_common.sort(key=lambda p: (p[1], p[0]), reverse=True)
+            if num_distinct <= common_limit:
+                # No need to run the query if it will just return the results in revers order
+                least_common = None
+            else:
+                least_common = [
+                    (truncate(r[0]), r[1])
+                    for r in db.execute(
+                        "select [{}], count(*) from [{}] group by [{}] order by count(*), [{}] desc limit {}".format(
+                            column, table, column, column, common_limit
+                        )
+                    ).fetchall()
+                ]
+                least_common.sort(key=lambda p: (p[1], p[0]))
+        return ColumnDetails(
+            self.name,
+            column,
+            total_rows,
+            num_null,
+            num_blank,
+            num_distinct,
+            most_common,
+            least_common,
+        )
 
 
 class View(Queryable):
