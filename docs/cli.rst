@@ -333,7 +333,7 @@ To inspect the ``tags`` table in the ``github.db`` database, run the following::
 
       Distinct values: 261
 
-For each column this tool dispalys the number of null rows, the number of blank rows (rows that contain an empty string), the number of distinct values and, for columns that are not entirely distinct, the most common and least common values.
+For each column this tool displays the number of null rows, the number of blank rows (rows that contain an empty string), the number of distinct values and, for columns that are not entirely distinct, the most common and least common values.
 
 If you do not specify any tables every table in the database will be analyzed::
 
