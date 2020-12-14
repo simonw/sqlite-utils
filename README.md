@@ -23,6 +23,10 @@ sqlite-utils: a Python library and CLI tool for building SQLite databases](https
 
     pip install sqlite-utils
 
+Or if you use [Homebrew](https://brew.sh/) for macOS:
+
+    brew install sqlite-utils
+
 ## Using as a CLI tool
 
 Now you can do things with the CLI utility like this:
