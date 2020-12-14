@@ -279,6 +279,93 @@ It takes the same options as the ``tables`` command:
 * ``--tsv``
 * ``--table``
 
+.. _cli_analyze_tables:
+
+Analyzing tables
+================
+
+When working with a new database it can be useful to get an idea of the shape of the data. The ``sqlite-utils analyze-tables`` command inspects specified tables (or all tables) and calculates some useful details about each of the columns in those tables.
+
+To inspect the ``tags`` table in the ``github.db`` database, run the following::
+
+    $ sqlite-utils analyze-tables github.db tags
+    tags.repo: (1/3)
+
+      Total rows: 261
+      Null rows: 0
+      Blank rows: 0
+
+      Distinct values: 14
+
+      Most common:
+        88: 107914493
+        75: 140912432
+        27: 206156866
+
+      Least common:
+        1: 209590345
+        2: 206649770
+        2: 303218369
+
+    tags.name: (2/3)
+
+      Total rows: 261
+      Null rows: 0
+      Blank rows: 0
+
+      Distinct values: 175
+
+      Most common:
+        10: 0.2
+        9: 0.1
+        7: 0.3
+
+      Least common:
+        1: 0.1.1
+        1: 0.11.1
+        1: 0.1a2
+
+    tags.sha: (3/3)
+
+      Total rows: 261
+      Null rows: 0
+      Blank rows: 0
+
+      Distinct values: 261
+
+For each column this tool displays the number of null rows, the number of blank rows (rows that contain an empty string), the number of distinct values and, for columns that are not entirely distinct, the most common and least common values.
+
+If you do not specify any tables every table in the database will be analyzed::
+
+    $ sqlite-utils analyze-tables github.db
+
+If you wish to analyze one or more specific columns, use the ``-c`` option::
+
+    $ sqlite-utils analyze-tables github.db tags -c sha
+
+.. _cli_analyze_tables_save:
+
+Saving the analyzed table details
+---------------------------------
+
+``analyze-tables`` can take quite a while to run for large database files. You can save the results of the analysis to a database table called ``_analyze_tables_`` using the ``--save`` option::
+
+    $ sqlite-utils analyze-tables github.db --save
+
+The ``_analyze_tables_`` table has the following schema::
+
+    CREATE TABLE [_analyze_tables_] (
+        [table] TEXT,
+        [column] TEXT,
+        [total_rows] INTEGER,
+        [num_null] INTEGER,
+        [num_blank] INTEGER,
+        [num_distinct] INTEGER,
+        [most_common] TEXT,
+        [least_common] TEXT,
+        PRIMARY KEY ([table], [column])
+    );
+
 .. _cli_inserting_data:
 
 Inserting JSON data

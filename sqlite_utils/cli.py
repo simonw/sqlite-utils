@@ -7,6 +7,7 @@ import hashlib
 import pathlib
 import sqlite_utils
 from sqlite_utils.db import AlterError
+import textwrap
 import itertools
 import json
 import os
@@ -1352,6 +1353,93 @@ def insert_files(
             db[table].insert_all(
                 to_insert(), pk=pk, alter=alter, replace=replace, upsert=upsert
             )
+
+
+@cli.command(name="analyze-tables")
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False, exists=True),
+    required=True,
+)
+@click.argument("tables", nargs=-1)
+@click.option(
+    "-c",
+    "--column",
+    "columns",
+    type=str,
+    multiple=True,
+    help="Specific columns to analyze",
+)
+@click.option("--save", is_flag=True, help="Save results to _analyze_tables table")
+@load_extension_option
+def analyze_tables(
+    path,
+    tables,
+    columns,
+    save,
+    load_extension,
+):
+    "Analyze the columns in one or more tables"
+    db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
+    if not tables:
+        tables = db.table_names()
+    todo = []
+    table_counts = {}
+    for table in tables:
+        table_counts[table] = db[table].count
+        for column in db[table].columns:
+            if not columns or column.name in columns:
+                todo.append((table, column.name))
+    # Now we now how many we need to do
+    for i, (table, column) in enumerate(todo):
+        column_details = db[table].analyze_column(
+            column, total_rows=table_counts[table], value_truncate=80
+        )
+        if save:
+            db["_analyze_tables_"].insert(
+                column_details._asdict(), pk=("table", "column"), replace=True
+            )
+        most_common_rendered = _render_common(
+            "\n\n  Most common:", column_details.most_common
+        )
+        least_common_rendered = _render_common(
+            "\n\n  Least common:", column_details.least_common
+        )
+        details = (
+            (
+                textwrap.dedent(
+                    """
+        {table}.{column}: ({i}/{total})
+
+          Total rows: {total_rows}
+          Null rows: {num_null}
+          Blank rows: {num_blank}
+
+          Distinct values: {num_distinct}{most_common_rendered}{least_common_rendered}
+        """
+                )
+                .strip()
+                .format(
+                    i=i + 1,
+                    total=len(todo),
+                    most_common_rendered=most_common_rendered,
+                    least_common_rendered=least_common_rendered,
+                    **column_details._asdict()
+                )
+            )
+            + "\n"
+        )
+        click.echo(details)
+
+
+def _render_common(title, values):
+    if values is None:
+        return ""
+    lines = [title]
+    for value, count in values:
+        lines.append("    {}: {}".format(count, value))
+    return "\n".join(lines)
 
 
 FILE_COLUMNS = {
