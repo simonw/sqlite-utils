@@ -349,7 +349,7 @@ Specifying foreign keys
 
 Any operation that can create a table (``.create()``, ``.insert()``, ``.insert_all()``, ``.upsert()`` and ``.upsert_all()``) accepts an optional ``foreign_keys=`` argument which can be used to set up foreign key constraints for the table that is being created.
 
-If you are using your database with `Datasette <https://datasette.readthedocs.io/>`__, Datasette will detect these constraints and use them to generate hyperlinks to associated records.
+If you are using your database with `Datasette <https://datasette.io/>`__, Datasette will detect these constraints and use them to generate hyperlinks to associated records.
 
 The ``foreign_keys`` argument takes a list that indicates which foreign keys should be created. The list can take several forms. The simplest is a list of columns:
 

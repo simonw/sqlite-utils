@@ -35,8 +35,8 @@ setup(
     tests_require=["sqlite-utils[test]"],
     url="https://github.com/simonw/sqlite-utils",
     project_urls={
-        "Documentation": "https://sqlite-utils.readthedocs.io/en/stable/",
-        "Changelog": "https://sqlite-utils.readthedocs.io/en/stable/changelog.html",
+        "Documentation": "https://sqlite-utils.datasette.io/en/stable/",
+        "Changelog": "https://sqlite-utils.datasette.io/en/stable/changelog.html",
         "Source code": "https://github.com/simonw/sqlite-utils",
         "Issues": "https://github.com/simonw/sqlite-utils/issues",
         "CI": "https://github.com/simonw/sqlite-utils/actions",

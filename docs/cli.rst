@@ -427,7 +427,7 @@ You can delete all the existing rows in the table before inserting the new recor
 
     $ sqlite-utils insert dogs.db dogs dogs.json --truncate
 
-You can also import newline-delimited JSON using the ``--nl`` option. Since `Datasette <https://datasette.readthedocs.io/>`__ can export newline-delimited JSON, you can combine the two tools like so::
+You can also import newline-delimited JSON using the ``--nl`` option. Since `Datasette <https://datasette.io/>`__ can export newline-delimited JSON, you can combine the two tools like so::
 
     $ curl -L "https://latest.datasette.io/fixtures/facetable.json?_shape=array&_nl=on" \
         | sqlite-utils insert nl-demo.db facetable - --pk=id --nl
