@@ -21,7 +21,7 @@ Most of the functionality is available as either a Python API or through the ``s
 
 sqlite-utils is not intended to be a full ORM: the focus is utility helpers to make creating the initial database and populating it with data as productive as possible.
 
-It is designed as a useful complement to `Datasette <https://github.com/simonw/datasette>`_.
+It is designed as a useful complement to `Datasette <https://datasette.io/>`_.
 
 Contents
 --------

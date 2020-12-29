@@ -74,7 +74,7 @@ Check out the [full library documentation](https://sqlite-utils.readthedocs.io/e
 
 ## Related projects
 
-* [Datasette](https://github.com/simonw/datasette): A tool for exploring and publishing data
+* [Datasette](https://datasette.io/): A tool for exploring and publishing data
 * [csvs-to-sqlite](https://github.com/simonw/csvs-to-sqlite): Convert CSV files into a SQLite database
 * [db-to-sqlite](https://github.com/simonw/db-to-sqlite): CLI tool for exporting a MySQL or PostgreSQL database as a SQLite file
 * [dogsheep](https://dogsheep.github.io/): A family of tools for personal analytics, built on top of `sqlite-utils`
