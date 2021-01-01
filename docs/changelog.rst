@@ -2,6 +2,15 @@
  Changelog
 ===========
 
+.. _v3_1_1:
+
+3.1.1 (2021-01-01)
+------------------
+
+- Fixed failing test caused by ``optimize`` sometimes creating larger database files. (`#209 <https://github.com/simonw/sqlite-utils/issues/209>`__)
+- Documentation now lives on https://sqlite-utils.datasette.io/
+- README now includes ``brew install sqlite-utils`` installation method.
+
 .. _v3_1:
 
 3.1 (2020-12-12)
