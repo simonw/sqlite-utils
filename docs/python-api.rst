@@ -1706,6 +1706,12 @@ This will create the ``_counts`` table if it does not already exist, with the fo
 
 Once enabled, table counts can be accessed by querying the ``counts`` table. The count records will be automatically kept up-to-date by the triggers when rows are added or deleted to the table.
 
+You can enable cached counts for every table in a database (except for virtual tables and the ``_counts`` table itself) using the database ``enable_counts()`` method:
+
+.. code-block:: python
+
+    db.enable_counts()
+
 Creating indexes
 ================
 

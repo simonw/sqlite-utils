@@ -145,6 +145,11 @@ class InvalidColumns(Exception):
 
 
 class Database:
+    _counts_table_name = "_counts"
+    _counts_table_create = "CREATE TABLE IF NOT EXISTS [{}]([table] TEXT PRIMARY KEY, count INTEGER DEFAULT 0);".format(
+        _counts_table_name
+    )
+
     def __init__(
         self,
         filename_or_conn=None,
@@ -278,6 +283,19 @@ class Database:
     def disable_wal(self):
         if self.journal_mode != "delete":
             self.execute("PRAGMA journal_mode=delete;")
+
+    def _ensure_counts_table(self):
+        with self.conn:
+            self.execute(self._counts_table_create)
+
+    def enable_counts(self):
+        self._ensure_counts_table()
+        for table in self.tables:
+            if (
+                table.virtual_table_using is None
+                and table.name != self._counts_table_name
+            ):
+                table.enable_counts()
 
     def execute_returning_dicts(self, sql, params=None):
         cursor = self.execute(sql, params or tuple())
@@ -1178,7 +1196,7 @@ class Table(Queryable):
         sql = (
             textwrap.dedent(
                 """
-        CREATE TABLE IF NOT EXISTS [{counts_table}]([table] TEXT PRIMARY KEY, count INTEGER DEFAULT 0);
+        {create_counts_table}
         CREATE TRIGGER IF NOT EXISTS [{table}{counts_table}_insert] AFTER INSERT ON [{table}]
         BEGIN
             INSERT OR REPLACE INTO [{counts_table}]
@@ -1206,7 +1224,8 @@ class Table(Queryable):
             )
             .strip()
             .format(
-                counts_table="_counts",
+                create_counts_table=self.db._counts_table_create,
+                counts_table=self.db._counts_table_name,
                 table=self.name,
                 table_quoted=self.db.escape(self.name),
             )

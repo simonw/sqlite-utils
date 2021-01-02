@@ -1,4 +1,4 @@
-def test_enable_counts(fresh_db):
+def test_enable_counts_specific_table(fresh_db):
     foo = fresh_db["foo"]
     assert fresh_db.table_names() == []
     for i in range(10):
@@ -25,3 +25,30 @@ def test_enable_counts(fresh_db):
     foo.delete_where()
     assert foo.count == 0
     assert list(fresh_db["_counts"].rows) == [{"count": 0, "table": "foo"}]
+
+
+def test_enable_counts_all_tables(fresh_db):
+    foo = fresh_db["foo"]
+    bar = fresh_db["bar"]
+    foo.insert({"name": "Cleo"})
+    bar.insert({"name": "Cleo"})
+    foo.enable_fts(["name"])
+    fresh_db.enable_counts()
+    assert set(fresh_db.table_names()) == {
+        "foo",
+        "bar",
+        "foo_fts",
+        "foo_fts_data",
+        "foo_fts_idx",
+        "foo_fts_docsize",
+        "foo_fts_config",
+        "_counts",
+    }
+    assert list(fresh_db["_counts"].rows) == [
+        {"count": 1, "table": "foo"},
+        {"count": 1, "table": "bar"},
+        {"count": 3, "table": "foo_fts_data"},
+        {"count": 1, "table": "foo_fts_idx"},
+        {"count": 1, "table": "foo_fts_docsize"},
+        {"count": 1, "table": "foo_fts_config"},
+    ]
