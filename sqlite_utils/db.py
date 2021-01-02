@@ -1174,6 +1174,46 @@ class Table(Queryable):
         self.db.add_foreign_keys([(self.name, column, other_table, other_column)])
         return self
 
+    def enable_counts(self):
+        sql = (
+            textwrap.dedent(
+                """
+        CREATE TABLE IF NOT EXISTS [{counts_table}]([table] TEXT PRIMARY KEY, count INTEGER DEFAULT 0);
+        CREATE TRIGGER IF NOT EXISTS [{table}{counts_table}_insert] AFTER INSERT ON [{table}]
+        BEGIN
+            INSERT OR REPLACE INTO [{counts_table}]
+            VALUES (
+                {table_quoted},
+                COALESCE(
+                    (SELECT count FROM [{counts_table}] WHERE [table] = {table_quoted}),
+                0
+                ) + 1
+            );
+        END;
+        CREATE TRIGGER IF NOT EXISTS [{table}{counts_table}_delete] AFTER DELETE ON [{table}]
+        BEGIN
+            INSERT OR REPLACE INTO [{counts_table}]
+            VALUES (
+                {table_quoted},
+                COALESCE(
+                    (SELECT count FROM [{counts_table}] WHERE [table] = {table_quoted}),
+                0
+                ) - 1
+            );
+        END;
+        INSERT OR REPLACE INTO _counts VALUES ({table_quoted}, (select count(*) from [{table}]));
+        """
+            )
+            .strip()
+            .format(
+                counts_table="_counts",
+                table=self.name,
+                table_quoted=self.db.escape(self.name),
+            )
+        )
+        with self.db.conn:
+            self.db.conn.executescript(sql)
+
     def enable_fts(
         self,
         columns,

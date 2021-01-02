@@ -1682,6 +1682,30 @@ This runs the following SQL::
 
     INSERT INTO dogs_fts (dogs_fts) VALUES ("optimize");
 
+.. _python_api_enable_counts:
+
+Enabling cached counts for a table
+==================================
+
+The ``select count(*)`` query in SQLite requires a full scan of the primary key index, and can take an increasingly long time as the table grows larger.
+
+The ``table.enable_counts()`` method can be used to configure triggers to continuously update a record in a ``_counts`` table. This value can then be used to quickly retrieve the count of rows in the associated table.
+
+.. code-block:: python
+
+    db["dogs"].enable_counts()
+
+This will create the ``_counts`` table if it does not already exist, with the following schema:
+
+.. code-block:: sql
+
+    CREATE TABLE [_counts] (
+        [table] TEXT PRIMARY KEY,
+        [count] INTEGER DEFAULT 0
+    )
+
+Once enabled, table counts can be accessed by querying the ``counts`` table. The count records will be automatically kept up-to-date by the triggers when rows are added or deleted to the table.
+
 Creating indexes
 ================
 
