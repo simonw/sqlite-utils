@@ -117,7 +117,7 @@ def test_pks(fresh_db, pk, expected):
     assert expected == fresh_db["foo"].pks
 
 
-def test_triggers(fresh_db):
+def test_triggers_and_triggers_dict(fresh_db):
     assert [] == fresh_db.triggers
     authors = fresh_db["authors"]
     authors.insert_all(
@@ -128,6 +128,7 @@ def test_triggers(fresh_db):
     )
     fresh_db["other"].insert({"foo": "bar"})
     assert [] == authors.triggers
+    assert {} == authors.triggers_dict
     assert [] == fresh_db["other"].triggers
     authors.enable_fts(
         ["name", "famous_works"], fts_version="FTS4", create_triggers=True
@@ -141,7 +142,13 @@ def test_triggers(fresh_db):
     assert expected_triggers == {
         (t.name, t.table) for t in fresh_db["authors"].triggers
     }
+    assert authors.triggers_dict == {
+        "authors_ai": "CREATE TRIGGER [authors_ai] AFTER INSERT ON [authors] BEGIN\n  INSERT INTO [authors_fts] (rowid, [name], [famous_works]) VALUES (new.rowid, new.[name], new.[famous_works]);\nEND",
+        "authors_ad": "CREATE TRIGGER [authors_ad] AFTER DELETE ON [authors] BEGIN\n  INSERT INTO [authors_fts] ([authors_fts], rowid, [name], [famous_works]) VALUES('delete', old.rowid, old.[name], old.[famous_works]);\nEND",
+        "authors_au": "CREATE TRIGGER [authors_au] AFTER UPDATE ON [authors] BEGIN\n  INSERT INTO [authors_fts] ([authors_fts], rowid, [name], [famous_works]) VALUES('delete', old.rowid, old.[name], old.[famous_works]);\n  INSERT INTO [authors_fts] (rowid, [name], [famous_works]) VALUES (new.rowid, new.[name], new.[famous_works]);\nEND",
+    }
     assert [] == fresh_db["other"].triggers
+    assert {} == fresh_db["other"].triggers_dict
 
 
 @pytest.mark.parametrize(

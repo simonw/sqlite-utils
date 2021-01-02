@@ -759,6 +759,11 @@ class Table(Queryable):
             ).fetchall()
         ]
 
+    @property
+    def triggers_dict(self):
+        "Returns {trigger_name: sql} dictionary"
+        return {trigger.name: trigger.sql for trigger in self.triggers}
+
     def create(
         self,
         columns,
