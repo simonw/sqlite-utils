@@ -1,3 +1,9 @@
+from sqlite_utils import Database
+from sqlite_utils import cli
+from click.testing import CliRunner
+import pytest
+
+
 def test_enable_counts_specific_table(fresh_db):
     foo = fresh_db["foo"]
     assert fresh_db.table_names() == []
@@ -52,3 +58,41 @@ def test_enable_counts_all_tables(fresh_db):
         {"count": 1, "table": "foo_fts_docsize"},
         {"count": 1, "table": "foo_fts_config"},
     ]
+
+
+@pytest.fixture
+def counts_db_path(tmpdir):
+    path = str(tmpdir / "test.db")
+    db = Database(path)
+    db["foo"].insert({"name": "Cleo"})
+    db["bar"].insert({"name": "Cleo"})
+    return path
+
+
+@pytest.mark.parametrize(
+    "extra_args,expected_triggers",
+    [
+        (
+            [],
+            [
+                "foo_counts_insert",
+                "foo_counts_delete",
+                "bar_counts_insert",
+                "bar_counts_delete",
+            ],
+        ),
+        (
+            ["bar"],
+            [
+                "bar_counts_insert",
+                "bar_counts_delete",
+            ],
+        ),
+    ],
+)
+def test_cli_enable_counts(counts_db_path, extra_args, expected_triggers):
+    db = Database(counts_db_path)
+    assert list(db.triggers_dict.keys()) == []
+    result = CliRunner().invoke(cli.cli, ["enable-counts", counts_db_path] + extra_args)
+    assert result.exit_code == 0
+    assert list(db.triggers_dict.keys()) == expected_triggers

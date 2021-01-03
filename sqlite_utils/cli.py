@@ -548,6 +548,29 @@ def disable_wal(path, load_extension):
         db.disable_wal()
 
 
+@cli.command(name="enable-counts")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("tables", nargs=-1)
+@load_extension_option
+def enable_counts(path, tables, load_extension):
+    "Configure triggers to update a _counts table with row counts"
+    db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
+    if not tables:
+        db.enable_counts()
+    else:
+        # Check all tables exist
+        bad_tables = [table for table in tables if not db[table].exists()]
+        if bad_tables:
+            raise click.ClickException("Invalid tables: {}".format(bad_tables))
+        for table in tables:
+            db[table].enable_counts()
+
+
 def insert_upsert_options(fn):
     for decorator in reversed(
         (

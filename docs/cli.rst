@@ -1057,6 +1057,23 @@ Use the ``--sql`` option to output the SQL that would be executed, rather than r
     order by
         [documents_fts].rank
 
+.. _cli_enable_counts:
+
+Enabling cached counts
+======================
+
+``select count(*)`` queries can take a long time against large tables. ``sqlite-utils`` can speed these up by adding triggers to maintain a ``_counts`` table, see :ref:`python_api_enable_counts`.
+
+The ``sqlite-utils enable-counts`` command can be used to configure these triggers, either for every table in the database or for specific tables.
+
+::
+
+    # Configure triggers for every table in the database
+    $ sqlite-utils enable-counts mydb.db
+
+    # Configure triggers just for specific tables
+    $ sqlite-utils enable-counts mydb.db table1 table2
+
 .. _cli_vacuum:
 
 Vacuum
