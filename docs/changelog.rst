@@ -2,6 +2,24 @@
  Changelog
 ===========
 
+.. _v3_2:
+
+3.2 (2021-01-03)
+----------------
+
+This release introduces a new mechanism for speeding up ``count(*)`` queries using cached table counts, stored in a ``_counts`` table and updated by triggers. This mechanism is described in :ref:`python_api_cached_table_counts`, and can be enabled using Python API methods or the new ``enable-counts`` CLI command. (`#212 <https://github.com/simonw/sqlite-utils/issues/212>`__)
+
+- ``table.enable_counts()`` method for enabling these triggers on a specific table.
+- ``db.enable_counts()`` method for enabling triggers on every table in the database. (`#213 <https://github.com/simonw/sqlite-utils/issues/213>`__)
+- New ``sqlite-utils enable-counts my.db`` command for enabling counts on all or specific tables, see :ref:`cli_enable_counts`. (`#214 <https://github.com/simonw/sqlite-utils/issues/214>`__)
+- New ``sqlite-utils triggers`` command for listing the triggers defined for a database or specific tables, see :ref:`cli_triggers`. (`#218 <https://github.com/simonw/sqlite-utils/issues/218>`__)
+- New ``db.use_counts_table`` property which, if ``True``, causes ``table.count`` to read from the ``_counts`` table. (`#215 <https://github.com/simonw/sqlite-utils/issues/215>`__)
+- ``table.has_counts_triggers`` property revealing if a table has been configured with the new ``_counts`` database triggers.
+- ``db.reset_counts()`` method and ``sqlite-utils reset-counts`` command for resetting the values in the ``_counts`` table. (`#219 <https://github.com/simonw/sqlite-utils/issues/219>`__)
+- The previously undocumented ``db.escape()`` method has been renamed to ``db.quote()`` and is now covered by the documentation: :ref:`python_api_quote`. (`#217 <https://github.com/simonw/sqlite-utils/issues/217>`__)
+- New ``table.triggers_dict`` and ``db.triggers_dict`` introspection properties. (`#211 <https://github.com/simonw/sqlite-utils/issues/211>`__, `#216 <https://github.com/simonw/sqlite-utils/issues/216>`__)
+- ``sqlite-utils insert`` now shows a more useful error message for invalid JSON. (`#206 <https://github.com/simonw/sqlite-utils/issues/206>`__)
+
 .. _v3_1_1:
 
 3.1.1 (2021-01-01)
