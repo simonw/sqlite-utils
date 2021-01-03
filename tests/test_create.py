@@ -922,3 +922,10 @@ def test_create_with_nested_bytes(fresh_db):
     record = {"id": 1, "data": {"foo": b"bytes"}}
     fresh_db["t"].insert(record)
     assert [{"id": 1, "data": '{"foo": "b\'bytes\'"}'}] == list(fresh_db["t"].rows)
+
+
+@pytest.mark.parametrize(
+    "input,expected", [("hello", "'hello'"), ("hello'there'", "'hello''there'''")]
+)
+def test_quote(fresh_db, input, expected):
+    assert fresh_db.quote(input) == expected

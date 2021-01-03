@@ -1127,7 +1127,7 @@ def triggers(
     "Show triggers configured in this database"
     sql = "select name, tbl_name as [table], sql from sqlite_master where type = 'trigger'"
     if tables:
-        quote = sqlite_utils.Database(memory=True).escape
+        quote = sqlite_utils.Database(memory=True).quote
         sql += " and [table] in ({})".format(
             ", ".join(quote(table) for table in tables)
         )

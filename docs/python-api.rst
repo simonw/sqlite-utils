@@ -87,6 +87,15 @@ The ``db.execute()`` and ``db.executescript()`` methods provide wrappers around 
     db["dogs"].insert({"name": "Cleo"})
     db.execute("update dogs set name = 'Cleopaws'")
 
+You can pass parameters as an optional second argument, using either a list or a dictionary. These will be correctly quoted and escaped.
+
+.. code-block:: python
+
+    # Using ? and a list:
+    db.execute("update dogs set name = ?", ["Cleopaws"])
+    # Or using :name and a dictionary:
+    db.execute("update dogs set name = :name", {"name": "Cleopaws"})
+
 .. _python_api_table:
 
 Accessing tables
@@ -1913,3 +1922,20 @@ If you want to deliberately replace the registered function with a new implement
     @db.register_function(deterministic=True, replace=True)
     def reverse_string(s):
         return s[::-1]
+
+.. _python_api_quote:
+
+Quoting strings for use in SQL
+==============================
+
+In almost all cases you should pass values to your SQL queries using the optional ``parameters`` argument to ``db.execute()``, as described in :ref:`python_api_execute`.
+
+If that option isn't relevant to your use-case you can to quote a string for use with SQLite using the ``db.quote()`` method, like so:
+
+::
+
+    >>> db = Database(memory=True)
+    >>> db.quote("hello")
+    "'hello'"
+    >>> db.quote("hello'this'has'quotes")
+    "'hello''this''has''quotes'"

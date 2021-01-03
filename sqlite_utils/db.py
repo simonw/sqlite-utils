@@ -228,7 +228,7 @@ class Database:
         klass = View if table_name in self.view_names() else Table
         return klass(self, table_name, **kwargs)
 
-    def escape(self, value):
+    def quote(self, value):
         # Normally we would use .execute(sql, [params]) for escaping, but
         # occasionally that isn't available - most notable when we need
         # to include a "... DEFAULT 'value'" in a column definition.
@@ -417,7 +417,7 @@ class Database:
                 column_extras.append("NOT NULL")
             if column_name in defaults and defaults[column_name] is not None:
                 column_extras.append(
-                    "DEFAULT {}".format(self.escape(defaults[column_name]))
+                    "DEFAULT {}".format(self.quote(defaults[column_name]))
                 )
             if column_name in foreign_keys_by_column:
                 column_extras.append(
@@ -1107,9 +1107,7 @@ class Table(Queryable):
             col_type = str
         not_null_sql = None
         if not_null_default is not None:
-            not_null_sql = "NOT NULL DEFAULT {}".format(
-                self.db.escape(not_null_default)
-            )
+            not_null_sql = "NOT NULL DEFAULT {}".format(self.db.quote(not_null_default))
         sql = "ALTER TABLE [{table}] ADD COLUMN [{col_name}] {col_type}{not_null_default};".format(
             table=self.name,
             col_name=col_name,
@@ -1227,7 +1225,7 @@ class Table(Queryable):
                 create_counts_table=self.db._counts_table_create,
                 counts_table=self.db._counts_table_name,
                 table=self.name,
-                table_quoted=self.db.escape(self.name),
+                table_quoted=self.db.quote(self.name),
             )
         )
         with self.db.conn:
