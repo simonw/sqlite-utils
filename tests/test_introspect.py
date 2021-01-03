@@ -154,6 +154,14 @@ def test_triggers_and_triggers_dict(fresh_db):
     assert fresh_db.triggers_dict == expected_triggers
 
 
+def test_has_counts_triggers(fresh_db):
+    authors = fresh_db["authors"]
+    authors.insert({"name": "Frank Herbert"})
+    assert not authors.has_counts_triggers
+    authors.enable_counts()
+    assert authors.has_counts_triggers
+
+
 @pytest.mark.parametrize(
     "sql,expected_name,expected_using",
     [

@@ -1469,7 +1469,7 @@ The ``.triggers`` property lists database triggers. It can be used on both datab
     >>> db.triggers
     ... similar output to db["authors"].triggers
 
-The ``table.triggers_dict`` property returns the triggers for that table as a dictionary mapping their names to their SQL definitions.
+The ``.triggers_dict`` property returns the triggers for that table as a dictionary mapping their names to their SQL definitions.
 
 ::
 
@@ -1491,14 +1491,24 @@ The ``detect_fts()`` method returns the associated SQLite FTS table name, if one
 
 ::
 
-    >> db["authors"].detect_fts()
+    >>> db["authors"].detect_fts()
     "authors_fts"
 
 The ``.virtual_table_using`` property reveals if a table is a virtual table. It returns ``None`` for regular tables and the upper case version of the type of virtual table otherwise. For example::
 
-    >> db["authors"].enable_fts(["name"])
-    >> db["authors_fts"].virtual_table_using
+    >>> db["authors"].enable_fts(["name"])
+    >>> db["authors_fts"].virtual_table_using
     "FTS5"
+
+The ``.has_counts_triggers`` property shows if a table has been configured with triggers for updating a ``_counts`` table, as described in :ref:`python_api_cached_table_counts`.
+
+::
+
+    >>> db["authors"].has_counts_triggers
+    False
+    >>> db["authors"].enable_counts()
+    >>> db["authors"].has_counts_triggers
+    True
 
 .. _python_api_fts:
 

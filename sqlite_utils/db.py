@@ -1268,6 +1268,16 @@ class Table(Queryable):
             self.db.conn.executescript(sql)
         self.db.use_counts_table = True
 
+    @property
+    def has_counts_triggers(self):
+        trigger_names = {
+            "{table}{counts_table}_{suffix}".format(
+                counts_table=self.db._counts_table_name, table=self.name, suffix=suffix
+            )
+            for suffix in ["insert", "delete"]
+        }
+        return trigger_names.issubset(self.triggers_dict.keys())
+
     def enable_fts(
         self,
         columns,

@@ -571,6 +571,20 @@ def enable_counts(path, tables, load_extension):
             db[table].enable_counts()
 
 
+@cli.command(name="reset-counts")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@load_extension_option
+def reset_counts(path, load_extension):
+    "Reset calculated counts in the _counts table"
+    db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
+    db.reset_counts()
+
+
 def insert_upsert_options(fn):
     for decorator in reversed(
         (
