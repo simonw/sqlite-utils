@@ -5,6 +5,7 @@ import json
 import os
 import pytest
 from sqlite_utils.utils import sqlite3, find_spatialite
+import textwrap
 
 from .utils import collapse_whitespace
 
@@ -1732,6 +1733,43 @@ def test_search(tmpdir, fts, extra_arg, expected):
     result = CliRunner().invoke(
         cli.cli,
         ["search", db_path, "articles", "second"] + ([extra_arg] if extra_arg else []),
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    assert result.output == expected
+
+
+_TRIGGERS_EXPECTED = '[{"name": "blah", "table": "articles", "sql": "CREATE TRIGGER blah AFTER INSERT ON articles\\nBEGIN\\n    UPDATE counter SET count = count + 1;\\nEND"}]\n'
+
+
+@pytest.mark.parametrize(
+    "extra_args,expected",
+    [([], _TRIGGERS_EXPECTED), (["articles"], _TRIGGERS_EXPECTED), (["counter"], "")],
+)
+def test_triggers(tmpdir, extra_args, expected):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    db["articles"].insert(
+        {"id": 1, "title": "Title the first"},
+        pk="id",
+    )
+    db["counter"].insert({"count": 1})
+    db.conn.execute(
+        textwrap.dedent(
+            """
+        CREATE TRIGGER blah AFTER INSERT ON articles
+        BEGIN
+            UPDATE counter SET count = count + 1;
+        END
+    """
+        )
+    )
+    args = ["triggers", db_path]
+    if extra_args:
+        args.extend(extra_args)
+    result = CliRunner().invoke(
+        cli.cli,
+        args,
         catch_exceptions=False,
     )
     assert result.exit_code == 0

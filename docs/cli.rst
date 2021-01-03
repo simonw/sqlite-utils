@@ -261,7 +261,7 @@ The ``--nl``, ``--csv``, ``--tsv`` and ``--table`` options are all available.
 Listing views
 =============
 
-The `views` command shows any views defined in the database::
+The ``views`` command shows any views defined in the database::
 
     $ sqlite-utils views sf-trees.db --table --counts --columns --schema
     view         count  columns               schema
@@ -278,6 +278,34 @@ It takes the same options as the ``tables`` command:
 * ``--csv``
 * ``--tsv``
 * ``--table``
+
+.. _cli_triggers:
+
+Listing triggers
+================
+
+The ``triggers`` command shows any triggers configured for the database::
+
+    % sqlite-utils triggers global-power-plants.db --table
+    name             table      sql
+    ---------------  ---------  -----------------------------------------------------------------
+    plants_insert    plants     CREATE TRIGGER [plants_insert] AFTER INSERT ON [plants]
+                                BEGIN
+                                    INSERT OR REPLACE INTO [_counts]
+                                    VALUES (
+                                      'plants',
+                                      COALESCE(
+                                        (SELECT count FROM [_counts] WHERE [table] = 'plants'),
+                                      0
+                                      ) + 1
+                                    );
+                                END
+
+It defaults to showing triggers for all tables. To see triggers for one or more specific tables pass their names as arguments::
+
+    % sqlite-utils triggers global-power-plants.db plants
+
+The command takes the same format options as the ``tables`` and ``views`` commands.
 
 .. _cli_analyze_tables:
 

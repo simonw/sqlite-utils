@@ -1106,6 +1106,53 @@ def rows(
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
+@click.argument("tables", nargs=-1)
+@output_options
+@load_extension_option
+@click.pass_context
+def triggers(
+    ctx,
+    path,
+    tables,
+    nl,
+    arrays,
+    csv,
+    tsv,
+    no_headers,
+    table,
+    fmt,
+    json_cols,
+    load_extension,
+):
+    "Show triggers configured in this database"
+    sql = "select name, tbl_name as [table], sql from sqlite_master where type = 'trigger'"
+    if tables:
+        quote = sqlite_utils.Database(memory=True).escape
+        sql += " and [table] in ({})".format(
+            ", ".join(quote(table) for table in tables)
+        )
+    ctx.invoke(
+        query,
+        path=path,
+        sql=sql,
+        nl=nl,
+        arrays=arrays,
+        csv=csv,
+        tsv=tsv,
+        no_headers=no_headers,
+        table=table,
+        fmt=fmt,
+        json_cols=json_cols,
+        load_extension=load_extension,
+    )
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
 @click.argument("table")
 @click.option(
     "--type",
