@@ -275,7 +275,7 @@ def optimize(path, tables, no_vacuum, load_extension):
 @click.argument("tables", nargs=-1)
 @load_extension_option
 def rebuild_fts(path, tables, load_extension):
-    """Rebuild specific FTS tables, or all FTS tables if none are specified"""
+    """Rebuild all or specific FTS tables"""
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     if not tables:
