@@ -584,6 +584,20 @@ def test_insert_from_stdin(tmpdir):
     )
 
 
+def test_insert_invalid_json_error(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "dogs", "-"],
+        input="name,age\nCleo,4",
+    )
+    assert result.exit_code == 1
+    assert (
+        result.output
+        == "Error: Invalid JSON - use --csv for CSV or --tsv for TSV files\n"
+    )
+
+
 def test_insert_with_primary_key(db_path, tmpdir):
     json_path = str(tmpdir / "dog.json")
     open(json_path, "w").write(json.dumps({"id": 1, "name": "Cleo", "age": 4}))

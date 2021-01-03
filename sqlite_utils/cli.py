@@ -654,12 +654,19 @@ def insert_upsert_implementation(
             reader = csv_std.reader(json_file, dialect=dialect)
             headers = next(reader)
             docs = (dict(zip(headers, row)) for row in reader)
-    elif nl:
-        docs = (json.loads(line) for line in json_file)
     else:
-        docs = json.load(json_file)
-        if isinstance(docs, dict):
-            docs = [docs]
+        try:
+            if nl:
+                docs = (json.loads(line) for line in json_file)
+            else:
+                docs = json.load(json_file)
+                if isinstance(docs, dict):
+                    docs = [docs]
+        except json.decoder.JSONDecodeError:
+            raise click.ClickException(
+                "Invalid JSON - use --csv for CSV or --tsv for TSV files"
+            )
+
     extra_kwargs = {"ignore": ignore, "replace": replace, "truncate": truncate}
     if not_null:
         extra_kwargs["not_null"] = set(not_null)
