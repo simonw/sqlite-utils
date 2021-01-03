@@ -1062,7 +1062,7 @@ Use the ``--sql`` option to output the SQL that would be executed, rather than r
 Enabling cached counts
 ======================
 
-``select count(*)`` queries can take a long time against large tables. ``sqlite-utils`` can speed these up by adding triggers to maintain a ``_counts`` table, see :ref:`python_api_enable_counts`.
+``select count(*)`` queries can take a long time against large tables. ``sqlite-utils`` can speed these up by adding triggers to maintain a ``_counts`` table, see :ref:`python_api_cached_table_counts` for details.
 
 The ``sqlite-utils enable-counts`` command can be used to configure these triggers, either for every table in the database or for specific tables.
 

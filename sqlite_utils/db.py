@@ -144,11 +144,17 @@ class InvalidColumns(Exception):
     pass
 
 
+_COUNTS_TABLE_CREATE_SQL = """
+CREATE TABLE IF NOT EXISTS [{}](
+   [table] TEXT PRIMARY KEY,
+   count INTEGER DEFAULT 0
+);
+""".strip()
+
+
 class Database:
     _counts_table_name = "_counts"
-    _counts_table_create = "CREATE TABLE IF NOT EXISTS [{}]([table] TEXT PRIMARY KEY, count INTEGER DEFAULT 0);".format(
-        _counts_table_name
-    )
+    use_counts_table = False
 
     def __init__(
         self,
@@ -157,6 +163,7 @@ class Database:
         recreate=False,
         recursive_triggers=True,
         tracer=None,
+        use_counts_table=False,
     ):
         assert (filename_or_conn is not None and not memory) or (
             filename_or_conn is None and memory
@@ -174,6 +181,7 @@ class Database:
         if recursive_triggers:
             self.execute("PRAGMA recursive_triggers=on;")
         self._registered_functions = set()
+        self.use_counts_table = use_counts_table
 
     @contextlib.contextmanager
     def tracer(self, tracer=None):
@@ -291,7 +299,7 @@ class Database:
 
     def _ensure_counts_table(self):
         with self.conn:
-            self.execute(self._counts_table_create)
+            self.execute(_COUNTS_TABLE_CREATE_SQL.format(self._counts_table_name))
 
     def enable_counts(self):
         self._ensure_counts_table()
@@ -301,6 +309,16 @@ class Database:
                 and table.name != self._counts_table_name
             ):
                 table.enable_counts()
+        self.use_counts_table = True
+
+    def cached_counts(self, tables=None):
+        sql = "select [table], count from {}".format(self._counts_table_name)
+        if tables:
+            sql += " where [table] in ({})".format(", ".join("?" for table in tables))
+        try:
+            return {r[0]: r[1] for r in self.execute(sql, tables).fetchall()}
+        except OperationalError:
+            return {}
 
     def execute_returning_dicts(self, sql, params=None):
         cursor = self.execute(sql, params or tuple())
@@ -602,11 +620,14 @@ class Queryable:
         self.db = db
         self.name = name
 
-    @property
-    def count(self):
+    def execute_count(self):
         return self.db.execute(
             "select count(*) from [{}]".format(self.name)
         ).fetchone()[0]
+
+    @property
+    def count(self):
+        return self.execute_count()
 
     @property
     def rows(self):
@@ -690,6 +711,14 @@ class Table(Queryable):
             if not self.exists()
             else " ({})".format(", ".join(c.name for c in self.columns)),
         )
+
+    @property
+    def count(self):
+        if self.db.use_counts_table:
+            counts = self.db.cached_counts([self.name])
+            if counts:
+                return next(iter(counts.values()))
+        return self.execute_count()
 
     def exists(self):
         return self.name in self.db.table_names()
@@ -1227,7 +1256,9 @@ class Table(Queryable):
             )
             .strip()
             .format(
-                create_counts_table=self.db._counts_table_create,
+                create_counts_table=_COUNTS_TABLE_CREATE_SQL.format(
+                    self.db._counts_table_name
+                ),
                 counts_table=self.db._counts_table_name,
                 table=self.name,
                 table_quoted=self.db.quote(self.name),
@@ -1235,6 +1266,7 @@ class Table(Queryable):
         )
         with self.db.conn:
             self.db.conn.executescript(sql)
+        self.db.use_counts_table = True
 
     def enable_fts(
         self,
@@ -1650,6 +1682,7 @@ class Table(Queryable):
         )
 
         with self.db.conn:
+            result = None
             for query, params in queries_and_params:
                 try:
                     result = self.db.execute(query, params)

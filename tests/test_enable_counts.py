@@ -96,3 +96,36 @@ def test_cli_enable_counts(counts_db_path, extra_args, expected_triggers):
     result = CliRunner().invoke(cli.cli, ["enable-counts", counts_db_path] + extra_args)
     assert result.exit_code == 0
     assert list(db.triggers_dict.keys()) == expected_triggers
+
+
+def test_uses_counts_after_enable_counts(counts_db_path):
+    db = Database(counts_db_path)
+    logged = []
+    with db.tracer(lambda sql, parameters: logged.append((sql, parameters))):
+        assert db["foo"].count == 1
+        assert logged == [
+            ("select name from sqlite_master where type = 'view'", None),
+            ("select count(*) from [foo]", None),
+        ]
+        logged.clear()
+        assert not db.use_counts_table
+        db.enable_counts()
+        assert db.use_counts_table
+        assert db["foo"].count == 1
+    assert logged == [
+        (
+            "CREATE TABLE IF NOT EXISTS [_counts](\n   [table] TEXT PRIMARY KEY,\n   count INTEGER DEFAULT 0\n);",
+            None,
+        ),
+        ("select name from sqlite_master where type = 'table'", None),
+        ("select name from sqlite_master where type = 'view'", None),
+        ("select name from sqlite_master where type = 'view'", None),
+        ("select name from sqlite_master where type = 'view'", None),
+        ("select sql from sqlite_master where name = ?", ("foo",)),
+        ("SELECT quote(:value)", {"value": "foo"}),
+        ("select sql from sqlite_master where name = ?", ("bar",)),
+        ("SELECT quote(:value)", {"value": "bar"}),
+        ("select sql from sqlite_master where name = ?", ("_counts",)),
+        ("select name from sqlite_master where type = 'view'", None),
+        ("select [table], count from _counts where [table] in (?)", ["foo"]),
+    ]

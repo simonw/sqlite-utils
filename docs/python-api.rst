@@ -1386,6 +1386,8 @@ The ``.count`` property shows the current number of rows (``select count(*) from
     >>> db["Street_Tree_List"].count
     189144
 
+This property will take advantage of :ref:`python_api_cached_table_counts` if the ``use_counts_table`` property is set on the database. You can avoid that optimization entirely by calling ``table.execute_count()`` instead of accessing the property.
+
 The ``.columns`` property shows the columns in the table or view::
 
     >>> db["PlantType"].columns
@@ -1700,9 +1702,9 @@ This runs the following SQL::
 
     INSERT INTO dogs_fts (dogs_fts) VALUES ("optimize");
 
-.. _python_api_enable_counts:
+.. _python_api_cached_table_counts:
 
-Enabling cached counts for a table
+Cached table counts using triggers
 ==================================
 
 The ``select count(*)`` query in SQLite requires a full scan of the primary key index, and can take an increasingly long time as the table grows larger.
@@ -1718,17 +1720,43 @@ This will create the ``_counts`` table if it does not already exist, with the fo
 .. code-block:: sql
 
     CREATE TABLE [_counts] (
-        [table] TEXT PRIMARY KEY,
-        [count] INTEGER DEFAULT 0
+       [table] TEXT PRIMARY KEY,
+       [count] INTEGER DEFAULT 0
     )
-
-Once enabled, table counts can be accessed by querying the ``counts`` table. The count records will be automatically kept up-to-date by the triggers when rows are added or deleted to the table.
 
 You can enable cached counts for every table in a database (except for virtual tables and the ``_counts`` table itself) using the database ``enable_counts()`` method:
 
 .. code-block:: python
 
     db.enable_counts()
+
+Once enabled, table counts will be stored in the ``_counts`` table. The count records will be automatically kept up-to-date by the triggers when rows are added or deleted to the table.
+
+To access these counts you can query the ``_counts`` table directly or you can use the ``db.cached_counts()`` method. This method returns a dictionary mapping tables to their counts::
+
+    >>> db.cached_counts()
+    {'global-power-plants': 33643,
+     'global-power-plants_fts_data': 136,
+     'global-power-plants_fts_idx': 199,
+     'global-power-plants_fts_docsize': 33643,
+     'global-power-plants_fts_config': 1}
+
+You can pass a list of table names to this method to retrieve just those counts::
+
+    >>> db.cached_counts(["global-power-plants"])
+    {'global-power-plants': 33643}
+
+The ``table.count`` property executes a ``select count(*)`` query by default, unless the ``db.use_counts_table`` property is set to ``True``.
+
+You can set ``use_counts_table`` to ``True`` when you instantiate the database object:
+
+.. code-block:: python
+
+    db = Database("global-power-plants.db", use_counts_table=True)
+
+If the property is ``True`` any calls to the ``table.count`` property will first attempt to find the cached count in the ``_counts`` table, and fall back on a ``count(*)`` query if the value is not available or the table is missing.
+
+Calling the ``.enable_counts()`` method on a database or table object will set ``use_counts_table`` to ``True`` for the lifetime of that database object.
 
 Creating indexes
 ================
