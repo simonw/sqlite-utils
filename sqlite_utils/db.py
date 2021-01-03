@@ -320,6 +320,17 @@ class Database:
         except OperationalError:
             return {}
 
+    def reset_counts(self):
+        tables = [table for table in self.tables if table.has_counts_triggers]
+        with self.conn:
+            self._ensure_counts_table()
+            counts_table = self[self._counts_table_name]
+            counts_table.delete_where()
+            counts_table.insert_all(
+                {"table": table.name, "count": table.execute_count()}
+                for table in tables
+            )
+
     def execute_returning_dicts(self, sql, params=None):
         cursor = self.execute(sql, params or tuple())
         keys = [d[0] for d in cursor.description]

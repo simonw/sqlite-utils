@@ -1768,6 +1768,12 @@ If the property is ``True`` any calls to the ``table.count`` property will first
 
 Calling the ``.enable_counts()`` method on a database or table object will set ``use_counts_table`` to ``True`` for the lifetime of that database object.
 
+If the ``_counts`` table ever becomes out-of-sync with the actual table counts you can repair it using the ``.reset_counts()`` method:
+
+.. code-block:: python
+
+    db.reset_counts()
+
 Creating indexes
 ================
 

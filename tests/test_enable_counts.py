@@ -64,8 +64,10 @@ def test_enable_counts_all_tables(fresh_db):
 def counts_db_path(tmpdir):
     path = str(tmpdir / "test.db")
     db = Database(path)
-    db["foo"].insert({"name": "Cleo"})
-    db["bar"].insert({"name": "Cleo"})
+    db["foo"].insert({"name": "bar"})
+    db["bar"].insert({"name": "bar"})
+    db["bar"].insert({"name": "bar"})
+    db["baz"].insert({"name": "bar"})
     return path
 
 
@@ -79,6 +81,8 @@ def counts_db_path(tmpdir):
                 "foo_counts_delete",
                 "bar_counts_insert",
                 "bar_counts_delete",
+                "baz_counts_insert",
+                "baz_counts_delete",
             ],
         ),
         (
@@ -121,11 +125,40 @@ def test_uses_counts_after_enable_counts(counts_db_path):
         ("select name from sqlite_master where type = 'view'", None),
         ("select name from sqlite_master where type = 'view'", None),
         ("select name from sqlite_master where type = 'view'", None),
+        ("select name from sqlite_master where type = 'view'", None),
         ("select sql from sqlite_master where name = ?", ("foo",)),
         ("SELECT quote(:value)", {"value": "foo"}),
         ("select sql from sqlite_master where name = ?", ("bar",)),
         ("SELECT quote(:value)", {"value": "bar"}),
+        ("select sql from sqlite_master where name = ?", ("baz",)),
+        ("SELECT quote(:value)", {"value": "baz"}),
         ("select sql from sqlite_master where name = ?", ("_counts",)),
         ("select name from sqlite_master where type = 'view'", None),
         ("select [table], count from _counts where [table] in (?)", ["foo"]),
     ]
+
+
+def test_reset_counts(counts_db_path):
+    db = Database(counts_db_path)
+    db["foo"].enable_counts()
+    db["bar"].enable_counts()
+    assert db.cached_counts() == {"foo": 1, "bar": 2}
+    # Corrupt the value
+    db["_counts"].update("foo", {"count": 3})
+    assert db.cached_counts() == {"foo": 3, "bar": 2}
+    assert db["foo"].count == 3
+    # Reset them
+    db.reset_counts()
+    assert db.cached_counts() == {"foo": 1, "bar": 2}
+    assert db["foo"].count == 1
+
+
+def test_reset_counts_cli(counts_db_path):
+    db = Database(counts_db_path)
+    db["foo"].enable_counts()
+    db["bar"].enable_counts()
+    assert db.cached_counts() == {"foo": 1, "bar": 2}
+    db["_counts"].update("foo", {"count": 3})
+    result = CliRunner().invoke(cli.cli, ["reset-counts", counts_db_path])
+    assert result.exit_code == 0
+    assert db.cached_counts() == {"foo": 1, "bar": 2}

@@ -1074,6 +1074,10 @@ The ``sqlite-utils enable-counts`` command can be used to configure these trigge
     # Configure triggers just for specific tables
     $ sqlite-utils enable-counts mydb.db table1 table2
 
+If the ``_counts`` table ever becomes out-of-sync with the actual table counts you can repair it using the ``reset-counts`` command::
+
+    $ sqlite-utils reset-counts mydb.db
+
 .. _cli_vacuum:
 
 Vacuum
