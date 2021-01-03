@@ -1476,6 +1476,15 @@ The ``table.triggers_dict`` property returns the triggers for that table as a di
      'authors_ad': 'CREATE TRIGGER [authors_ad] AFTER DELETE...',
      'authors_au': 'CREATE TRIGGER [authors_au] AFTER UPDATE'}
 
+The same property exists on the database, and will return all triggers across all tables:
+
+::
+
+    >>> db.triggers_dict
+    {'authors_ai': 'CREATE TRIGGER [authors_ai] AFTER INSERT...',
+     'authors_ad': 'CREATE TRIGGER [authors_ad] AFTER DELETE...',
+     'authors_au': 'CREATE TRIGGER [authors_au] AFTER UPDATE'}
+
 The ``detect_fts()`` method returns the associated SQLite FTS table name, if one exists for this table. If the table has not been configured for full-text search it returns ``None``.
 
 ::

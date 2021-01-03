@@ -273,6 +273,11 @@ class Database:
         ]
 
     @property
+    def triggers_dict(self):
+        "Returns {trigger_name: sql} dictionary"
+        return {trigger.name: trigger.sql for trigger in self.triggers}
+
+    @property
     def journal_mode(self):
         return self.execute("PRAGMA journal_mode;").fetchone()[0]
 
