@@ -286,7 +286,7 @@ Listing triggers
 
 The ``triggers`` command shows any triggers configured for the database::
 
-    % sqlite-utils triggers global-power-plants.db --table
+    $ sqlite-utils triggers global-power-plants.db --table
     name             table      sql
     ---------------  ---------  -----------------------------------------------------------------
     plants_insert    plants     CREATE TRIGGER [plants_insert] AFTER INSERT ON [plants]
@@ -303,7 +303,7 @@ The ``triggers`` command shows any triggers configured for the database::
 
 It defaults to showing triggers for all tables. To see triggers for one or more specific tables pass their names as arguments::
 
-    % sqlite-utils triggers global-power-plants.db plants
+    $ sqlite-utils triggers global-power-plants.db plants
 
 The command takes the same format options as the ``tables`` and ``views`` commands.
 
@@ -734,7 +734,7 @@ Every option for this table (with the exception of ``--pk-none``) can be specifi
 
 If you want to see the SQL that will be executed to make the change without actually executing it, add the ``--sql`` flag. For example::
 
-    % sqlite-utils transform fixtures.db roadside_attractions \
+    $ sqlite-utils transform fixtures.db roadside_attractions \
         --rename pk id \
         --default name Untitled \
         --column-order id \
