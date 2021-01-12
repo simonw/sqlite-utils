@@ -503,6 +503,16 @@ def test_insert_row_alter_table_invalid_column_characters(fresh_db):
         table.insert({"foo": "baz", "new_col[abc]": 1.2}, alter=True)
 
 
+def test_add_missing_columns_case_insensitive(fresh_db):
+    table = fresh_db["foo"]
+    table.insert({"id": 1, "name": "Cleo"}, pk="id")
+    table.add_missing_columns([{"Name": ".", "age": 4}])
+    assert (
+        table.schema
+        == "CREATE TABLE [foo] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n, [age] INTEGER)"
+    )
+
+
 @pytest.mark.parametrize("use_table_factory", [True, False])
 def test_insert_replace_rows_alter_table(fresh_db, use_table_factory):
     first_row = {"id": 1, "title": "Hedgehogs of the world", "author_id": 1}

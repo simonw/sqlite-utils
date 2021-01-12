@@ -1973,9 +1973,9 @@ class Table(Queryable):
 
     def add_missing_columns(self, records):
         needed_columns = suggest_column_types(records)
-        current_columns = self.columns_dict
+        current_columns = {c.lower() for c in self.columns_dict}
         for col_name, col_type in needed_columns.items():
-            if col_name not in current_columns:
+            if col_name.lower() not in current_columns:
                 self.add_column(col_name, col_type)
         return self
 
