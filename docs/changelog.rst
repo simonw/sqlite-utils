@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v3_2_1:
+
+3.2.1 (2021-01-12)
+------------------
+
+- Fixed a bug where ``.add_missing_columns()`` failed to take case insensitive column names into account. (`#221 <https://github.com/simonw/sqlite-utils/issues/221>`__)
+
 .. _v3_2:
 
 3.2 (2021-01-03)
