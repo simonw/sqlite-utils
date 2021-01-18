@@ -2009,6 +2009,7 @@ class Table(Queryable):
         pk=DEFAULT,
         lookup=None,
         m2m_table=None,
+        alter=False,
     ):
         if isinstance(other_table, str):
             other_table = self.db.table(other_table, pk=pk)
@@ -2045,7 +2046,9 @@ class Table(Queryable):
             )
             # Ensure each record exists in other table
             for record in records:
-                id = other_table.insert(record, pk=pk, replace=True).last_pk
+                id = other_table.insert(
+                    record, pk=pk, replace=True, alter=alter
+                ).last_pk
                 m2m_table.insert(
                     {
                         "{}_id".format(other_table.name): id,

@@ -716,6 +716,8 @@ If it cannot find such a table, it will create a new one using the names of the 
 
 It it finds multiple candidate tables with foreign keys to both of the specified tables it will raise a ``sqlite_utils.db.NoObviousTable`` exception. You can avoid this error by specifying the correct table using ``m2m_table=``.
 
+The ``.m2m()`` method also takes an optional ``pk=`` argument to specify the primary key that should be used if the table is created, and an optional ``alter=True`` argument to specify that any missing columns of an existing table should be added if they are needed.
+
 .. _python_api_m2m_lookup:
 
 Using m2m and lookup tables together

@@ -14,6 +14,24 @@ def test_insert_m2m_single(fresh_db):
     assert [{"humans_id": 1, "dogs_id": 1}] == list(dogs_humans.rows)
 
 
+def test_insert_m2m_alter(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id").m2m(
+        "humans", {"id": 1, "name": "Natalie D"}, pk="id"
+    )
+    dogs.update(1).m2m(
+        "humans", {"id": 2, "name": "Simon W", "nerd": True}, pk="id", alter=True
+    )
+    assert list(fresh_db["humans"].rows) == [
+        {"id": 1, "name": "Natalie D", "nerd": None},
+        {"id": 2, "name": "Simon W", "nerd": 1},
+    ]
+    assert list(fresh_db["dogs_humans"].rows) == [
+        {"humans_id": 1, "dogs_id": 1},
+        {"humans_id": 2, "dogs_id": 1},
+    ]
+
+
 def test_insert_m2m_list(fresh_db):
     dogs = fresh_db["dogs"]
     dogs.insert({"id": 1, "name": "Cleo"}, pk="id").m2m(
