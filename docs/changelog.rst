@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v3_3:
+
+3.3 (2021-01-17)
+----------------
+
+- The ``table.m2m()`` method now accepts an optional ``alter=True`` argument to specify that any missing columns should be added to the referenced table. See :ref:`python_api_m2m`. (`#222 <https://github.com/simonw/sqlite-utils/issues/222>`__)
+
 .. _v3_2_1:
 
 3.2.1 (2021-01-12)
