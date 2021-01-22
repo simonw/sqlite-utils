@@ -1600,8 +1600,8 @@ The ``.search()`` method also accepts the following optional parameters:
 ``columns`` array of strings
     Columns to return. Defaults to all columns.
 
-``limit`` integer
-    Number of results to return. Defaults to all results.
+``limit`` integer or string
+    Number of results to return. Defaults to all results. You can offset the limit by using a string with the shorthand ``limit=f"15, 30"`` or ``limit="30 OFFSET 15"``. Where 15 is the offset and 30 the limit. 
 
 To return just the title and published columns for three matches for ``"dog"`` ordered by ``published`` with the most recent first, use the following:
 
