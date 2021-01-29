@@ -4,6 +4,7 @@ from click.testing import CliRunner
 import json
 import os
 import pytest
+import sys
 from sqlite_utils.utils import sqlite3, find_spatialite
 import textwrap
 
@@ -93,7 +94,10 @@ def test_tables_counts_and_columns_csv(db_path, format, expected):
     result = CliRunner().invoke(
         cli.cli, ["tables", "--counts", "--columns", format, db_path]
     )
-    assert result.output.strip() == expected
+    if sys.platform == 'win32':
+        assert result.output.strip().replace('\r', '') == expected
+    else:
+        assert result.output.strip() == expected
 
 
 def test_tables_schema(db_path):
@@ -860,12 +864,18 @@ def test_query_csv(db_path, format, expected):
         cli.cli, [db_path, "select id, name, age from dogs", format]
     )
     assert 0 == result.exit_code
-    assert result.output == expected
+    if sys.platform == 'win32':
+        assert result.output.replace('\r', '') == expected
+    else:
+        assert result.output == expected
     # Test the no-headers option:
     result = CliRunner().invoke(
         cli.cli, [db_path, "select id, name, age from dogs", "--no-headers", format]
     )
-    assert result.output.strip() == "\n".join(expected.split("\n")[1:]).strip()
+    if sys.platform == 'win32':
+        assert result.output.strip().replace('\r', '') == "\n".join(expected.split("\n")[1:]).strip()
+    else:
+        assert result.output.strip() == "\n".join(expected.split("\n")[1:]).strip()
 
 
 _all_query = "select id, name, age from dogs"
@@ -1750,7 +1760,10 @@ def test_search(tmpdir, fts, extra_arg, expected):
         catch_exceptions=False,
     )
     assert result.exit_code == 0
-    assert result.output == expected
+    if sys.platform == 'win32':
+        assert result.output.replace('\r', '') == expected
+    else:
+        assert result.output == expected
 
 
 _TRIGGERS_EXPECTED = '[{"name": "blah", "table": "articles", "sql": "CREATE TRIGGER blah AFTER INSERT ON articles\\nBEGIN\\n    UPDATE counter SET count = count + 1;\\nEND"}]\n'

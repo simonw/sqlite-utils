@@ -1886,12 +1886,12 @@ class Table(Queryable):
                 if hash_id:
                     all_columns.insert(0, hash_id)
             else:
-                all_columns += [
-                    column
-                    for record in chunk
-                    for column in record
-                    if column not in all_columns
-                ]
+                for record in chunk:
+                    all_columns += [
+                        column
+                        for column in record
+                        if column not in all_columns
+                    ]
 
             validate_column_names(all_columns)
             first = False
