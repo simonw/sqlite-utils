@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v3_4_1:
+
+3.4.1 (2021-02-05)
+------------------
+
+- Fixed a code import bug that slipped in to 3.4. (`#226 <https://github.com/simonw/sqlite-utils/issues/226>`__)
+
 .. _v3_4:
 
 3.4 (2021-02-05)
