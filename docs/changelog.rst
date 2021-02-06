@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v3_4:
+
+3.4 (2021-02-05)
+----------------
+
+- ``sqlite-utils insert --csv`` now accepts optional ``--delimiter`` and ``--quotechar`` options. See :ref:`cli_insert_csv_tsv_delimiter`. (`#223 <https://github.com/simonw/sqlite-utils/issues/223>`__)
+
 .. _v3_3:
 
 3.3 (2021-01-17)
