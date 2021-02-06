@@ -1,5 +1,4 @@
 import base64
-from tests.test_cli import test_query_memory_does_not_create_file
 import click
 import codecs
 from click_default_group import DefaultGroup
