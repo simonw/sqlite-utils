@@ -474,6 +474,8 @@ This also means you pipe ``sqlite-utils`` together to easily create a new SQLite
     207368,920 Kirkham St,37.760210314285,-122.47073935813
     188702,1501 Evans Ave,37.7422086702947,-122.387293152263
 
+.. _cli_insert_csv_tsv:
+
 Inserting CSV or TSV data
 =========================
 
@@ -483,13 +485,32 @@ If your data is in CSV format, you can insert it using the ``--csv`` option::
 
 For tab-delimited data, use ``--tsv``::
 
-    $ sqlite-utils insert dogs.db dogs docs.tsv --tsv
+    $ sqlite-utils insert dogs.db dogs dogs.tsv --tsv
 
 Data is expected to be encoded as Unicode UTF-8. If your data is an another character encoding you can specify it using the ``--encoding`` option::
 
-    $ sqlite-utils insert dogs.db dogs docs.tsv --tsv --encoding=latin-1
+    $ sqlite-utils insert dogs.db dogs dogs.tsv --tsv --encoding=latin-1
 
 A progress bar is displayed when inserting data from a file. You can hide the progress bar using the ``--silent`` option.
+
+.. _cli_insert_csv_tsv_delimiter:
+
+Alternative delimiters and quote characters
+-------------------------------------------
+
+If your file uses a delimiter other than ``,`` or a quote character other than ``"`` you can specify them using the ``--delimiter`` and ``--quotechar`` options.
+
+Here's a CSV file that uses ``;`` for delimiters and the ``|`` symbol for quote characters::
+
+    name;description
+    Cleo;|Very fine; a friendly dog|
+    Pancakes;A local corgi
+
+You can import that using::
+
+    $ sqlite-utils insert dogs.db dogs dogs.csv --delimiter=";" --quotechar="|"
+
+Passing either ``--delimiter`` and ``--quotechar`` implies ``--csv``, so you can omit that option.
 
 .. _cli_insert_replace:
 

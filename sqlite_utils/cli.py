@@ -1,4 +1,5 @@
 import base64
+from tests.test_cli import test_query_memory_does_not_create_file
 import click
 import codecs
 from click_default_group import DefaultGroup
@@ -601,6 +602,8 @@ def insert_upsert_options(fn):
             click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
             click.option("-c", "--csv", is_flag=True, help="Expect CSV"),
             click.option("--tsv", is_flag=True, help="Expect TSV"),
+            click.option("--delimiter", help="Delimiter to use for CSV files"),
+            click.option("--quotechar", help="Quote character to use for CSV/TSV"),
             click.option(
                 "--batch-size", type=int, default=100, help="Commit every X records"
             ),
@@ -640,6 +643,8 @@ def insert_upsert_implementation(
     nl,
     csv,
     tsv,
+    delimiter,
+    quotechar,
     batch_size,
     alter,
     upsert,
@@ -654,6 +659,8 @@ def insert_upsert_implementation(
 ):
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
+    if delimiter or quotechar:
+        csv = True
     if (nl + csv + tsv) >= 2:
         raise click.ClickException("Use just one of --nl, --csv or --tsv")
     if encoding and not (csv or tsv):
@@ -665,7 +672,12 @@ def insert_upsert_implementation(
     if csv or tsv:
         dialect = "excel-tab" if tsv else "excel"
         with file_progress(json_file, silent=silent) as json_file:
-            reader = csv_std.reader(json_file, dialect=dialect)
+            csv_reader_args = {"dialect": dialect}
+            if delimiter:
+                csv_reader_args["delimiter"] = delimiter
+            if quotechar:
+                csv_reader_args["quotechar"] = quotechar
+            reader = csv_std.reader(json_file, **csv_reader_args)
             headers = next(reader)
             docs = (dict(zip(headers, row)) for row in reader)
     else:
@@ -720,6 +732,8 @@ def insert(
     nl,
     csv,
     tsv,
+    delimiter,
+    quotechar,
     batch_size,
     alter,
     encoding,
@@ -746,6 +760,8 @@ def insert(
             nl,
             csv,
             tsv,
+            delimiter,
+            quotechar,
             batch_size,
             alter=alter,
             upsert=False,
@@ -773,6 +789,8 @@ def upsert(
     csv,
     tsv,
     batch_size,
+    delimiter,
+    quotechar,
     alter,
     not_null,
     default,
@@ -794,6 +812,8 @@ def upsert(
             nl,
             csv,
             tsv,
+            delimiter,
+            quotechar,
             batch_size,
             alter=alter,
             upsert=True,

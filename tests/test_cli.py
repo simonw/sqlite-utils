@@ -722,18 +722,28 @@ def test_insert_ignore(db_path, tmpdir):
 
 
 @pytest.mark.parametrize(
-    "content,option",
-    (("foo\tbar\tbaz\n1\t2\t3", "--tsv"), ("foo,bar,baz\n1,2,3", "--csv")),
+    "content,options",
+    [
+        ("foo\tbar\tbaz\n1\t2\tcat,dog", ["--tsv"]),
+        ('foo,bar,baz\n1,2,"cat,dog"', ["--csv"]),
+        ('foo;bar;baz\n1;2;"cat,dog"', ["--csv", "--delimiter", ";"]),
+        # --delimiter implies --csv:
+        ('foo;bar;baz\n1;2;"cat,dog"', ["--delimiter", ";"]),
+        ("foo,bar,baz\n1,2,|cat,dog|", ["--csv", "--quotechar", "|"]),
+        ("foo,bar,baz\n1,2,|cat,dog|", ["--quotechar", "|"]),
+    ],
 )
-def test_insert_csv_tsv(content, option, db_path, tmpdir):
+def test_insert_csv_tsv(content, options, db_path, tmpdir):
     db = Database(db_path)
     file_path = str(tmpdir / "insert.csv-tsv")
     open(file_path, "w").write(content)
     result = CliRunner().invoke(
-        cli.cli, ["insert", db_path, "data", file_path, option], catch_exceptions=False
+        cli.cli,
+        ["insert", db_path, "data", file_path] + options,
+        catch_exceptions=False,
     )
     assert 0 == result.exit_code
-    assert [{"foo": "1", "bar": "2", "baz": "3"}] == list(db["data"].rows)
+    assert [{"foo": "1", "bar": "2", "baz": "cat,dog"}] == list(db["data"].rows)
 
 
 @pytest.mark.parametrize(
