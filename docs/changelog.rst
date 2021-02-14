@@ -2,6 +2,18 @@
  Changelog
 ===========
 
+.. _v3_5:
+
+3.5 (2021-02-14)
+----------------
+
+- ``sqlite-utils insert --sniff`` option for detecting the delimiter and quote character used by a CSV file, see :ref:`cli_insert_csv_tsv_delimiter`. (`#230 <https://github.com/simonw/sqlite-utils/issues/230>`__)
+- The ``table.rows_where()``, ``table.search()`` and ``table.search_sql()`` methods all now take optional ``offset=`` and ``limit=`` arguments. (`#231 <https://github.com/simonw/sqlite-utils/issues/231>`__)
+- New ``--no-headers`` option for ``sqlite-utils insert --csv`` to handle CSV files that are missing the header row, see :ref:`cli_insert_csv_tsv_no_header`. (`#228 <https://github.com/simonw/sqlite-utils/issues/228>`__)
+- Fixed bug where inserting data with extra columns in subsequent chunks would throw an error. Thanks `@nieuwenhoven <https://github.com/nieuwenhoven>`__ for the fix. (`#234 <https://github.com/simonw/sqlite-utils/issues/234>`__)
+- Fixed bug importing CSV files with columns containing more than 128KB of data. (`#229 <https://github.com/simonw/sqlite-utils/issues/229>`__)
+- Test suite now runs in CI against Ubuntu, macOS and Windows. Thanks `@nieuwenhoven <https://github.com/nieuwenhoven>`__ for the Windows test fixes. (`#232 <https://github.com/simonw/sqlite-utils/issues/232>`__)
+
 .. _v3_4_1:
 
 3.4.1 (2021-02-05)
