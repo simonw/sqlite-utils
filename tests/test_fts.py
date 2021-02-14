@@ -82,6 +82,18 @@ def test_enable_fts_escape_table_names(fresh_db):
     assert [] == list(table.search("bar"))
 
 
+def test_search_limit_offset(fresh_db):
+    table = fresh_db["t"]
+    table.insert_all(search_records)
+    table.enable_fts(["text", "country"], fts_version="FTS4")
+    assert len(list(table.search("are"))) == 2
+    assert len(list(table.search("are", limit=1))) == 1
+    assert list(table.search("are", limit=1, order_by="rowid"))[0]["rowid"] == 1
+    assert (
+        list(table.search("are", limit=1, offset=1, order_by="rowid"))[0]["rowid"] == 2
+    )
+
+
 def test_enable_fts_table_names_containing_spaces(fresh_db):
     table = fresh_db["test"]
     table.insert({"column with spaces": "in its name"})
@@ -422,6 +434,50 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
                 "    [books_fts] match :query\n"
                 "order by\n"
                 "    rank_bm25(matchinfo([books_fts], 'pcnalx'))"
+            ),
+        ),
+        (
+            {"offset": 1, "limit": 1},
+            "FTS4",
+            (
+                "with original as (\n"
+                "    select\n"
+                "        rowid,\n"
+                "        *\n"
+                "    from [books]\n"
+                ")\n"
+                "select\n"
+                "    [original].*\n"
+                "from\n"
+                "    [original]\n"
+                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                "where\n"
+                "    [books_fts] match :query\n"
+                "order by\n"
+                "    rank_bm25(matchinfo([books_fts], 'pcnalx'))\n"
+                "limit 1 offset 1"
+            ),
+        ),
+        (
+            {"limit": 2},
+            "FTS4",
+            (
+                "with original as (\n"
+                "    select\n"
+                "        rowid,\n"
+                "        *\n"
+                "    from [books]\n"
+                ")\n"
+                "select\n"
+                "    [original].*\n"
+                "from\n"
+                "    [original]\n"
+                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                "where\n"
+                "    [books_fts] match :query\n"
+                "order by\n"
+                "    rank_bm25(matchinfo([books_fts], 'pcnalx'))\n"
+                "limit 2"
             ),
         ),
     ],

@@ -644,7 +644,15 @@ class Queryable:
     def rows(self):
         return self.rows_where()
 
-    def rows_where(self, where=None, where_args=None, order_by=None, select="*"):
+    def rows_where(
+        self,
+        where=None,
+        where_args=None,
+        order_by=None,
+        select="*",
+        limit=None,
+        offset=None,
+    ):
         if not self.exists():
             return []
         sql = "select {} from [{}]".format(select, self.name)
@@ -652,6 +660,10 @@ class Queryable:
             sql += " where " + where
         if order_by is not None:
             sql += " order by " + order_by
+        if limit is not None:
+            sql += " limit {}".format(limit)
+        if offset is not None:
+            sql += " offset {}".format(offset)
         cursor = self.db.execute(sql, where_args or [])
         columns = [c[0] for c in cursor.description]
         for row in cursor:
@@ -1454,7 +1466,7 @@ class Table(Queryable):
             )
         return self
 
-    def search_sql(self, columns=None, order_by=None, limit=None):
+    def search_sql(self, columns=None, order_by=None, limit=None, offset=None):
         # Pick names for table and rank column that don't clash
         original = "original_" if self.name == "original" else "original"
         columns_sql = "*"
@@ -1486,7 +1498,7 @@ class Table(Queryable):
             [{fts_table}] match :query
         order by
             {order_by}
-        {limit}
+        {limit_offset}
         """
         ).strip()
         if virtual_table_using == "FTS5":
@@ -1496,6 +1508,11 @@ class Table(Queryable):
             rank_implementation = "rank_bm25(matchinfo([{}], 'pcnalx'))".format(
                 fts_table
             )
+        limit_offset = ""
+        if limit is not None:
+            limit_offset += " limit {}".format(limit)
+        if offset is not None:
+            limit_offset += " offset {}".format(offset)
         return sql.format(
             dbtable=self.name,
             original=original,
@@ -1503,15 +1520,16 @@ class Table(Queryable):
             columns_with_prefix=columns_with_prefix_sql,
             fts_table=fts_table,
             order_by=order_by or rank_implementation,
-            limit="limit {}".format(limit) if limit else "",
+            limit_offset=limit_offset.strip(),
         ).strip()
 
-    def search(self, q, order_by=None, columns=None, limit=None):
+    def search(self, q, order_by=None, columns=None, limit=None, offset=None):
         cursor = self.db.execute(
             self.search_sql(
                 order_by=order_by,
                 columns=columns,
                 limit=limit,
+                offset=offset,
             ),
             {"query": q},
         )

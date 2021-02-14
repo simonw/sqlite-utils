@@ -51,3 +51,20 @@ def test_rows_where_order_by(where, order_by, expected_ids, fresh_db):
         pk="id",
     )
     assert expected_ids == [r["id"] for r in table.rows_where(where, order_by=order_by)]
+
+
+@pytest.mark.parametrize(
+    "offset,limit,expected",
+    [
+        (None, 3, [1, 2, 3]),
+        (0, 3, [1, 2, 3]),
+        (3, 3, [4, 5, 6]),
+    ],
+)
+def test_rows_where_offset_limit(fresh_db, offset, limit, expected):
+    table = fresh_db["rows"]
+    table.insert_all([{"id": id} for id in range(1, 101)], pk="id")
+    assert table.count == 100
+    assert expected == [
+        r["id"] for r in table.rows_where(offset=offset, limit=limit, order_by="id")
+    ]

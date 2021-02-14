@@ -202,6 +202,12 @@ You can order all records in the table by excluding the ``where`` argument::
     {'id': 1, 'age': 4, 'name': 'Cleo'}
     {'id': 2, 'age': 2, 'name': 'Pancakes'}
 
+This method also accepts ``offset=`` and ``limit=`` arguments, for specifying an OFFSET and a LIMIT for the SQL query::
+
+    >>> for row in db["dogs"].rows_where(order_by="age desc", limit=1):
+    ...     print(row)
+    {'id': 1, 'age': 4, 'name': 'Cleo'}
+
 .. _python_api_get:
 
 Retrieving a specific record
@@ -1602,6 +1608,9 @@ The ``.search()`` method also accepts the following optional parameters:
 
 ``limit`` integer
     Number of results to return. Defaults to all results.
+
+``offset`` integer
+    Offset to use along side the limit parameter.
 
 To return just the title and published columns for three matches for ``"dog"`` ordered by ``published`` with the most recent first, use the following:
 
