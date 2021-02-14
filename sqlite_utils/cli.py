@@ -604,6 +604,9 @@ def insert_upsert_options(fn):
             click.option("--delimiter", help="Delimiter to use for CSV files"),
             click.option("--quotechar", help="Quote character to use for CSV/TSV"),
             click.option(
+                "--sniff", is_flag=True, help="Detect delimiter and quote character"
+            ),
+            click.option(
                 "--batch-size", type=int, default=100, help="Commit every X records"
             ),
             click.option(
@@ -644,6 +647,7 @@ def insert_upsert_implementation(
     tsv,
     delimiter,
     quotechar,
+    sniff,
     batch_size,
     alter,
     upsert,
@@ -658,33 +662,39 @@ def insert_upsert_implementation(
 ):
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
-    if delimiter or quotechar:
+    if delimiter or quotechar or sniff:
         csv = True
     if (nl + csv + tsv) >= 2:
         raise click.ClickException("Use just one of --nl, --csv or --tsv")
     if encoding and not (csv or tsv):
         raise click.ClickException("--encoding must be used with --csv or --tsv")
     encoding = encoding or "utf-8"
-    json_file = io.TextIOWrapper(json_file, encoding=encoding)
+    buffered = io.BufferedReader(json_file, buffer_size=4096)
+    decoded = io.TextIOWrapper(buffered, encoding=encoding, line_buffering=True)
     if pk and len(pk) == 1:
         pk = pk[0]
     if csv or tsv:
-        dialect = "excel-tab" if tsv else "excel"
-        with file_progress(json_file, silent=silent) as json_file:
+        if sniff:
+            # Read first 2048 bytes and use that to detect
+            first_bytes = buffered.peek(2048)
+            dialect = csv_std.Sniffer().sniff(first_bytes.decode(encoding, "ignore"))
+        else:
+            dialect = "excel-tab" if tsv else "excel"
+        with file_progress(decoded, silent=silent) as decoded:
             csv_reader_args = {"dialect": dialect}
             if delimiter:
                 csv_reader_args["delimiter"] = delimiter
             if quotechar:
                 csv_reader_args["quotechar"] = quotechar
-            reader = csv_std.reader(json_file, **csv_reader_args)
+            reader = csv_std.reader(decoded, **csv_reader_args)
             headers = next(reader)
             docs = (dict(zip(headers, row)) for row in reader)
     else:
         try:
             if nl:
-                docs = (json.loads(line) for line in json_file)
+                docs = (json.loads(line) for line in decoded)
             else:
-                docs = json.load(json_file)
+                docs = json.load(decoded)
                 if isinstance(docs, dict):
                     docs = [docs]
         except json.decoder.JSONDecodeError:
@@ -733,6 +743,7 @@ def insert(
     tsv,
     delimiter,
     quotechar,
+    sniff,
     batch_size,
     alter,
     encoding,
@@ -761,6 +772,7 @@ def insert(
             tsv,
             delimiter,
             quotechar,
+            sniff,
             batch_size,
             alter=alter,
             upsert=False,
@@ -790,6 +802,7 @@ def upsert(
     batch_size,
     delimiter,
     quotechar,
+    sniff,
     alter,
     not_null,
     default,
@@ -813,6 +826,7 @@ def upsert(
             tsv,
             delimiter,
             quotechar,
+            sniff,
             batch_size,
             alter=alter,
             upsert=True,

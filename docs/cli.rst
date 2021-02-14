@@ -498,7 +498,13 @@ A progress bar is displayed when inserting data from a file. You can hide the pr
 Alternative delimiters and quote characters
 -------------------------------------------
 
-If your file uses a delimiter other than ``,`` or a quote character other than ``"`` you can specify them using the ``--delimiter`` and ``--quotechar`` options.
+If your file uses a delimiter other than ``,`` or a quote character other than ``"`` you can attempt to detect delimiters or you can specify them explicitly.
+
+The ``--sniff`` option can be used to attempt to detect the delimiters:
+
+    sqlite-utils insert dogs.db dogs dogs.csv --sniff
+
+Alternatively, you can specify them using the ``--delimiter`` and ``--quotechar`` options.
 
 Here's a CSV file that uses ``;`` for delimiters and the ``|`` symbol for quote characters::
 
@@ -510,7 +516,7 @@ You can import that using::
 
     $ sqlite-utils insert dogs.db dogs dogs.csv --delimiter=";" --quotechar="|"
 
-Passing either ``--delimiter`` and ``--quotechar`` implies ``--csv``, so you can omit that option.
+Passing ``--delimiter``, ``--quotechar`` or ``--sniff`` implies ``--csv``, so you can omit the ``--csv`` option.
 
 .. _cli_insert_replace:
 
