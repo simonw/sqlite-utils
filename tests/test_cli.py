@@ -1819,3 +1819,39 @@ def test_long_csv_column_value(tmpdir):
     rows = list(db["bigtable"].rows)
     assert len(rows) == 1
     assert rows[0]["text"] == long_string
+
+
+@pytest.mark.parametrize(
+    "args",
+    (
+        ["--csv", "--no-headers"],
+        ["--no-headers"],
+    ),
+)
+def test_csv_import_no_headers(tmpdir, args):
+    db_path = str(tmpdir / "test.db")
+    csv_path = str(tmpdir / "test.csv")
+    csv_file = open(csv_path, "w")
+    csv_file.write("Cleo,Dog,5\n")
+    csv_file.write("Tracy,Spider,7\n")
+    csv_file.close()
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", csv_path] + args,
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    schema = db["creatures"].schema
+    assert schema == (
+        "CREATE TABLE [creatures] (\n"
+        "   [untitled_1] TEXT,\n"
+        "   [untitled_2] TEXT,\n"
+        "   [untitled_3] TEXT\n"
+        ")"
+    )
+    rows = list(db["creatures"].rows)
+    assert rows == [
+        {"untitled_1": "Cleo", "untitled_2": "Dog", "untitled_3": "5"},
+        {"untitled_1": "Tracy", "untitled_2": "Spider", "untitled_3": "7"},
+    ]

@@ -518,6 +518,17 @@ You can import that using::
 
 Passing ``--delimiter``, ``--quotechar`` or ``--sniff`` implies ``--csv``, so you can omit the ``--csv`` option.
 
+.. _cli_insert_csv_tsv_no_header:
+
+CSV files without a header row
+------------------------------
+
+The first row of any CSV or TSV file is expected to contain the names of the columns in that file.
+
+If your file does not include this row, you can use the ``--no-headers`` option to specify that the tool should not use that fist row as headers.
+
+If you do this, the table will be created with column names called ``untitled_1`` and ``untitled_2`` and so on. You can then rename them using the ``sqlite-utils transform ... --rename`` command, see :ref:`cli_transform_table`.
+
 .. _cli_insert_replace:
 
 Insert-replacing data

@@ -619,6 +619,9 @@ def insert_upsert_options(fn):
                 "--sniff", is_flag=True, help="Detect delimiter and quote character"
             ),
             click.option(
+                "--no-headers", is_flag=True, help="CSV file has no header row"
+            ),
+            click.option(
                 "--batch-size", type=int, default=100, help="Commit every X records"
             ),
             click.option(
@@ -660,6 +663,7 @@ def insert_upsert_implementation(
     delimiter,
     quotechar,
     sniff,
+    no_headers,
     batch_size,
     alter,
     upsert,
@@ -674,7 +678,7 @@ def insert_upsert_implementation(
 ):
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
-    if delimiter or quotechar or sniff:
+    if delimiter or quotechar or sniff or no_headers:
         csv = True
     if (nl + csv + tsv) >= 2:
         raise click.ClickException("Use just one of --nl, --csv or --tsv")
@@ -699,7 +703,12 @@ def insert_upsert_implementation(
             if quotechar:
                 csv_reader_args["quotechar"] = quotechar
             reader = csv_std.reader(decoded, **csv_reader_args)
-            headers = next(reader)
+            first_row = next(reader)
+            if no_headers:
+                headers = ["untitled_{}".format(i + 1) for i in range(len(first_row))]
+                reader = itertools.chain([first_row], reader)
+            else:
+                headers = first_row
             docs = (dict(zip(headers, row)) for row in reader)
     else:
         try:
@@ -756,6 +765,7 @@ def insert(
     delimiter,
     quotechar,
     sniff,
+    no_headers,
     batch_size,
     alter,
     encoding,
@@ -785,6 +795,7 @@ def insert(
             delimiter,
             quotechar,
             sniff,
+            no_headers,
             batch_size,
             alter=alter,
             upsert=False,
@@ -815,6 +826,7 @@ def upsert(
     delimiter,
     quotechar,
     sniff,
+    no_headers,
     alter,
     not_null,
     default,
@@ -839,6 +851,7 @@ def upsert(
             delimiter,
             quotechar,
             sniff,
+            no_headers,
             batch_size,
             alter=alter,
             upsert=True,
