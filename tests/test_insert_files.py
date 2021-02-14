@@ -1,5 +1,6 @@
 from sqlite_utils import cli, Database
 from click.testing import CliRunner
+import os
 import pathlib
 
 
