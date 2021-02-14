@@ -105,9 +105,9 @@ class UpdateWrapper:
 
 @contextlib.contextmanager
 def file_progress(file, silent=False, **kwargs):
-    if silent or file.raw.fileno() == 0:  # 0 = stdin
+    if silent or file.fileno() == 0:  # 0 = stdin
         yield file
     else:
-        file_length = os.path.getsize(file.raw.name)
+        file_length = os.path.getsize(file.name)
         with click.progressbar(length=file_length, **kwargs) as bar:
             yield UpdateWrapper(file, bar.update)

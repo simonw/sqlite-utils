@@ -1,6 +1,5 @@
 import base64
 import click
-import codecs
 from click_default_group import DefaultGroup
 from datetime import datetime
 import hashlib
@@ -8,6 +7,7 @@ import pathlib
 import sqlite_utils
 from sqlite_utils.db import AlterError
 import textwrap
+import io
 import itertools
 import json
 import os
@@ -665,7 +665,7 @@ def insert_upsert_implementation(
     if encoding and not (csv or tsv):
         raise click.ClickException("--encoding must be used with --csv or --tsv")
     encoding = encoding or "utf-8"
-    json_file = codecs.getreader(encoding)(json_file)
+    json_file = io.TextIOWrapper(json_file, encoding=encoding)
     if pk and len(pk) == 1:
         pk = pk[0]
     if csv or tsv:
