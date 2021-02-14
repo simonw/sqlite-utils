@@ -500,7 +500,7 @@ Alternative delimiters and quote characters
 
 If your file uses a delimiter other than ``,`` or a quote character other than ``"`` you can attempt to detect delimiters or you can specify them explicitly.
 
-The ``--sniff`` option can be used to attempt to detect the delimiters:
+The ``--sniff`` option can be used to attempt to detect the delimiters::
 
     sqlite-utils insert dogs.db dogs dogs.csv --sniff
 
