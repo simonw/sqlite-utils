@@ -42,7 +42,7 @@ def test_insert_files():
         one, two, three = (
             rows_by_path["one.txt"],
             rows_by_path["two.txt"],
-            rows_by_path["nested/three.txt"],
+            rows_by_path[os.path.join("nested", "three.txt")],
         )
         assert {
             "content": b"This is file one",
@@ -64,7 +64,7 @@ def test_insert_files():
             "content": b"Three is nested",
             "md5": "12580f341781f5a5b589164d3cd39523",
             "name": "three.txt",
-            "path": "nested/three.txt",
+            "path": os.path.join("nested", "three.txt"),
             "sha256": "6dd45aaaaa6b9f96af19363a92c8fca5d34791d3c35c44eb19468a6a862cc8cd",
             "size": 15,
         }.items() <= three.items()
