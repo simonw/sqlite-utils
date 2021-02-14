@@ -49,10 +49,14 @@ Now you can do things with the CLI utility like this:
        1      4  Cleo
        2      2  Pancakes
 
-You can even import data into a new database table like this:
+You can import JSON data into a new database table like this:
 
     $ curl https://api.github.com/repos/simonw/sqlite-utils/releases \
         | sqlite-utils insert releases.db releases - --pk id
+
+Or for data in a CSV file:
+
+    $ sqlite-utils insert dogs.db dogs docs.csv --csv
 
 See the [full CLI documentation](https://sqlite-utils.datasette.io/en/stable/cli.html) for comprehensive coverage of many more commands.
 
