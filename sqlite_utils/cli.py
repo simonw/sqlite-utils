@@ -31,6 +31,18 @@ It's often worth trying: --encoding=latin-1
 """.strip()
 
 
+# Increase CSV field size limit to maximim possible
+# https://stackoverflow.com/a/15063941
+field_size_limit = sys.maxsize
+
+while True:
+    try:
+        csv_std.field_size_limit(field_size_limit)
+        break
+    except OverflowError:
+        field_size_limit = int(field_size_limit / 10)
+
+
 def output_options(fn):
     for decorator in reversed(
         (

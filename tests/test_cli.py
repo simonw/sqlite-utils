@@ -1799,3 +1799,23 @@ def test_triggers(tmpdir, extra_args, expected):
     )
     assert result.exit_code == 0
     assert result.output == expected
+
+
+def test_long_csv_column_value(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    csv_path = str(tmpdir / "test.csv")
+    csv_file = open(csv_path, "w")
+    long_string = "a" * 131073
+    csv_file.write("id,text\n")
+    csv_file.write("1,{}\n".format(long_string))
+    csv_file.close()
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "bigtable", csv_path, "--csv"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    rows = list(db["bigtable"].rows)
+    assert len(rows) == 1
+    assert rows[0]["text"] == long_string
