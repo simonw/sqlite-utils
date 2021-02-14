@@ -569,6 +569,22 @@ def test_insert_replace_rows_alter_table(fresh_db, use_table_factory):
     ] == list(table.rows)
 
 
+def test_insert_all_with_extra_columns_in_later_chunks(fresh_db):
+    chunk = [
+        {"record": "Record 1"},
+        {"record": "Record 2"},
+        {"record": "Record 3"},
+        {"record": "Record 4", "extra": 1},
+    ]
+    fresh_db["t"].insert_all(chunk, batch_size=2, alter=True)
+    assert list(fresh_db["t"].rows) == [
+        {"record": "Record 1", "extra": None},
+        {"record": "Record 2", "extra": None},
+        {"record": "Record 3", "extra": None},
+        {"record": "Record 4", "extra": 1},
+    ]
+
+
 def test_bulk_insert_more_than_999_values(fresh_db):
     "Inserting 100 items with 11 columns should work"
     fresh_db["big"].insert_all(
