@@ -93,7 +93,7 @@ def test_tables_counts_and_columns_csv(db_path, format, expected):
     result = CliRunner().invoke(
         cli.cli, ["tables", "--counts", "--columns", format, db_path]
     )
-    assert result.output.strip() == expected
+    assert result.output.strip().replace("\r", "") == expected
 
 
 def test_tables_schema(db_path):
@@ -870,12 +870,13 @@ def test_query_csv(db_path, format, expected):
         cli.cli, [db_path, "select id, name, age from dogs", format]
     )
     assert 0 == result.exit_code
-    assert result.output == expected
+    assert result.output.replace("\r", "") == expected
     # Test the no-headers option:
     result = CliRunner().invoke(
         cli.cli, [db_path, "select id, name, age from dogs", "--no-headers", format]
     )
-    assert result.output.strip() == "\n".join(expected.split("\n")[1:]).strip()
+    expected_rest = "\n".join(expected.split("\n")[1:]).strip()
+    assert result.output.strip().replace("\r", "") == expected_rest
 
 
 _all_query = "select id, name, age from dogs"
@@ -1760,7 +1761,7 @@ def test_search(tmpdir, fts, extra_arg, expected):
         catch_exceptions=False,
     )
     assert result.exit_code == 0
-    assert result.output == expected
+    assert result.output.replace("\r", "") == expected
 
 
 _TRIGGERS_EXPECTED = '[{"name": "blah", "table": "articles", "sql": "CREATE TRIGGER blah AFTER INSERT ON articles\\nBEGIN\\n    UPDATE counter SET count = count + 1;\\nEND"}]\n'
