@@ -369,6 +369,14 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
     assert all(q[0].startswith("select ") for q in queries)
 
 
+def test_enable_fts_error_message_on_views():
+    db = Database(memory=True)
+    db.create_view("hello", "select 1 + 1")
+    with pytest.raises(NotImplementedError) as e:
+        db["hello"].enable_fts()
+        assert e.value.args[0] == "enable_fts() is supported on tables but not on views"
+
+
 @pytest.mark.parametrize(
     "kwargs,fts,expected",
     [

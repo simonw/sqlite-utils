@@ -2162,6 +2162,11 @@ class View(Queryable):
     def drop(self):
         self.db.execute("DROP VIEW [{}]".format(self.name))
 
+    def enable_fts(self, *args, **kwargs):
+        raise NotImplementedError(
+            "enable_fts() is supported on tables but not on views"
+        )
+
 
 def chunks(sequence, size):
     iterator = iter(sequence)
