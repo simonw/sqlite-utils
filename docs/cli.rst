@@ -124,7 +124,7 @@ You can use the ``--json-cols`` option to automatically detect these JSON column
         }
     ]
 
-.. cli_attach:
+.. _cli_attach:
 
 Attaching additional databases
 ------------------------------

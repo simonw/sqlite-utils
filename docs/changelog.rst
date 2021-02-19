@@ -2,6 +2,16 @@
  Changelog
 ===========
 
+.. _v3_6:
+
+3.6 (2021-02-18)
+----------------
+
+This release adds the ability to execute queries joining data from more than one database file - similar to the cross database querying feature introduced in `Datasette 0.55 <https://docs.datasette.io/en/stable/changelog.html#v0-55>`__.
+
+- The ``db.attach(alias, filepath)`` Python method can be used to attach extra databases to the same connection, see :ref:`db.attach() in the Python API documentation <python_api_attach>`. (`#113 <https://github.com/simonw/sqlite-utils/issues/113>`__)
+- The ``--attach`` option attaches extra aliased databases to run SQL queries against directly on the command-line, see :ref:`attaching additional databases in the CLI documentation <cli_attach>`. (`#236 <https://github.com/simonw/sqlite-utils/issues/236>`__)
+
 .. _v3_5:
 
 3.5 (2021-02-14)
