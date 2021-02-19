@@ -219,6 +219,14 @@ class Database:
     def register_fts4_bm25(self):
         self.register_function(rank_bm25, deterministic=True)
 
+    def attach(self, alias, filepath):
+        attach_sql = """
+            ATTACH DATABASE '{}' AS [{}];
+        """.format(
+            str(pathlib.Path(filepath).resolve()), alias
+        ).strip()
+        self.execute(attach_sql)
+
     def execute(self, sql, parameters=None):
         if self._tracer:
             self._tracer(sql, parameters)

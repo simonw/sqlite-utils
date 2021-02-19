@@ -45,6 +45,27 @@ Connections use ``PRAGMA recursive_triggers=on`` by default. If you don't want t
 
     db = Database(memory=True, recursive_triggers=False)
 
+.. _python_api_attach:
+
+Attaching additional databases
+------------------------------
+
+SQLite supports cross-database SQL queries, which can join data from tables in more than one database file. You can attach an additional database using the ``.attach()`` method, providing an alias to use for that database and the path to the SQLite file on disk.
+
+.. code-block:: python
+
+    db = Database("first.db")
+    db.attach("second", "second.db")
+    # Now you can run queries like this one:
+    cursor = db.execute("""
+    select * from table_in_first
+        union all
+    select * from second.table_in_second
+    """)
+    print(cursor.fetchall())
+
+You can reference tables in the attached database using the alias value you passed to ``db.attach(alias, filepath)`` as a prefix, for example the ``second.table_in_second`` reference in the SQL query above.
+
 .. _python_api_tracing:
 
 Tracing queries
