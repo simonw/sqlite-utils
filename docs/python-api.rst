@@ -50,7 +50,9 @@ Connections use ``PRAGMA recursive_triggers=on`` by default. If you don't want t
 Attaching additional databases
 ------------------------------
 
-SQLite supports cross-database SQL queries, which can join data from tables in more than one database file. You can attach an additional database using the ``.attach()`` method, providing an alias to use for that database and the path to the SQLite file on disk.
+SQLite supports cross-database SQL queries, which can join data from tables in more than one database file.
+
+You can attach an additional database using the ``.attach()`` method, providing an alias to use for that database and the path to the SQLite file on disk.
 
 .. code-block:: python
 

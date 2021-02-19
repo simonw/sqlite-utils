@@ -122,7 +122,21 @@ You can use the ``--json-cols`` option to automatically detect these JSON column
                 }
             ]
         }
-    ]-
+    ]
+
+.. cli_attach:
+
+Attaching additional databases
+------------------------------
+
+SQLite supports cross-database SQL queries, which can join data from tables in more than one database file.
+
+You can attach one or more additional databases using the ``--attach`` option, providing an alias to use for that database and the path to the SQLite file on disk.
+
+This example attaches the ``books.db`` database under the alias ``books`` and then runs a query that combines data from that database with the default ``dogs.db`` database::
+
+    sqlite-utils dogs.db --attach books books.db \
+       'select * from sqlite_master union all select * from books.sqlite_master'
 
 .. _cli_query_csv:
 

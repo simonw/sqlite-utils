@@ -1020,6 +1020,12 @@ def drop_view(path, view, load_extension):
     required=True,
 )
 @click.argument("sql")
+@click.option(
+    "--attach",
+    type=(str, click.Path(file_okay=True, dir_okay=False, allow_dash=False)),
+    multiple=True,
+    help="Additional databases to attach - specify alias and filepath",
+)
 @output_options
 @click.option("-r", "--raw", is_flag=True, help="Raw output, first column of first row")
 @click.option(
@@ -1033,6 +1039,7 @@ def drop_view(path, view, load_extension):
 def query(
     path,
     sql,
+    attach,
     nl,
     arrays,
     csv,
@@ -1047,6 +1054,8 @@ def query(
 ):
     "Execute SQL query and return the results as JSON"
     db = sqlite_utils.Database(path)
+    for alias, attach_path in attach:
+        db.attach(alias, attach_path)
     _load_extensions(db, load_extension)
     db.register_fts4_bm25()
     with db.conn:
