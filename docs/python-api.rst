@@ -421,6 +421,17 @@ You can leave off the third item in the tuple to have the referenced column auto
     ], foreign_keys=[
         ("author_id", "authors")
     ])
+    
+Compound foreign keys can be created by passing in tuples of columns rather than strings:
+
+.. code-block:: python
+
+    foreign_keys=[
+        (("author_id", "person_id"), "authors", ("id", "person_id"))
+    ]
+
+This means that the ``author_id`` and ``person_id`` columns should be a compound foreign key that references the ``id`` and ``person_id`` columns in the ``authors`` table.
+
 
 .. _python_api_table_configuration:
 
@@ -941,6 +952,20 @@ The ``table.add_foreign_key(column, other_table, other_column)`` method takes th
 - If the column does not end in ``_id``, try looking for a table with the exact name of the column or that name with an added ``s``
 
 This method first checks that the specified foreign key references tables and columns that exist and does not clash with an existing foreign key. It will raise a ``sqlite_utils.db.AlterError`` exception if these checks fail.
+
+You can add compound foreign keys by passing a tuple of column names. For example:
+
+.. code-block:: python
+
+    db["authors"].insert_all([
+        {"id": 1, "person_id": 1, "name": "Sally"},
+        {"id": 2, "person_id": 2, "name": "Asheesh"}
+    ], pk="id")
+    db["books"].insert_all([
+        {"title": "Hedgehogs of the world", "author_id": 1, "person_id": 1},
+        {"title": "How to train your wolf", "author_id": 2, "person_id": 2},
+    ])
+    db["books"].add_foreign_key(("author_id", "person_id"), "authors", ("id", "person_id"))
 
 To ignore the case where the key already exists, use ``ignore=True``:
 

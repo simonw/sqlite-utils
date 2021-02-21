@@ -322,7 +322,7 @@ def test_add_column_foreign_key(db_path):
     )
     assert 0 == result.exit_code, result.output
     assert (
-        "CREATE TABLE [books] ( [title] TEXT , [author_id] INTEGER, FOREIGN KEY(author_id) REFERENCES authors(id) )"
+        "CREATE TABLE [books] ( [title] TEXT , [author_id] INTEGER, FOREIGN KEY([author_id]) REFERENCES [authors]([id]) )"
         == collapse_whitespace(db["books"].schema)
     )
     # Try it again with a custom --fk-col
@@ -342,8 +342,8 @@ def test_add_column_foreign_key(db_path):
     assert 0 == result.exit_code, result.output
     assert (
         "CREATE TABLE [books] ( [title] TEXT , [author_id] INTEGER, [author_name_ref] TEXT, "
-        "FOREIGN KEY(author_id) REFERENCES authors(id), "
-        "FOREIGN KEY(author_name_ref) REFERENCES authors(name) )"
+        "FOREIGN KEY([author_id]) REFERENCES [authors]([id]), "
+        "FOREIGN KEY([author_name_ref]) REFERENCES [authors]([name]) )"
         == collapse_whitespace(db["books"].schema)
     )
     # Throw an error if the --fk table does not exist
@@ -1254,7 +1254,8 @@ def test_create_table_foreign_key():
             "CREATE TABLE [books] (\n"
             "   [id] INTEGER PRIMARY KEY,\n"
             "   [title] TEXT,\n"
-            "   [author_id] INTEGER REFERENCES [authors]([id])\n"
+            "   [author_id] INTEGER,\n"
+            "   FOREIGN KEY([author_id]) REFERENCES [authors]([id])\n"
             ")"
         ) == db["books"].schema
 
@@ -1626,7 +1627,7 @@ def test_transform_drop_foreign_key(db_path):
     schema = db["places"].schema
     assert (
         schema
-        == 'CREATE TABLE "places" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [country] INTEGER,\n   [city] INTEGER REFERENCES [city]([id])\n)'
+        == 'CREATE TABLE "places" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [country] INTEGER,\n   [city] INTEGER,\n   FOREIGN KEY([city]) REFERENCES [city]([id])\n)'
     )
 
 
@@ -1640,22 +1641,22 @@ _common_other_schema = (
     [
         (
             [],
-            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [species_id] INTEGER,\n   FOREIGN KEY(species_id) REFERENCES species(id)\n)',
+            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [species_id] INTEGER,\n   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n)',
             _common_other_schema,
         ),
         (
             ["--table", "custom_table"],
-            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [custom_table_id] INTEGER,\n   FOREIGN KEY(custom_table_id) REFERENCES custom_table(id)\n)',
+            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [custom_table_id] INTEGER,\n   FOREIGN KEY([custom_table_id]) REFERENCES [custom_table]([id])\n)',
             "CREATE TABLE [custom_table] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)",
         ),
         (
             ["--fk-column", "custom_fk"],
-            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [custom_fk] INTEGER,\n   FOREIGN KEY(custom_fk) REFERENCES species(id)\n)',
+            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [custom_fk] INTEGER,\n   FOREIGN KEY([custom_fk]) REFERENCES [species]([id])\n)',
             _common_other_schema,
         ),
         (
             ["--rename", "name", "name2"],
-            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [species_id] INTEGER,\n   FOREIGN KEY(species_id) REFERENCES species(id)\n)',
+            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [species_id] INTEGER,\n   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n)',
             "CREATE TABLE [species] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)",
         ),
     ],

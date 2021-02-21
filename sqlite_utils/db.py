@@ -64,11 +64,44 @@ ColumnDetails = namedtuple(
         "least_common",
     ),
 )
-ForeignKey = namedtuple(
-    "ForeignKey", ("table", "column", "other_table", "other_column")
-)
 Index = namedtuple("Index", ("seq", "name", "unique", "origin", "partial", "columns"))
 Trigger = namedtuple("Trigger", ("name", "table", "sql"))
+
+
+class ForeignKey(ForeignKeyBase):
+    def __new__(cls, table, column, other_table, other_column):
+        # column and other_column should be a tuple
+        if isinstance(column, (tuple, list)):
+            column = tuple(column)
+        else:
+            column = (column,)
+        if isinstance(other_column, (tuple, list)):
+            other_column = tuple(other_column)
+        else:
+            other_column = (other_column,)
+        self = super(ForeignKey, cls).__new__(
+            cls, table, column, other_table, other_column
+        )
+        return self
+
+    @property
+    def column_str(self):
+        return ",".join(["[{}]".format(c) for c in self.column])
+
+    @property
+    def other_column_str(self):
+        return ",".join(["[{}]".format(c) for c in self.other_column])
+
+    @property
+    def sql(self):
+        return (
+            "FOREIGN KEY({column}) REFERENCES [{other_table}]({other_column})".format(
+                table=self.table,
+                column=self.column_str,
+                other_table=self.other_table,
+                other_column=self.other_column_str,
+            )
+        )
 
 
 DEFAULT = object()
@@ -435,12 +468,9 @@ class Database:
             pk = hash_id
         # Soundness check foreign_keys point to existing tables
         for fk in foreign_keys:
-            if not any(
-                c for c in self[fk.other_table].columns if c.name == fk.other_column
-            ):
-                raise AlterError(
-                    "No such column: {}.{}".format(fk.other_table, fk.other_column)
-                )
+            for oc in fk.other_column:
+                if not any(c for c in self[fk.other_table].columns if c.name == oc):
+                    raise AlterError("No such column: {}.{}".format(fk.other_table, oc))
 
         column_defs = []
         # ensure pk is a tuple
@@ -461,13 +491,6 @@ class Database:
                 column_extras.append(
                     "DEFAULT {}".format(self.quote(defaults[column_name]))
                 )
-            if column_name in foreign_keys_by_column:
-                column_extras.append(
-                    "REFERENCES [{other_table}]([{other_column}])".format(
-                        other_table=foreign_keys_by_column[column_name].other_table,
-                        other_column=foreign_keys_by_column[column_name].other_column,
-                    )
-                )
             column_defs.append(
                 "   [{column_name}] {column_type}{column_extras}".format(
                     column_name=column_name,
@@ -481,6 +504,10 @@ class Database:
         if single_pk is None and pk and len(pk) > 1:
             extra_pk = ",\n   PRIMARY KEY ({pks})".format(
                 pks=", ".join(["[{}]".format(p) for p in pk])
+            )
+        for column_name in foreign_keys_by_column:
+            extra_pk += ",\n   {}".format(
+                foreign_keys_by_column[column_name].sql,
             )
         columns_sql = ",\n".join(column_defs)
         sql = """CREATE TABLE [{table}] (
@@ -554,7 +581,7 @@ class Database:
                 candidates.append(table.name)
         return candidates
 
-    def add_foreign_keys(self, foreign_keys):
+    def add_foreign_keys(self, foreign_keys, ignore=True):
         # foreign_keys is a list of explicit 4-tuples
         assert all(
             len(fk) == 4 and isinstance(fk, (list, tuple)) for fk in foreign_keys
@@ -563,43 +590,55 @@ class Database:
         foreign_keys_to_create = []
 
         # Verify that all tables and columns exist
-        for table, column, other_table, other_column in foreign_keys:
-            if not self[table].exists():
-                raise AlterError("No such table: {}".format(table))
-            if column not in self[table].columns_dict:
-                raise AlterError("No such column: {} in {}".format(column, table))
-            if not self[other_table].exists():
-                raise AlterError("No such other_table: {}".format(other_table))
-            if (
-                other_column != "rowid"
-                and other_column not in self[other_table].columns_dict
-            ):
-                raise AlterError(
-                    "No such other_column: {} in {}".format(other_column, other_table)
+        for fk in foreign_keys:
+            if not isinstance(fk, ForeignKey):
+                fk = ForeignKey(
+                    table=fk[0],
+                    column=fk[1],
+                    other_table=fk[2],
+                    other_column=fk[3],
                 )
+
+            if not self[fk.table].exists():
+                raise AlterError("No such table: {}".format(fk.table))
+            for c in fk.column:
+                if c not in self[fk.table].columns_dict:
+                    raise AlterError("No such column: {} in {}".format(c, fk.table))
+            if not self[fk.other_table].exists():
+                raise AlterError("No such other_table: {}".format(fk.other_table))
+            for c in fk.other_column:
+                if c != "rowid" and c not in self[fk.other_table].columns_dict:
+                    raise AlterError(
+                        "No such other_column: {} in {}".format(c, fk.other_table)
+                    )
             # We will silently skip foreign keys that exist already
-            if not any(
-                fk
-                for fk in self[table].foreign_keys
-                if fk.column == column
-                and fk.other_table == other_table
-                and fk.other_column == other_column
+            if any(
+                existing_fk
+                for existing_fk in self[fk.table].foreign_keys
+                if existing_fk.column == fk.column
+                and existing_fk.other_table == fk.other_table
+                and existing_fk.other_column == fk.other_column
             ):
-                foreign_keys_to_create.append(
-                    (table, column, other_table, other_column)
-                )
+                if ignore:
+                    continue
+                else:
+                    raise AlterError(
+                        "Foreign key already exists for {} => {}.{}".format(
+                            fk.column_str, other_table, fk.other_column_str
+                        )
+                    )
+            else:
+                foreign_keys_to_create.append(fk)
 
         # Construct SQL for use with "UPDATE sqlite_master SET sql = ? WHERE name = ?"
         table_sql = {}
-        for table, column, other_table, other_column in foreign_keys_to_create:
-            old_sql = table_sql.get(table, self[table].schema)
-            extra_sql = ",\n   FOREIGN KEY({column}) REFERENCES {other_table}({other_column})\n".format(
-                column=column, other_table=other_table, other_column=other_column
-            )
+        for fk in foreign_keys_to_create:
+            old_sql = table_sql.get(fk.table, self[fk.table].schema)
+            extra_sql = ",\n   {}\n".format(fk.sql)
             # Stick that bit in at the very end just before the closing ')'
             last_paren = old_sql.rindex(")")
             new_sql = old_sql[:last_paren].strip() + extra_sql + old_sql[last_paren:]
-            table_sql[table] = new_sql
+            table_sql[fk.table] = new_sql
 
         # And execute it all within a single transaction
         with self.conn:
@@ -620,12 +659,10 @@ class Database:
     def index_foreign_keys(self):
         for table_name in self.table_names():
             table = self[table_name]
-            existing_indexes = {
-                i.columns[0] for i in table.indexes if len(i.columns) == 1
-            }
+            existing_indexes = {tuple(i.columns) for i in table.indexes}
             for fk in table.foreign_keys:
                 if fk.column not in existing_indexes:
-                    table.create_index([fk.column])
+                    table.create_index(fk.column)
 
     def vacuum(self):
         self.execute("VACUUM;")
@@ -784,21 +821,30 @@ class Table(Queryable):
 
     @property
     def foreign_keys(self):
-        fks = []
+        fks = {}
         for row in self.db.execute(
             "PRAGMA foreign_key_list([{}])".format(self.name)
         ).fetchall():
             if row is not None:
                 id, seq, table_name, from_, to_, on_update, on_delete, match = row
-                fks.append(
-                    ForeignKey(
-                        table=self.name,
-                        column=from_,
-                        other_table=table_name,
-                        other_column=to_,
-                    )
-                )
-        return fks
+                if id not in fks:
+                    fks[id] = {
+                        "column": [],
+                        "other_column": [],
+                    }
+                fks[id]["table"] = self.name
+                fks[id]["column"].append(from_)
+                fks[id]["other_table"] = table_name
+                fks[id]["other_column"].append(to_)
+        return [
+            ForeignKey(
+                table=fk["table"],
+                column=tuple(fk["column"]),
+                other_table=fk["other_table"],
+                other_column=tuple(fk["other_column"]),
+            )
+            for fk in fks.values()
+        ]
 
     @property
     def virtual_table_using(self):
@@ -987,10 +1033,16 @@ class Table(Queryable):
 
         # foreign_keys
         create_table_foreign_keys = []
-        for table, column, other_table, other_column in self.foreign_keys:
-            if (drop_foreign_keys is None) or (column not in drop_foreign_keys):
+        if drop_foreign_keys:
+            drop_foreign_keys = [
+                (f,) if not isinstance(f, (tuple, list)) else tuple(f)
+                for f in drop_foreign_keys
+            ]
+        for fk in self.foreign_keys:
+            if (drop_foreign_keys is None) or (fk.column not in drop_foreign_keys):
+                column_names = tuple(rename.get(c) or c for c in fk.column)
                 create_table_foreign_keys.append(
-                    (rename.get(column) or column, other_table, other_column)
+                    (column_names, fk.other_table, fk.other_column)
                 )
 
         if column_order is not None:
@@ -1188,6 +1240,8 @@ class Table(Queryable):
         self.db.execute("DROP TABLE [{}]".format(self.name))
 
     def guess_foreign_table(self, column):
+        if isinstance(column, (tuple, list)):
+            column = column[0]
         column = column.lower()
         possibilities = [column]
         if column.endswith("_id"):
@@ -1220,22 +1274,28 @@ class Table(Queryable):
     def add_foreign_key(
         self, column, other_table=None, other_column=None, ignore=False
     ):
+        if not isinstance(column, (tuple, list)):
+            column = (column,)
         # Ensure column exists
-        if column not in self.columns_dict:
-            raise AlterError("No such column: {}".format(column))
+        for c in column:
+            if c not in self.columns_dict:
+                raise AlterError("No such column: {}".format(c))
         # If other_table is not specified, attempt to guess it from the column
         if other_table is None:
             other_table = self.guess_foreign_table(column)
         # If other_column is not specified, detect the primary key on other_table
         if other_column is None:
             other_column = self.guess_foreign_column(other_table)
+        if not isinstance(other_column, (tuple, list)):
+            other_column = (other_column,)
 
         # Soundness check that the other column exists
-        if (
-            not [c for c in self.db[other_table].columns if c.name == other_column]
-            and other_column != "rowid"
-        ):
-            raise AlterError("No such column: {}.{}".format(other_table, other_column))
+        for oc in other_column:
+            if (
+                not [c for c in self.db[other_table].columns if c.name == oc]
+                and oc != "rowid"
+            ):
+                raise AlterError("No such column: {}.{}".format(other_table, oc))
         # Check we do not already have an existing foreign key
         if any(
             fk
@@ -1249,7 +1309,7 @@ class Table(Queryable):
             else:
                 raise AlterError(
                     "Foreign key already exists for {} => {}.{}".format(
-                        column, other_table, other_column
+                        ",".join(column), other_table, ",".join(other_column)
                     )
                 )
         self.db.add_foreign_keys([(self.name, column, other_table, other_column)])

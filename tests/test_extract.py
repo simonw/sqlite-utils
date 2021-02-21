@@ -28,7 +28,9 @@ def test_extract_single_column(fresh_db, table, fk_column):
         "   [name] TEXT,\n"
         "   [{}] INTEGER,\n".format(expected_fk)
         + "   [end] INTEGER,\n"
-        + "   FOREIGN KEY({}) REFERENCES {}(id)\n".format(expected_fk, expected_table)
+        + "   FOREIGN KEY([{}]) REFERENCES [{}]([id])\n".format(
+            expected_fk, expected_table
+        )
         + ")"
     )
     assert fresh_db[expected_table].schema == (
@@ -75,7 +77,7 @@ def test_extract_multiple_columns_with_rename(fresh_db):
         "   [id] INTEGER PRIMARY KEY,\n"
         "   [name] TEXT,\n"
         "   [common_name_latin_name_id] INTEGER,\n"
-        "   FOREIGN KEY(common_name_latin_name_id) REFERENCES common_name_latin_name(id)\n"
+        "   FOREIGN KEY([common_name_latin_name_id]) REFERENCES [common_name_latin_name]([id])\n"
         ")"
     )
     assert fresh_db["common_name_latin_name"].schema == (
@@ -127,7 +129,7 @@ def test_extract_rowid_table(fresh_db):
         "   [rowid] INTEGER PRIMARY KEY,\n"
         "   [name] TEXT,\n"
         "   [common_name_latin_name_id] INTEGER,\n"
-        "   FOREIGN KEY(common_name_latin_name_id) REFERENCES common_name_latin_name(id)\n"
+        "   FOREIGN KEY([common_name_latin_name_id]) REFERENCES [common_name_latin_name]([id])\n"
         ")"
     )
 
@@ -144,7 +146,7 @@ def test_reuse_lookup_table(fresh_db):
         'CREATE TABLE "sightings" (\n'
         "   [id] INTEGER PRIMARY KEY,\n"
         "   [species_id] INTEGER,\n"
-        "   FOREIGN KEY(species_id) REFERENCES species(id)\n"
+        "   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n"
         ")"
     )
     assert fresh_db["individuals"].schema == (
@@ -152,7 +154,7 @@ def test_reuse_lookup_table(fresh_db):
         "   [id] INTEGER PRIMARY KEY,\n"
         "   [name] TEXT,\n"
         "   [species_id] INTEGER,\n"
-        "   FOREIGN KEY(species_id) REFERENCES species(id)\n"
+        "   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n"
         ")"
     )
     assert list(fresh_db["species"].rows) == [
