@@ -360,6 +360,21 @@ def test_add_foreign_key(fresh_db):
     ] == fresh_db["books"].foreign_keys
 
 
+def test_add_foreign_key_if_column_contains_space(fresh_db):
+    fresh_db["authors"].insert_all([{"id": 1, "name": "Sally"}], pk="id")
+    fresh_db["books"].insert_all(
+        [
+            {"title": "Hedgehogs of the world", "author id": 1},
+        ]
+    )
+    fresh_db["books"].add_foreign_key("author id", "authors", "id")
+    assert fresh_db["books"].foreign_keys == [
+        ForeignKey(
+            table="books", column="author id", other_table="authors", other_column="id"
+        )
+    ]
+
+
 def test_add_foreign_key_error_if_column_does_not_exist(fresh_db):
     fresh_db["books"].insert(
         {"id": 1, "title": "Hedgehogs of the world", "author_id": 1}
@@ -423,7 +438,7 @@ def test_add_column_foreign_key(fresh_db):
     fresh_db.create_table("breeds", {"name": str})
     fresh_db["dogs"].add_column("breed_id", fk="breeds")
     assert (
-        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, FOREIGN KEY(breed_id) REFERENCES breeds(rowid) )"
+        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, FOREIGN KEY([breed_id]) REFERENCES [breeds]([rowid]) )"
         == collapse_whitespace(fresh_db["dogs"].schema)
     )
     # And again with an explicit primary key column
@@ -431,8 +446,8 @@ def test_add_column_foreign_key(fresh_db):
     fresh_db["dogs"].add_column("subbreed_id", fk="subbreeds")
     assert (
         "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, [subbreed_id] TEXT, "
-        "FOREIGN KEY(breed_id) REFERENCES breeds(rowid), "
-        "FOREIGN KEY(subbreed_id) REFERENCES subbreeds(primkey) )"
+        "FOREIGN KEY([breed_id]) REFERENCES [breeds]([rowid]), "
+        "FOREIGN KEY([subbreed_id]) REFERENCES [subbreeds]([primkey]) )"
         == collapse_whitespace(fresh_db["dogs"].schema)
     )
 
@@ -443,7 +458,7 @@ def test_add_foreign_key_guess_table(fresh_db):
     fresh_db["dogs"].add_column("breed_id", int)
     fresh_db["dogs"].add_foreign_key("breed_id")
     assert (
-        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, FOREIGN KEY(breed_id) REFERENCES breeds(id) )"
+        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, FOREIGN KEY([breed_id]) REFERENCES [breeds]([id]) )"
         == collapse_whitespace(fresh_db["dogs"].schema)
     )
 
