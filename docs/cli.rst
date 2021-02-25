@@ -736,6 +736,8 @@ You can drop a table using the ``drop-table`` command::
 
     $ sqlite-utils drop-table mydb.db mytable
 
+Use ``--ignore`` to ignore the error if the table does not exist.
+
 .. _cli_transform_table:
 
 Transforming tables
@@ -921,6 +923,8 @@ Dropping views
 You can drop a view using the ``drop-view`` command::
 
     $ sqlite-utils drop-view myview
+
+Use ``--ignore`` to ignore the error if the view does not exist.
 
 .. _cli_add_column:
 

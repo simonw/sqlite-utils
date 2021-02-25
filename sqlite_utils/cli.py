@@ -946,14 +946,15 @@ def create_table(
     required=True,
 )
 @click.argument("table")
+@click.option("--ignore", is_flag=True)
 @load_extension_option
-def drop_table(path, table, load_extension):
+def drop_table(path, table, ignore, load_extension):
     "Drop the specified table"
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
-    if table in db.table_names():
-        db[table].drop()
-    else:
+    try:
+        db[table].drop(ignore=ignore)
+    except sqlite3.OperationalError:
         raise click.ClickException('Table "{}" does not exist'.format(table))
 
 
@@ -1002,14 +1003,15 @@ def create_view(path, view, select, ignore, replace, load_extension):
     required=True,
 )
 @click.argument("view")
+@click.option("--ignore", is_flag=True)
 @load_extension_option
-def drop_view(path, view, load_extension):
+def drop_view(path, view, ignore, load_extension):
     "Drop the specified view"
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
-    if view in db.view_names():
-        db[view].drop()
-    else:
+    try:
+        db[view].drop(ignore=ignore)
+    except sqlite3.OperationalError:
         raise click.ClickException('View "{}" does not exist'.format(view))
 
 
