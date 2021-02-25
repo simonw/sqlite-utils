@@ -1212,8 +1212,12 @@ class Table(Queryable):
             self.add_foreign_key(col_name, fk, fk_col)
         return self
 
-    def drop(self):
-        self.db.execute("DROP TABLE [{}]".format(self.name))
+    def drop(self, ignore=False):
+        try:
+            self.db.execute("DROP TABLE [{}]".format(self.name))
+        except sqlite3.OperationalError:
+            if not ignore:
+                raise
 
     def guess_foreign_table(self, column):
         column = column.lower()
@@ -2195,8 +2199,12 @@ class View(Queryable):
             self.name, ", ".join(c.name for c in self.columns)
         )
 
-    def drop(self):
-        self.db.execute("DROP VIEW [{}]".format(self.name))
+    def drop(self, ignore=False):
+        try:
+            self.db.execute("DROP VIEW [{}]".format(self.name))
+        except sqlite3.OperationalError:
+            if not ignore:
+                raise
 
     def enable_fts(self, *args, **kwargs):
         raise NotImplementedError(

@@ -1026,6 +1026,12 @@ You can drop a table or view using the ``.drop()`` method:
 
     db["my_table"].drop()
 
+Pass ``ignore=True`` if you want to ignore the error caused by the table or view not existing.
+
+.. code-block:: python
+
+    db["my_table"].drop(ignore=True)
+
 .. _python_api_transform:
 
 Transforming a table
