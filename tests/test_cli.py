@@ -1400,14 +1400,10 @@ def test_drop_table_error():
         # Using --ignore supresses that error
         result = runner.invoke(
             cli.cli,
-            [
-                "drop-table",
-                "test.db",
-                "t2",
-                "--ignore"
-            ],
+            ["drop-table", "test.db", "t2", "--ignore"],
         )
         assert 0 == result.exit_code
+
 
 def test_drop_view():
     runner = CliRunner()
@@ -1445,12 +1441,7 @@ def test_drop_view_error():
         # Using --ignore supresses that error
         result = runner.invoke(
             cli.cli,
-            [
-                "drop-view",
-                "test.db",
-                "t2",
-                "--ignore"
-            ],
+            ["drop-view", "test.db", "t2", "--ignore"],
         )
         assert 0 == result.exit_code
 
