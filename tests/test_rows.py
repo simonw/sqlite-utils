@@ -104,4 +104,3 @@ def test_pks_and_rows_where_compound_pk(fresh_db):
         (("number", 1), {"type": "number", "number": 1, "plusone": 2}),
         (("number", 2), {"type": "number", "number": 2, "plusone": 3}),
     ]
-    assert False
