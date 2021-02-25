@@ -1,5 +1,6 @@
-from sqlite_utils.db import Index, InvalidColumns
+from sqlite_utils.db import Index, InvalidColumns, ForeignKey
 import itertools
+import json
 import pytest
 
 
@@ -171,3 +172,24 @@ def test_extract_error_on_incompatible_existing_lookup_table(fresh_db):
     fresh_db["species2"].insert({"id": 1, "common_name": 3.5})
     with pytest.raises(InvalidColumns):
         fresh_db["tree"].extract("common_name", table="species2")
+
+
+def test_extract_expand(fresh_db):
+    fresh_db["trees"].insert(
+        {"id": 1, "species": '{"id": 5, "name": "Tree 1", "common_name": "Palm"}'},
+        pk="id",
+    )
+    assert fresh_db.table_names() == ["trees"]
+    fresh_db["trees"].extract_expand(
+        "species", expand=json.loads, table="species", pk="id"
+    )
+    assert set(fresh_db.table_names()) == {"trees", "species"}
+    assert list(fresh_db["trees"].rows) == [{"id": 1, "species_id": 5}]
+    assert list(fresh_db["species"].rows) == [
+        {"id": 5, "name": "Tree 1", "common_name": "Palm"}
+    ]
+    assert fresh_db["trees"].foreign_keys == [
+        ForeignKey(
+            table="trees", column="species_id", other_table="species", other_column="id"
+        )
+    ]

@@ -1151,6 +1151,25 @@ class Table(Queryable):
         self.add_foreign_key(fk_column, table, "id")
         return self
 
+    def extract_expand(
+        self, column, expand, table=None, fk_column=None, fk_column_type=int, pk=None
+    ):
+        "Use expand function to transform values in column and extract them into a new table"
+        table = table or column
+        fk_column = fk_column or "{}_id".format(table)
+        self.add_column(fk_column, fk_column_type)
+        for row_pk, row in self.pks_and_rows_where():
+            value = row[column]
+            expanded = expand(value)
+            if isinstance(expanded, dict):
+                new_pk = self.db[table].insert(expanded, pk="id", replace=True).last_pk
+                self.update(row_pk, {fk_column: new_pk})
+        # Can drop the original column now
+        self.transform(drop=[column])
+        # And add that foreign key
+        self.add_foreign_key(fk_column, table, "id")
+        return self
+
     def create_index(self, columns, index_name=None, unique=False, if_not_exists=False):
         if index_name is None:
             index_name = "idx_{}_{}".format(
