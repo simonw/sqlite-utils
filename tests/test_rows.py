@@ -68,3 +68,40 @@ def test_rows_where_offset_limit(fresh_db, offset, limit, expected):
     assert expected == [
         r["id"] for r in table.rows_where(offset=offset, limit=limit, order_by="id")
     ]
+
+
+def test_pks_and_rows_where_rowid(fresh_db):
+    table = fresh_db["rowid_table"]
+    table.insert_all({"number": i + 10} for i in range(3))
+    pks_and_rows = list(table.pks_and_rows_where())
+    assert pks_and_rows == [
+        (1, {"rowid": 1, "number": 10}),
+        (2, {"rowid": 2, "number": 11}),
+        (3, {"rowid": 3, "number": 12}),
+    ]
+
+
+def test_pks_and_rows_where_simple_pk(fresh_db):
+    table = fresh_db["simple_pk_table"]
+    table.insert_all(({"id": i + 10} for i in range(3)), pk="id")
+    pks_and_rows = list(table.pks_and_rows_where())
+    assert pks_and_rows == [
+        (10, {"id": 10}),
+        (11, {"id": 11}),
+        (12, {"id": 12}),
+    ]
+
+
+def test_pks_and_rows_where_compound_pk(fresh_db):
+    table = fresh_db["compound_pk_table"]
+    table.insert_all(
+        ({"type": "number", "number": i, "plusone": i + 1} for i in range(3)),
+        pk=("type", "number"),
+    )
+    pks_and_rows = list(table.pks_and_rows_where())
+    assert pks_and_rows == [
+        (("number", 0), {"type": "number", "number": 0, "plusone": 1}),
+        (("number", 1), {"type": "number", "number": 1, "plusone": 2}),
+        (("number", 2), {"type": "number", "number": 2, "plusone": 3}),
+    ]
+    assert False

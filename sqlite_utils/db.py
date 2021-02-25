@@ -677,6 +677,34 @@ class Queryable:
         for row in cursor:
             yield dict(zip(columns, row))
 
+    def pks_and_rows_where(
+        self,
+        where=None,
+        where_args=None,
+        order_by=None,
+        limit=None,
+        offset=None,
+    ):
+        "Like .rows_where() but returns (pk, row) pairs - pk can be a single value or tuple"
+        column_names = [column.name for column in self.columns]
+        pks = [column.name for column in self.columns if column.is_pk]
+        if not pks:
+            column_names.insert(0, "rowid")
+            pks = ["rowid"]
+        select = ",".join("[{}]".format(column_name) for column_name in column_names)
+        for row in self.rows_where(
+            select=select,
+            where=where,
+            where_args=where_args,
+            order_by=order_by,
+            limit=limit,
+            offset=offset,
+        ):
+            row_pk = tuple(row[pk] for pk in pks)
+            if len(row_pk) == 1:
+                row_pk = row_pk[0]
+            yield row_pk, row
+
     @property
     def columns(self):
         if not self.exists():

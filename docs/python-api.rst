@@ -231,6 +231,40 @@ This method also accepts ``offset=`` and ``limit=`` arguments, for specifying an
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
 
+.. _python_api_pks_and_rows_where:
+
+Listing rows with their primary keys
+====================================
+
+Sometimes it can be useful to retrieve the primary key along with each row, in order to pass that key (or primary key tuple) to the ``.get()`` or ``.update()`` methods.
+
+The ``.pks_and_rows_where()`` method takes the same signature as ``.rows_where()`` (with the exception of the ``select=`` parameter) but returns a generator that yields pairs of ``(primary key, row dictionary)``.
+
+The primary key value will usually be a single value but can also be a tuple if the table has a compound primary key.
+
+If the table is a ``rowid`` table (with no explicit primary key column) then that ID will be returned.
+
+::
+
+    >>> db = sqlite_utils.Database(memory=True)
+    >>> db["dogs"].insert({"name": "Cleo"})
+    >>> for pk, row in db["dogs"].pks_and_rows_where():
+    ...     print(pk, row)
+    1 {'rowid': 1, 'name': 'Cleo'}
+
+    >>> db["dogs_with_pk"].insert({"id": 5, "name": "Cleo"}, pk="id")
+    >>> for pk, row in db["dogs_with_pk"].pks_and_rows_where():
+    ...     print(pk, row)
+    5 {'id': 5, 'name': 'Cleo'}
+
+    >>> db["dogs_with_compound_pk"].insert(
+    ...     {"species": "dog", "id": 3, "name": "Cleo"},
+    ...     pk=("species", "id")
+    ... )
+    >>> for pk, row in db["dogs_with_compound_pk"].pks_and_rows_where():
+    ...     print(pk, row)
+    ('dog', 3) {'species': 'dog', 'id': 3, 'name': 'Cleo'}
+
 .. _python_api_get:
 
 Retrieving a specific record
