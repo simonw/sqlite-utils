@@ -266,7 +266,7 @@ def vacuum(path):
 @click.option("--no-vacuum", help="Don't run VACUUM", default=False, is_flag=True)
 @load_extension_option
 def optimize(path, tables, no_vacuum, load_extension):
-    """Optimize all FTS tables and then run VACUUM - should shrink the database file"""
+    """Optimize all full-text search tables and then run VACUUM - should shrink the database file"""
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     if not tables:
@@ -287,7 +287,7 @@ def optimize(path, tables, no_vacuum, load_extension):
 @click.argument("tables", nargs=-1)
 @load_extension_option
 def rebuild_fts(path, tables, load_extension):
-    """Rebuild all or specific FTS tables"""
+    """Rebuild all or specific full-text search tables"""
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     if not tables:
@@ -479,7 +479,7 @@ def create_index(path, table, column, name, unique, if_not_exists, load_extensio
 def enable_fts(
     path, table, column, fts4, fts5, tokenize, create_triggers, load_extension
 ):
-    "Enable FTS for specific table and columns"
+    "Enable full-text search for specific table and columns"
     fts_version = "FTS5"
     if fts4 and fts5:
         click.echo("Can only use one of --fts4 or --fts5", err=True)
@@ -507,7 +507,7 @@ def enable_fts(
 @click.argument("column", nargs=-1, required=True)
 @load_extension_option
 def populate_fts(path, table, column, load_extension):
-    "Re-populate FTS for specific table and columns"
+    "Re-populate full-text search for specific table and columns"
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     db[table].populate_fts(column)
@@ -522,7 +522,7 @@ def populate_fts(path, table, column, load_extension):
 @click.argument("table")
 @load_extension_option
 def disable_fts(path, table, load_extension):
-    "Disable FTS for specific table"
+    "Disable full-text search for specific table"
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     db[table].disable_fts()
