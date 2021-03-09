@@ -647,7 +647,7 @@ For example, given the dogs database you could upsert the record for Cleo like s
 
 .. code-block:: python
 
-    db["dogs"].upsert([{
+    db["dogs"].upsert({
         "id": 1,
         "name": "Cleo",
         "twitter": "cleopaws",
