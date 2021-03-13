@@ -603,7 +603,7 @@ The first argument to ``update()`` is the primary key. This can be a single valu
 
     >>> db["compound_dogs"].update((5, 3), {"name": "Updated"})
 
-The second argument is a dictonary of columns that should be updated, along with their new values.
+The second argument is a dictionary of columns that should be updated, along with their new values.
 
 You can cause any missing columns to be added automatically using ``alter=True``::
 

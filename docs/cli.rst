@@ -34,7 +34,7 @@ Use ``--nl`` to get back newline-delimited JSON objects::
     {"id": 1, "age": 4, "name": "Cleo"}
     {"id": 2, "age": 2, "name": "Pancakes"}
 
-You can use ``--arrays`` to request ararys instead of objects::
+You can use ``--arrays`` to request arrays instead of objects::
 
     $ sqlite-utils dogs.db "select * from dogs" --arrays
     [[1, 4, "Cleo"],
@@ -75,7 +75,7 @@ Binary strings are not valid JSON, so BLOB columns containing binary data will b
         }
     ]
 
-If you execute an ``UPDATE``, ``INSERT`` or ``DELETE`` query the comand will return the number of affected rows::
+If you execute an ``UPDATE``, ``INSERT`` or ``DELETE`` query the command will return the number of affected rows::
 
     $ sqlite-utils dogs.db "update dogs set age = 5 where name = 'Cleo'"   
     [{"rows_affected": 1}]
@@ -1186,7 +1186,7 @@ Both of these commands accept one or more database files as arguments.
 Loading SQLite extensions
 =========================
 
-Many of these commands have the ablity to load additional SQLite extensions using the ``--load-extension=/path/to/extension`` option - use ``--help`` to check for support, e.g. ``sqlite-utils rows --help``.
+Many of these commands have the ability to load additional SQLite extensions using the ``--load-extension=/path/to/extension`` option - use ``--help`` to check for support, e.g. ``sqlite-utils rows --help``.
 
 This option can be applied multiple times to load multiple extensions.
 
