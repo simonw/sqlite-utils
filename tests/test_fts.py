@@ -501,3 +501,14 @@ def test_search_sql(kwargs, fts, expected):
     db["books"].enable_fts(["title", "author"], fts_version=fts)
     sql = db["books"].search_sql(**kwargs)
     assert sql == expected
+
+def test_quote_fts_query(fresh_db):
+
+    table = fresh_db["searchable"]
+    table.insert_all(search_records)
+    table.enable_fts(["text", "country"])
+
+    query = "cat's"
+    list(table.search(query))
+
+    
