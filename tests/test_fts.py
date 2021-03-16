@@ -509,6 +509,6 @@ def test_quote_fts_query(fresh_db):
     table.enable_fts(["text", "country"])
 
     query = "cat's"
-    list(table.search(query))
-
-    
+    result = fresh_db.quote_fts(query)
+    # Executing query does not crash.
+    list(table.search(result))
