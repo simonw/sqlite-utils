@@ -905,7 +905,7 @@ def upsert(
 def create_table(
     path, table, columns, pk, not_null, default, fk, ignore, replace, load_extension
 ):
-    "Add an index to the specified table covering the specified columns"
+    "Add a table with the specified columns"
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     if len(columns) % 2 == 1:
