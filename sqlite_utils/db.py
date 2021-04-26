@@ -2222,7 +2222,7 @@ def jsonify_if_needed(value):
     if isinstance(value, decimal.Decimal):
         return float(value)
     if isinstance(value, (dict, list, tuple)):
-        return json.dumps(value, default=repr)
+        return json.dumps(value, default=repr, ensure_ascii=False)
     elif isinstance(value, (datetime.time, datetime.date, datetime.datetime)):
         return value.isoformat()
     elif isinstance(value, uuid.UUID):
