@@ -748,7 +748,7 @@ def test_create_index_if_not_exists(fresh_db):
         {"dictionary": {"nested": "complex"}},
         collections.OrderedDict(
             [
-                ("key1", {"nested": "complex"}),
+                ("key1", {"nested": ["cømplex"]}),
                 ("key2", "foo"),
             ]
         ),
@@ -760,6 +760,14 @@ def test_insert_dictionaries_and_lists_as_json(fresh_db, data_structure):
     row = fresh_db.execute("select id, data from test").fetchone()
     assert row[0] == 1
     assert data_structure == json.loads(row[1])
+
+
+def test_insert_list_nested_unicode(fresh_db):
+    fresh_db["test"].insert(
+        {"id": 1, "data": {"key1": {"nested": ["cømplex"]}}}, pk="id"
+    )
+    row = fresh_db.execute("select id, data from test").fetchone()
+    assert row[1] == '{"key1": {"nested": ["cømplex"]}}'
 
 
 def test_insert_uuid(fresh_db):
