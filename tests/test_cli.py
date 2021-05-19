@@ -354,6 +354,21 @@ def test_add_column_foreign_key(db_path):
     assert "table 'bobcats' does not exist" in str(result.exception)
 
 
+def test_suggest_alter_if_column_missing(db_path):
+    db = Database(db_path)
+    db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "authors", "-"],
+        input='{"id": 2, "name": "Barry", "age": 43}',
+    )
+    assert result.exit_code != 0
+    assert result.output.strip() == (
+        "Error: table authors has no column named age\n\n"
+        "Try using --alter to add additional columns"
+    )
+
+
 def test_index_foreign_keys(db_path):
     test_add_column_foreign_key(db_path)
     db = Database(db_path)

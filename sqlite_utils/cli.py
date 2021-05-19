@@ -732,9 +732,16 @@ def insert_upsert_implementation(
         extra_kwargs["upsert"] = upsert
     # Apply {"$base64": true, ...} decoding, if needed
     docs = (decode_base64_values(doc) for doc in docs)
-    db[table].insert_all(
-        docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
-    )
+    try:
+        db[table].insert_all(
+            docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
+        )
+    except sqlite3.OperationalError as e:
+        if e.args and "has no column named" in e.args[0]:
+            raise click.ClickException(
+                "{}\n\nTry using --alter to add additional columns".format(e.args[0])
+            )
+        raise
 
 
 @cli.command()
