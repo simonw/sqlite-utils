@@ -201,7 +201,7 @@ Other changes
 2.17 (2020-09-07)
 -----------------
 
-This release handles a bug where replacing rows in FTS tables could result in growing numbers of unneccessary rows in the associated ``*_fts_docsize`` table. (`#149 <https://github.com/simonw/sqlite-utils/issues/149>`__)
+This release handles a bug where replacing rows in FTS tables could result in growing numbers of unnecessary rows in the associated ``*_fts_docsize`` table. (`#149 <https://github.com/simonw/sqlite-utils/issues/149>`__)
 
 - ``PRAGMA recursive_triggers=on`` by default for all connections. You can turn it off with ``Database(recursive_triggers=False)``. (`#152 <https://github.com/simonw/sqlite-utils/issues/152>`__)
 - ``table.optimize()`` method now deletes unnecessary rows from the ``*_fts_docsize`` table. (`#153 <https://github.com/simonw/sqlite-utils/issues/153>`__)
@@ -272,7 +272,7 @@ The theme of this release is better tools for working with binary data. The new 
 
 - ``sqlite-utils insert-files my.db gifs *.gif`` can now insert the contents of files into a specified table. The columns in the table can be customized to include different pieces of metadata derived from the files. See :ref:`cli_insert_files`. (`#122 <https://github.com/simonw/sqlite-utils/issues/122>`__)
 - ``--raw`` option to ``sqlite-utils query`` - for outputting just a single raw column value - see :ref:`cli_query_raw`. (`#123 <https://github.com/simonw/sqlite-utils/issues/123>`__)
-- JSON output now encodes BLOB values as special base64 obects - see :ref:`cli_query_json`. (`#125 <https://github.com/simonw/sqlite-utils/issues/125>`__)
+- JSON output now encodes BLOB values as special base64 objects - see :ref:`cli_query_json`. (`#125 <https://github.com/simonw/sqlite-utils/issues/125>`__)
 - The same format of JSON base64 objects can now be used to insert binary data - see :ref:`cli_inserting_data`. (`#126 <https://github.com/simonw/sqlite-utils/issues/126>`__)
 - The ``sqlite-utils query`` command can now accept named parameters, e.g. ``sqlite-utils :memory: "select :num * :num2" -p num 5 -p num2 6`` - see :ref:`cli_query_json`. (`#124 <https://github.com/simonw/sqlite-utils/issues/124>`__)
 
@@ -594,7 +594,7 @@ Support for lookup tables.
 1.2 (2019-06-12)
 ----------------
 
-- Improved foreign key definitions: you no longer need to specify the ``column``, ``other_table`` AND ``other_column`` to define a foreign key - if you omit the ``other_table`` or ``other_column`` the script will attempt to guess the correct values by instrospecting the database. See :ref:`python_api_add_foreign_key` for details. (`#25 <https://github.com/simonw/sqlite-utils/issues/25>`__)
+- Improved foreign key definitions: you no longer need to specify the ``column``, ``other_table`` AND ``other_column`` to define a foreign key - if you omit the ``other_table`` or ``other_column`` the script will attempt to guess the correct values by introspecting the database. See :ref:`python_api_add_foreign_key` for details. (`#25 <https://github.com/simonw/sqlite-utils/issues/25>`__)
 - Ability to set ``NOT NULL`` constraints and ``DEFAULT`` values when creating tables (`#24 <https://github.com/simonw/sqlite-utils/issues/24>`__). Documentation: :ref:`Setting defaults and not null constraints (Python API) <python_api_defaults_not_null>`, :ref:`Setting defaults and not null constraints (CLI) <cli_defaults_not_null>`
 - Support for ``not_null_default=X`` / ``--not-null-default`` for setting a ``NOT NULL DEFAULT 'x'`` when adding a new column. Documentation: :ref:`Adding columns (Python API) <python_api_add_column>`, :ref:`Adding columns (CLI) <cli_add_column>`
 
@@ -603,7 +603,7 @@ Support for lookup tables.
 1.1 (2019-05-28)
 ----------------
 
-- Support for ``ignore=True`` / ``--ignore`` for ignoring inserted records if the primary key alread exists (`#21 <https://github.com/simonw/sqlite-utils/issues/21>`__) - documentation: :ref:`Inserting data (Python API) <python_api_bulk_inserts>`, :ref:`Inserting data (CLI) <cli_inserting_data>`
+- Support for ``ignore=True`` / ``--ignore`` for ignoring inserted records if the primary key already exists (`#21 <https://github.com/simonw/sqlite-utils/issues/21>`__) - documentation: :ref:`Inserting data (Python API) <python_api_bulk_inserts>`, :ref:`Inserting data (CLI) <cli_inserting_data>`
 - Ability to add a column that is a foreign key reference using ``fk=...`` / ``--fk`` (`#16 <https://github.com/simonw/sqlite-utils/issues/16>`__) - documentation: :ref:`Adding columns (Python API) <python_api_add_column>`, :ref:`Adding columns (CLI) <cli_add_column>`
 
 .. _v1_0_1:
