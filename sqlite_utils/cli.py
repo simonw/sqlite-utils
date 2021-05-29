@@ -1276,9 +1276,12 @@ def triggers(
 @click.argument("table")
 @click.option(
     "--type",
-    type=(str, str),
+    type=(
+        str,
+        click.Choice(["INTEGER", "TEXT", "FLOAT", "BLOB"], case_sensitive=False),
+    ),
     multiple=True,
-    help="Change column type to X",
+    help="Change column type to INTEGER, TEXT, FLOAT or BLOB",
 )
 @click.option("--drop", type=str, multiple=True, help="Drop this column")
 @click.option(
