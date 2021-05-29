@@ -1848,6 +1848,8 @@ If the ``_counts`` table ever becomes out-of-sync with the actual table counts y
 
     db.reset_counts()
 
+.. _python_api_create_index:
+
 Creating indexes
 ================
 
