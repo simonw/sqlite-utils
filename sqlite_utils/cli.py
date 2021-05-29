@@ -694,7 +694,7 @@ def insert_upsert_implementation(
         raise click.ClickException("Use just one of --nl, --csv or --tsv")
     if encoding and not (csv or tsv):
         raise click.ClickException("--encoding must be used with --csv or --tsv")
-    encoding = encoding or "utf-8"
+    encoding = encoding or "utf-8-sig"
     buffered = io.BufferedReader(json_file, buffer_size=4096)
     decoded = io.TextIOWrapper(buffered, encoding=encoding)
     if pk and len(pk) == 1:

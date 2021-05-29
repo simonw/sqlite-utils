@@ -1915,3 +1915,28 @@ def test_attach(tmpdir):
         {"id": 1, "text": "foo"},
         {"id": 1, "text": "bar"},
     ]
+
+
+def test_csv_insert_bom(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    bom_csv_path = str(tmpdir / "bom.csv")
+    with open(bom_csv_path, "wb") as fp:
+        fp.write(b"\xef\xbb\xbfname,age\nCleo,5")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "broken", bom_csv_path, "--encoding", "utf-8", "--csv"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    result2 = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "fixed", bom_csv_path, "--csv"],
+        catch_exceptions=False,
+    )
+    assert result2.exit_code == 0
+    db = Database(db_path)
+    tables = db.execute("select name, sql from sqlite_master").fetchall()
+    assert tables == [
+        ("broken", "CREATE TABLE [broken] (\n   [\ufeffname] TEXT,\n   [age] TEXT\n)"),
+        ("fixed", "CREATE TABLE [fixed] (\n   [name] TEXT,\n   [age] TEXT\n)"),
+    ]
