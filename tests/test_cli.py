@@ -208,6 +208,17 @@ def test_create_index(db_path):
     )
 
 
+def test_create_index_desc(db_path):
+    db = Database(db_path)
+    assert [] == db["Gosh"].indexes
+    result = CliRunner().invoke(cli.cli, ["create-index", db_path, "Gosh", "--", "-c1"])
+    assert result.exit_code == 0
+    assert (
+        db.execute("select sql from sqlite_master where type='index'").fetchone()[0]
+        == "CREATE INDEX [idx_Gosh_c1]\n    ON [Gosh] ([c1] desc)"
+    )
+
+
 @pytest.mark.parametrize(
     "col_name,col_type,expected_schema",
     (

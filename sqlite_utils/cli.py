@@ -5,7 +5,7 @@ from datetime import datetime
 import hashlib
 import pathlib
 import sqlite_utils
-from sqlite_utils.db import AlterError
+from sqlite_utils.db import AlterError, DescIndex
 import textwrap
 import io
 import itertools
@@ -450,11 +450,21 @@ def index_foreign_keys(path, load_extension):
 )
 @load_extension_option
 def create_index(path, table, column, name, unique, if_not_exists, load_extension):
-    "Add an index to the specified table covering the specified columns"
+    """
+    Add an index to the specified table covering the specified columns.
+    Use "sqlite-utils create-index mydb -- -column" to specify descending
+    order for a column.
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
+    # Treat -prefix as descending for columns
+    columns = []
+    for col in column:
+        if col.startswith("-"):
+            col = DescIndex(col[1:])
+        columns.append(col)
     db[table].create_index(
-        column, index_name=name, unique=unique, if_not_exists=if_not_exists
+        columns, index_name=name, unique=unique, if_not_exists=if_not_exists
     )
 
 
