@@ -8,7 +8,7 @@
 ----------------
 
 - New ``table.pks_and_rows_where()`` method returning ``(primary_key, row_dictionary)`` tuples - see :ref:`python_api_pks_and_rows_where`. (`#240 <https://github.com/simonw/sqlite-utils/issues/240>`__)
-- Fixed bug with `table.add_foreign_key()` against columns containing spaces. (`#238 <https://github.com/simonw/sqlite-utils/issues/238>`__)
+- Fixed bug with ``table.add_foreign_key()`` against columns containing spaces. (`#238 <https://github.com/simonw/sqlite-utils/issues/238>`__)
 - ``table_or_view.drop(ignore=True)`` option for avoiding errors if the table or view does not exist. (`#237 <https://github.com/simonw/sqlite-utils/issues/237>`__)
 - ``sqlite-utils drop-view --ignore`` and ``sqlite-utils drop-table --ignore`` options. (`#237 <https://github.com/simonw/sqlite-utils/issues/237>`__)
 - Fixed a bug with inserts of nested JSON containing non-ascii strings - thanks, Dylan Wu. (`#257 <https://github.com/simonw/sqlite-utils/issues/257>`__)
