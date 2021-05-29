@@ -922,7 +922,17 @@ def upsert(
 def create_table(
     path, table, columns, pk, not_null, default, fk, ignore, replace, load_extension
 ):
-    "Add a table with the specified columns"
+    """
+    Add a table with the specified columns. Columns should be specified using
+    name, type pairs, for example:
+
+    \b
+    sqlite-utils create-table my.db people \\
+        id integer \\
+        name text \\
+        height float \\
+        photo blob --pk id
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     if len(columns) % 2 == 1:
