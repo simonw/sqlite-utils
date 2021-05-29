@@ -144,6 +144,10 @@ class InvalidColumns(Exception):
     pass
 
 
+class DescIndex(str):
+    pass
+
+
 _COUNTS_TABLE_CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS [{}](
    [table] TEXT PRIMARY KEY,
@@ -1156,6 +1160,13 @@ class Table(Queryable):
             index_name = "idx_{}_{}".format(
                 self.name.replace(" ", "_"), "_".join(columns)
             )
+        columns_sql = []
+        for column in columns:
+            if isinstance(column, DescIndex):
+                fmt = "[{}] desc"
+            else:
+                fmt = "[{}]"
+            columns_sql.append(fmt.format(column))
         sql = (
             textwrap.dedent(
                 """
@@ -1167,7 +1178,7 @@ class Table(Queryable):
             .format(
                 index_name=index_name,
                 table_name=self.name,
-                columns=", ".join("[{}]".format(c) for c in columns),
+                columns=", ".join(columns_sql),
                 unique="UNIQUE " if unique else "",
                 if_not_exists="IF NOT EXISTS " if if_not_exists else "",
             )

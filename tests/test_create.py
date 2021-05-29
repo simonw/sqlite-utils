@@ -1,6 +1,7 @@
 from sqlite_utils.db import (
     Index,
     Database,
+    DescIndex,
     ForeignKey,
     AlterError,
     NoObviousTable,
@@ -737,6 +738,19 @@ def test_create_index_if_not_exists(fresh_db):
     with pytest.raises(Exception, match="index idx_dogs_name already exists"):
         dogs.create_index(["name"])
     dogs.create_index(["name"], if_not_exists=True)
+
+
+def test_create_index_desc(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is good dog": True})
+    assert [] == dogs.indexes
+    dogs.create_index([DescIndex("age"), "name"])
+    sql = fresh_db.execute(
+        "select sql from sqlite_master where name='idx_dogs_age_name'"
+    ).fetchone()[0]
+    assert sql == (
+        "CREATE INDEX [idx_dogs_age_name]\n" "    ON [dogs] ([age] desc, [name])"
+    )
 
 
 @pytest.mark.parametrize(

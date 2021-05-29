@@ -1866,6 +1866,17 @@ By default the index will be named ``idx_{table-name}_{columns}`` - if you want 
         index_name="good_dogs_by_age"
     )
 
+To create an index in descending order for a column, wrap the column name in ``db.DescIndex()`` like this:
+
+.. code-block:: python
+
+    from sqlite_utils.db import DescIndex
+
+    db["dogs"].create_index(
+        ["is_good_dog", DescIndex("age")],
+        index_name="good_dogs_by_age"
+    )
+
 You can create a unique index by passing ``unique=True``:
 
 .. code-block:: python

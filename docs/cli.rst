@@ -1033,6 +1033,14 @@ Use the ``--unique`` option to create a unique index.
 
 Use ``--if-not-exists`` to avoid attempting to create the index if one with that name already exists.
 
+To add an index on a column in descending order, prefix the column with a hyphen. Since this can be confused for a command-line option you need to construct that like this::
+
+    $ sqlite-utils create-index mydb.db mytable -- col1 -col2 col3
+
+This will create an index on that table on ``(col1, col2 desc, col3)``.
+
+If your column names are already prefixed with a hyphen you'll need to manually execute a ``CREATE INDEX`` SQL statement to add indexes to them rather than using this tool.
+
 .. _cli_fts:
 
 Configuring full-text search
