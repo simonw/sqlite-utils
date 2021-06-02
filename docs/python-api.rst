@@ -202,7 +202,13 @@ You can filter rows by a WHERE clause using ``.rows_where(where, where_args)``::
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
 
-To return custom columns (instead of using ``select *``) pass ``select=``::
+The first argument is a fragment of SQL. The second, optional argument is values to be passed to that fragment - you can use ``?`` placeholders and pass an array, or you can use ``:named`` parameters and pass a dictionary, like this::
+
+    >>> for row in db["dogs"].rows_where("age > :age", {"age": 3}):
+    ...     print(row)
+    {'id': 1, 'age': 4, 'name': 'Cleo'}
+
+To return custom columns (instead of the default that uses ``select *``) pass ``select="column1, column2"``::
 
     >>> db = sqlite_utils.Database("dogs.db")
     >>> for row in db["dogs"].rows_where(select='name, age'):
