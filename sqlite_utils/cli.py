@@ -1293,6 +1293,67 @@ def triggers(
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
+@click.argument("tables", nargs=-1)
+@click.option("--aux", is_flag=True, help="Include auxiliary columns")
+@output_options
+@load_extension_option
+@click.pass_context
+def indexes(
+    ctx,
+    path,
+    tables,
+    aux,
+    nl,
+    arrays,
+    csv,
+    tsv,
+    no_headers,
+    table,
+    fmt,
+    json_cols,
+    load_extension,
+):
+    "Show indexes for this database"
+    sql = """
+    select
+      sqlite_master.name as "table",
+      indexes.name as index_name,
+      xinfo.*
+    from sqlite_master
+      join pragma_index_list(sqlite_master.name) indexes
+      join pragma_index_xinfo(index_name) xinfo
+    where
+      sqlite_master.type = 'table'
+    """
+    if tables:
+        quote = sqlite_utils.Database(memory=True).quote
+        sql += " and sqlite_master.name in ({})".format(
+            ", ".join(quote(table) for table in tables)
+        )
+    if not aux:
+        sql += " and xinfo.key = 1"
+    ctx.invoke(
+        query,
+        path=path,
+        sql=sql,
+        nl=nl,
+        arrays=arrays,
+        csv=csv,
+        tsv=tsv,
+        no_headers=no_headers,
+        table=table,
+        fmt=fmt,
+        json_cols=json_cols,
+        load_extension=load_extension,
+    )
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
 @click.argument("table")
 @click.option(
     "--type",

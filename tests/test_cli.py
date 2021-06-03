@@ -1802,6 +1802,83 @@ def test_search(tmpdir, fts, extra_arg, expected):
     assert result.output.replace("\r", "") == expected
 
 
+def test_indexes(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    db.conn.executescript(
+        """
+        create table Gosh (c1 text, c2 text, c3 text);
+        create index Gosh_idx on Gosh(c2, c3 desc);
+    """
+    )
+    result = CliRunner().invoke(
+        cli.cli,
+        ["indexes", str(db_path)],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == [
+        {
+            "table": "Gosh",
+            "index_name": "Gosh_idx",
+            "seqno": 0,
+            "cid": 1,
+            "name": "c2",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1,
+        },
+        {
+            "table": "Gosh",
+            "index_name": "Gosh_idx",
+            "seqno": 1,
+            "cid": 2,
+            "name": "c3",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1,
+        },
+    ]
+    result2 = CliRunner().invoke(
+        cli.cli,
+        ["indexes", str(db_path), "--aux"],
+        catch_exceptions=False,
+    )
+    assert result2.exit_code == 0
+    assert json.loads(result2.output) == [
+        {
+            "table": "Gosh",
+            "index_name": "Gosh_idx",
+            "seqno": 0,
+            "cid": 1,
+            "name": "c2",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1,
+        },
+        {
+            "table": "Gosh",
+            "index_name": "Gosh_idx",
+            "seqno": 1,
+            "cid": 2,
+            "name": "c3",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1,
+        },
+        {
+            "table": "Gosh",
+            "index_name": "Gosh_idx",
+            "seqno": 2,
+            "cid": -1,
+            "name": None,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0,
+        },
+    ]
+
+
 _TRIGGERS_EXPECTED = '[{"name": "blah", "table": "articles", "sql": "CREATE TRIGGER blah AFTER INSERT ON articles\\nBEGIN\\n    UPDATE counter SET count = count + 1;\\nEND"}]\n'
 
 

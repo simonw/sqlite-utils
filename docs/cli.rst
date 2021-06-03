@@ -293,6 +293,33 @@ It takes the same options as the ``tables`` command:
 * ``--tsv``
 * ``--table``
 
+.. _cli_indexes:
+
+Listing indexes
+===============
+
+The ``indexes`` command lists any indexes configured for the database::
+
+    $ sqlite-utils indexes covid.db --table
+    table                             index_name                                                seqno    cid  name                 desc  coll      key
+    --------------------------------  ------------------------------------------------------  -------  -----  -----------------  ------  ------  -----
+    johns_hopkins_csse_daily_reports  idx_johns_hopkins_csse_daily_reports_combined_key             0     12  combined_key            0  BINARY      1
+    johns_hopkins_csse_daily_reports  idx_johns_hopkins_csse_daily_reports_country_or_region        0      1  country_or_region       0  BINARY      1
+    johns_hopkins_csse_daily_reports  idx_johns_hopkins_csse_daily_reports_province_or_state        0      2  province_or_state       0  BINARY      1
+    johns_hopkins_csse_daily_reports  idx_johns_hopkins_csse_daily_reports_day                      0      0  day                     0  BINARY      1
+    ny_times_us_counties              idx_ny_times_us_counties_date                                 0      0  date                    1  BINARY      1
+    ny_times_us_counties              idx_ny_times_us_counties_fips                                 0      3  fips                    0  BINARY      1
+    ny_times_us_counties              idx_ny_times_us_counties_county                               0      1  county                  0  BINARY      1
+    ny_times_us_counties              idx_ny_times_us_counties_state                                0      2  state                   0  BINARY      1
+
+It shows indexes across all tables. To see indexes for specific tables, list those after the database::
+
+    $ sqlite-utils indexes covid.db johns_hopkins_csse_daily_reports --table
+
+The command defaults to only showing the columns that are explicitly part of the index. To also include auxiliary columns use the ``--aux`` option - these columns will be listed with a ``key`` of ``0``.
+
+The command takes the same format options as the ``tables`` and ``views`` commands.
+
 .. _cli_triggers:
 
 Listing triggers
