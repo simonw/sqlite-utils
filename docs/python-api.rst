@@ -1449,12 +1449,22 @@ If you have loaded an existing table or view, you can use introspection to find 
     >>> db["PlantType"]
     <Table PlantType (id, value)>
 
+.. _python_api_introspection_exists:
+
+.exists()
+---------
+
 The ``.exists()`` method can be used to find out if a table exists or not::
 
     >>> db["PlantType"].exists()
     True
     >>> db["PlantType2"].exists()
     False
+
+.. _python_api_introspection_count:
+
+.count
+------
 
 The ``.count`` property shows the current number of rows (``select count(*) from table``)::
 
@@ -1465,23 +1475,45 @@ The ``.count`` property shows the current number of rows (``select count(*) from
 
 This property will take advantage of :ref:`python_api_cached_table_counts` if the ``use_counts_table`` property is set on the database. You can avoid that optimization entirely by calling ``table.execute_count()`` instead of accessing the property.
 
-The ``.columns`` property shows the columns in the table or view::
+.. _python_api_introspection_columns:
+
+.columns
+--------
+
+The ``.columns`` property shows the columns in the table or view. It returns a list of ``Column(cid, name, type, notnull, default_value, is_pk)`` named tuples.
+
+::
 
     >>> db["PlantType"].columns
     [Column(cid=0, name='id', type='INTEGER', notnull=0, default_value=None, is_pk=1),
      Column(cid=1, name='value', type='TEXT', notnull=0, default_value=None, is_pk=0)]
 
-The ``.columns_dict`` property returns a dictionary version of this with just the names and types::
+.. _python_api_introspection_columns_dict:
+
+.columns_dict
+-------------
+
+The ``.columns_dict`` property returns a dictionary version of the columns with just the names and Python types::
 
     >>> db["PlantType"].columns_dict
     {'id': <class 'int'>, 'value': <class 'str'>}
+
+.. _python_api_introspection_pks:
+
+.pks
+----
 
 The ``.pks`` property returns a list of strings naming the primary key columns for the table::
 
     >>> db["PlantType"].pks
     ['id']
 
-The ``.foreign_keys`` property shows if the table has any foreign key relationships. It is not available on views.
+.. _python_api_introspection_foreign_keys:
+
+.foreign_keys
+-------------
+
+The ``.foreign_keys`` property returns any foreign key relationships for the table, as a list of ``ForeignKey(table, column, other_table, other_column)`` named tuples. It is not available on views.
 
 ::
 
@@ -1492,6 +1524,11 @@ The ``.foreign_keys`` property shows if the table has any foreign key relationsh
      ForeignKey(table='Street_Tree_List', column='qSpecies', other_table='qSpecies', other_column='id'),
      ForeignKey(table='Street_Tree_List', column='qCaretaker', other_table='qCaretaker', other_column='id'),
      ForeignKey(table='Street_Tree_List', column='PlantType', other_table='PlantType', other_column='id')]
+
+.. _python_api_introspection_schema:
+
+.schema
+-------
 
 The ``.schema`` property outputs the table's schema as a SQL string::
 
@@ -1523,7 +1560,12 @@ The ``.schema`` property outputs the table's schema as a SQL string::
         FOREIGN KEY ("qCareAssistant") REFERENCES [qCareAssistant](id),
         FOREIGN KEY ("qLegalStatus") REFERENCES [qLegalStatus](id))
 
-The ``.indexes`` property shows you all indexes created for a table. It is not available on views.
+.. _python_api_introspection_indexes:
+
+.indexes
+--------
+
+The ``.indexes`` property returns all indexes created for a table, as a list of ``Index(seq, name, unique, origin, partial, columns)`` named tuples. It is not available on views.
 
 ::
 
@@ -1535,7 +1577,38 @@ The ``.indexes`` property shows you all indexes created for a table. It is not a
      Index(seq=4, name='"Street_Tree_List_qCaretaker"', unique=0, origin='c', partial=0, columns=['qCaretaker']),
      Index(seq=5, name='"Street_Tree_List_PlantType"', unique=0, origin='c', partial=0, columns=['PlantType'])]
 
-The ``.triggers`` property lists database triggers. It can be used on both database and table objects.
+.. _python_api_introspection_xindexes:
+
+.xindexes
+---------
+
+The ``.xindexes`` property returns more detailed information about the indexes on the table, using the SQLite `PRAGMA index_xinfo() <https://sqlite.org/pragma.html#pragma_index_xinfo>`__ mechanism. It returns a list of ``XIndex(name, columns)`` named tuples, where ``columns`` is a list of ``XIndexColumn(seqno, cid, name, desc, coll, key)`` named tuples.
+
+::
+    >>> db["ny_times_us_counties"].xindexes
+    [
+        XIndex(
+            name='idx_ny_times_us_counties_date',
+            columns=[
+                XIndexColumn(seqno=0, cid=0, name='date', desc=1, coll='BINARY', key=1),
+                XIndexColumn(seqno=1, cid=-1, name=None, desc=0, coll='BINARY', key=0)
+            ]
+        ),
+        XIndex(
+            name='idx_ny_times_us_counties_fips',
+            columns=[
+                XIndexColumn(seqno=0, cid=3, name='fips', desc=0, coll='BINARY', key=1),
+                XIndexColumn(seqno=1, cid=-1, name=None, desc=0, coll='BINARY', key=0)
+            ]
+        )
+    ]
+
+.. _python_api_introspection_triggers:
+
+.triggers
+---------
+
+The ``.triggers`` property lists database triggers. It can be used on both database and table objects. It returns a list of ``Trigger(name, table, sql)`` named tuples.
 
 ::
 
@@ -1545,6 +1618,11 @@ The ``.triggers`` property lists database triggers. It can be used on both datab
      Trigger(name='authors_au', table='authors', sql="CREATE TRIGGER [authors_au] AFTER UPDATE")]
     >>> db.triggers
     ... similar output to db["authors"].triggers
+
+.. _python_api_introspection_triggers_dict:
+
+.triggers_dict
+--------------
 
 The ``.triggers_dict`` property returns the triggers for that table as a dictionary mapping their names to their SQL definitions.
 
@@ -1564,6 +1642,11 @@ The same property exists on the database, and will return all triggers across al
      'authors_ad': 'CREATE TRIGGER [authors_ad] AFTER DELETE...',
      'authors_au': 'CREATE TRIGGER [authors_au] AFTER UPDATE'}
 
+.. _python_api_introspection_detect_fts:
+
+.detect_fts()
+-------------
+
 The ``detect_fts()`` method returns the associated SQLite FTS table name, if one exists for this table. If the table has not been configured for full-text search it returns ``None``.
 
 ::
@@ -1571,11 +1654,21 @@ The ``detect_fts()`` method returns the associated SQLite FTS table name, if one
     >>> db["authors"].detect_fts()
     "authors_fts"
 
+.. _python_api_introspection_virtual_table_using:
+
+.virtual_table_using
+--------------------
+
 The ``.virtual_table_using`` property reveals if a table is a virtual table. It returns ``None`` for regular tables and the upper case version of the type of virtual table otherwise. For example::
 
     >>> db["authors"].enable_fts(["name"])
     >>> db["authors_fts"].virtual_table_using
     "FTS5"
+
+.. _python_api_introspection_has_counts_triggers:
+
+.has_counts_triggers
+--------------------
 
 The ``.has_counts_triggers`` property shows if a table has been configured with triggers for updating a ``_counts`` table, as described in :ref:`python_api_cached_table_counts`.
 

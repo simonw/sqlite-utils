@@ -1,4 +1,4 @@
-from sqlite_utils.db import Index, View, Database
+from sqlite_utils.db import Index, View, Database, XIndex, XIndexColumn
 import pytest
 
 
@@ -91,6 +91,33 @@ def test_indexes(fresh_db):
         ),
         Index(seq=1, name="Gosh_c1", unique=0, origin="c", partial=0, columns=["c1"]),
     ] == fresh_db["Gosh"].indexes
+
+
+def test_xindexes(fresh_db):
+    fresh_db.executescript(
+        """
+        create table Gosh (c1 text, c2 text, c3 text);
+        create index Gosh_c1 on Gosh(c1);
+        create index Gosh_c2c3 on Gosh(c2, c3 desc);
+    """
+    )
+    assert fresh_db["Gosh"].xindexes == [
+        XIndex(
+            name="Gosh_c2c3",
+            columns=[
+                XIndexColumn(seqno=0, cid=1, name="c2", desc=0, coll="BINARY", key=1),
+                XIndexColumn(seqno=1, cid=2, name="c3", desc=1, coll="BINARY", key=1),
+                XIndexColumn(seqno=2, cid=-1, name=None, desc=0, coll="BINARY", key=0),
+            ],
+        ),
+        XIndex(
+            name="Gosh_c1",
+            columns=[
+                XIndexColumn(seqno=0, cid=0, name="c1", desc=0, coll="BINARY", key=1),
+                XIndexColumn(seqno=1, cid=-1, name=None, desc=0, coll="BINARY", key=0),
+            ],
+        ),
+    ]
 
 
 @pytest.mark.parametrize(

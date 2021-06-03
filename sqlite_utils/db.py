@@ -68,6 +68,10 @@ ForeignKey = namedtuple(
     "ForeignKey", ("table", "column", "other_table", "other_column")
 )
 Index = namedtuple("Index", ("seq", "name", "unique", "origin", "partial", "columns"))
+XIndex = namedtuple("XIndex", ("name", "columns"))
+XIndexColumn = namedtuple(
+    "XIndexColumn", ("seqno", "cid", "name", "desc", "coll", "key")
+)
 Trigger = namedtuple("Trigger", ("name", "table", "sql"))
 
 
@@ -861,6 +865,24 @@ class Table(Queryable):
                 if key not in row:
                     row[key] = default
             indexes.append(Index(**row))
+        return indexes
+
+    @property
+    def xindexes(self):
+        sql = 'PRAGMA index_list("{}")'.format(self.name)
+        indexes = []
+        for row in self.db.execute_returning_dicts(sql):
+            index_name = row["name"]
+            index_name_quoted = (
+                '"{}"'.format(index_name)
+                if not index_name.startswith('"')
+                else index_name
+            )
+            column_sql = "PRAGMA index_xinfo({})".format(index_name_quoted)
+            index_columns = []
+            for info in self.db.execute(column_sql).fetchall():
+                index_columns.append(XIndexColumn(*info))
+            indexes.append(XIndex(index_name, index_columns))
         return indexes
 
     @property
