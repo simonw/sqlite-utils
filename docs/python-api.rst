@@ -1585,6 +1585,7 @@ The ``.indexes`` property returns all indexes created for a table, as a list of 
 The ``.xindexes`` property returns more detailed information about the indexes on the table, using the SQLite `PRAGMA index_xinfo() <https://sqlite.org/pragma.html#pragma_index_xinfo>`__ mechanism. It returns a list of ``XIndex(name, columns)`` named tuples, where ``columns`` is a list of ``XIndexColumn(seqno, cid, name, desc, coll, key)`` named tuples.
 
 ::
+
     >>> db["ny_times_us_counties"].xindexes
     [
         XIndex(
