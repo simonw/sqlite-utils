@@ -472,6 +472,23 @@ If you feed it a JSON list it will insert multiple records. For example, if ``do
         }
     ]
 
+You can import all three records into an automatically created ``dogs`` table and set the ``id`` column as the primary key like so::
+
+    $ sqlite-utils insert dogs.db dogs dogs.json --pk=id
+
+You can skip inserting any records that have a primary key that already exists using ``--ignore``::
+
+    $ sqlite-utils insert dogs.db dogs dogs.json --ignore
+
+You can delete all the existing rows in the table before inserting the new records using ``--truncate``::
+
+    $ sqlite-utils insert dogs.db dogs dogs.json --truncate
+
+.. _cli_inserting_data_binary:
+
+Inserting binary data
+---------------------
+
 You can insert binary data into a BLOB column by first encoding it using base64 and then structuring it like this::
 
     [
@@ -484,17 +501,10 @@ You can insert binary data into a BLOB column by first encoding it using base64 
         }
     ]
 
-You can import all three records into an automatically created ``dogs`` table and set the ``id`` column as the primary key like so::
+.. _cli_inserting_data_nl_json:
 
-    $ sqlite-utils insert dogs.db dogs dogs.json --pk=id
-
-You can skip inserting any records that have a primary key that already exists using ``--ignore``::
-
-    $ sqlite-utils insert dogs.db dogs dogs.json --ignore
-
-You can delete all the existing rows in the table before inserting the new records using ``--truncate``::
-
-    $ sqlite-utils insert dogs.db dogs dogs.json --truncate
+Inserting newline-delimited JSON
+--------------------------------
 
 You can also import newline-delimited JSON using the ``--nl`` option. Since `Datasette <https://datasette.io/>`__ can export newline-delimited JSON, you can combine the two tools like so::
 
