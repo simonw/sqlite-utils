@@ -302,6 +302,18 @@ class Database:
         return {trigger.name: trigger.sql for trigger in self.triggers}
 
     @property
+    def schema(self):
+        sqls = []
+        for row in self.execute(
+            "select sql from sqlite_master where sql is not null"
+        ).fetchall():
+            sql = row[0]
+            if not sql.strip().endswith(";"):
+                sql += ";"
+            sqls.append(sql)
+        return "\n".join(sqls)
+
+    @property
     def journal_mode(self):
         return self.execute("PRAGMA journal_mode;").fetchone()[0]
 

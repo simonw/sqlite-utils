@@ -1354,6 +1354,23 @@ def indexes(
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
+@load_extension_option
+def schema(
+    path,
+    load_extension,
+):
+    "Show full schema for this database"
+    db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
+    click.echo(db.schema)
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
 @click.argument("table")
 @click.option(
     "--type",

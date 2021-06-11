@@ -297,6 +297,21 @@ If the record does not exist a ``NotFoundError`` will be raised:
     except NotFoundError:
         print("Dog not found")
 
+.. _python_api_schema:
+
+Showing the schema
+==================
+
+The ``db.schema`` property returns the full SQL schema for the database as a string::
+
+    >>> db = sqlite_utils.Database("dogs.db")
+    >>> print(db.schema)
+    >>> print(db.schema)
+    CREATE TABLE "dogs" (
+        [id] INTEGER PRIMARY KEY,
+        [name] TEXT
+    );
+
 .. _python_api_creating_tables:
 
 Creating tables

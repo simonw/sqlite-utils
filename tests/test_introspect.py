@@ -62,8 +62,12 @@ def test_columns(existing_db):
     ]
 
 
-def test_schema(existing_db):
-    assert "CREATE TABLE foo (text TEXT)" == existing_db["foo"].schema
+def test_table_schema(existing_db):
+    assert existing_db["foo"].schema == "CREATE TABLE foo (text TEXT)"
+
+
+def test_database_schema(existing_db):
+    assert existing_db.schema == "CREATE TABLE foo (text TEXT);"
 
 
 def test_table_repr(fresh_db):

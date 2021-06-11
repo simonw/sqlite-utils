@@ -348,6 +348,19 @@ It defaults to showing triggers for all tables. To see triggers for one or more 
 
 The command takes the same format options as the ``tables`` and ``views`` commands.
 
+.. _cli_schema:
+
+Showing the schema
+==================
+
+The ``sqlite-utils schema`` command shows the full SQL schema for the database::
+
+    $ sqlite-utils schema dogs.db
+    CREATE TABLE "dogs" (
+        [id] INTEGER PRIMARY KEY,
+        [name] TEXT
+    );
+
 .. _cli_analyze_tables:
 
 Analyzing tables
