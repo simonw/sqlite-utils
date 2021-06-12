@@ -16,7 +16,7 @@
 ----------------
 
 - New ``sqlite-utils indexes`` command to list indexes in a database, see :ref:`cli_indexes`. (`#263 <https://github.com/simonw/sqlite-utils/issues/263>`__)
-- ``table.indexes`` introspection property returning more details about that table's indexes, see :ref:`python_api_introspection_xindexes`. (`#261 <https://github.com/simonw/sqlite-utils/issues/261>`__)
+- ``table.xindexes`` introspection property returning more details about that table's indexes, see :ref:`python_api_introspection_xindexes`. (`#261 <https://github.com/simonw/sqlite-utils/issues/261>`__)
 
 .. _v3_7:
 
