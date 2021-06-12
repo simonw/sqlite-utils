@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+.. _v3_9:
+
+3.9 (2021-06-11)
+----------------
+
+- New ``sqlite-utils schema`` command showing the full SQL schema for a database, see :ref:`Showing the schema (CLI)<cli_schema>`. (`#268 <https://github.com/simonw/sqlite-utils/issues/268>`__)
+- ``db.schema`` introspection property exposing the same feature to the Python library, see :ref:`Showing the schema (Python library) <python_api_schema>`.
+
 .. _v3_8:
 
 3.8 (2021-06-02)
