@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _3.9.1:
+
+3.9.1 (2021-06-12)
+------------------
+
+- Fixed bug when using ``table.upsert_all()`` to create a table with only a single column that is treated as the primary key. (`#271 <https://github.com/simonw/sqlite-utils/issues/271>`__)
+
 .. _v3_9:
 
 3.9 (2021-06-11)
