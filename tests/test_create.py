@@ -991,6 +991,13 @@ def test_insert_all_empty_list(fresh_db):
     assert 1 == fresh_db["t"].count
 
 
+def test_insert_all_single_column(fresh_db):
+    table = fresh_db["table"]
+    table.insert_all([{"name": "Cleo"}], pk="name")
+    assert [{"name": "Cleo"}] == list(table.rows)
+    assert table.pks == ["name"]
+
+
 def test_create_with_a_null_column(fresh_db):
     record = {"name": "Name", "description": None}
     fresh_db["t"].insert(record)

@@ -1732,20 +1732,22 @@ class Table(Queryable):
                 queries_and_params.append((sql, [record[col] for col in pks]))
                 # UPDATE [book] SET [name] = 'Programming' WHERE [id] = 1001;
                 set_cols = [col for col in all_columns if col not in pks]
-                sql2 = "UPDATE [{table}] SET {pairs} WHERE {wheres}".format(
-                    table=self.name,
-                    pairs=", ".join(
-                        "[{}] = {}".format(col, conversions.get(col, "?"))
-                        for col in set_cols
-                    ),
-                    wheres=" AND ".join("[{}] = ?".format(pk) for pk in pks),
-                )
-                queries_and_params.append(
-                    (
-                        sql2,
-                        [record[col] for col in set_cols] + [record[pk] for pk in pks],
+                if set_cols:
+                    sql2 = "UPDATE [{table}] SET {pairs} WHERE {wheres}".format(
+                        table=self.name,
+                        pairs=", ".join(
+                            "[{}] = {}".format(col, conversions.get(col, "?"))
+                            for col in set_cols
+                        ),
+                        wheres=" AND ".join("[{}] = ?".format(pk) for pk in pks),
                     )
-                )
+                    queries_and_params.append(
+                        (
+                            sql2,
+                            [record[col] for col in set_cols]
+                            + [record[pk] for pk in pks],
+                        )
+                    )
                 # We can populate .last_pk right here
                 if num_records_processed == 1:
                     self.last_pk = tuple(record[pk] for pk in pks)
