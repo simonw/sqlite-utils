@@ -1078,6 +1078,8 @@ To alter the type of a column, use the ``types=`` argument:
     # Convert the 'age' column to an integer, and 'weight' to a float
     table.transform(types={"age": int, "weight": float})
 
+See :ref:`python_api_add_column` for a list of available types.
+
 The ``rename=`` parameter can rename columns:
 
 .. code-block:: python
