@@ -1071,6 +1071,9 @@ The ``table.transform()`` method can do all of these things, by implementing a m
 
 The ``.transform()`` method takes a number of parameters, all of which are optional.
 
+Altering column types
+---------------------
+
 To alter the type of a column, use the ``types=`` argument:
 
 .. code-block:: python
@@ -1080,12 +1083,18 @@ To alter the type of a column, use the ``types=`` argument:
 
 See :ref:`python_api_add_column` for a list of available types.
 
+Renaming columns
+----------------
+
 The ``rename=`` parameter can rename columns:
 
 .. code-block:: python
 
     # Rename 'age' to 'initial_age':
     table.transform(rename={"age": "initial_age"})
+
+Dropping columns
+----------------
 
 To drop columns, pass them in the ``drop=`` set:
 
@@ -1094,12 +1103,18 @@ To drop columns, pass them in the ``drop=`` set:
     # Drop the 'age' column:
     table.transform(drop={"age"})
 
+Changing primary keys
+---------------------
+
 To change the primary key for a table, use ``pk=``. This can be passed a single column for a regular primary key, or a tuple of columns to create a compound primary key. Passing ``pk=None`` will remove the primary key and convert the table into a ``rowid`` table.
 
 .. code-block:: python
 
     # Make `user_id` the new primary key
     table.transform(pk="user_id")
+
+Changing not null status
+------------------------
 
 You can change the ``NOT NULL`` status of columns by using ``not_null=``. You can pass this a set of columns to make those columns ``NOT NULL``:
 
@@ -1118,6 +1133,9 @@ If you want to take existing ``NOT NULL`` columns and change them to allow null 
     # Make age allow NULL and switch weight to being NOT NULL:
     table.transform(not_null={"age": False, "weight": True})
 
+Altering column defaults
+------------------------
+
 The ``defaults=`` parameter can be used to set or change the defaults for different columns:
 
 .. code-block:: python
@@ -1128,12 +1146,18 @@ The ``defaults=`` parameter can be used to set or change the defaults for differ
     # Now remove the default from that column:
     table.transform(defaults={"age": None})
 
+Changing column order
+---------------------
+
 The ``column_order=`` parameter can be used to change the order of the columns. If you pass the names of a subset of the columns those will go first and columns you omitted will appear in their existing order after them.
 
 .. code-block:: python
 
     # Change column order
     table.transform(column_order=("name", "age", "id")
+
+Dropping foreign key constraints
+--------------------------------
 
 You can use ``.transform()`` to remove foreign key constraints from a table.
 
