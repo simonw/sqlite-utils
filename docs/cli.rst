@@ -8,31 +8,64 @@ The ``sqlite-utils`` command-line tool can be used to manipulate SQLite database
 
 .. contents:: :local:
 
-.. _cli_query_json:
+.. _cli_query:
 
-Running queries and returning JSON
-==================================
+Running SQL queries
+===================
 
-You can execute a SQL query against a database and get the results back as JSON like this::
+The ``sqlite-utils query`` command lets you run queries directly against a SQLite database file. This is the default subcommand, so the following two examples work the same way::
 
     $ sqlite-utils query dogs.db "select * from dogs"
+    $ sqlite-utils dogs.db "select * from dogs"
+
+.. _cli_query_json:
+
+Returning JSON
+--------------
+
+The default format returned for queries is JSON::
+
+    $ sqlite-utils dogs.db "select * from dogs"
     [{"id": 1, "age": 4, "name": "Cleo"},
      {"id": 2, "age": 2, "name": "Pancakes"}]
 
-This is the default command for ``sqlite-utils``, so you can instead use this::
+.. _cli_query_parameters:
 
-    $ sqlite-utils dogs.db "select * from dogs"
+Using named parameters
+----------------------
 
 You can pass named parameters to the query using ``-p``::
 
     $ sqlite-utils query dogs.db "select :num * :num2" -p num 5 -p num2 6
     [{":num * :num2": 30}]
 
+These will be correctly quoted and escaped in the SQL query, providing a safe way to combine other values with SQL.
+
+.. _cli_query_update_insert_delete:
+
+UPDATE, INSERT and DELETE
+-------------------------
+
+If you execute an ``UPDATE``, ``INSERT`` or ``DELETE`` query the command will return the number of affected rows::
+
+    $ sqlite-utils dogs.db "update dogs set age = 5 where name = 'Cleo'"
+    [{"rows_affected": 1}]
+
+.. _cli_query_nl:
+
+Newline-delimited JSON
+----------------------
+
 Use ``--nl`` to get back newline-delimited JSON objects::
 
     $ sqlite-utils dogs.db "select * from dogs" --nl
     {"id": 1, "age": 4, "name": "Cleo"}
     {"id": 2, "age": 2, "name": "Pancakes"}
+
+.. _cli_query_arrays:
+
+JSON arrays
+-----------
 
 You can use ``--arrays`` to request arrays instead of objects::
 
@@ -62,6 +95,11 @@ If you want to pretty-print the output further, you can pipe it through ``python
         }
     ]
 
+.. _cli_query_binary_json:
+
+Binary data in JSON
+-------------------
+
 Binary strings are not valid JSON, so BLOB columns containing binary data will be returned as a JSON object containing base64 encoded data, that looks like this::
 
     $ sqlite-utils dogs.db "select name, content from images" | python -mjson.tool
@@ -75,21 +113,14 @@ Binary strings are not valid JSON, so BLOB columns containing binary data will b
         }
     ]
 
-If you execute an ``UPDATE``, ``INSERT`` or ``DELETE`` query the command will return the number of affected rows::
-
-    $ sqlite-utils dogs.db "update dogs set age = 5 where name = 'Cleo'"   
-    [{"rows_affected": 1}]
-
-You can run queries against a temporary in-memory database by passing ``:memory:`` as the filename::
-
-    $ sqlite-utils :memory: "select sqlite_version()"
-    [{"sqlite_version()": "3.29.0"}]
+SQLite extensions
+-----------------
 
 You can load SQLite extension modules using the ``--load-extension`` option, see :ref:`cli_load_extension`.
 
 ::
 
-    $ sqlite-utils :memory: "select spatialite_version()" --load-extension=spatialite
+    $ sqlite-utils dogs.db "select spatialite_version()" --load-extension=spatialite
     [{"spatialite_version()": "4.3.0a"}]
 
 .. _cli_json_values:
@@ -142,8 +173,8 @@ This example attaches the ``books.db`` database under the alias ``books`` and th
 
 .. _cli_query_csv:
 
-Running queries and returning CSV
-=================================
+Returning CSV or TSV
+--------------------
 
 You can use the ``--csv`` option to return results as CSV::
 
@@ -167,8 +198,8 @@ Use ``--tsv`` instead of ``--csv`` to get back tab-separated values::
 
 .. _cli_query_table:
 
-Running queries and outputting a table
-======================================
+Outputting table formatted data
+-------------------------------
 
 You can use the ``--table`` option (or ``-t`` shortcut) to output query results as a table::
 
@@ -192,8 +223,8 @@ For a full list of table format options, run ``sqlite-utils query --help``.
 
 .. _cli_query_raw:
 
-Returning raw data from a query, such as binary content
-=======================================================
+Returning raw data, such as binary content
+------------------------------------------
 
 If your table contains binary data in a ``BLOB`` you can use the ``--raw`` option to output specific columns directly to standard out.
 
