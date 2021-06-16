@@ -32,7 +32,6 @@ jobs:
     - name: Run tests
       run: |-
         ls -lah
-        cat .coveragerc
         pytest --cov=sqlite_utils --cov-report xml:coverage.xml --cov-report term
         ls -lah
     - name: Upload coverage report
