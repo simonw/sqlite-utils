@@ -34,10 +34,11 @@ def test_memory_csv(tmpdir, sql_from, use_stdin):
     )
 
 
-def test_memory_dump():
+@pytest.mark.parametrize("extra_args", ([], ["select 1"]))
+def test_memory_dump(extra_args):
     result = CliRunner().invoke(
         cli.cli,
-        ["memory", "-", "select 1", "--dump"],
+        ["memory", "-"] + extra_args + ["--dump"],
         input="id,name\n1,Cleo\n2,Bants",
     )
     assert result.exit_code == 0
@@ -55,11 +56,12 @@ def test_memory_dump():
     )
 
 
-def test_memory_save(tmpdir):
+@pytest.mark.parametrize("extra_args", ([], ["select 1"]))
+def test_memory_save(tmpdir, extra_args):
     save_to = str(tmpdir / "save.db")
     result = CliRunner().invoke(
         cli.cli,
-        ["memory", "-", "select 1", "--save", save_to],
+        ["memory", "-"] + extra_args + ["--save", save_to],
         input="id,name\n1,Cleo\n2,Bants",
     )
     assert result.exit_code == 0

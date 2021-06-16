@@ -279,6 +279,35 @@ To read from standard input, use ``-`` as the filename - then use ``stdin`` or `
 
     $ cat example.csv | sqlite-utils memory - "select * from stdin"
 
+.. _cli_query_memory_dump_save:
+
+--dump and --save
+-----------------
+
+You can dump out the SQL used for the temporary in-memory database, complete with all imported data, using the ``--dump`` option::
+
+    % sqlite-utils memory dogs.csv --dump
+    BEGIN TRANSACTION;
+    CREATE TABLE [dogs] (
+        [rowid] TEXT,
+        [id] TEXT,
+        [dog_age] TEXT,
+        [name] TEXT
+    );
+    INSERT INTO "dogs" VALUES('1','1','4','Cleo');
+    INSERT INTO "dogs" VALUES('2','2','2','Pancakes');
+    INSERT INTO "dogs" VALUES('3','2','3','Pancakes');
+    CREATE VIEW t1 AS select * from [dogs];
+    CREATE VIEW t AS select * from [dogs];
+    COMMIT;
+
+Passing ``--save other.db`` will instead use that SQL to populate a new database file::
+
+    % sqlite-utils memory dogs.csv --save dogs.db
+
+These features are mainly intented as debugging tools - for much more finely grained control over how data is inserted into a SQLite database file see :ref:`cli_inserting_data` and :ref:`cli_insert_csv_tsv`.
+
+
 .. _cli_rows:
 
 Returning all rows in a table

@@ -1143,6 +1143,10 @@ def memory(
 ):
     "Execute SQL query against an in-memory database, optionally populated by imported data"
     db = sqlite_utils.Database(memory=True)
+    # If --dump or --save used but no paths detected, assume SQL query is a path:
+    if (dump or save) and not paths:
+        paths = [sql]
+        sql = None
     for i, path in enumerate(paths):
         if path == "-":
             csv_fp = sys.stdin
