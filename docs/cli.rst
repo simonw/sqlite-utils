@@ -450,6 +450,21 @@ The ``_analyze_tables_`` table has the following schema::
         PRIMARY KEY ([table], [column])
     );
 
+The ``most_common`` and ``least_common`` columns will contain nested JSON arrays of the most commond and least common values that look like this::
+
+    [
+        ["Del Libertador, Av", 5068],
+        ["Alberdi Juan Bautista Av.", 4612],
+        ["Directorio Av.", 4552],
+        ["Rivadavia, Av", 4532],
+        ["Yerbal", 4512],
+        ["Cosquín", 4472],
+        ["Estado Plurinacional de Bolivia", 4440],
+        ["Gordillo Timoteo", 4424],
+        ["Montiel", 4360],
+        ["Condarco", 4288]
+    ]
+
 .. _cli_inserting_data:
 
 Inserting JSON data
