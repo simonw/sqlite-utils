@@ -29,32 +29,10 @@ The default format returned for queries is JSON::
     [{"id": 1, "age": 4, "name": "Cleo"},
      {"id": 2, "age": 2, "name": "Pancakes"}]
 
-.. _cli_query_parameters:
-
-Using named parameters
-----------------------
-
-You can pass named parameters to the query using ``-p``::
-
-    $ sqlite-utils query dogs.db "select :num * :num2" -p num 5 -p num2 6
-    [{":num * :num2": 30}]
-
-These will be correctly quoted and escaped in the SQL query, providing a safe way to combine other values with SQL.
-
-.. _cli_query_update_insert_delete:
-
-UPDATE, INSERT and DELETE
--------------------------
-
-If you execute an ``UPDATE``, ``INSERT`` or ``DELETE`` query the command will return the number of affected rows::
-
-    $ sqlite-utils dogs.db "update dogs set age = 5 where name = 'Cleo'"
-    [{"rows_affected": 1}]
-
 .. _cli_query_nl:
 
 Newline-delimited JSON
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 Use ``--nl`` to get back newline-delimited JSON objects::
 
@@ -65,7 +43,7 @@ Use ``--nl`` to get back newline-delimited JSON objects::
 .. _cli_query_arrays:
 
 JSON arrays
------------
+~~~~~~~~~~~
 
 You can use ``--arrays`` to request arrays instead of objects::
 
@@ -98,7 +76,7 @@ If you want to pretty-print the output further, you can pipe it through ``python
 .. _cli_query_binary_json:
 
 Binary data in JSON
--------------------
+~~~~~~~~~~~~~~~~~~~
 
 Binary strings are not valid JSON, so BLOB columns containing binary data will be returned as a JSON object containing base64 encoded data, that looks like this::
 
@@ -113,20 +91,11 @@ Binary strings are not valid JSON, so BLOB columns containing binary data will b
         }
     ]
 
-SQLite extensions
------------------
-
-You can load SQLite extension modules using the ``--load-extension`` option, see :ref:`cli_load_extension`.
-
-::
-
-    $ sqlite-utils dogs.db "select spatialite_version()" --load-extension=spatialite
-    [{"spatialite_version()": "4.3.0a"}]
 
 .. _cli_json_values:
 
 Nested JSON values
-------------------
+~~~~~~~~~~~~~~~~~~
 
 If one of your columns contains JSON, by default it will be returned as an escaped string::
 
@@ -218,7 +187,40 @@ For example, to retrieve a binary image from a ``BLOB`` column and store it in a
 
     $ sqlite-utils photos.db "select contents from photos where id=1" --raw > myphoto.jpg
 
-.. _cli_attach:
+
+.. _cli_query_parameters:
+
+Using named parameters
+----------------------
+
+You can pass named parameters to the query using ``-p``::
+
+    $ sqlite-utils query dogs.db "select :num * :num2" -p num 5 -p num2 6
+    [{":num * :num2": 30}]
+
+These will be correctly quoted and escaped in the SQL query, providing a safe way to combine other values with SQL.
+
+.. _cli_query_update_insert_delete:
+
+UPDATE, INSERT and DELETE
+-------------------------
+
+If you execute an ``UPDATE``, ``INSERT`` or ``DELETE`` query the command will return the number of affected rows::
+
+    $ sqlite-utils dogs.db "update dogs set age = 5 where name = 'Cleo'"
+    [{"rows_affected": 1}]
+
+SQLite extensions
+-----------------
+
+You can load SQLite extension modules using the ``--load-extension`` option, see :ref:`cli_load_extension`.
+
+::
+
+    $ sqlite-utils dogs.db "select spatialite_version()" --load-extension=spatialite
+    [{"spatialite_version()": "4.3.0a"}]
+
+.. _cli_query_attach:
 
 Attaching additional databases
 ------------------------------
@@ -297,8 +299,8 @@ The CSV data that was piped into the script is available in the ``stdin`` table,
 
 .. _cli_query_memory_dump_save:
 
---dump and --save
------------------
+\-\-dump and \-\-save
+---------------------
 
 You can dump out the SQL used for the temporary in-memory database, complete with all imported data, using the ``--dump`` option::
 
@@ -393,7 +395,7 @@ Use ``--schema`` to include the schema of each table::
                [age] INTEGER,
                [name] TEXT)
 
-The ``--nl``, ``--csv``, ``--tsv`` and ``--table`` options are all available.
+The ``--nl``, ``--csv``, ``--tsv``, ``--table`` and ``--fmt`` options are also available.
 
 .. _cli_views:
 
