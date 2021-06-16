@@ -1117,6 +1117,11 @@ def query(
     help="Named :parameters for SQL query",
 )
 @click.option("--dump", is_flag=True, help="Dump SQL for in-memory database")
+@click.option(
+    "--save",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    help="Save in-memory database to this file",
+)
 @load_extension_option
 def memory(
     paths,
@@ -1133,6 +1138,7 @@ def memory(
     raw,
     param,
     dump,
+    save,
     load_extension,
 ):
     "Execute SQL query against an in-memory database, optionally populated by imported data"
@@ -1157,6 +1163,12 @@ def memory(
     if dump:
         for line in db.conn.iterdump():
             click.echo(line)
+        return
+
+    if save:
+        db2 = sqlite_utils.Database(save)
+        for line in db.conn.iterdump():
+            db2.execute(line)
         return
 
     for alias, attach_path in attach:
