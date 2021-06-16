@@ -308,6 +308,21 @@ def vacuum(path):
     sqlite_utils.Database(path).vacuum()
 
 
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@load_extension_option
+def dump(path, load_extension):
+    """Output a SQL dump of the schema and full contents of the database"""
+    db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
+    for line in db.conn.iterdump():
+        click.echo(line)
+
+
 @cli.command(name="add-column")
 @click.argument(
     "path",

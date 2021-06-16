@@ -502,6 +502,13 @@ def test_vacuum(db_path):
     assert 0 == result.exit_code
 
 
+def test_dump(db_path):
+    result = CliRunner().invoke(cli.cli, ["dump", db_path])
+    assert result.exit_code == 0
+    assert result.output.startswith("BEGIN TRANSACTION;")
+    assert result.output.strip().endswith("COMMIT;")
+
+
 @pytest.mark.parametrize("tables", ([], ["Gosh"], ["Gosh2"]))
 def test_optimize(db_path, tables):
     db = Database(db_path)

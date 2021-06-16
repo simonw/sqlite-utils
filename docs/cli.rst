@@ -1256,6 +1256,19 @@ You can disable WAL mode using ``disable-wal``::
 
 Both of these commands accept one or more database files as arguments.
 
+.. _cli_dump:
+
+Dumping the database to SQL
+===========================
+
+The ``dump`` command outputs a SQL dump of the schema and full contents of the specified database file::
+
+    $ sqlite-utils dump mydb.db
+    BEGIN TRANSACTION;
+    CREATE TABLE ...
+    ...
+    COMMIT;
+
 .. _cli_load_extension:
 
 Loading SQLite extensions
