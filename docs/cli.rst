@@ -201,6 +201,29 @@ For example, to retrieve a binary image from a ``BLOB`` column and store it in a
 
     $ sqlite-utils photos.db "select contents from photos where id=1" --raw > myphoto.jpg
 
+.. _cli_query_memory:
+
+Running queries directly against CSV data
+=========================================
+
+If you have data in CSV format you can load it into an in-memory SQLite database and run queries against it directly in a single command using ``sqlite-utils memory``::
+
+    $ sqlite-utils memory data.csv "select * from data"
+
+This command supports the same output formats as ``sqlite-utils query`` - so you can use ``--csv`` or ``--tsv`` or ``--nl`` or ``-t`` to format the data.
+
+You can pass multiple files to the command if you want to run joins between different CSV files::
+
+    $ sqlite-utils memory one.csv two.csv "select * from one where id in (select id from two)"
+
+The in-memory tables will be named after the CSV files without their ``.csv`` extension. The tool also sets up aliases for those tables (using SQL views) as ``t1``, ``t2`` and so on, or you can use the alias ``t`` to refer to the first table::
+
+    $ sqlite-utils memory example.csv "select * from t"
+
+To read from standard input, use ``-`` as the filename - then use ``stdin`` or ``t`` or ``t1`` as the table name::
+
+    $ cat example.csv | sqlite-utils memory - "select * from stdin"
+
 .. _cli_rows:
 
 Returning all rows in a table
