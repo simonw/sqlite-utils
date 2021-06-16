@@ -157,20 +157,6 @@ You can use the ``--json-cols`` option to automatically detect these JSON column
         }
     ]
 
-.. _cli_attach:
-
-Attaching additional databases
-------------------------------
-
-SQLite supports cross-database SQL queries, which can join data from tables in more than one database file.
-
-You can attach one or more additional databases using the ``--attach`` option, providing an alias to use for that database and the path to the SQLite file on disk.
-
-This example attaches the ``books.db`` database under the alias ``books`` and then runs a query that combines data from that database with the default ``dogs.db`` database::
-
-    sqlite-utils dogs.db --attach books books.db \
-       'select * from sqlite_master union all select * from books.sqlite_master'
-
 .. _cli_query_csv:
 
 Returning CSV or TSV
@@ -198,8 +184,8 @@ Use ``--tsv`` instead of ``--csv`` to get back tab-separated values::
 
 .. _cli_query_table:
 
-Outputting table formatted data
--------------------------------
+Table-formatted output
+----------------------
 
 You can use the ``--table`` option (or ``-t`` shortcut) to output query results as a table::
 
@@ -232,20 +218,58 @@ For example, to retrieve a binary image from a ``BLOB`` column and store it in a
 
     $ sqlite-utils photos.db "select contents from photos where id=1" --raw > myphoto.jpg
 
+.. _cli_attach:
+
+Attaching additional databases
+------------------------------
+
+SQLite supports cross-database SQL queries, which can join data from tables in more than one database file.
+
+You can attach one or more additional databases using the ``--attach`` option, providing an alias to use for that database and the path to the SQLite file on disk.
+
+This example attaches the ``books.db`` database under the alias ``books`` and then runs a query that combines data from that database with the default ``dogs.db`` database::
+
+    sqlite-utils dogs.db --attach books books.db \
+       'select * from sqlite_master union all select * from books.sqlite_master'
+
 .. _cli_query_memory:
 
-Running queries directly against CSV data
-=========================================
+Querying CSV data directly using an in-memory database
+======================================================
 
-If you have data in CSV format you can load it into an in-memory SQLite database and run queries against it directly in a single command using ``sqlite-utils memory``::
+The ``sqlite-utils memory`` command works similar to ``sqlite-utils query``, but allows you to execute queries against an in-memory database.
+
+You can also pass this command CSV files which will be loaded into a temporary in-memory table, allowing you to execute SQL against that data without a separate step to first convert it to SQLite.
+
+Without any extra arguments, this command executes SQL against the in-memory database directly::
+
+    $ sqlite-utils memory 'select sqlite_version()'
+    [{"sqlite_version()": "3.35.5"}]
+
+It takes all of the same formatting options as :ref:`sqlite-utils query <cli_query>`: ``--csv`` and ``--csv`` and ``--table`` and ``--nl``::
+
+    $ sqlite-utils memory 'select sqlite_version()' --csv             
+    sqlite_version()
+    3.35.5
+    $ sqlite-utils memory 'select sqlite_version()' --table --fmt grid
+    +--------------------+
+    | sqlite_version()   |
+    +====================+
+    | 3.35.5             |
+    +--------------------+
+
+.. _cli_query_memory_csv:
+
+Running queries directly against CSV
+------------------------------------
+
+If you have data in CSV format you can load it into an in-memory SQLite database and run queries against it directly in a single command using ``sqlite-utils memory`` like this::
 
     $ sqlite-utils memory data.csv "select * from data"
 
-This command supports the same output formats as ``sqlite-utils query`` - so you can use ``--csv`` or ``--tsv`` or ``--nl`` or ``-t`` to format the data.
-
 You can pass multiple files to the command if you want to run joins between different CSV files::
 
-    $ sqlite-utils memory one.csv two.csv "select * from one where id in (select id from two)"
+    $ sqlite-utils memory one.csv two.csv "select * from one join two on one.id = two.other_id"
 
 The in-memory tables will be named after the CSV files without their ``.csv`` extension. The tool also sets up aliases for those tables (using SQL views) as ``t1``, ``t2`` and so on, or you can use the alias ``t`` to refer to the first table::
 
