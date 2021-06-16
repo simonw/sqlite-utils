@@ -1359,5 +1359,5 @@ This option can be applied multiple times to load multiple extensions.
 
 Since `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ is commonly used with SQLite, the value ``spatialite`` is special: it will search for SpatiaLite in the most common installation locations, saving you from needing to remember exactly where that module is located::
 
-    $ sqlite-utils :memory: "select spatialite_version()" --load-extension=spatialite
+    $ sqlite-utils memory "select spatialite_version()" --load-extension=spatialite
     [{"spatialite_version()": "4.3.0a"}]
