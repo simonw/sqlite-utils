@@ -279,6 +279,22 @@ To read from standard input, use ``-`` as the filename - then use ``stdin`` or `
 
     $ cat example.csv | sqlite-utils memory - "select * from stdin"
 
+.. _cli_query_memory_attach:
+
+Joining in-memory data against existing databases using \-\-attach
+------------------------------------------------------------------
+
+The :ref:`attach option <cli_query_attach>` can be used to attach database files to the in-memory connection, enabling joins between in-memory data loaded from a file and tables in existing SQLite database files. An example::
+
+    $ echo "id\n1\n3\n5" | sqlite-utils memory - --attach trees trees.db \
+      "select * from trees.trees where rowid in (select id from stdin)"
+
+Here the ``--attach trees trees.db`` option makes the ``trees.db`` database available with an alias of ``trees``.
+
+``select * from trees.trees where ...`` can then query the ``trees`` table in that database.
+
+The CSV data that was piped into the script is available in the ``stdin`` table, so  ``... where rowid in (select id from stdin)`` can be used to return rows from the ``trees`` table that match IDs that were piped in as CSV content.
+
 .. _cli_query_memory_dump_save:
 
 --dump and --save
