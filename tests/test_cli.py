@@ -1049,7 +1049,7 @@ def test_query_load_extension(use_spatialite_shortcut):
     # Without --load-extension:
     result = CliRunner().invoke(cli.cli, [":memory:", "select spatialite_version()"])
     assert result.exit_code == 1
-    assert "no such function: spatialite_version" in repr(result)
+    assert "no such function: spatialite_version" in result.output
     # With --load-extension:
     if use_spatialite_shortcut:
         load_extension = "spatialite"

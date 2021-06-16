@@ -1088,7 +1088,10 @@ def query(
     _load_extensions(db, load_extension)
     db.register_fts4_bm25()
     with db.conn:
-        cursor = db.execute(sql, dict(param))
+        try:
+            cursor = db.execute(sql, dict(param))
+        except sqlite3.OperationalError as e:
+            raise click.ClickException(str(e))
         if cursor.description is None:
             # This was an update/insert
             headers = ["rows_affected"]
