@@ -5,6 +5,7 @@
 [![Python 3.x](https://img.shields.io/pypi/pyversions/sqlite-utils.svg?logo=python&logoColor=white)](https://pypi.org/project/sqlite-utils/)
 [![Tests](https://github.com/simonw/sqlite-utils/workflows/Test/badge.svg)](https://github.com/simonw/sqlite-utils/actions?query=workflow%3ATest)
 [![Documentation Status](https://readthedocs.org/projects/sqlite-utils/badge/?version=latest)](http://sqlite-utils.datasette.io/en/latest/?badge=latest)
+[![codecov](https://codecov.io/gh/simonw/sqlite-utils/branch/main/graph/badge.svg)](https://codecov.io/gh/simonw/sqlite-utils)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/simonw/sqlite-utils/blob/main/LICENSE)
 
 Python CLI utility and library for manipulating SQLite databases.
