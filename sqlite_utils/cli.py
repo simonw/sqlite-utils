@@ -716,11 +716,11 @@ def insert_upsert_implementation(
         raise click.ClickException("Use just one of --nl, --csv or --tsv")
     if encoding and not (csv or tsv):
         raise click.ClickException("--encoding must be used with --csv or --tsv")
+    if pk and len(pk) == 1:
+        pk = pk[0]
     encoding = encoding or "utf-8-sig"
     buffered = io.BufferedReader(json_file, buffer_size=4096)
     decoded = io.TextIOWrapper(buffered, encoding=encoding)
-    if pk and len(pk) == 1:
-        pk = pk[0]
     if csv or tsv:
         if sniff:
             # Read first 2048 bytes and use that to detect
@@ -1109,6 +1109,107 @@ def query(
         db.attach(alias, attach_path)
     _load_extensions(db, load_extension)
     db.register_fts4_bm25()
+
+    _execute_query(
+        db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
+    )
+
+
+@cli.command()
+@click.argument(
+    "paths",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=True),
+    required=False,
+    nargs=-1,
+)
+@click.argument("sql")
+@click.option(
+    "--attach",
+    type=(str, click.Path(file_okay=True, dir_okay=False, allow_dash=False)),
+    multiple=True,
+    help="Additional databases to attach - specify alias and filepath",
+)
+@output_options
+@click.option("-r", "--raw", is_flag=True, help="Raw output, first column of first row")
+@click.option(
+    "-p",
+    "--param",
+    multiple=True,
+    type=(str, str),
+    help="Named :parameters for SQL query",
+)
+@click.option("--dump", is_flag=True, help="Dump SQL for in-memory database")
+@click.option(
+    "--save",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    help="Save in-memory database to this file",
+)
+@load_extension_option
+def memory(
+    paths,
+    sql,
+    attach,
+    nl,
+    arrays,
+    csv,
+    tsv,
+    no_headers,
+    table,
+    fmt,
+    json_cols,
+    raw,
+    param,
+    dump,
+    save,
+    load_extension,
+):
+    "Execute SQL query against an in-memory database, optionally populated by imported data"
+    db = sqlite_utils.Database(memory=True)
+    # If --dump or --save used but no paths detected, assume SQL query is a path:
+    if (dump or save) and not paths:
+        paths = [sql]
+        sql = None
+    for i, path in enumerate(paths):
+        if path == "-":
+            csv_fp = sys.stdin
+            csv_table = "stdin"
+        else:
+            csv_path = pathlib.Path(path)
+            csv_table = csv_path.stem
+            csv_fp = csv_path.open()
+        db[csv_table].insert_all(csv_std.DictReader(csv_fp))
+        # Add convenient t / t1 / t2 views
+        view_names = ["t{}".format(i + 1)]
+        if i == 0:
+            view_names.append("t")
+        for view_name in view_names:
+            if not db[view_name].exists():
+                db.create_view(view_name, "select * from [{}]".format(csv_table))
+
+    if dump:
+        for line in db.conn.iterdump():
+            click.echo(line)
+        return
+
+    if save:
+        db2 = sqlite_utils.Database(save)
+        for line in db.conn.iterdump():
+            db2.execute(line)
+        return
+
+    for alias, attach_path in attach:
+        db.attach(alias, attach_path)
+    _load_extensions(db, load_extension)
+    db.register_fts4_bm25()
+
+    _execute_query(
+        db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
+    )
+
+
+def _execute_query(
+    db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
+):
     with db.conn:
         try:
             cursor = db.execute(sql, dict(param))
