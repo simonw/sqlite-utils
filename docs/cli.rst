@@ -281,6 +281,12 @@ To read from standard input, use ``-`` as the filename - then use ``stdin`` or `
 
     $ cat example.csv | sqlite-utils memory - "select * from stdin"
 
+Incoming CSV data will be assumed to use ``utf-8``. If your data uses a different character encoding you can specify that with ``--encoding``::
+
+    $ cat example.csv | sqlite-utils memory - "select * from stdin" --encoding=latin-1
+
+If you are joining across multiple CSV files they must all use the same encoding.
+
 .. _cli_query_memory_attach:
 
 Joining in-memory data against existing databases using \-\-attach

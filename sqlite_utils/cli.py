@@ -1138,6 +1138,10 @@ def query(
     type=(str, str),
     help="Named :parameters for SQL query",
 )
+@click.option(
+    "--encoding",
+    help="Character encoding for CSV input, defaults to utf-8",
+)
 @click.option("--dump", is_flag=True, help="Dump SQL for in-memory database")
 @click.option(
     "--save",
@@ -1159,6 +1163,7 @@ def memory(
     json_cols,
     raw,
     param,
+    encoding,
     dump,
     save,
     load_extension,
@@ -1171,13 +1176,17 @@ def memory(
         sql = None
     for i, path in enumerate(paths):
         if path == "-":
-            csv_fp = sys.stdin
+            csv_fp = sys.stdin.buffer
             csv_table = "stdin"
         else:
             csv_path = pathlib.Path(path)
             csv_table = csv_path.stem
             csv_fp = csv_path.open()
-        db[csv_table].insert_all(csv_std.DictReader(csv_fp))
+
+        encoding = encoding or "utf-8-sig"
+        decoded_fp = io.TextIOWrapper(csv_fp, encoding=encoding)
+
+        db[csv_table].insert_all(csv_std.DictReader(decoded_fp))
         # Add convenient t / t1 / t2 views
         view_names = ["t{}".format(i + 1)]
         if i == 0:
