@@ -1181,7 +1181,7 @@ def memory(
         else:
             csv_path = pathlib.Path(path)
             csv_table = csv_path.stem
-            csv_fp = csv_path.open()
+            csv_fp = csv_path.open("rb")
 
         encoding = encoding or "utf-8-sig"
         decoded_fp = io.TextIOWrapper(csv_fp, encoding=encoding)
