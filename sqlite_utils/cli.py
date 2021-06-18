@@ -16,7 +16,7 @@ import csv as csv_std
 import tabulate
 from .utils import file_progress, find_spatialite, sqlite3, decode_base64_values
 
-CONTEXT_SETTINGS = dict(help_option_names=['-h','--help'])
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "BLOB")
 
@@ -91,7 +91,12 @@ def load_extension_option(fn):
     )(fn)
 
 
-@click.group(cls=DefaultGroup, default="query", default_if_no_args=True, context_settings=CONTEXT_SETTINGS)
+@click.group(
+    cls=DefaultGroup,
+    default="query",
+    default_if_no_args=True,
+    context_settings=CONTEXT_SETTINGS,
+)
 @click.version_option()
 def cli():
     "Commands for interacting with a SQLite database"

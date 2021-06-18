@@ -24,6 +24,22 @@ def db_path(tmpdir):
     return path
 
 
+@pytest.mark.parametrize(
+    "options",
+    (
+        ["-h"],
+        ["--help"],
+        ["insert", "-h"],
+        ["insert", "--help"],
+    ),
+)
+def test_help(options):
+    result = CliRunner().invoke(cli.cli, options)
+    assert result.exit_code == 0
+    assert result.output.startswith("Usage: ")
+    assert "-h, --help" in result.output
+
+
 def test_tables(db_path):
     result = CliRunner().invoke(cli.cli, ["tables", db_path])
     assert '[{"table": "Gosh"},\n {"table": "Gosh2"}]' == result.output.strip()
