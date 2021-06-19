@@ -2088,8 +2088,8 @@ def test_insert_detect_types(tmpdir, option_or_env_var):
         assert result.exit_code == 0
         db = Database(db_path)
         assert list(db["creatures"].rows) == [
-            {"rowid": 1, "name": "Cleo", "age": 6, "weight": 45.5},
-            {"rowid": 2, "name": "Dori", "age": 1, "weight": 3.5},
+            {"name": "Cleo", "age": 6, "weight": 45.5},
+            {"name": "Dori", "age": 1, "weight": 3.5},
         ]
 
     if option_or_env_var is None:

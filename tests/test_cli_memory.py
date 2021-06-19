@@ -32,8 +32,7 @@ def test_memory_csv(tmpdir, sql_from, use_stdin):
     )
     assert result.exit_code == 0
     assert (
-        result.output.strip()
-        == '{"rowid": 1, "id": 1, "name": "Cleo"}\n{"rowid": 2, "id": 2, "name": "Bants"}'
+        result.output.strip() == '{"id": 1, "name": "Cleo"}\n{"id": 2, "name": "Bants"}'
     )
 
 
@@ -57,8 +56,8 @@ def test_memory_tsv(tmpdir, use_stdin):
     )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output.strip()) == [
-        {"rowid": 1, "id": 1, "name": "Cleo"},
-        {"rowid": 2, "id": 2, "name": "Bants"},
+        {"id": 1, "name": "Cleo"},
+        {"id": 2, "name": "Bants"},
     ]
 
 
@@ -146,7 +145,6 @@ def test_memory_csv_encoding(tmpdir, use_stdin):
     )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output.strip()) == {
-        "rowid": 1,
         "date": "2020-03-04",
         "name": "São Paulo",
         "latitude": -23.561,
@@ -165,12 +163,11 @@ def test_memory_dump(extra_args):
     assert result.output.strip() == (
         "BEGIN TRANSACTION;\n"
         'CREATE TABLE "stdin" (\n'
-        "   [rowid] INTEGER PRIMARY KEY,\n"
         "   [id] INTEGER,\n"
         "   [name] TEXT\n"
         ");\n"
-        "INSERT INTO \"stdin\" VALUES(1,1,'Cleo');\n"
-        "INSERT INTO \"stdin\" VALUES(2,2,'Bants');\n"
+        "INSERT INTO \"stdin\" VALUES(1,'Cleo');\n"
+        "INSERT INTO \"stdin\" VALUES(2,'Bants');\n"
         "CREATE VIEW t1 AS select * from [stdin];\n"
         "CREATE VIEW t AS select * from [stdin];\n"
         "COMMIT;"
@@ -188,8 +185,8 @@ def test_memory_save(tmpdir, extra_args):
     assert result.exit_code == 0
     db = Database(save_to)
     assert list(db["stdin"].rows) == [
-        {"rowid": 1, "id": 1, "name": "Cleo"},
-        {"rowid": 2, "id": 2, "name": "Bants"},
+        {"id": 1, "name": "Cleo"},
+        {"id": 2, "name": "Bants"},
     ]
 
 

@@ -89,7 +89,9 @@ import pytest
     ],
 )
 @pytest.mark.parametrize("use_pragma_foreign_keys", [False, True])
-def test_transform_sql(fresh_db, params, expected_sql, use_pragma_foreign_keys):
+def test_transform_sql_table_with_primary_key(
+    fresh_db, params, expected_sql, use_pragma_foreign_keys
+):
     captured = []
     tracer = lambda sql, params: captured.append((sql, params))
     dogs = fresh_db["dogs"]
@@ -111,7 +113,77 @@ def test_transform_sql(fresh_db, params, expected_sql, use_pragma_foreign_keys):
         assert ("PRAGMA foreign_keys=1;", None) not in captured
 
 
-def test_transform_sql_rowid_to_id(fresh_db):
+@pytest.mark.parametrize(
+    "params,expected_sql",
+    [
+        # Identity transform - nothing changes
+        (
+            {},
+            [
+                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] TEXT\n);",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "DROP TABLE [dogs];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
+            ],
+        ),
+        # Change column type
+        (
+            {"types": {"age": int}},
+            [
+                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] INTEGER\n);",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "DROP TABLE [dogs];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
+            ],
+        ),
+        # Rename a column
+        (
+            {"rename": {"age": "dog_age"}},
+            [
+                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [dog_age] TEXT\n);",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [dog_age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "DROP TABLE [dogs];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
+            ],
+        ),
+        # Make ID a primary key
+        (
+            {"pk": "id"},
+            [
+                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] TEXT\n);",
+                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "DROP TABLE [dogs];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
+            ],
+        ),
+    ],
+)
+@pytest.mark.parametrize("use_pragma_foreign_keys", [False, True])
+def test_transform_sql_table_with_no_primary_key(
+    fresh_db, params, expected_sql, use_pragma_foreign_keys
+):
+    captured = []
+    tracer = lambda sql, params: captured.append((sql, params))
+    dogs = fresh_db["dogs"]
+    if use_pragma_foreign_keys:
+        fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    dogs.insert({"id": 1, "name": "Cleo", "age": "5"})
+    sql = dogs.transform_sql(**{**params, **{"tmp_suffix": "suffix"}})
+    assert sql == expected_sql
+    # Check that .transform() runs without exceptions:
+    with fresh_db.tracer(tracer):
+        dogs.transform(**params)
+    # If use_pragma_foreign_keys, check that we did the right thing
+    if use_pragma_foreign_keys:
+        assert ("PRAGMA foreign_keys=0;", None) in captured
+        assert captured[-2] == ("PRAGMA foreign_key_check;", None)
+        assert captured[-1] == ("PRAGMA foreign_keys=1;", None)
+    else:
+        assert ("PRAGMA foreign_keys=0;", None) not in captured
+        assert ("PRAGMA foreign_keys=1;", None) not in captured
+
+
+def test_transform_sql_with_no_primary_key_to_primary_key_of_id(fresh_db):
     dogs = fresh_db["dogs"]
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"})
     assert (

@@ -1016,7 +1016,9 @@ class Table(Queryable):
 
         sqls = []
         if pk is DEFAULT:
-            pks_renamed = tuple(rename.get(p) or p for p in self.pks)
+            pks_renamed = tuple(
+                rename.get(p.name) or p.name for p in self.columns if p.is_pk
+            )
             if len(pks_renamed) == 1:
                 pk = pks_renamed[0]
             else:
