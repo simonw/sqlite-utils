@@ -155,15 +155,18 @@ def rows_from_file(
             decoded = [decoded]
         if not isinstance(decoded, list):
             raise RowsFromFileBadJSON("JSON must be a list or a dictionary")
-        yield from decoded
+        return decoded, Format.JSON
     elif format == Format.NL:
-        yield from (json.loads(line) for line in fp if line.strip())
+        return (json.loads(line) for line in fp if line.strip()), Format.NL
     elif format == Format.CSV:
         decoded_fp = io.TextIOWrapper(fp, encoding=encoding or "utf-8-sig")
-        yield from csv.DictReader(decoded_fp, dialect=dialect)
+        return csv.DictReader(decoded_fp, dialect=dialect), Format.CSV
     elif format == Format.TSV:
-        yield from rows_from_file(
-            fp, format=Format.CSV, dialect=csv.excel_tab, encoding=encoding
+        return (
+            rows_from_file(
+                fp, format=Format.CSV, dialect=csv.excel_tab, encoding=encoding
+            )[0],
+            Format.TSV,
         )
     elif format is None:
         # Detect the format, then call this recursively
@@ -171,12 +174,12 @@ def rows_from_file(
         first_bytes = buffered.peek(2048).strip()
         if first_bytes.startswith(b"[") or first_bytes.startswith(b"{"):
             # TODO: Detect newline-JSON
-            yield from rows_from_file(buffered, format=Format.JSON)
+            return rows_from_file(buffered, format=Format.JSON)
         else:
             dialect = csv.Sniffer().sniff(
                 first_bytes.decode(encoding or "utf-8-sig", "ignore")
             )
-            yield from rows_from_file(
+            return rows_from_file(
                 buffered, format=Format.CSV, dialect=dialect, encoding=encoding
             )
     else:
@@ -215,14 +218,14 @@ class ValueTracker:
         try:
             int(value)
             return True
-        except ValueError:
+        except (ValueError, TypeError):
             return False
 
     def test_float(self, value):
         try:
             float(value)
             return True
-        except ValueError:
+        except (ValueError, TypeError):
             return False
 
     def __repr__(self):

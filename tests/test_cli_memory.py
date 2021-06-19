@@ -64,7 +64,7 @@ def test_memory_tsv(tmpdir, use_stdin):
 
 @pytest.mark.parametrize("use_stdin", (True, False))
 def test_memory_json(tmpdir, use_stdin):
-    data = '[{"name": "Bants"}, {"name": "Dori", "age": 1}]'
+    data = '[{"name": "Bants"}, {"name": "Dori", "age": 1, "nested": {"nest": 1}}]'
     if use_stdin:
         input = data
         path = "stdin:json"
@@ -82,8 +82,8 @@ def test_memory_json(tmpdir, use_stdin):
     )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output.strip()) == [
-        {"rowid": 1, "name": "Bants", "age": None},
-        {"rowid": 2, "name": "Dori", "age": 1},
+        {"name": "Bants", "age": None, "nested": None},
+        {"name": "Dori", "age": 1, "nested": '{"nest": 1}'},
     ]
 
 
@@ -107,8 +107,8 @@ def test_memory_json_nl(tmpdir, use_stdin):
     )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output.strip()) == [
-        {"rowid": 1, "name": "Bants"},
-        {"rowid": 2, "name": "Dori"},
+        {"name": "Bants"},
+        {"name": "Dori"},
     ]
 
 

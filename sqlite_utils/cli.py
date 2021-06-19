@@ -1241,9 +1241,9 @@ def memory(
             csv_path = pathlib.Path(path)
             csv_table = csv_path.stem
             csv_fp = csv_path.open("rb")
-        rows = rows_from_file(csv_fp, format=format, encoding=encoding)
+        rows, format_used = rows_from_file(csv_fp, format=format, encoding=encoding)
         tracker = None
-        if not no_detect_types:
+        if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
             tracker = TypeTracker()
             rows = tracker.wrap(rows)
         db[csv_table].insert_all(rows, alter=True)
