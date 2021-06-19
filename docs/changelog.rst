@@ -2,7 +2,7 @@
  Changelog
 ===========
 
-.. _3_10:
+.. _v3_10:
 
 3.10 (2021-06-19)
 -----------------
@@ -70,7 +70,7 @@ Other changes
 - Now using `pytest-cov <https://pytest-cov.readthedocs.io/>`__ and `Codecov <https://about.codecov.io/>`__ to track test coverage - currently at 96%. (`#275 <https://github.com/simonw/sqlite-utils/issues/275>`__)
 - SQL errors that occur when using ``sqlite-utils query`` are now displayed as CLI errors.
 
-.. _3_9_1:
+.. _v3_9_1:
 
 3.9.1 (2021-06-12)
 ------------------
