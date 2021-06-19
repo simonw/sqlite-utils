@@ -33,7 +33,7 @@ def test_memory_csv(tmpdir, sql_from, use_stdin):
     assert result.exit_code == 0
     assert (
         result.output.strip()
-        == '{"id": "1", "name": "Cleo"}\n{"id": "2", "name": "Bants"}'
+        == '{"rowid": 1, "id": 1, "name": "Cleo"}\n{"rowid": 2, "id": 2, "name": "Bants"}'
     )
 
 
@@ -57,8 +57,8 @@ def test_memory_tsv(tmpdir, use_stdin):
     )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output.strip()) == [
-        {"id": "1", "name": "Cleo"},
-        {"id": "2", "name": "Bants"},
+        {"rowid": 1, "id": 1, "name": "Cleo"},
+        {"rowid": 2, "id": 2, "name": "Bants"},
     ]
 
 
@@ -82,8 +82,8 @@ def test_memory_json(tmpdir, use_stdin):
     )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output.strip()) == [
-        {"name": "Bants", "age": None},
-        {"name": "Dori", "age": 1},
+        {"rowid": 1, "name": "Bants", "age": None},
+        {"rowid": 2, "name": "Dori", "age": 1},
     ]
 
 
@@ -106,7 +106,10 @@ def test_memory_json_nl(tmpdir, use_stdin):
         input=data,
     )
     assert result.exit_code == 0, result.output
-    assert json.loads(result.output.strip()) == [{"name": "Bants"}, {"name": "Dori"}]
+    assert json.loads(result.output.strip()) == [
+        {"rowid": 1, "name": "Bants"},
+        {"rowid": 2, "name": "Dori"},
+    ]
 
 
 @pytest.mark.parametrize("use_stdin", (True, False))
@@ -143,10 +146,11 @@ def test_memory_csv_encoding(tmpdir, use_stdin):
     )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output.strip()) == {
+        "rowid": 1,
         "date": "2020-03-04",
-        "name": "S\u00e3o Paulo",
-        "latitude": "-23.561",
-        "longitude": "-46.645",
+        "name": "São Paulo",
+        "latitude": -23.561,
+        "longitude": -46.645,
     }
 
 
@@ -160,12 +164,13 @@ def test_memory_dump(extra_args):
     assert result.exit_code == 0
     assert result.output.strip() == (
         "BEGIN TRANSACTION;\n"
-        "CREATE TABLE [stdin] (\n"
-        "   [id] TEXT,\n"
+        'CREATE TABLE "stdin" (\n'
+        "   [rowid] INTEGER PRIMARY KEY,\n"
+        "   [id] INTEGER,\n"
         "   [name] TEXT\n"
         ");\n"
-        "INSERT INTO \"stdin\" VALUES('1','Cleo');\n"
-        "INSERT INTO \"stdin\" VALUES('2','Bants');\n"
+        "INSERT INTO \"stdin\" VALUES(1,1,'Cleo');\n"
+        "INSERT INTO \"stdin\" VALUES(2,2,'Bants');\n"
         "CREATE VIEW t1 AS select * from [stdin];\n"
         "CREATE VIEW t AS select * from [stdin];\n"
         "COMMIT;"
@@ -183,6 +188,20 @@ def test_memory_save(tmpdir, extra_args):
     assert result.exit_code == 0
     db = Database(save_to)
     assert list(db["stdin"].rows) == [
-        {"id": "1", "name": "Cleo"},
-        {"id": "2", "name": "Bants"},
+        {"rowid": 1, "id": 1, "name": "Cleo"},
+        {"rowid": 2, "id": 2, "name": "Bants"},
+    ]
+
+
+@pytest.mark.parametrize("option", ("-n", "--no-detect-types"))
+def test_memory_no_detect_types(option):
+    result = CliRunner().invoke(
+        cli.cli,
+        ["memory", "-", "select * from stdin"] + [option],
+        input="id,name,weight\n1,Cleo,45.5\n2,Bants,3.5",
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output.strip()) == [
+        {"id": "1", "name": "Cleo", "weight": "45.5"},
+        {"id": "2", "name": "Bants", "weight": "3.5"},
     ]

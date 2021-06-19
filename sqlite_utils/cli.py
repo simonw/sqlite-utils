@@ -1167,6 +1167,12 @@ def query(
     "--encoding",
     help="Character encoding for CSV input, defaults to utf-8",
 )
+@click.option(
+    "-n",
+    "--no-detect-types",
+    is_flag=True,
+    help="Treat all CSV/TSV columns as TEXT",
+)
 @click.option("--dump", is_flag=True, help="Dump SQL for in-memory database")
 @click.option(
     "--save",
@@ -1189,6 +1195,7 @@ def memory(
     raw,
     param,
     encoding,
+    no_detect_types,
     dump,
     save,
     load_extension,
@@ -1235,7 +1242,13 @@ def memory(
             csv_table = csv_path.stem
             csv_fp = csv_path.open("rb")
         rows = rows_from_file(csv_fp, format=format, encoding=encoding)
+        tracker = None
+        if not no_detect_types:
+            tracker = TypeTracker()
+            rows = tracker.wrap(rows)
         db[csv_table].insert_all(rows, alter=True)
+        if tracker is not None:
+            db[csv_table].transform(types=tracker.types)
         # Add convenient t / t1 / t2 views
         view_names = ["t{}".format(i + 1)]
         if i == 0:

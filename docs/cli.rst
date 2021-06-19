@@ -291,6 +291,8 @@ Incoming CSV data will be assumed to use ``utf-8``. If your data uses a differen
 
 If you are joining across multiple CSV files they must all use the same encoding.
 
+Column types will be automatically detected in CSV or TSV data, using the same mechanism as ``--detect-types`` described in :ref:`cli_insert_csv_tsv`. You can pass the ``--no-detect-types`` option to disable this automatic type detection and treat all CSV and TSV columns as ``TEXT``.
+
 .. _cli_memory_explicit:
 
 Explicitly specifying the format

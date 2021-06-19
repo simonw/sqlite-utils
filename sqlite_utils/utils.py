@@ -147,6 +147,7 @@ def rows_from_file(
     format=None,
     dialect=None,
     encoding=None,
+    detect_types=False,
 ) -> Generator[dict, None, None]:
     if format == Format.JSON:
         decoded = json.load(fp)
