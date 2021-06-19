@@ -1,8 +1,13 @@
 import base64
-import click
 import contextlib
+import csv
+import enum
 import io
+import json
 import os
+from typing import Generator
+
+import click
 
 try:
     import pysqlite3 as sqlite3
@@ -111,3 +116,58 @@ def file_progress(file, silent=False, **kwargs):
         file_length = os.path.getsize(file.name)
         with click.progressbar(length=file_length, **kwargs) as bar:
             yield UpdateWrapper(file, bar.update)
+
+
+class Format(enum.Enum):
+    CSV = 1
+    TSV = 2
+    JSON = 3
+    NL = 4
+
+
+class RowsFromFileError(Exception):
+    pass
+
+
+class RowsFromFileBadJSON(RowsFromFileError):
+    pass
+
+
+def rows_from_file(
+    fp,
+    format=None,
+    dialect=None,
+    encoding=None,
+) -> Generator[dict, None, None]:
+    if format == Format.JSON:
+        decoded = json.load(fp)
+        if isinstance(decoded, dict):
+            decoded = [decoded]
+        if not isinstance(decoded, list):
+            raise RowsFromFileBadJSON("JSON must be a list or a dictionary")
+        yield from decoded
+    elif format == Format.NL:
+        yield from (json.loads(line) for line in fp if line.strip())
+    elif format == Format.CSV:
+        decoded_fp = io.TextIOWrapper(fp, encoding=encoding or "utf-8-sig")
+        yield from csv.DictReader(decoded_fp, dialect=dialect)
+    elif format == Format.TSV:
+        yield from rows_from_file(
+            fp, format=Format.CSV, dialect=csv.excel_tab, encoding=encoding
+        )
+    elif format is None:
+        # Detect the format, then call this recursively
+        buffered = io.BufferedReader(fp, buffer_size=4096)
+        first_bytes = buffered.peek(2048).strip()
+        if first_bytes.startswith(b"[") or first_bytes.startswith(b"{"):
+            # TODO: Detect newline-JSON
+            yield from rows_from_file(buffered, format=Format.JSON)
+        else:
+            dialect = csv.Sniffer().sniff(
+                first_bytes.decode(encoding or "utf-8-sig", "ignore")
+            )
+            yield from rows_from_file(
+                buffered, format=Format.CSV, dialect=dialect, encoding=encoding
+            )
+    else:
+        raise RowsFromFileError("Bad format")

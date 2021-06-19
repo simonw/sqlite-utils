@@ -14,7 +14,14 @@ import os
 import sys
 import csv as csv_std
 import tabulate
-from .utils import file_progress, find_spatialite, sqlite3, decode_base64_values
+from .utils import (
+    file_progress,
+    find_spatialite,
+    sqlite3,
+    decode_base64_values,
+    rows_from_file,
+    Format,
+)
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
@@ -1175,18 +1182,21 @@ def memory(
         paths = [sql]
         sql = None
     for i, path in enumerate(paths):
-        if path == "-":
+        # Path may have a :format suffix
+        if ":" in path and path.rsplit(":", 1)[-1].upper() in Format.__members__:
+            path, suffix = path.rsplit(":", 1)
+            format = Format[suffix.upper()]
+        else:
+            format = None
+        if path in ("-", "stdin"):
             csv_fp = sys.stdin.buffer
             csv_table = "stdin"
         else:
             csv_path = pathlib.Path(path)
             csv_table = csv_path.stem
             csv_fp = csv_path.open("rb")
-
-        encoding = encoding or "utf-8-sig"
-        decoded_fp = io.TextIOWrapper(csv_fp, encoding=encoding)
-
-        db[csv_table].insert_all(csv_std.DictReader(decoded_fp))
+        rows = rows_from_file(csv_fp, format=format, encoding=encoding)
+        db[csv_table].insert_all(rows, alter=True)
         # Add convenient t / t1 / t2 views
         view_names = ["t{}".format(i + 1)]
         if i == 0:

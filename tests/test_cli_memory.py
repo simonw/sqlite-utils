@@ -1,7 +1,9 @@
-from sqlite_utils import cli, Database
-from click.testing import CliRunner
-import pytest
 import json
+
+import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import Database, cli
 
 
 def test_memory_basic():
@@ -33,6 +35,78 @@ def test_memory_csv(tmpdir, sql_from, use_stdin):
         result.output.strip()
         == '{"id": "1", "name": "Cleo"}\n{"id": "2", "name": "Bants"}'
     )
+
+
+@pytest.mark.parametrize("use_stdin", (True, False))
+def test_memory_tsv(tmpdir, use_stdin):
+    data = "id\tname\n1\tCleo\n2\tBants"
+    if use_stdin:
+        input = data
+        path = "stdin:tsv"
+        sql_from = "stdin"
+    else:
+        input = None
+        path = str(tmpdir / "chickens.tsv")
+        open(path, "w").write(data)
+        path = path + ":tsv"
+        sql_from = "chickens"
+    result = CliRunner().invoke(
+        cli.cli,
+        ["memory", path, "select * from {}".format(sql_from)],
+        input=data,
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output.strip()) == [
+        {"id": "1", "name": "Cleo"},
+        {"id": "2", "name": "Bants"},
+    ]
+
+
+@pytest.mark.parametrize("use_stdin", (True, False))
+def test_memory_json(tmpdir, use_stdin):
+    data = '[{"name": "Bants"}, {"name": "Dori", "age": 1}]'
+    if use_stdin:
+        input = data
+        path = "stdin:json"
+        sql_from = "stdin"
+    else:
+        input = None
+        path = str(tmpdir / "chickens.json")
+        open(path, "w").write(data)
+        path = path + ":json"
+        sql_from = "chickens"
+    result = CliRunner().invoke(
+        cli.cli,
+        ["memory", path, "select * from {}".format(sql_from)],
+        input=input,
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output.strip()) == [
+        {"name": "Bants", "age": None},
+        {"name": "Dori", "age": 1},
+    ]
+
+
+@pytest.mark.parametrize("use_stdin", (True, False))
+def test_memory_json_nl(tmpdir, use_stdin):
+    data = '{"name": "Bants"}\n\n{"name": "Dori"}'
+    if use_stdin:
+        input = data
+        path = "stdin:nl"
+        sql_from = "stdin"
+    else:
+        input = None
+        path = str(tmpdir / "chickens.json")
+        open(path, "w").write(data)
+        path = path + ":nl"
+        sql_from = "chickens"
+    result = CliRunner().invoke(
+        cli.cli,
+        ["memory", path, "select * from {}".format(sql_from)],
+        input=data,
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output.strip()) == [{"name": "Bants"}, {"name": "Dori"}]
 
 
 @pytest.mark.parametrize("use_stdin", (True, False))

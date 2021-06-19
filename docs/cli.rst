@@ -234,21 +234,21 @@ This example attaches the ``books.db`` database under the alias ``books`` and th
     sqlite-utils dogs.db --attach books books.db \
        'select * from sqlite_master union all select * from books.sqlite_master'
 
-.. _cli_query_memory:
+.. _cli_memory:
 
-Querying CSV data directly using an in-memory database
-======================================================
+Querying data directly using an in-memory database
+==================================================
 
 The ``sqlite-utils memory`` command works similar to ``sqlite-utils query``, but allows you to execute queries against an in-memory database.
 
-You can also pass this command CSV files which will be loaded into a temporary in-memory table, allowing you to execute SQL against that data without a separate step to first convert it to SQLite.
+You can also pass this command CSV or JSON files which will be loaded into a temporary in-memory table, allowing you to execute SQL against that data without a separate step to first convert it to SQLite.
 
 Without any extra arguments, this command executes SQL against the in-memory database directly::
 
     $ sqlite-utils memory 'select sqlite_version()'
     [{"sqlite_version()": "3.35.5"}]
 
-It takes all of the same formatting options as :ref:`sqlite-utils query <cli_query>`: ``--csv`` and ``--csv`` and ``--table`` and ``--nl``::
+It takes all of the same output formatting options as :ref:`sqlite-utils query <cli_query>`: ``--csv`` and ``--csv`` and ``--table`` and ``--nl``::
 
     $ sqlite-utils memory 'select sqlite_version()' --csv             
     sqlite_version()
@@ -260,24 +260,28 @@ It takes all of the same formatting options as :ref:`sqlite-utils query <cli_que
     | 3.35.5             |
     +--------------------+
 
-.. _cli_query_memory_csv:
+.. _cli_memory_csv_json:
 
-Running queries directly against CSV
-------------------------------------
+Running queries directly against CSV or JSON
+--------------------------------------------
 
-If you have data in CSV format you can load it into an in-memory SQLite database and run queries against it directly in a single command using ``sqlite-utils memory`` like this::
+If you have data in CSV or JSON format you can load it into an in-memory SQLite database and run queries against it directly in a single command using ``sqlite-utils memory`` like this::
 
     $ sqlite-utils memory data.csv "select * from data"
 
-You can pass multiple files to the command if you want to run joins between different CSV files::
+You can pass multiple files to the command if you want to run joins between data from different files::
 
-    $ sqlite-utils memory one.csv two.csv "select * from one join two on one.id = two.other_id"
+    $ sqlite-utils memory one.csv two.json "select * from one join two on one.id = two.other_id"
 
-The in-memory tables will be named after the CSV files without their ``.csv`` extension. The tool also sets up aliases for those tables (using SQL views) as ``t1``, ``t2`` and so on, or you can use the alias ``t`` to refer to the first table::
+If your data is JSON it should be the same format supported by the :ref:`sqlite-utils insert command <cli_inserting_data>` - so either a single JSON object (treated as a single row) or a list of JSON objects.
+
+CSV data can be comma- or tab- delimited.
+
+The in-memory tables will be named after the files without their extensions. The tool also sets up aliases for those tables (using SQL views) as ``t1``, ``t2`` and so on, or you can use the alias ``t`` to refer to the first table::
 
     $ sqlite-utils memory example.csv "select * from t"
 
-To read from standard input, use ``-`` as the filename - then use ``stdin`` or ``t`` or ``t1`` as the table name::
+To read from standard input, use either ``-`` or ``stdin`` as the filename - then use ``stdin`` or ``t`` or ``t1`` as the table name::
 
     $ cat example.csv | sqlite-utils memory - "select * from stdin"
 
@@ -287,7 +291,24 @@ Incoming CSV data will be assumed to use ``utf-8``. If your data uses a differen
 
 If you are joining across multiple CSV files they must all use the same encoding.
 
-.. _cli_query_memory_attach:
+.. _cli_memory_explicit:
+
+Explicitly specifying the format
+--------------------------------
+
+By default, ``sqlite-utils memory`` will attempt to detect the incoming data format (JSON, TSV or CSV) automatically.
+
+You can instead specify an explicit format by adding a ``:csv``, ``:tsv``, ``:json`` or ``:nl`` (for newline-delimited JSON) suffix to the filename. For example::
+
+    $ sqlite-utils memory one.dat:csv two.dat:nl "select * from one union select * from two"
+
+Here the contents of ``one.dat`` will be treated as CSV and the contents of ``two.dat`` will be treated as newline-delimited JSON.
+
+To explicitly specify the format for data piped into the tool on standard input, use ``stdin:format`` - for example::
+
+    $ cat one.dat | sqlite-utils memory stdin:csv "select * from stdin"
+
+.. _cli_memory_attach:
 
 Joining in-memory data against existing databases using \-\-attach
 ------------------------------------------------------------------
@@ -303,7 +324,7 @@ Here the ``--attach trees trees.db`` option makes the ``trees.db`` database avai
 
 The CSV data that was piped into the script is available in the ``stdin`` table, so  ``... where rowid in (select id from stdin)`` can be used to return rows from the ``trees`` table that match IDs that were piped in as CSV content.
 
-.. _cli_query_memory_dump_save:
+.. _cli_memory_dump_save:
 
 \-\-dump and \-\-save
 ---------------------
