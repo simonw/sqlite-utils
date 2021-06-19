@@ -1175,7 +1175,28 @@ def memory(
     save,
     load_extension,
 ):
-    "Execute SQL query against an in-memory database, optionally populated by imported data"
+    """Execute SQL query against an in-memory database, optionally populated by imported data
+
+    To import data from CSV, TSV or JSON files pass them on the command-line:
+
+    \b
+        sqlite-utils memory one.csv two.json \\
+            "select * from one join two on one.two_id = two.id"
+
+    For data piped into the tool from standard input, use "-" or "stdin":
+
+    \b
+        cat animals.csv | sqlite-utils memory - \\
+            "select * from stdin where species = 'dog'"
+
+    The format of the data will be automatically detected. You can specify the format
+    explicitly using :json, :csv, :tsv or :nl (for newline-delimited JSON) - for example:
+
+    \b
+        cat animals.csv | sqlite-utils memory stdin:csv places.dat:nl \\
+            "select * from stdin where place_id in (select id from places)"
+
+    """
     db = sqlite_utils.Database(memory=True)
     # If --dump or --save used but no paths detected, assume SQL query is a path:
     if (dump or save) and not paths:
