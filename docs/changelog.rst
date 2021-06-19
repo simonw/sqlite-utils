@@ -2,6 +2,74 @@
  Changelog
 ===========
 
+.. _3.10:
+
+3.10 (2021-06-19)
+-----------------
+
+This release introduces the ``sqlite-utils memory`` command, which can be used to load CSV or JSON data into a temporary in-memory database and run SQL queries (including joins across multiple files) directly against that data.
+
+Also new: ``sqlite-utils insert --detect-types``, ``sqlite-utils dump``, ``table.use_rowid`` plus some smaller fixes.
+
+sqlite-utils memory
+~~~~~~~~~~~~~~~~~~~
+
+This example of ``sqlite-utils memory`` retrieves information about the all of the repositories in the `Dogsheep <https://github.com/dogsheep>`__ organization on GitHub using `this JSON API <https://api.github.com/users/dogsheep/repos>`__, sorts them by their number of stars and outputs a table of the top five (using ``-t``)::
+
+    $ curl -s 'https://api.github.com/users/dogsheep/repos' \
+      | sqlite-utils memory - '
+          select full_name, forks_count, stargazers_count
+          from stdin order by stargazers_count desc limit 5
+        ' -t
+    full_name                            forks_count    stargazers_count
+    ---------------------------------  -------------  ------------------
+    dogsheep/twitter-to-sqlite                    12                 225
+    dogsheep/github-to-sqlite                     14                 139
+    dogsheep/dogsheep-photos                       5                 116
+    dogsheep/dogsheep.github.io                    7                  90
+    dogsheep/healthkit-to-sqlite                   4                  85
+
+The tool works against files on disk as well. This example joins data from two CSV files::
+
+    $ cat creatures.csv
+    species_id,name
+    1,Cleo
+    2,Bants
+    2,Dori
+    2,Azi
+    $ cat species.csv
+    id,species_name
+    1,Dog
+    2,Chicken
+    $ sqlite-utils memory species.csv creatures.csv '
+      select * from creatures join species on creatures.species_id = species.id
+    '
+    [{"species_id": 1, "name": "Cleo", "id": 1, "species_name": "Dog"},
+     {"species_id": 2, "name": "Bants", "id": 2, "species_name": "Chicken"},
+     {"species_id": 2, "name": "Dori", "id": 2, "species_name": "Chicken"},
+     {"species_id": 2, "name": "Azi", "id": 2, "species_name": "Chicken"}]
+
+Here the ``species.csv`` file becomes the ``species`` table, the ``creatures.csv`` file becomes the ``creatures`` table and the output is JSON, the default output format.
+
+You can also use the ``--attach`` option to attach existing SQLite database files to the in-memory database, in order to join data from CSV or JSON directly against your existing tables.
+
+Full documentation of this new feature is available in :ref:`cli_memory`. (`#272 <https://github.com/simonw/sqlite-utils/issues/272>`__)
+
+sqlite-utils insert \-\-detect-types
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :ref:`sqlite-utils insert <cli_inserting_data>` command can be used to insert data from JSON, CSV or TSV files into a SQLite database file. The new ``--detect-types`` option (shortcut ``-d``), when used in conjunction with a CSV or TSV import, will automatically detect if columns in the file are integers or floating point numbers as opposed to treating everything as a text column and create the new table with the corresponding schema. See :ref:`cli_insert_csv_tsv` for details. (`#282 <https://github.com/simonw/sqlite-utils/issues/282>`__)
+
+Other changes
+~~~~~~~~~~~~~
+
+- **Bug fix**: ``table.transform()``, when run against a table without explicit primary keys, would incorrectly create a new version of the table with an explicit primary key column called ``rowid``. (`#284 <https://github.com/simonw/sqlite-utils/issues/284>`__)
+- New ``table.use_rowid`` introspection property, see :ref:`python_api_introspection_use_rowid`. (`#285 <https://github.com/simonw/sqlite-utils/issues/285>`__)
+- The new ``sqlite-utils dump file.db`` command outputs a SQL dump that can be used to recreate a database. (`#274 <https://github.com/simonw/sqlite-utils/issues/274>`__)
+- ``-h`` now works as a shortcut for ``--help``, thanks Loren McIntyre. (`#276 <https://github.com/simonw/sqlite-utils/issues/276>`__)
+- Now using `pytest-cov <https://pytest-cov.readthedocs.io/>`__ and `Codecov <https://about.codecov.io/>`__ to track test coverage - currently at 96%. (`#275 <https://github.com/simonw/sqlite-utils/issues/275>`__)
+- SQL errors that occur when using ``sqlite-utils query`` are now displayed as CLI errors.
+
 .. _3.9.1:
 
 3.9.1 (2021-06-12)
