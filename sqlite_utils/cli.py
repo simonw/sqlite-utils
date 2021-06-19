@@ -21,6 +21,7 @@ from .utils import (
     decode_base64_values,
     rows_from_file,
     Format,
+    TypeTracker,
 )
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -683,6 +684,13 @@ def insert_upsert_options(fn):
                 "--encoding",
                 help="Character encoding for input, defaults to utf-8",
             ),
+            click.option(
+                "-d",
+                "--detect-types",
+                is_flag=True,
+                envvar="SQLITE_UTILS_DETECT_TYPES",
+                help="Detect types for columns in CSV/TSV data",
+            ),
             load_extension_option,
             click.option("--silent", is_flag=True, help="Do not show progress bar"),
         )
@@ -712,6 +720,7 @@ def insert_upsert_implementation(
     not_null=None,
     default=None,
     encoding=None,
+    detect_types=None,
     load_extension=None,
     silent=False,
 ):
@@ -728,6 +737,7 @@ def insert_upsert_implementation(
     encoding = encoding or "utf-8-sig"
     buffered = io.BufferedReader(json_file, buffer_size=4096)
     decoded = io.TextIOWrapper(buffered, encoding=encoding)
+    tracker = None
     if csv or tsv:
         if sniff:
             # Read first 2048 bytes and use that to detect
@@ -749,6 +759,9 @@ def insert_upsert_implementation(
             else:
                 headers = first_row
             docs = (dict(zip(headers, row)) for row in reader)
+            if detect_types:
+                tracker = TypeTracker()
+                docs = tracker.wrap(docs)
     else:
         try:
             if nl:
@@ -781,6 +794,8 @@ def insert_upsert_implementation(
                 "{}\n\nTry using --alter to add additional columns".format(e.args[0])
             )
         raise
+    if tracker is not None:
+        db[table].transform(types=tracker.types)
 
 
 @cli.command()
@@ -815,6 +830,7 @@ def insert(
     batch_size,
     alter,
     encoding,
+    detect_types,
     load_extension,
     silent,
     ignore,
@@ -849,6 +865,7 @@ def insert(
             replace=replace,
             truncate=truncate,
             encoding=encoding,
+            detect_types=detect_types,
             load_extension=load_extension,
             silent=silent,
             not_null=not_null,
@@ -877,6 +894,7 @@ def upsert(
     not_null,
     default,
     encoding,
+    detect_types,
     load_extension,
     silent,
 ):

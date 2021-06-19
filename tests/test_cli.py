@@ -1,6 +1,7 @@
 from sqlite_utils import cli, Database
 from sqlite_utils.db import Index, ForeignKey
 from click.testing import CliRunner
+from unittest import mock
 import json
 import os
 import pytest
@@ -2067,3 +2068,33 @@ def test_csv_insert_bom(tmpdir):
         ("broken", "CREATE TABLE [broken] (\n   [\ufeffname] TEXT,\n   [age] TEXT\n)"),
         ("fixed", "CREATE TABLE [fixed] (\n   [name] TEXT,\n   [age] TEXT\n)"),
     ]
+
+
+@pytest.mark.parametrize("option_or_env_var", (None, "-d", "--detect-types"))
+def test_insert_detect_types(tmpdir, option_or_env_var):
+    db_path = str(tmpdir / "test.db")
+    data = "name,age,weight\nCleo,6,45.5\nDori,1,3.5"
+    extra = []
+    if option_or_env_var:
+        extra = [option_or_env_var]
+
+    def _test():
+        result = CliRunner().invoke(
+            cli.cli,
+            ["insert", db_path, "creatures", "-", "--csv"] + extra,
+            catch_exceptions=False,
+            input=data,
+        )
+        assert result.exit_code == 0
+        db = Database(db_path)
+        assert list(db["creatures"].rows) == [
+            {"rowid": 1, "name": "Cleo", "age": 6, "weight": 45.5},
+            {"rowid": 2, "name": "Dori", "age": 1, "weight": 3.5},
+        ]
+
+    if option_or_env_var is None:
+        # Use environemnt variable instead of option
+        with mock.patch.dict(os.environ, {"SQLITE_UTILS_DETECT_TYPES": "1"}):
+            _test()
+    else:
+        _test()

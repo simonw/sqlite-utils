@@ -726,6 +726,32 @@ Data is expected to be encoded as Unicode UTF-8. If your data is an another char
 
 A progress bar is displayed when inserting data from a file. You can hide the progress bar using the ``--silent`` option.
 
+By default every column inserted from a CSV or TSV file will be of type ``TEXT``. To automatically detect column types - resulting in a mix of ``TEXT``, ``INTEGER`` and ``FLOAT`` columns, use the ``--detect-types`` option (or its shortcut ``-d``).
+
+For example, given a ``creatures.csv`` file containing this::
+
+    name,age,weight
+    Cleo,6,45.5
+    Dori,1,3.5
+
+The following command::
+
+    $ sqlite-utils insert creatures.db creatures creatures.tsv --csv --detect-types
+
+Will produce this schema::
+
+    $ sqlite-utils schema creatures.db
+    CREATE TABLE "creatures" (
+       [rowid] INTEGER PRIMARY KEY,
+       [name] TEXT,
+       [age] INTEGER,
+       [weight] FLOAT
+    );
+
+You can set the ``SQLITE_UTILS_DETECT_TYPES`` environment variable if you want ``--detect-types`` to be the default behavior::
+
+    $ export SQLITE_UTILS_DETECT_TYPES=1
+
 .. _cli_insert_csv_tsv_delimiter:
 
 Alternative delimiters and quote characters
