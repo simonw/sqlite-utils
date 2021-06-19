@@ -1549,6 +1549,19 @@ The ``.pks`` property returns a list of strings naming the primary key columns f
     >>> db["PlantType"].pks
     ['id']
 
+If a table has no primary keys but is a `rowid table <https://www.sqlite.org/rowidtable.html>`__, this property will return ``['rowid']``.
+
+.. _python_api_introspection_use_rowid:
+
+.use_rowid
+----------
+
+Almost all SQLite tables have a ``rowid`` column, but a table with no explicitly defined primary keys must use that ``rowid`` as the primary key for identifying individual rows. The ``.use_rowid`` property checks to see if a table needs to use the ``rowid`` in this way - it returns ``True`` if the table has no explicitly defined primary keys and ``False`` otherwise.
+
+    >>> db["PlantType"].use_rowid
+    False
+
+
 .. _python_api_introspection_foreign_keys:
 
 .foreign_keys

@@ -809,6 +809,10 @@ class Table(Queryable):
             names = ["rowid"]
         return names
 
+    @property
+    def use_rowid(self):
+        return not any(column for column in self.columns if column.is_pk)
+
     def get(self, pk_values):
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]

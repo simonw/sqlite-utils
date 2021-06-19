@@ -237,3 +237,11 @@ def test_virtual_table_using(sql, expected_name, expected_using):
     db = Database(memory=True)
     db.execute(sql)
     assert db[expected_name].virtual_table_using == expected_using
+
+
+def test_use_rowid():
+    db = Database(memory=True)
+    db["rowid_table"].insert({"name": "Cleo"})
+    db["regular_table"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    assert db["rowid_table"].use_rowid
+    assert not db["regular_table"].use_rowid
