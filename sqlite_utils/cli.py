@@ -1173,6 +1173,7 @@ def query(
     is_flag=True,
     help="Treat all CSV/TSV columns as TEXT",
 )
+@click.option("--schema", is_flag=True, help="Show SQL schema for in-memory database")
 @click.option("--dump", is_flag=True, help="Dump SQL for in-memory database")
 @click.option(
     "--save",
@@ -1196,6 +1197,7 @@ def memory(
     param,
     encoding,
     no_detect_types,
+    schema,
     dump,
     save,
     load_extension,
@@ -1224,7 +1226,7 @@ def memory(
     """
     db = sqlite_utils.Database(memory=True)
     # If --dump or --save used but no paths detected, assume SQL query is a path:
-    if (dump or save) and not paths:
+    if (dump or save or schema) and not paths:
         paths = [sql]
         sql = None
     for i, path in enumerate(paths):
@@ -1260,6 +1262,10 @@ def memory(
     if dump:
         for line in db.conn.iterdump():
             click.echo(line)
+        return
+
+    if schema:
+        click.echo(db.schema)
         return
 
     if save:

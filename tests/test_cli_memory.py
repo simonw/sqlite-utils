@@ -175,6 +175,24 @@ def test_memory_dump(extra_args):
 
 
 @pytest.mark.parametrize("extra_args", ([], ["select 1"]))
+def test_memory_schema(extra_args):
+    result = CliRunner().invoke(
+        cli.cli,
+        ["memory", "-"] + extra_args + ["--schema"],
+        input="id,name\n1,Cleo\n2,Bants",
+    )
+    assert result.exit_code == 0
+    assert result.output.strip() == (
+        'CREATE TABLE "stdin" (\n'
+        "   [id] INTEGER,\n"
+        "   [name] TEXT\n"
+        ");\n"
+        "CREATE VIEW t1 AS select * from [stdin];\n"
+        "CREATE VIEW t AS select * from [stdin];"
+    )
+
+
+@pytest.mark.parametrize("extra_args", ([], ["select 1"]))
 def test_memory_save(tmpdir, extra_args):
     save_to = str(tmpdir / "save.db")
     result = CliRunner().invoke(

@@ -326,24 +326,33 @@ Here the ``--attach trees trees.db`` option makes the ``trees.db`` database avai
 
 The CSV data that was piped into the script is available in the ``stdin`` table, so  ``... where rowid in (select id from stdin)`` can be used to return rows from the ``trees`` table that match IDs that were piped in as CSV content.
 
-.. _cli_memory_dump_save:
+.. _cli_memory_schema_dump_save:
 
-\-\-dump and \-\-save
----------------------
+\-\-schema, \-\-dump and \-\-save
+---------------------------------
 
-You can dump out the SQL used for the temporary in-memory database, complete with all imported data, using the ``--dump`` option::
+To see the schema that will be created for a file or multiple files, use ``--schema``::
+
+    % sqlite-utils memory dogs.csv --schema
+    CREATE TABLE [dogs] (
+        [id] INTEGER,
+        [age] INTEGER,
+        [name] TEXT
+    );
+    CREATE VIEW t1 AS select * from [dogs];
+    CREATE VIEW t AS select * from [dogs];
+
+You can output SQL that will both create the tables and insert the full data used to populate the in-memory database using ``--dump``::
 
     % sqlite-utils memory dogs.csv --dump
     BEGIN TRANSACTION;
     CREATE TABLE [dogs] (
-        [rowid] TEXT,
-        [id] TEXT,
-        [dog_age] TEXT,
+        [id] INTEGER,
+        [age] INTEGER,
         [name] TEXT
     );
-    INSERT INTO "dogs" VALUES('1','1','4','Cleo');
-    INSERT INTO "dogs" VALUES('2','2','2','Pancakes');
-    INSERT INTO "dogs" VALUES('3','2','3','Pancakes');
+    INSERT INTO "dogs" VALUES('1','4','Cleo');
+    INSERT INTO "dogs" VALUES('2','2','Pancakes');
     CREATE VIEW t1 AS select * from [dogs];
     CREATE VIEW t AS select * from [dogs];
     COMMIT;
@@ -353,7 +362,6 @@ Passing ``--save other.db`` will instead use that SQL to populate a new database
     % sqlite-utils memory dogs.csv --save dogs.db
 
 These features are mainly intented as debugging tools - for much more finely grained control over how data is inserted into a SQLite database file see :ref:`cli_inserting_data` and :ref:`cli_insert_csv_tsv`.
-
 
 .. _cli_rows:
 
@@ -738,13 +746,12 @@ For example, given a ``creatures.csv`` file containing this::
 
 The following command::
 
-    $ sqlite-utils insert creatures.db creatures creatures.tsv --csv --detect-types
+    $ sqlite-utils insert creatures.db creatures creatures.csv --csv --detect-types
 
 Will produce this schema::
 
     $ sqlite-utils schema creatures.db
     CREATE TABLE "creatures" (
-       [rowid] INTEGER PRIMARY KEY,
        [name] TEXT,
        [age] INTEGER,
        [weight] FLOAT
@@ -1108,45 +1115,44 @@ Here's a more complex example that makes use of these options. It converts `this
         --fk-column country_id \
         --rename country_long name
 
-After running the above, the command ``sqlite3 global.db .schema`` reveals the following schema:
+After running the above, the command ``sqlite-utils schema global.db`` reveals the following schema:
 
 .. code-block:: sql
 
     CREATE TABLE [countries] (
-        [id] INTEGER PRIMARY KEY,
-        [country] TEXT,
-        [name] TEXT
+       [id] INTEGER PRIMARY KEY,
+       [country] TEXT,
+       [name] TEXT
+    );
+    CREATE TABLE "power_plants" (
+       [country_id] INTEGER,
+       [name] TEXT,
+       [gppd_idnr] TEXT,
+       [capacity_mw] TEXT,
+       [latitude] TEXT,
+       [longitude] TEXT,
+       [primary_fuel] TEXT,
+       [other_fuel1] TEXT,
+       [other_fuel2] TEXT,
+       [other_fuel3] TEXT,
+       [commissioning_year] TEXT,
+       [owner] TEXT,
+       [source] TEXT,
+       [url] TEXT,
+       [geolocation_source] TEXT,
+       [wepp_id] TEXT,
+       [year_of_capacity_data] TEXT,
+       [generation_gwh_2013] TEXT,
+       [generation_gwh_2014] TEXT,
+       [generation_gwh_2015] TEXT,
+       [generation_gwh_2016] TEXT,
+       [generation_gwh_2017] TEXT,
+       [generation_data_source] TEXT,
+       [estimated_generation_gwh] TEXT,
+       FOREIGN KEY([country_id]) REFERENCES [countries]([id])
     );
     CREATE UNIQUE INDEX [idx_countries_country_name]
         ON [countries] ([country], [name]);
-    CREATE TABLE IF NOT EXISTS "power_plants" (
-        [rowid] INTEGER PRIMARY KEY,
-        [country_id] INTEGER,
-        [name] TEXT,
-        [gppd_idnr] TEXT,
-        [capacity_mw] TEXT,
-        [latitude] TEXT,
-        [longitude] TEXT,
-        [primary_fuel] TEXT,
-        [other_fuel1] TEXT,
-        [other_fuel2] TEXT,
-        [other_fuel3] TEXT,
-        [commissioning_year] TEXT,
-        [owner] TEXT,
-        [source] TEXT,
-        [url] TEXT,
-        [geolocation_source] TEXT,
-        [wepp_id] TEXT,
-        [year_of_capacity_data] TEXT,
-        [generation_gwh_2013] TEXT,
-        [generation_gwh_2014] TEXT,
-        [generation_gwh_2015] TEXT,
-        [generation_gwh_2016] TEXT,
-        [generation_gwh_2017] TEXT,
-        [generation_data_source] TEXT,
-        [estimated_generation_gwh] TEXT,
-        FOREIGN KEY(country_id) REFERENCES countries(id)
-    );
 
 .. _cli_create_view:
 
