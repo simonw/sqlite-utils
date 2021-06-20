@@ -15,7 +15,7 @@ The :ref:`sqlite-utils commad-line tool <cli>` can be installed on macOS using H
 
     brew install sqlite-utils
 
-If you have it installed and want to upgrade to the most recent release, you ran run::
+If you have it installed and want to upgrade to the most recent release, you can run::
 
     brew upgrade sqlite-utils
 
