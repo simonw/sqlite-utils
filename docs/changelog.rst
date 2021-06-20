@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+.. _v3_11:
+
+3.11 (2021-06-20)
+-----------------
+
+- New ``sqlite-utils memory data.csv --schema`` option, for outputting the schema of the in-memory database generated from one or more files. See :ref:`cli_memory_schema_dump_save`. (`#288 <https://github.com/simonw/sqlite-utils/issues/288>`__)
+- Added :ref:`installation instructions <installation>`. (`#286 <https://github.com/simonw/sqlite-utils/issues/286>`__)
+
 .. _v3_10:
 
 3.10 (2021-06-19)
