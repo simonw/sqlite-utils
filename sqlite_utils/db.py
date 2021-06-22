@@ -359,10 +359,14 @@ class Database:
                 for table in tables
             )
 
-    def execute_returning_dicts(self, sql, params=None):
+    def query(self, sql, params=None):
         cursor = self.execute(sql, params or tuple())
         keys = [d[0] for d in cursor.description]
-        return [dict(zip(keys, row)) for row in cursor.fetchall()]
+        for row in cursor:
+            yield dict(zip(keys, row))
+
+    def execute_returning_dicts(self, sql, params=None):
+        return list(self.query(sql, params))
 
     def resolve_foreign_keys(self, name, foreign_keys):
         # foreign_keys may be a list of strcolumn names, a list of ForeignKey tuples,

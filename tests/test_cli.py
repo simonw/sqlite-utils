@@ -613,8 +613,8 @@ def test_insert_simple(tmpdir):
     open(json_path, "w").write(json.dumps({"name": "Cleo", "age": 4}))
     result = CliRunner().invoke(cli.cli, ["insert", db_path, "dogs", json_path])
     assert 0 == result.exit_code
-    assert [{"age": 4, "name": "Cleo"}] == Database(db_path).execute_returning_dicts(
-        "select * from dogs"
+    assert [{"age": 4, "name": "Cleo"}] == list(
+        Database(db_path).query("select * from dogs")
     )
     db = Database(db_path)
     assert ["dogs"] == db.table_names()
@@ -629,8 +629,8 @@ def test_insert_from_stdin(tmpdir):
         input=json.dumps({"name": "Cleo", "age": 4}),
     )
     assert 0 == result.exit_code
-    assert [{"age": 4, "name": "Cleo"}] == Database(db_path).execute_returning_dicts(
-        "select * from dogs"
+    assert [{"age": 4, "name": "Cleo"}] == list(
+        Database(db_path).query("select * from dogs")
     )
 
 
@@ -655,9 +655,9 @@ def test_insert_with_primary_key(db_path, tmpdir):
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
     )
     assert 0 == result.exit_code
-    assert [{"id": 1, "age": 4, "name": "Cleo"}] == Database(
-        db_path
-    ).execute_returning_dicts("select * from dogs")
+    assert [{"id": 1, "age": 4, "name": "Cleo"}] == list(
+        Database(db_path).query("select * from dogs")
+    )
     db = Database(db_path)
     assert ["id"] == db["dogs"].pks
 
@@ -671,7 +671,7 @@ def test_insert_multiple_with_primary_key(db_path, tmpdir):
     )
     assert 0 == result.exit_code
     db = Database(db_path)
-    assert dogs == db.execute_returning_dicts("select * from dogs order by id")
+    assert dogs == list(db.query("select * from dogs order by id"))
     assert ["id"] == db["dogs"].pks
 
 
@@ -687,7 +687,7 @@ def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
     )
     assert 0 == result.exit_code
     db = Database(db_path)
-    assert dogs == db.execute_returning_dicts("select * from dogs order by breed, id")
+    assert dogs == list(db.query("select * from dogs order by breed, id"))
     assert {"breed", "id"} == set(db["dogs"].pks)
     assert (
         "CREATE TABLE [dogs] (\n"
@@ -732,7 +732,7 @@ def test_insert_binary_base64(db_path):
     )
     assert 0 == result.exit_code, result.output
     db = Database(db_path)
-    actual = db.execute_returning_dicts("select content from files")
+    actual = list(db.query("select content from files"))
     assert actual == [{"content": b"hello"}]
 
 
@@ -747,7 +747,7 @@ def test_insert_newline_delimited(db_path):
     assert [
         {"foo": "bar", "n": 1},
         {"foo": "baz", "n": 2},
-    ] == db.execute_returning_dicts("select foo, n from from_json_nl")
+    ] == list(db.query("select foo, n from from_json_nl"))
 
 
 def test_insert_ignore(db_path, tmpdir):
@@ -766,9 +766,7 @@ def test_insert_ignore(db_path, tmpdir):
     )
     assert 0 == result.exit_code, result.output
     # ... but it should actually have no effect
-    assert [{"id": 1, "name": "Cleo"}] == db.execute_returning_dicts(
-        "select * from dogs"
-    )
+    assert [{"id": 1, "name": "Cleo"}] == list(db.query("select * from dogs"))
 
 
 @pytest.mark.parametrize(
@@ -831,8 +829,9 @@ def test_insert_replace(db_path, tmpdir):
     )
     assert 0 == result.exit_code, result.output
     assert 21 == db["dogs"].count
-    assert insert_replace_dogs == db.execute_returning_dicts(
-        "select * from dogs where id in (1, 2, 21) order by id"
+    assert (
+        list(db.query("select * from dogs where id in (1, 2, 21) order by id"))
+        == insert_replace_dogs
     )
 
 
@@ -847,7 +846,7 @@ def test_insert_truncate(db_path):
     assert [
         {"foo": "bar", "n": 1},
         {"foo": "baz", "n": 2},
-    ] == db.execute_returning_dicts("select foo, n from from_json_nl")
+    ] == list(db.query("select foo, n from from_json_nl"))
     # Truncate and insert new rows
     result = CliRunner().invoke(
         cli.cli,
@@ -866,7 +865,7 @@ def test_insert_truncate(db_path):
     assert [
         {"foo": "bam", "n": 3},
         {"foo": "bat", "n": 4},
-    ] == db.execute_returning_dicts("select foo, n from from_json_nl")
+    ] == list(db.query("select foo, n from from_json_nl"))
 
 
 def test_insert_alter(db_path, tmpdir):
@@ -897,7 +896,7 @@ def test_insert_alter(db_path, tmpdir):
         {"foo": "bar", "n": 1, "baz": None},
         {"foo": "baz", "n": 2, "baz": None},
         {"foo": "bar", "baz": 5, "n": None},
-    ] == db.execute_returning_dicts("select foo, n, baz from from_json_nl")
+    ] == list(db.query("select foo, n, baz from from_json_nl"))
 
 
 @pytest.mark.parametrize(
@@ -1168,7 +1167,7 @@ def test_upsert(db_path, tmpdir):
     assert [
         {"id": 1, "name": "Cleo", "age": 4},
         {"id": 2, "name": "Nixie", "age": 4},
-    ] == db.execute_returning_dicts("select * from dogs order by id")
+    ] == list(db.query("select * from dogs order by id"))
 
 
 def test_upsert_alter(db_path, tmpdir):
@@ -1195,7 +1194,7 @@ def test_upsert_alter(db_path, tmpdir):
     assert 0 == result.exit_code
     assert [
         {"id": 1, "name": "Cleo", "age": 5},
-    ] == db.execute_returning_dicts("select * from dogs order by id")
+    ] == list(db.query("select * from dogs order by id"))
 
 
 @pytest.mark.parametrize(
@@ -1549,7 +1548,7 @@ def test_query_update(db_path, args, expected):
         cli.cli, [db_path, "update dogs set age = 5 where name = 'Cleo'"] + args
     )
     assert expected == result.output.strip()
-    assert db.execute_returning_dicts("select * from dogs") == [
+    assert list(db.query("select * from dogs")) == [
         {"id": 1, "age": 5, "name": "Cleo"},
     ]
 

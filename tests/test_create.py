@@ -827,8 +827,8 @@ def test_insert_thousands_adds_extra_columns_after_first_100_with_alter(fresh_db
         + [{"i": 101, "extra": "Should trigger ALTER"}],
         alter=True,
     )
-    rows = fresh_db.execute_returning_dicts("select * from test where i = 101")
-    assert [{"i": 101, "word": None, "extra": "Should trigger ALTER"}] == rows
+    rows = list(fresh_db.query("select * from test where i = 101"))
+    assert rows == [{"i": 101, "word": None, "extra": "Should trigger ALTER"}]
 
 
 def test_insert_ignore(fresh_db):
@@ -839,8 +839,8 @@ def test_insert_ignore(fresh_db):
     # Using ignore=True should cause our insert to be silently ignored
     fresh_db["test"].insert({"id": 1, "bar": 3}, pk="id", ignore=True)
     # Only one row, and it should be bar=2, not bar=3
-    rows = fresh_db.execute_returning_dicts("select * from test")
-    assert [{"id": 1, "bar": 2}] == rows
+    rows = list(fresh_db.query("select * from test"))
+    assert rows == [{"id": 1, "bar": 2}]
 
 
 def test_insert_hash_id(fresh_db):
