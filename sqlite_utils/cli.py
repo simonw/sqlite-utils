@@ -266,17 +266,6 @@ def views(
     type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
-def vacuum(path):
-    """Run VACUUM against the database"""
-    sqlite_utils.Database(path).vacuum()
-
-
-@cli.command()
-@click.argument(
-    "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
-    required=True,
-)
 @click.argument("tables", nargs=-1)
 @click.option("--no-vacuum", help="Don't run VACUUM", default=False, is_flag=True)
 @load_extension_option
