@@ -1,6 +1,6 @@
 import base64
 import click
-from click_default_group import DefaultGroup
+from click_default_group import DefaultGroup  # type: ignore
 from datetime import datetime
 import hashlib
 import pathlib

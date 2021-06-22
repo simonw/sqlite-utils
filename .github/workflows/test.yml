@@ -26,11 +26,14 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -e '.[test]'
+        pip install mypy
     - name: Optionally install numpy
       if: matrix.numpy == 1
       run: pip install numpy
     - name: Run tests
       run: |
         pytest
+    - name: run mypy
+      run: mypy sqlite_utils
     - name: Check formatting
       run: black . --check

@@ -11,7 +11,7 @@ import json
 import os
 import pathlib
 import re
-from sqlite_fts4 import rank_bm25
+from sqlite_fts4 import rank_bm25  # type: ignore
 import sys
 import textwrap
 import uuid
@@ -39,14 +39,14 @@ USING\s+(?P<using>\w+)          # e.g. USING FTS5
 )
 
 try:
-    import pandas as pd
+    import pandas as pd  # type: ignore
 except ImportError:
     pd = None
 
 try:
-    import numpy as np
+    import numpy as np  # type: ignore
 except ImportError:
-    np = None
+    np = None  # type: ignore
 
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")

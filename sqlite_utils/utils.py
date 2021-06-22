@@ -5,17 +5,18 @@ import enum
 import io
 import json
 import os
-from typing import Generator
+from typing import cast, BinaryIO, Iterable, Optional, Tuple, Type
 
 import click
 
 try:
-    import pysqlite3 as sqlite3
-    import pysqlite3.dbapi2
+    import pysqlite3 as sqlite3  # type: ignore
+    import pysqlite3.dbapi2  # type: ignore
 
     OperationalError = pysqlite3.dbapi2.OperationalError
 except ImportError:
-    import sqlite3
+    # https://github.com/python/mypy/issues/1153#issuecomment-253842414
+    import sqlite3  # type: ignore
 
     OperationalError = sqlite3.OperationalError
 
@@ -143,12 +144,11 @@ class RowsFromFileBadJSON(RowsFromFileError):
 
 
 def rows_from_file(
-    fp,
-    format=None,
-    dialect=None,
-    encoding=None,
-    detect_types=False,
-) -> Generator[dict, None, None]:
+    fp: BinaryIO,
+    format: Optional[Format] = None,
+    dialect: Optional[Type[csv.Dialect]] = None,
+    encoding: Optional[str] = None,
+) -> Tuple[Iterable[dict], Format]:
     if format == Format.JSON:
         decoded = json.load(fp)
         if isinstance(decoded, dict):
@@ -159,8 +159,13 @@ def rows_from_file(
     elif format == Format.NL:
         return (json.loads(line) for line in fp if line.strip()), Format.NL
     elif format == Format.CSV:
-        decoded_fp = io.TextIOWrapper(fp, encoding=encoding or "utf-8-sig")
-        return csv.DictReader(decoded_fp, dialect=dialect), Format.CSV
+        use_encoding: str = encoding or "utf-8-sig"
+        decoded_fp = io.TextIOWrapper(fp, encoding=use_encoding)
+        if dialect is not None:
+            reader = csv.DictReader(decoded_fp, dialect=dialect)
+        else:
+            reader = csv.DictReader(decoded_fp)
+        return reader, Format.CSV
     elif format == Format.TSV:
         return (
             rows_from_file(
@@ -170,7 +175,7 @@ def rows_from_file(
         )
     elif format is None:
         # Detect the format, then call this recursively
-        buffered = io.BufferedReader(fp, buffer_size=4096)
+        buffered = io.BufferedReader(cast(io.RawIOBase, fp), buffer_size=4096)
         first_bytes = buffered.peek(2048).strip()
         if first_bytes.startswith(b"[") or first_bytes.startswith(b"{"):
             # TODO: Detect newline-JSON
