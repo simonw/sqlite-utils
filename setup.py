@@ -27,6 +27,7 @@ setup(
     extras_require={
         "test": ["pytest", "black", "hypothesis"],
         "docs": ["sphinx_rtd_theme", "sphinx-autobuild"],
+        "mypy": ["mypy", "types-click", "types-tabulate"],
     },
     entry_points="""
         [console_scripts]

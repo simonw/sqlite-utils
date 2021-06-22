@@ -25,8 +25,7 @@ jobs:
           ${{ runner.os }}-pip-
     - name: Install dependencies
       run: |
-        pip install -e '.[test]'
-        pip install mypy
+        pip install -e '.[test,mypy]'
     - name: Optionally install numpy
       if: matrix.numpy == 1
       run: pip install numpy
