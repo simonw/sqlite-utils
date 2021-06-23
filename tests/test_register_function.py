@@ -1,3 +1,4 @@
+# flake8: noqa
 import pytest
 import sys
 from unittest.mock import MagicMock
