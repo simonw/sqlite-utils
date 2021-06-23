@@ -55,14 +55,14 @@ def test_register_function_replace(fresh_db):
 
     # This will fail to replace the function:
     @fresh_db.register_function()
-    def one():  # noqa: F811
+    def one():  # noqa
         return "two"
 
     assert "one" == fresh_db.execute("select one()").fetchone()[0]
 
     # This will replace it
     @fresh_db.register_function(replace=True)
-    def one():  # noqa: F811
+    def one():  # noqa
         return "two"
 
     assert "two" == fresh_db.execute("select one()").fetchone()[0]
