@@ -28,6 +28,7 @@ setup(
         "test": ["pytest", "black", "hypothesis"],
         "docs": ["sphinx_rtd_theme", "sphinx-autobuild"],
         "mypy": ["mypy", "types-click", "types-tabulate"],
+        "flake8": ["flake8"],
     },
     entry_points="""
         [console_scripts]

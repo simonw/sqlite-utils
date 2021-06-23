@@ -25,7 +25,7 @@ jobs:
           ${{ runner.os }}-pip-
     - name: Install dependencies
       run: |
-        pip install -e '.[test,mypy]'
+        pip install -e '.[test,mypy,flake8]'
     - name: Optionally install numpy
       if: matrix.numpy == 1
       run: pip install numpy
@@ -34,5 +34,7 @@ jobs:
         pytest
     - name: run mypy
       run: mypy sqlite_utils
+    - name: run flake8
+      run: flake8
     - name: Check formatting
       run: black . --check
