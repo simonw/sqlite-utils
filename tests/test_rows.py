@@ -1,4 +1,3 @@
-from sqlite_utils.db import Index, View
 import pytest
 
 

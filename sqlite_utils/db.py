@@ -1,5 +1,5 @@
 from .utils import sqlite3, OperationalError, suggest_column_types, column_affinity
-from collections import namedtuple, OrderedDict
+from collections import namedtuple
 from collections.abc import Mapping
 import contextlib
 import datetime
@@ -1116,8 +1116,6 @@ class Table(Queryable):
                 )
             )
         table = table or "_".join(columns)
-        first_column = columns[0]
-        pks = self.pks
         lookup_table = self.db[table]
         fk_column = fk_column or "{}_id".format(table)
         magic_lookup_column = "{}_{}".format(fk_column, os.urandom(6).hex())
@@ -1236,7 +1234,7 @@ class Table(Queryable):
         fk_col_type = None
         if fk is not None:
             # fk must be a valid table
-            if not fk in self.db.table_names():
+            if fk not in self.db.table_names():
                 raise AlterError("table '{}' does not exist".format(fk))
             # if fk_col specified, must be a valid column
             if fk_col is not None:

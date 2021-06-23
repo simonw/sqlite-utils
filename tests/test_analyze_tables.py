@@ -1,10 +1,8 @@
-from sqlite_utils.db import Database, ForeignKey, ColumnDetails
+from sqlite_utils.db import Database, ColumnDetails
 from sqlite_utils import cli
-from sqlite_utils.utils import OperationalError
 from click.testing import CliRunner
 import pytest
 import sqlite3
-import textwrap
 
 
 @pytest.fixture
@@ -132,6 +130,7 @@ def test_analyze_table_save(db_to_analyze_path):
     result = CliRunner().invoke(
         cli.cli, ["analyze-tables", db_to_analyze_path, "--save"]
     )
+    assert result.exit_code == 0
     rows = list(Database(db_to_analyze_path)["_analyze_tables_"].rows)
     assert rows == [
         {

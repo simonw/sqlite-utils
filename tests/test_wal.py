@@ -1,6 +1,5 @@
 import pytest
 from sqlite_utils import Database
-import sqlite3
 
 
 @pytest.fixture

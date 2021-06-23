@@ -2,6 +2,7 @@ from hypothesis import given
 import hypothesis.strategies as st
 import sqlite_utils
 
+
 # SQLite integers are -(2^63) to 2^63 - 1
 @given(st.integers(-9223372036854775808, 9223372036854775807))
 def test_roundtrip_integers(integer):

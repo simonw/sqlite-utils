@@ -1,4 +1,4 @@
-from sqlite_utils.db import Index, InvalidColumns
+from sqlite_utils.db import InvalidColumns
 import itertools
 import pytest
 

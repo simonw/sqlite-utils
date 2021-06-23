@@ -410,7 +410,7 @@ def test_index_foreign_keys(db_path):
 
 def test_enable_fts(db_path):
     db = Database(db_path)
-    assert None == db["Gosh"].detect_fts()
+    assert db["Gosh"].detect_fts() is None
     result = CliRunner().invoke(
         cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"]
     )
@@ -420,7 +420,7 @@ def test_enable_fts(db_path):
     # Table names with restricted chars are handled correctly.
     # colons and dots are restricted characters for table names.
     db["http://example.com"].create({"c1": str, "c2": str, "c3": str})
-    assert None == db["http://example.com"].detect_fts()
+    assert db["http://example.com"].detect_fts() is None
     result = CliRunner().invoke(
         cli.cli,
         [
@@ -966,7 +966,23 @@ def test_query_json(db_path, sql, args, expected):
     assert expected == result.output.strip()
 
 
-LOREM_IPSUM_COMPRESSED = b"x\x9c\xed\xd1\xcdq\x03!\x0c\x05\xe0\xbb\xabP\x01\x1eW\x91\xdc|M\x01\n\xc8\x8ef\xf83H\x1e\x97\x1f\x91M\x8e\xe9\xe0\xdd\x96\x05\x84\xf4\xbek\x9fRI\xc7\xf2J\xb9\x97>i\xa9\x11W\xb13\xa5\xde\x96$\x13\xf3I\x9cu\xe8J\xda\xee$EcsI\x8e\x0b$\xea\xab\xf6L&u\xc4emI\xb3foFnT\xf83\xca\x93\xd8QZ\xa8\xf2\xbd1q\xd1\x87\xf3\x85>\x8c\xa4i\x8d\xdaTu\x7f<c\xc9\xf5L\x0f\xd7E\xad/\x9b\x9eI^2\x93\x1a\x9b\xf6F^\n\xd7\xd4\x8f\xca\xfb\x90.\xdd/\xfd\x94\xd4\x11\x87I8\x1a\xaf\xd1S?\x06\x88\xa7\xecBo\xbb$\xbb\t\xe9\xf4\xe8\xe4\x98U\x1bM\x19S\xbe\xa4e\x991x\xfcx\xf6\xe2#\x9e\x93h'&%YK(i)\x7f\t\xc5@N7\xbf+\x1b\xb5\xdd\x10\r\x9e\xb1\xf0y\xa1\xf7W\x92a\xe2;\xc6\xc8\xa0\xa7\xc4\x92\xe2\\\xf2\xa1\x99m\xdf\x88)\xc6\xec\x9a\xa5\xed\x14wR\xf1h\xf22x\xcfM\xfdv\xd3\xa4LY\x96\xcc\xbd[{\xd9m\xf0\x0eH#\x8e\xf5\x9b\xab\xd7\xcb\xe9t\x05\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\xfb\x8f\xef\x1b\x9b\x06\x83}"
+LOREM_IPSUM_COMPRESSED = (
+    b"x\x9c\xed\xd1\xcdq\x03!\x0c\x05\xe0\xbb\xabP\x01\x1eW\x91\xdc|M\x01\n\xc8\x8e"
+    b"f\xf83H\x1e\x97\x1f\x91M\x8e\xe9\xe0\xdd\x96\x05\x84\xf4\xbek\x9fRI\xc7\xf2J"
+    b"\xb9\x97>i\xa9\x11W\xb13\xa5\xde\x96$\x13\xf3I\x9cu\xe8J\xda\xee$EcsI\x8e\x0b"
+    b"$\xea\xab\xf6L&u\xc4emI\xb3foFnT\xf83\xca\x93\xd8QZ\xa8\xf2\xbd1q\xd1\x87\xf3"
+    b"\x85>\x8c\xa4i\x8d\xdaTu\x7f<c\xc9\xf5L\x0f\xd7E\xad/\x9b\x9eI^2\x93\x1a\x9b"
+    b"\xf6F^\n\xd7\xd4\x8f\xca\xfb\x90.\xdd/\xfd\x94\xd4\x11\x87I8\x1a\xaf\xd1S?\x06"
+    b"\x88\xa7\xecBo\xbb$\xbb\t\xe9\xf4\xe8\xe4\x98U\x1bM\x19S\xbe\xa4e\x991x\xfc"
+    b"x\xf6\xe2#\x9e\x93h'&%YK(i)\x7f\t\xc5@N7\xbf+\x1b\xb5\xdd\x10\r\x9e\xb1\xf0"
+    b"y\xa1\xf7W\x92a\xe2;\xc6\xc8\xa0\xa7\xc4\x92\xe2\\\xf2\xa1\x99m\xdf\x88)\xc6"
+    b"\xec\x9a\xa5\xed\x14wR\xf1h\xf22x\xcfM\xfdv\xd3\xa4LY\x96\xcc\xbd[{\xd9m\xf0"
+    b"\x0eH#\x8e\xf5\x9b\xab\xd7\xcb\xe9t\x05\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03"
+    b"\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03"
+    b"\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03"
+    b"\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03"
+    b"\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\xfb\x8f\xef\x1b\x9b\x06\x83}"
+)
 
 
 def test_query_json_binary(db_path):
@@ -988,7 +1004,18 @@ def test_query_json_binary(db_path):
             "sz": 16984,
             "data": {
                 "$base64": True,
-                "encoded": "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I/K+5Au3S/9lNQRh0k4Gq/RUz8GiKfsQm+7JLsJ6fTo5JhVG00ZU76kZZkxePx49uIjnpNoJyYlWUsoaSl/CcVATje/Kxu13RANnrHweaH3V5Jh4jvGyKCnxJLiXPKhmW3fiCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9",
+                "encoded": (
+                    (
+                        "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH"
+                        "8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+"
+                        "DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I"
+                        "/K+5Au3S/9lNQRh0k4Gq/RUz8GiKfsQm+7JLsJ6fTo5JhVG00ZU76kZZkxePx49uI"
+                        "jnpNoJyYlWUsoaSl/CcVATje/Kxu13RANnrHweaH3V5Jh4jvGyKCnxJLiXPKhmW3f"
+                        "iCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8"
+                        "IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984A"
+                        "Mf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9"
+                    )
+                ),
             },
         }
     ]
@@ -1157,17 +1184,17 @@ def test_upsert(db_path, tmpdir):
         {"id": 1, "age": 5},
         {"id": 2, "age": 5},
     ]
-    open(json_path, "w").write(json.dumps(insert_dogs))
+    open(json_path, "w").write(json.dumps(upsert_dogs))
     result = CliRunner().invoke(
         cli.cli,
         ["upsert", db_path, "dogs", json_path, "--pk", "id"],
         catch_exceptions=False,
     )
     assert 0 == result.exit_code, result.output
-    assert [
-        {"id": 1, "name": "Cleo", "age": 4},
-        {"id": 2, "name": "Nixie", "age": 4},
-    ] == list(db.query("select * from dogs order by id"))
+    assert list(db.query("select * from dogs order by id")) == [
+        {"id": 1, "name": "Cleo", "age": 5},
+        {"id": 2, "name": "Nixie", "age": 5},
+    ]
 
 
 def test_upsert_alter(db_path, tmpdir):
@@ -1596,47 +1623,112 @@ def test_add_foreign_keys(db_path):
     [
         (
             [],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["--type", "age", "text"],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] TEXT NOT NULL DEFAULT '1',\n   [name] TEXT\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [age] TEXT NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["--drop", "age"],
-            'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n)',
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["--rename", "age", "age2", "--rename", "id", "pk"],
-            "CREATE TABLE \"dogs\" (\n   [pk] INTEGER PRIMARY KEY,\n   [age2] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [pk] INTEGER PRIMARY KEY,\n"
+                "   [age2] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["--not-null", "name"],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT NOT NULL\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT NOT NULL\n"
+                ")"
+            ),
         ),
         (
             ["--not-null-false", "age"],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER DEFAULT '1',\n   [name] TEXT\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [age] INTEGER DEFAULT '1',\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["--pk", "name"],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT PRIMARY KEY\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER,\n"
+                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT PRIMARY KEY\n"
+                ")"
+            ),
         ),
         (
             ["--pk-none"],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER,\n"
+                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["--default", "name", "Turnip"],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT DEFAULT 'Turnip'\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT DEFAULT 'Turnip'\n"
+                ")"
+            ),
         ),
         (
             ["--default-none", "age"],
-            'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL,\n   [name] TEXT\n)',
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [age] INTEGER NOT NULL,\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["-o", "name", "--column-order", "age", "-o", "id"],
-            "CREATE TABLE \"dogs\" (\n   [name] TEXT,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [id] INTEGER PRIMARY KEY\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [name] TEXT,\n"
+                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [id] INTEGER PRIMARY KEY\n"
+                ")"
+            ),
         ),
     ],
 )
@@ -1685,9 +1777,13 @@ def test_transform_drop_foreign_key(db_path):
     print(result.output)
     assert result.exit_code == 0
     schema = db["places"].schema
-    assert (
-        schema
-        == 'CREATE TABLE "places" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [country] INTEGER,\n   [city] INTEGER REFERENCES [city]([id])\n)'
+    assert schema == (
+        'CREATE TABLE "places" (\n'
+        "   [id] INTEGER PRIMARY KEY,\n"
+        "   [name] TEXT,\n"
+        "   [country] INTEGER,\n"
+        "   [city] INTEGER REFERENCES [city]([id])\n"
+        ")"
     )
 
 
@@ -1701,22 +1797,48 @@ _common_other_schema = (
     [
         (
             [],
-            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [species_id] INTEGER,\n   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n)',
+            (
+                'CREATE TABLE "trees" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [address] TEXT,\n"
+                "   [species_id] INTEGER,\n"
+                "   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n"
+                ")"
+            ),
             _common_other_schema,
         ),
         (
             ["--table", "custom_table"],
-            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [custom_table_id] INTEGER,\n   FOREIGN KEY([custom_table_id]) REFERENCES [custom_table]([id])\n)',
+            (
+                'CREATE TABLE "trees" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [address] TEXT,\n"
+                "   [custom_table_id] INTEGER,\n"
+                "   FOREIGN KEY([custom_table_id]) REFERENCES [custom_table]([id])\n"
+                ")"
+            ),
             "CREATE TABLE [custom_table] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)",
         ),
         (
             ["--fk-column", "custom_fk"],
-            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [custom_fk] INTEGER,\n   FOREIGN KEY([custom_fk]) REFERENCES [species]([id])\n)',
+            (
+                'CREATE TABLE "trees" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [address] TEXT,\n"
+                "   [custom_fk] INTEGER,\n"
+                "   FOREIGN KEY([custom_fk]) REFERENCES [species]([id])\n"
+                ")"
+            ),
             _common_other_schema,
         ),
         (
             ["--rename", "name", "name2"],
-            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [species_id] INTEGER,\n   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n)',
+            'CREATE TABLE "trees" (\n'
+            "   [id] INTEGER PRIMARY KEY,\n"
+            "   [address] TEXT,\n"
+            "   [species_id] INTEGER,\n"
+            "   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n"
+            ")",
             "CREATE TABLE [species] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)",
         ),
     ],
@@ -1902,7 +2024,10 @@ def test_indexes(tmpdir):
     ]
 
 
-_TRIGGERS_EXPECTED = '[{"name": "blah", "table": "articles", "sql": "CREATE TRIGGER blah AFTER INSERT ON articles\\nBEGIN\\n    UPDATE counter SET count = count + 1;\\nEND"}]\n'
+_TRIGGERS_EXPECTED = (
+    '[{"name": "blah", "table": "articles", "sql": "CREATE TRIGGER blah '
+    'AFTER INSERT ON articles\\nBEGIN\\n    UPDATE counter SET count = count + 1;\\nEND"}]\n'
+)
 
 
 @pytest.mark.parametrize(

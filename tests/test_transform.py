@@ -93,7 +93,10 @@ def test_transform_sql_table_with_primary_key(
     fresh_db, params, expected_sql, use_pragma_foreign_keys
 ):
     captured = []
-    tracer = lambda sql, params: captured.append((sql, params))
+
+    def tracer(sql, params):
+        return captured.append((sql, params))
+
     dogs = fresh_db["dogs"]
     if use_pragma_foreign_keys:
         fresh_db.conn.execute("PRAGMA foreign_keys=ON")
@@ -163,7 +166,10 @@ def test_transform_sql_table_with_no_primary_key(
     fresh_db, params, expected_sql, use_pragma_foreign_keys
 ):
     captured = []
-    tracer = lambda sql, params: captured.append((sql, params))
+
+    def tracer(sql, params):
+        return captured.append((sql, params))
+
     dogs = fresh_db["dogs"]
     if use_pragma_foreign_keys:
         fresh_db.conn.execute("PRAGMA foreign_keys=ON")

@@ -2,7 +2,6 @@ from sqlite_utils.db import (
     Index,
     Database,
     DescIndex,
-    ForeignKey,
     AlterError,
     NoObviousTable,
     ForeignKey,
@@ -148,8 +147,8 @@ def test_create_table_with_not_null(fresh_db):
 )
 def test_create_table_from_example(fresh_db, example, expected_columns):
     people_table = fresh_db["people"]
-    assert None == people_table.last_rowid
-    assert None == people_table.last_pk
+    assert people_table.last_rowid is None
+    assert people_table.last_pk is None
     people_table.insert(example)
     assert 1 == people_table.last_rowid
     assert 1 == people_table.last_pk
@@ -515,7 +514,7 @@ def test_insert_row_alter_table(
 
 def test_insert_row_alter_table_invalid_column_characters(fresh_db):
     table = fresh_db["table"]
-    rowid = table.insert({"foo": "bar"}).last_pk
+    table.insert({"foo": "bar"}).last_pk
     with pytest.raises(AssertionError):
         table.insert({"foo": "baz", "new_col[abc]": 1.2}, alter=True)
 
@@ -870,8 +869,6 @@ def test_works_with_pathlib_path(tmpdir):
 
 @pytest.mark.skipif(pd is None, reason="pandas and numpy are not installed")
 def test_create_table_numpy(fresh_db):
-    import numpy as np
-
     df = pd.DataFrame({"col 1": range(3), "col 2": range(3)})
     fresh_db["pandas"].insert_all(df.to_dict(orient="records"))
     assert [

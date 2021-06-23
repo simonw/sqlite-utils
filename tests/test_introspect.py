@@ -33,7 +33,7 @@ def test_detect_fts(existing_db):
     assert "woo_fts" == existing_db["woo_fts"].detect_fts()
     assert "woo2_fts" == existing_db["woo2"].detect_fts()
     assert "woo2_fts" == existing_db["woo2_fts"].detect_fts()
-    assert None == existing_db["foo"].detect_fts()
+    assert existing_db["foo"].detect_fts() is None
 
 
 def test_tables(existing_db):
@@ -175,9 +175,21 @@ def test_triggers_and_triggers_dict(fresh_db):
         (t.name, t.table) for t in fresh_db["authors"].triggers
     }
     expected_triggers = {
-        "authors_ai": "CREATE TRIGGER [authors_ai] AFTER INSERT ON [authors] BEGIN\n  INSERT INTO [authors_fts] (rowid, [name], [famous_works]) VALUES (new.rowid, new.[name], new.[famous_works]);\nEND",
-        "authors_ad": "CREATE TRIGGER [authors_ad] AFTER DELETE ON [authors] BEGIN\n  INSERT INTO [authors_fts] ([authors_fts], rowid, [name], [famous_works]) VALUES('delete', old.rowid, old.[name], old.[famous_works]);\nEND",
-        "authors_au": "CREATE TRIGGER [authors_au] AFTER UPDATE ON [authors] BEGIN\n  INSERT INTO [authors_fts] ([authors_fts], rowid, [name], [famous_works]) VALUES('delete', old.rowid, old.[name], old.[famous_works]);\n  INSERT INTO [authors_fts] (rowid, [name], [famous_works]) VALUES (new.rowid, new.[name], new.[famous_works]);\nEND",
+        "authors_ai": (
+            "CREATE TRIGGER [authors_ai] AFTER INSERT ON [authors] BEGIN\n"
+            "  INSERT INTO [authors_fts] (rowid, [name], [famous_works]) VALUES (new.rowid, new.[name], new.[famous_works]);\n"
+            "END"
+        ),
+        "authors_ad": (
+            "CREATE TRIGGER [authors_ad] AFTER DELETE ON [authors] BEGIN\n"
+            "  INSERT INTO [authors_fts] ([authors_fts], rowid, [name], [famous_works]) VALUES('delete', old.rowid, old.[name], old.[famous_works]);\n"
+            "END"
+        ),
+        "authors_au": (
+            "CREATE TRIGGER [authors_au] AFTER UPDATE ON [authors] BEGIN\n"
+            "  INSERT INTO [authors_fts] ([authors_fts], rowid, [name], [famous_works]) VALUES('delete', old.rowid, old.[name], old.[famous_works]);\n"
+            "  INSERT INTO [authors_fts] (rowid, [name], [famous_works]) VALUES (new.rowid, new.[name], new.[famous_works]);\nEND"
+        ),
     }
     assert authors.triggers_dict == expected_triggers
     assert fresh_db["other"].triggers == []

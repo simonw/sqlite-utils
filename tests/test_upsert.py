@@ -54,7 +54,7 @@ def test_upsert_compound_primary_key(fresh_db):
         ],
         pk=("species", "id"),
     )
-    assert None == table.last_pk
+    assert table.last_pk is None
     table.upsert({"species": "dog", "id": 1, "age": 5}, pk=("species", "id"))
     assert ("dog", 1) == table.last_pk
     assert [

@@ -52,7 +52,7 @@ def test_memory_tsv(tmpdir, use_stdin):
     result = CliRunner().invoke(
         cli.cli,
         ["memory", path, "select * from {}".format(sql_from)],
-        input=data,
+        input=input,
     )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output.strip()) == [
@@ -102,7 +102,7 @@ def test_memory_json_nl(tmpdir, use_stdin):
     result = CliRunner().invoke(
         cli.cli,
         ["memory", path, "select * from {}".format(sql_from)],
-        input=data,
+        input=input,
     )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output.strip()) == [

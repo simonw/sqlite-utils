@@ -14,8 +14,31 @@ def test_enable_counts_specific_table(fresh_db):
     # Now enable counts
     foo.enable_counts()
     assert foo.triggers_dict == {
-        "foo_counts_insert": "CREATE TRIGGER [foo_counts_insert] AFTER INSERT ON [foo]\nBEGIN\n    INSERT OR REPLACE INTO [_counts]\n    VALUES (\n        'foo',\n        COALESCE(\n            (SELECT count FROM [_counts] WHERE [table] = 'foo'),\n        0\n        ) + 1\n    );\nEND",
-        "foo_counts_delete": "CREATE TRIGGER [foo_counts_delete] AFTER DELETE ON [foo]\nBEGIN\n    INSERT OR REPLACE INTO [_counts]\n    VALUES (\n        'foo',\n        COALESCE(\n            (SELECT count FROM [_counts] WHERE [table] = 'foo'),\n        0\n        ) - 1\n    );\nEND",
+        "foo_counts_insert": (
+            "CREATE TRIGGER [foo_counts_insert] AFTER INSERT ON [foo]\n"
+            "BEGIN\n"
+            "    INSERT OR REPLACE INTO [_counts]\n"
+            "    VALUES (\n        'foo',\n"
+            "        COALESCE(\n"
+            "            (SELECT count FROM [_counts] WHERE [table] = 'foo'),\n"
+            "        0\n"
+            "        ) + 1\n"
+            "    );\n"
+            "END"
+        ),
+        "foo_counts_delete": (
+            "CREATE TRIGGER [foo_counts_delete] AFTER DELETE ON [foo]\n"
+            "BEGIN\n"
+            "    INSERT OR REPLACE INTO [_counts]\n"
+            "    VALUES (\n"
+            "        'foo',\n"
+            "        COALESCE(\n"
+            "            (SELECT count FROM [_counts] WHERE [table] = 'foo'),\n"
+            "        0\n"
+            "        ) - 1\n"
+            "    );\n"
+            "END"
+        ),
     }
     assert fresh_db.table_names() == ["foo", "_counts"]
     assert list(fresh_db["_counts"].rows) == [{"count": 10, "table": "foo"}]
