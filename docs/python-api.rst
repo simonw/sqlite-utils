@@ -1,8 +1,8 @@
 .. _python_api:
 
-============
- Python API
-============
+=============================
+ sqlite_utils Python library
+=============================
 
 .. contents:: :local:
 
@@ -59,12 +59,11 @@ You can attach an additional database using the ``.attach()`` method, providing 
     db = Database("first.db")
     db.attach("second", "second.db")
     # Now you can run queries like this one:
-    cursor = db.execute("""
+    print(db.query("""
     select * from table_in_first
         union all
     select * from second.table_in_second
-    """)
-    print(cursor.fetchall())
+    """))
 
 You can reference tables in the attached database using the alias value you passed to ``db.attach(alias, filepath)`` as a prefix, for example the ``second.table_in_second`` reference in the SQL query above.
 
@@ -97,27 +96,77 @@ You can also turn on a tracer function temporarily for a block of code using the
 
 This example will print queries only for the duration of the ``with`` block.
 
-.. _python_api_execute:
+.. _python_api_executing_queries:
 
 Executing queries
 =================
 
-The ``db.execute()`` and ``db.executescript()`` methods provide wrappers around ``.execute()`` and ``.executescript()`` on the underlying SQLite connection. These wrappers log to the tracer function if one has been registered.
+The ``Database`` class offers several methods for directly executing SQL queries.
+
+.. _python_api_query:
+
+db.query(sql, params)
+---------------------
+
+The ``db.query(sql)`` function executes a SQL query and returns an iterator over Python dictionaries representing the resulting rows:
+
+.. code-block:: python
+
+    db = Database(memory=True)
+    db["dogs"].insert_all([{"name": "Cleo"}, {"name": "Pancakes"}])
+    for row in db.query("select * from dogs"):
+        print(row)
+    # Outputs:
+    # {'name': 'Cleo'}
+    # {'name': 'Pancakes'}
+
+.. _python_api_execute:
+
+db.execute(sql, params)
+-----------------------
+
+The ``db.execute()`` and ``db.executescript()`` methods provide wrappers around ``.execute()`` and ``.executescript()`` on the underlying SQLite connection. These wrappers log to the :ref:`tracer function <python_api_tracing>` if one has been registered.
+
+``db.execute(sql)`` returns a `sqlite3.Cursor <https://docs.python.org/3/library/sqlite3.html#sqlite3.Cursor>`__ that was used to execute the SQL.
 
 .. code-block:: python
 
     db = Database(memory=True)
     db["dogs"].insert({"name": "Cleo"})
-    db.execute("update dogs set name = 'Cleopaws'")
+    cursor = db.execute("update dogs set name = 'Cleopaws'")
+    print(cursor.rowcount)
+    # Outputs the number of rows affected by the update
+    # In this case 2
 
-You can pass parameters as an optional second argument, using either a list or a dictionary. These will be correctly quoted and escaped.
+Other cursor methods such as ``.fetchone()`` and ``.fetchall()`` are also available, see the `standard library documentation <https://docs.python.org/3/library/sqlite3.html#sqlite3.Cursor>`__.
+
+.. _python_api_parameters:
+
+Passing parameters
+------------------
+
+Both ``db.query()`` and ``db.execute()`` accept an optional second argument for parameters to be passed to the SQL query.
+
+This can take the form of either a tuple/list or a dictionary, depending on the type of parameters used in the query. Values passed in this way will be correctly quoted and escaped, helping avoid XSS vulnerabilities.
+
+``?`` parameters in the SQL query can be filled in using a list:
 
 .. code-block:: python
 
-    # Using ? and a list:
     db.execute("update dogs set name = ?", ["Cleopaws"])
-    # Or using :name and a dictionary:
-    db.execute("update dogs set name = :name", {"name": "Cleopaws"})
+    # This will rename ALL dogs to be called "Cleopaws"
+
+Named parameters using ``:name`` can be filled using a dictionary:
+
+.. code-block:: python
+
+    dog = next(db.query(
+        "select rowid, name from dogs where name = :name",
+        {"name": "Cleopaws"}
+    ))
+    # dog is now {'rowid': 1, 'name': 'Cleopaws'}
+
+In this example ``next()`` is used to retrieve the first result in the iterator returned by the ``db.query()`` method.
 
 .. _python_api_table:
 
@@ -2222,7 +2271,7 @@ If you want to deliberately replace the registered function with a new implement
 Quoting strings for use in SQL
 ==============================
 
-In almost all cases you should pass values to your SQL queries using the optional ``parameters`` argument to ``db.execute()``, as described in :ref:`python_api_execute`.
+In almost all cases you should pass values to your SQL queries using the optional ``parameters`` argument to ``db.query()``, as described in :ref:`python_api_parameters`.
 
 If that option isn't relevant to your use-case you can to quote a string for use with SQLite using the ``db.quote()`` method, like so:
 
