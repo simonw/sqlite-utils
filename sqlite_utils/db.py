@@ -14,6 +14,7 @@ import re
 from sqlite_fts4 import rank_bm25  # type: ignore
 import sys
 import textwrap
+from typing import Generator, Iterable, Union, Optional, List
 import uuid
 
 SQLITE_MAX_VARS = 999
@@ -359,13 +360,17 @@ class Database:
                 for table in tables
             )
 
-    def query(self, sql, params=None):
+    def query(
+        self, sql: str, params: Optional[Union[Iterable, dict]] = None
+    ) -> Generator[dict, None, None]:
         cursor = self.execute(sql, params or tuple())
         keys = [d[0] for d in cursor.description]
         for row in cursor:
             yield dict(zip(keys, row))
 
-    def execute_returning_dicts(self, sql, params=None):
+    def execute_returning_dicts(
+        self, sql: str, params: Optional[Union[Iterable, dict]] = None
+    ) -> List[dict]:
         return list(self.query(sql, params))
 
     def resolve_foreign_keys(self, name, foreign_keys):
