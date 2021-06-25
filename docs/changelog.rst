@@ -2,6 +2,15 @@
  Changelog
 ===========
 
+.. _v3_12:
+
+3.12 (2021-06-25)
+-----------------
+
+- New :ref:`db.query(sql, params) <python_api_query>` method, which executes a SQL query and returns the results as an iterator over Python dictionaries. (`#290 <https://github.com/simonw/sqlite-utils/issues/290>`__)
+- This project now uses ``flake8`` and has started to use ``mypy``. (`#291 <https://github.com/simonw/sqlite-utils/issues/291>`__)
+- New documentation on :ref:`contributing <contributing>` to this project. (`#292 <https://github.com/simonw/sqlite-utils/issues/292>`__)
+
 .. _v3_11:
 
 3.11 (2021-06-20)
