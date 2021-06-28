@@ -1212,6 +1212,10 @@ def memory(
         cat animals.csv | sqlite-utils memory stdin:csv places.dat:nl \\
             "select * from stdin where place_id in (select id from places)"
 
+    Use --schema to view the SQL schema of any imported files:
+
+    \b
+        sqlite-utils memory animals.csv --schema
     """
     db = sqlite_utils.Database(memory=True)
     # If --dump or --save used but no paths detected, assume SQL query is a path:
