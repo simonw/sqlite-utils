@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+.. _v3_13:
+
+3.13 (2021-07-24)
+-----------------
+
+- ``sqlite-utils schema my.db table1 table2`` command now accepts optional table names. (`#299 <https://github.com/simonw/sqlite-utils/issues/299>`__)
+- ``sqlite-utils memory --help`` now describes the ``--schema`` option.
+
 .. _v3_12:
 
 3.12 (2021-06-25)
