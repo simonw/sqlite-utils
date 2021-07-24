@@ -1550,15 +1550,21 @@ def indexes(
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
+@click.argument("tables", nargs=-1, required=False)
 @load_extension_option
 def schema(
     path,
+    tables,
     load_extension,
 ):
-    "Show full schema for this database"
+    "Show full schema for this database or for specified tables"
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
-    click.echo(db.schema)
+    if tables:
+        for table in tables:
+            click.echo(db[table].schema)
+    else:
+        click.echo(db.schema)
 
 
 @cli.command()

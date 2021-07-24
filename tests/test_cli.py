@@ -2064,7 +2064,46 @@ def test_triggers(tmpdir, extra_args, expected):
     assert result.output == expected
 
 
-def test_schema(tmpdir):
+@pytest.mark.parametrize(
+    "options,expected",
+    (
+        (
+            [],
+            (
+                "CREATE TABLE [dogs] (\n"
+                "   [id] INTEGER,\n"
+                "   [name] TEXT\n"
+                ");\n"
+                "CREATE TABLE [chickens] (\n"
+                "   [id] INTEGER,\n"
+                "   [name] TEXT,\n"
+                "   [breed] TEXT\n"
+                ");\n"
+                "CREATE INDEX [idx_chickens_breed]\n"
+                "    ON [chickens] ([breed]);\n"
+            ),
+        ),
+        (
+            ["dogs"],
+            ("CREATE TABLE [dogs] (\n" "   [id] INTEGER,\n" "   [name] TEXT\n" ")\n"),
+        ),
+        (
+            ["chickens", "dogs"],
+            (
+                "CREATE TABLE [chickens] (\n"
+                "   [id] INTEGER,\n"
+                "   [name] TEXT,\n"
+                "   [breed] TEXT\n"
+                ")\n"
+                "CREATE TABLE [dogs] (\n"
+                "   [id] INTEGER,\n"
+                "   [name] TEXT\n"
+                ")\n"
+            ),
+        ),
+    ),
+)
+def test_schema(tmpdir, options, expected):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
     db["dogs"].create({"id": int, "name": str})
@@ -2072,23 +2111,11 @@ def test_schema(tmpdir):
     db["chickens"].create_index(["breed"])
     result = CliRunner().invoke(
         cli.cli,
-        ["schema", db_path],
+        ["schema", db_path] + options,
         catch_exceptions=False,
     )
     assert result.exit_code == 0
-    assert result.output == (
-        "CREATE TABLE [dogs] (\n"
-        "   [id] INTEGER,\n"
-        "   [name] TEXT\n"
-        ");\n"
-        "CREATE TABLE [chickens] (\n"
-        "   [id] INTEGER,\n"
-        "   [name] TEXT,\n"
-        "   [breed] TEXT\n"
-        ");\n"
-        "CREATE INDEX [idx_chickens_breed]\n"
-        "    ON [chickens] ([breed]);\n"
-    )
+    assert result.output == expected
 
 
 def test_long_csv_column_value(tmpdir):

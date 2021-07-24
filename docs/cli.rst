@@ -525,6 +525,11 @@ The ``sqlite-utils schema`` command shows the full SQL schema for the database::
         [name] TEXT
     );
 
+This will show the schema for every table and index in the database. To view the schema just for a specified subset of tables pass those as additional arguments::
+
+    $ sqlite-utils schema dogs.db dogs chickens
+    ...
+
 .. _cli_analyze_tables:
 
 Analyzing tables
