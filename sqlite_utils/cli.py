@@ -1987,6 +1987,8 @@ def convert(
         raise click.ClickException("Cannot use --output with more than one column")
     if multi and len(columns) > 1:
         raise click.ClickException("Cannot use --multi with more than one column")
+    if drop and not (output or multi):
+        raise click.ClickException("--drop can only be used with --output or --multi")
     # If single line and no 'return', add the return
     if "\n" not in code and not code.strip().startswith("return "):
         code = "return {}".format(code)
