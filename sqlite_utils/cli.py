@@ -1931,7 +1931,7 @@ def analyze_tables(
 )
 @click.option("--drop", is_flag=True, help="Drop original column afterwards")
 @click.option("-s", "--silent", is_flag=True, help="Don't show a progress bar")
-def lambda_(
+def convert(
     db_path,
     table,
     columns,
@@ -1948,8 +1948,8 @@ def lambda_(
     Convert columns using Python code you supply. For example:
 
     \b
-    $ sqlite-utils convert my.db mytable mycolumn
-        --code='"\\n".join(textwrap.wrap(value, 10))'
+    $ sqlite-utils convert my.db mytable mycolumn \\
+        '"\\n".join(textwrap.wrap(value, 10))' \\
         --import=textwrap
 
     "value" is a variable with the column value to be converted.
