@@ -1,4 +1,10 @@
-from .utils import sqlite3, OperationalError, suggest_column_types, column_affinity
+from .utils import (
+    sqlite3,
+    OperationalError,
+    suggest_column_types,
+    column_affinity,
+    progressbar,
+)
 from collections import namedtuple
 from collections.abc import Mapping
 import contextlib
@@ -1696,6 +1702,48 @@ class Table(Queryable):
             assert rowcount == 1
         self.last_pk = pk_values[0] if len(pks) == 1 else pk_values
         return self
+
+    def convert(
+        self,
+        columns,
+        fn,
+        output=None,
+        output_type=None,
+        show_progress=False,
+        drop=False,
+    ):
+        if isinstance(columns, str):
+            columns = [columns]
+        todo_count = self.count * len(columns)
+
+        if output is not None:
+            if output not in self.columns_dict:
+                self.add_column(output, output_type or "text")
+
+        with progressbar(length=todo_count, silent=not show_progress) as bar:
+
+            def transform_value(v):
+                bar.update(1)
+                if not v:
+                    return v
+                return fn(v)
+
+            self.db.register_function(transform_value)
+            sql = "update [{table}] set {sets};".format(
+                table=self.name,
+                sets=", ".join(
+                    [
+                        "[{output_column}] = transform_value([{column}])".format(
+                            output_column=output or column, column=column
+                        )
+                        for column in columns
+                    ]
+                ),
+            )
+            with self.db.conn:
+                self.db.execute(sql)
+                if drop:
+                    self.transform(drop=columns)
 
     def build_insert_queries_and_params(
         self,
