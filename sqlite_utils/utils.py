@@ -254,3 +254,17 @@ class ValueTracker:
                 not_these.append(name)
         for key in not_these:
             del self.couldbe[key]
+
+
+class NullProgressBar:
+    def update(self, value):
+        pass
+
+
+@contextlib.contextmanager
+def progressbar(silent=False, **kwargs):
+    if silent:
+        yield NullProgressBar()
+    else:
+        with click.progressbar(**kwargs) as bar:
+            yield bar
