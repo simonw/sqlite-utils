@@ -954,16 +954,46 @@ Saving the result to a different column
 
 The ``--output`` and ``--output-type`` options can be used to save the result of the conversion to a separate column, which will be created if that column does not already exist::
 
-    sqlite-utils convert content.db articles headline 'value.upper()' \
+    $ sqlite-utils convert content.db articles headline 'value.upper()' \
       --output headline_upper
 
 The type of the created column defaults to ``text``, but a different column type can be specified using ``--output-type``. This example will create a new floating point column called ``id_as_a_float`` with a copy of each item's ID increased by 0.5::
 
-    sqlite-utils convert content.db articles id 'float(value) + 0.5' \
+    $ sqlite-utils convert content.db articles id 'float(value) + 0.5' \
       --output id_as_a_float \
       --output-type float
 
 You can drop the original column at the end of the operation by adding ``--drop``.
+
+.. _cli_convert_multi:
+
+Converting a column into multiple columns
+-----------------------------------------
+
+Sometimes you may wish to convert a single column into multiple derived columns. For example, you may have a ``location`` column containing ``latitude,longitude`` values which you wish to split out into separate ``latitude`` and ``longitude`` columns.
+
+You can achieve this using the ``--multi`` option to ``sqlite-utils convert``. This option expects your Python code to return a Python dictionary: new columns well be created and populated for each of the keys in that dictionary.
+
+For the ``latitude,longitude`` example you would use the following::
+
+    $ sqlite-utils convert demo.db places location \
+    'bits = value.split(",")
+    return {
+      "latitude": float(bits[0]),
+      "longitude": float(bits[1]),
+    }' --multi
+
+The type of the returned values will be taken into account when creating the new columns. In this example, the resulting database schema will look like this:
+
+.. code-block:: sql
+
+    CREATE TABLE [places] (
+        [location] TEXT,
+        [latitude] FLOAT,
+        [longitude] FLOAT
+    );
+
+The code function can also return ``None``, in which case its output will be ignored. You can drop the original column at the end of the operation by adding ``--drop``.
 
 .. _cli_create_table:
 
