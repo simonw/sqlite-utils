@@ -920,6 +920,37 @@ The ``-`` argument indicates data should be read from standard input. The string
 
 When inserting data from standard input only the following column definitions are supported: ``name``, ``path``, ``content``, ``sha256``, ``md5`` and ``size``.
 
+.. _cli_convert:
+
+Converting data in columns
+==========================
+
+The ``convert`` command can be used to transform the data in a specified column - for example to parse a date string into an ISO timestamp, or to split a string of tags into a JSON array.
+
+The command accepts a database, table, one or more columns and a string of Python code to be executed against the values from those columns. The following example would replace the values in the ``headline`` column in the ``articles`` table with an upper-case version::
+
+    sqlite-utils convert content.db articles headline 'value.upper()'
+
+The Python code is passed as a string. Within that Python code the ``value`` variable will be the value of the current column.
+
+.. _cli_convert_output:
+
+Saving the result to a different column
+---------------------------------------
+
+The ``--output`` and ``--output-type`` options can be used to save the result of the conversion to a separate column, which will be created if that column does not already exist::
+
+    sqlite-utils convert content.db articles headline 'value.upper()' \
+      --output headline_upper
+
+The type of the created column defaults to ``text``, but a different column type can be specified using ``--output-type``. This example will create a new floating point column called ``id_as_a_float`` with a copy of each item's ID increased by 0.5::
+
+    sqlite-utils convert content.db articles id 'float(value) + 0.5' \
+      --output id_as_a_float \
+      --output-type float
+
+You can drop the original column at the end of the operation by adding ``--drop``.
+
 .. _cli_create_table:
 
 Creating tables
