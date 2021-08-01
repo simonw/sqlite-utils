@@ -403,3 +403,10 @@ def test_recipe_jsonsplit_output(fresh_db_and_path, drop):
     if drop:
         del expected["records"]
     assert db["example"].get(1) == expected
+
+
+def test_cannot_use_drop_without_multi_or_output(fresh_db_and_path):
+    args = ["convert", fresh_db_and_path[1], "example", "records", "value", "--drop"]
+    result = CliRunner().invoke(cli.cli, args)
+    assert result.exit_code == 1, result.output
+    assert "Error: --drop can only be used with --output or --multi" in result.output
