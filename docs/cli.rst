@@ -929,9 +929,23 @@ The ``convert`` command can be used to transform the data in a specified column 
 
 The command accepts a database, table, one or more columns and a string of Python code to be executed against the values from those columns. The following example would replace the values in the ``headline`` column in the ``articles`` table with an upper-case version::
 
-    sqlite-utils convert content.db articles headline 'value.upper()'
+    $ sqlite-utils convert content.db articles headline 'value.upper()'
 
 The Python code is passed as a string. Within that Python code the ``value`` variable will be the value of the current column.
+
+The code you provide will be compiled into a function that takes ``value`` as a single argument. If you break your function body into multiple lines the last line should be a ``return`` statement::
+
+    $ sqlite-utils convert content.db articles headline '
+    value = str(value)
+    return value.upper()'
+
+You can specify Python modules that should be imported and made available to your code using one or more ``--import`` options::
+
+    $ sqlite-utils convert content.db articles content \
+        '"\n".join(textwrap.wrap(value, 10))' \
+        --import=textwrap
+
+The ``--dry-run`` option will output a preview of the conversion against the first ten rows, without modifying the database.
 
 .. _cli_convert_output:
 
