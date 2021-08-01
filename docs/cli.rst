@@ -947,6 +947,37 @@ You can specify Python modules that should be imported and made available to you
 
 The ``--dry-run`` option will output a preview of the conversion against the first ten rows, without modifying the database.
 
+.. _cli_convert_recipes:
+
+sqlite-utils convert recipes
+----------------------------
+
+Various built-in recipe functions are available for common operations. These are:
+
+``r.jsonsplit(value, delimiter=',', type=<class 'str'>)``
+  Convert a string like ``a,b,c`` into a JSON array ``["a", "b", "c"]``
+
+  The ``delimiter`` parameter can be used to specify a different delimiter.
+
+  The ``type`` parameter can be set to ``float`` or ``int`` to produce a JSON array of different types, for example if the column's string value was ``1.2,3,4`` the following::
+
+      r.jsonsplit(value, type=float)
+
+  Would produce an array like this: ``[1.2, 3.0, 4.5]``
+
+``r.parsedate(value, dayfirst=False, yearfirst=False)``
+  Parse a date and convert it to ISO date format: ``yyyy-mm-dd``
+
+  In the case of dates such as ``03/04/05`` U.S. ``MM/DD/YY`` format is assumed - you can use ``dayfirst=True`` or ``yearfirst=True`` to change how these ambiguous dates are interpreted.
+
+``r.parsedatetime(value, dayfirst=False, yearfirst=False)``
+  Parse a datetime and convert it to ISO datetime format: ``yyyy-mm-ddTHH:MM:SS``
+
+These recipes can be used in the code passed to ``sqlite-utils convert`` like this::
+
+    $ sqlite-utils convert my.db mytable mycolumn \\
+      'r.jsonsplit(value, delimiter=":")'
+
 .. _cli_convert_output:
 
 Saving the result to a different column

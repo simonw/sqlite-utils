@@ -6,7 +6,9 @@ import hashlib
 import pathlib
 import sqlite_utils
 from sqlite_utils.db import AlterError, DescIndex
+from sqlite_utils import recipes
 import textwrap
+import inspect
 import io
 import itertools
 import json
@@ -1904,7 +1906,43 @@ def analyze_tables(
         click.echo(details)
 
 
-@cli.command(name="convert")
+def _generate_convert_help():
+    help = textwrap.dedent(
+        """
+    Convert columns using Python code you supply. For example:
+
+    \b
+    $ sqlite-utils convert my.db mytable mycolumn \\
+        '"\\n".join(textwrap.wrap(value, 10))' \\
+        --import=textwrap
+
+    "value" is a variable with the column value to be converted.
+
+    The following common operations are available as recipe functions:
+    """
+    ).strip()
+    recipe_names = [
+        n for n in dir(recipes) if not n.startswith("_") and n not in ("json", "parser")
+    ]
+    for name in recipe_names:
+        fn = getattr(recipes, name)
+        help += "\n\nr.{}{}\n\n  {}".format(
+            name, str(inspect.signature(fn)), fn.__doc__
+        )
+    help += "\n\n"
+    help += textwrap.dedent(
+        """
+    You can use these recipes like so:
+
+    \b
+    $ sqlite-utils convert my.db mytable mycolumn \\
+        'r.jsonsplit(value, delimiter=":")'
+    """
+    ).strip()
+    return help
+
+
+@cli.command(help=_generate_convert_help())
 @click.argument(
     "db_path",
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
@@ -1944,16 +1982,7 @@ def convert(
     drop,
     silent,
 ):
-    """
-    Convert columns using Python code you supply. For example:
-
-    \b
-    $ sqlite-utils convert my.db mytable mycolumn \\
-        '"\\n".join(textwrap.wrap(value, 10))' \\
-        --import=textwrap
-
-    "value" is a variable with the column value to be converted.
-    """
+    sqlite3.enable_callback_tracebacks(True)
     if output is not None and len(columns) > 1:
         raise click.ClickException("Cannot use --output with more than one column")
     if multi and len(columns) > 1:
@@ -1967,7 +1996,7 @@ def convert(
         new_code.append("    {}".format(line))
     code_o = compile("\n".join(new_code), "<string>", "exec")
     locals = {}
-    globals = {}
+    globals = {"r": recipes, "recipes": recipes}
     for import_ in imports:
         globals[import_] = __import__(import_)
     exec(code_o, globals, locals)

@@ -1,6 +1,7 @@
 from click.testing import CliRunner
 from sqlite_utils import cli
 import sqlite_utils
+import json
 import textwrap
 import pathlib
 import pytest
@@ -329,3 +330,76 @@ def test_convert_multi_complex_column_types(fresh_db_and_path):
         "   [id] INTEGER PRIMARY KEY\n"
         ", [is_str] TEXT, [is_float] FLOAT, [is_int] INTEGER, [is_bytes] BLOB)"
     )
+
+
+@pytest.mark.parametrize("delimiter", [None, ";", "-"])
+def test_recipe_jsonsplit(tmpdir, delimiter):
+    db_path = str(pathlib.Path(tmpdir) / "data.db")
+    db = sqlite_utils.Database(db_path)
+    db["example"].insert_all(
+        [
+            {"id": 1, "tags": (delimiter or ",").join(["foo", "bar"])},
+            {"id": 2, "tags": (delimiter or ",").join(["bar", "baz"])},
+        ],
+        pk="id",
+    )
+    code = "r.jsonsplit(value)"
+    if delimiter:
+        code = 'recipes.jsonsplit(value, delimiter="{}")'.format(delimiter)
+    args = ["convert", db_path, "example", "tags", code]
+    result = CliRunner().invoke(cli.cli, args)
+    assert 0 == result.exit_code, result.output
+    assert list(db["example"].rows) == [
+        {"id": 1, "tags": '["foo", "bar"]'},
+        {"id": 2, "tags": '["bar", "baz"]'},
+    ]
+
+
+@pytest.mark.parametrize(
+    "type,expected_array",
+    (
+        (None, ["1", "2", "3"]),
+        ("float", [1.0, 2.0, 3.0]),
+        ("int", [1, 2, 3]),
+    ),
+)
+def test_recipe_jsonsplit_type(fresh_db_and_path, type, expected_array):
+    db, db_path = fresh_db_and_path
+    db["example"].insert_all(
+        [
+            {"id": 1, "records": "1,2,3"},
+        ],
+        pk="id",
+    )
+    code = "r.jsonsplit(value)"
+    if type:
+        code = "recipes.jsonsplit(value, type={})".format(type)
+    args = ["convert", db_path, "example", "records", code]
+    result = CliRunner().invoke(cli.cli, args)
+    assert 0 == result.exit_code, result.output
+    assert json.loads(db["example"].get(1)["records"]) == expected_array
+
+
+@pytest.mark.parametrize("drop", (True, False))
+def test_recipe_jsonsplit_output(fresh_db_and_path, drop):
+    db, db_path = fresh_db_and_path
+    db["example"].insert_all(
+        [
+            {"id": 1, "records": "1,2,3"},
+        ],
+        pk="id",
+    )
+    code = "r.jsonsplit(value)"
+    args = ["convert", db_path, "example", "records", code, "--output", "tags"]
+    if drop:
+        args += ["--drop"]
+    result = CliRunner().invoke(cli.cli, args)
+    assert 0 == result.exit_code, result.output
+    expected = {
+        "id": 1,
+        "records": "1,2,3",
+        "tags": '["1", "2", "3"]',
+    }
+    if drop:
+        del expected["records"]
+    assert db["example"].get(1) == expected

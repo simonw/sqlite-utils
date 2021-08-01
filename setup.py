@@ -22,7 +22,13 @@ setup(
     version=VERSION,
     license="Apache License, Version 2.0",
     packages=find_packages(exclude=["tests", "tests.*"]),
-    install_requires=["sqlite-fts4", "click", "click-default-group", "tabulate"],
+    install_requires=[
+        "sqlite-fts4",
+        "click",
+        "click-default-group",
+        "tabulate",
+        "dateutils",
+    ],
     setup_requires=["pytest-runner"],
     extras_require={
         "test": ["pytest", "black", "hypothesis"],
