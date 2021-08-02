@@ -2,6 +2,35 @@
  Changelog
 ===========
 
+.. _v3_14:
+
+3.14 (2021-08-02)
+-----------------
+
+This release introduces the new :ref:`sqlite-utils convert command <cli_convert>` (`#251 <https://github.com/simonw/sqlite-utils/issues/251>`__) and corresponding :ref:`table.convert(...) <python_api_convert>` Python method (`#302 <https://github.com/simonw/sqlite-utils/issues/302>`__). These tools can be used to apply a Python conversion function to one or more columns of a table, either updating the column in place or using transformed data from that column to populate one or more other columns.
+
+This command-line example uses the Python standard library `textwrap module <https://docs.python.org/3/library/textwrap.html>`__ to wrap the content of the ``content`` column in the ``articles`` table to 100 characters::
+
+    $ sqlite-utils convert content.db articles content \
+        '"\n".join(textwrap.wrap(value, 100))' \
+        --import=textwrap
+
+The same operation in Python code looks like this:
+
+.. code-block:: python
+
+    import sqlite_utils, textwrap
+
+    db = sqlite_utils.Database("content.db")
+    db["articles"].convert("content", lambda v: "\n".join(textwrap.wrap(v, 100)))
+
+See the full documentation for the :ref:`sqlite-utils convert command <cli_convert>` and the :ref:`table.convert(...) <python_api_convert>` Python method for more details.
+
+Also in this release:
+
+- The new ``table.count_where(...)`` method, for counting rows in a table that match a specific SQL ``WHERE`` clause. (`#305 <https://github.com/simonw/sqlite-utils/issues/305>`__)
+- New ``--silent`` option for the :ref:`sqlite-utils insert-files command <cli_insert_files>` to hide the terminal progress bar, consistent with the ``--silent`` option for ``sqlite-utils convert``. (`#301 <https://github.com/simonw/sqlite-utils/issues/301>`__)
+
 .. _v3_13:
 
 3.13 (2021-07-24)

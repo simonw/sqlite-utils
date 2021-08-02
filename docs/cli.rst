@@ -939,10 +939,10 @@ The code you provide will be compiled into a function that takes ``value`` as a 
     value = str(value)
     return value.upper()'
 
-You can specify Python modules that should be imported and made available to your code using one or more ``--import`` options::
+You can specify Python modules that should be imported and made available to your code using one or more ``--import`` options. This example uses the ``textwrap`` module to wrap the ``content`` column at 100 characters::
 
     $ sqlite-utils convert content.db articles content \
-        '"\n".join(textwrap.wrap(value, 10))' \
+        '"\n".join(textwrap.wrap(value, 100))' \
         --import=textwrap
 
 The transformation will be applied to every row in the specified table. You can limit that to just rows that match a ``WHERE`` clause using ``--where``::
