@@ -702,7 +702,7 @@ You can delete all records in a table that match a specific WHERE statement usin
 
     >>> db = sqlite_utils.Database("dogs.db")
     >>> # Delete every dog with age less than 3
-    >>> db["dogs"].delete_where("age < ?", [3]):
+    >>> db["dogs"].delete_where("age < ?", [3])
 
 Calling ``table.delete_where()`` with no other arguments will delete every row in the table.
 
@@ -735,6 +735,45 @@ An ``upsert_all()`` method is also available, which behaves like ``insert_all()`
 
 .. note::
     ``.upsert()`` and ``.upsert_all()`` in sqlite-utils 1.x worked like ``.insert(..., replace=True)`` and ``.insert_all(..., replace=True)`` do in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
+
+.. _python_api_convert:
+
+Converting data in columns
+==========================
+
+The ``table.convert(...)`` method can be used to apply a conversion function to the values in a column, either to update that column or to populate new columns. It is the Python library equivalent of the :ref:`sqlite-utils convert <cli_convert>` command.
+
+This feature works by registering a custom SQLite function that applies a Python transformation, then running a SQL query equivalent to ``UPDATE table SET column = convert_value(column);``
+
+To transform a specific column to uppercase, you would use the following:
+
+.. code-block:: python
+
+    db["dogs"].convert("name", lambda value: value.upper())
+
+You can pass a list of columns, in which case the transformation will be applied to each one:
+
+.. code-block:: python
+
+    db["dogs"].convert(["name", "twitter"], lambda value: value.upper())
+
+To save the output to of the transformation to a different column, use the ``output=`` parameter:
+
+.. code-block:: python
+
+    db["dogs"].convert("name", lambda value: value.upper(), output="name_upper")
+
+This will add the new column, if it does not already exist. You can pass ``output_type=int`` or some other type to control the type of the new column - otherwise it will default to text.
+
+If you want to drop the original column after saving the results in a separate output column, pass ``drop=True``.
+
+You can create multiple new columns from a single input column by passing ``multi=True`` and a conversion function that returns a Python dictionary. This example creates new ``upper`` and ``lower`` columns populated from the single ``title`` column:
+
+.. code-block:: python
+
+    table.convert(
+        "title", lambda v: {"upper": v.upper(), "lower": v.lower()}, multi=True
+    )
 
 .. _python_api_lookup_tables:
 

@@ -5,8 +5,10 @@ from datetime import datetime
 import hashlib
 import pathlib
 import sqlite_utils
-from sqlite_utils.db import AlterError, DescIndex
+from sqlite_utils.db import AlterError, BadMultiValues, DescIndex
+from sqlite_utils import recipes
 import textwrap
+import inspect
 import io
 import itertools
 import json
@@ -1901,6 +1903,139 @@ def analyze_tables(
             + "\n"
         )
         click.echo(details)
+
+
+def _generate_convert_help():
+    help = textwrap.dedent(
+        """
+    Convert columns using Python code you supply. For example:
+
+    \b
+    $ sqlite-utils convert my.db mytable mycolumn \\
+        '"\\n".join(textwrap.wrap(value, 10))' \\
+        --import=textwrap
+
+    "value" is a variable with the column value to be converted.
+
+    The following common operations are available as recipe functions:
+    """
+    ).strip()
+    recipe_names = [
+        n for n in dir(recipes) if not n.startswith("_") and n not in ("json", "parser")
+    ]
+    for name in recipe_names:
+        fn = getattr(recipes, name)
+        help += "\n\nr.{}{}\n\n  {}".format(
+            name, str(inspect.signature(fn)), fn.__doc__
+        )
+    help += "\n\n"
+    help += textwrap.dedent(
+        """
+    You can use these recipes like so:
+
+    \b
+    $ sqlite-utils convert my.db mytable mycolumn \\
+        'r.jsonsplit(value, delimiter=":")'
+    """
+    ).strip()
+    return help
+
+
+@cli.command(help=_generate_convert_help())
+@click.argument(
+    "db_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table", type=str)
+@click.argument("columns", type=str, nargs=-1, required=True)
+@click.argument("code", type=str)
+@click.option(
+    "--import", "imports", type=str, multiple=True, help="Python modules to import"
+)
+@click.option(
+    "--dry-run", is_flag=True, help="Show results of running this against first 10 rows"
+)
+@click.option(
+    "--multi", is_flag=True, help="Populate columns for keys in returned dictionary"
+)
+@click.option("--output", help="Optional separate column to populate with the output")
+@click.option(
+    "--output-type",
+    help="Column type to use for the output column",
+    default="text",
+    type=click.Choice(["integer", "float", "blob", "text"]),
+)
+@click.option("--drop", is_flag=True, help="Drop original column afterwards")
+@click.option("-s", "--silent", is_flag=True, help="Don't show a progress bar")
+def convert(
+    db_path,
+    table,
+    columns,
+    code,
+    imports,
+    dry_run,
+    multi,
+    output,
+    output_type,
+    drop,
+    silent,
+):
+    sqlite3.enable_callback_tracebacks(True)
+    db = sqlite_utils.Database(db_path)
+    if output is not None and len(columns) > 1:
+        raise click.ClickException("Cannot use --output with more than one column")
+    if multi and len(columns) > 1:
+        raise click.ClickException("Cannot use --multi with more than one column")
+    if drop and not (output or multi):
+        raise click.ClickException("--drop can only be used with --output or --multi")
+    # If single line and no 'return', add the return
+    if "\n" not in code and not code.strip().startswith("return "):
+        code = "return {}".format(code)
+    # Compile the code into a function body called fn(value)
+    new_code = ["def fn(value):"]
+    for line in code.split("\n"):
+        new_code.append("    {}".format(line))
+    code_o = compile("\n".join(new_code), "<string>", "exec")
+    locals = {}
+    globals = {"r": recipes, "recipes": recipes}
+    for import_ in imports:
+        globals[import_] = __import__(import_)
+    exec(code_o, globals, locals)
+    fn = locals["fn"]
+    if dry_run:
+        # Pull first 20 values for first column and preview them
+        db.conn.create_function("preview_transform", 1, lambda v: fn(v) if v else v)
+        sql = """
+            select
+                [{column}] as value,
+                preview_transform([{column}]) as preview
+            from [{table}] limit 10
+        """.format(
+            column=columns[0], table=table
+        )
+        for row in db.conn.execute(sql).fetchall():
+            click.echo(str(row[0]))
+            click.echo(" --- becomes:")
+            click.echo(str(row[1]))
+            click.echo()
+    else:
+        try:
+            db[table].convert(
+                columns,
+                fn,
+                output=output,
+                output_type=output_type,
+                drop=drop,
+                multi=multi,
+                show_progress=not silent,
+            )
+        except BadMultiValues as e:
+            raise click.ClickException(
+                "When using --multi code must return a Python dictionary - returned: {}".format(
+                    repr(e.values)
+                )
+            )
 
 
 def _render_common(title, values):

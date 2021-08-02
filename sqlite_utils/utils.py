@@ -31,8 +31,11 @@ def suggest_column_types(records):
     for record in records:
         for key, value in record.items():
             all_column_types.setdefault(key, set()).add(type(value))
-    column_types = {}
+    return types_for_column_types(all_column_types)
 
+
+def types_for_column_types(all_column_types):
+    column_types = {}
     for key, types in all_column_types.items():
         # Ignore null values if at least one other type present:
         if len(types) > 1:
@@ -254,3 +257,17 @@ class ValueTracker:
                 not_these.append(name)
         for key in not_these:
             del self.couldbe[key]
+
+
+class NullProgressBar:
+    def update(self, value):
+        pass
+
+
+@contextlib.contextmanager
+def progressbar(silent=False, **kwargs):
+    if silent:
+        yield NullProgressBar()
+    else:
+        with click.progressbar(**kwargs) as bar:
+            yield bar

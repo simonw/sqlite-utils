@@ -920,6 +920,112 @@ The ``-`` argument indicates data should be read from standard input. The string
 
 When inserting data from standard input only the following column definitions are supported: ``name``, ``path``, ``content``, ``sha256``, ``md5`` and ``size``.
 
+.. _cli_convert:
+
+Converting data in columns
+==========================
+
+The ``convert`` command can be used to transform the data in a specified column - for example to parse a date string into an ISO timestamp, or to split a string of tags into a JSON array.
+
+The command accepts a database, table, one or more columns and a string of Python code to be executed against the values from those columns. The following example would replace the values in the ``headline`` column in the ``articles`` table with an upper-case version::
+
+    $ sqlite-utils convert content.db articles headline 'value.upper()'
+
+The Python code is passed as a string. Within that Python code the ``value`` variable will be the value of the current column.
+
+The code you provide will be compiled into a function that takes ``value`` as a single argument. If you break your function body into multiple lines the last line should be a ``return`` statement::
+
+    $ sqlite-utils convert content.db articles headline '
+    value = str(value)
+    return value.upper()'
+
+You can specify Python modules that should be imported and made available to your code using one or more ``--import`` options::
+
+    $ sqlite-utils convert content.db articles content \
+        '"\n".join(textwrap.wrap(value, 10))' \
+        --import=textwrap
+
+The ``--dry-run`` option will output a preview of the conversion against the first ten rows, without modifying the database.
+
+.. _cli_convert_recipes:
+
+sqlite-utils convert recipes
+----------------------------
+
+Various built-in recipe functions are available for common operations. These are:
+
+``r.jsonsplit(value, delimiter=',', type=<class 'str'>)``
+  Convert a string like ``a,b,c`` into a JSON array ``["a", "b", "c"]``
+
+  The ``delimiter`` parameter can be used to specify a different delimiter.
+
+  The ``type`` parameter can be set to ``float`` or ``int`` to produce a JSON array of different types, for example if the column's string value was ``1.2,3,4`` the following::
+
+      r.jsonsplit(value, type=float)
+
+  Would produce an array like this: ``[1.2, 3.0, 4.5]``
+
+``r.parsedate(value, dayfirst=False, yearfirst=False)``
+  Parse a date and convert it to ISO date format: ``yyyy-mm-dd``
+
+  In the case of dates such as ``03/04/05`` U.S. ``MM/DD/YY`` format is assumed - you can use ``dayfirst=True`` or ``yearfirst=True`` to change how these ambiguous dates are interpreted.
+
+``r.parsedatetime(value, dayfirst=False, yearfirst=False)``
+  Parse a datetime and convert it to ISO datetime format: ``yyyy-mm-ddTHH:MM:SS``
+
+These recipes can be used in the code passed to ``sqlite-utils convert`` like this::
+
+    $ sqlite-utils convert my.db mytable mycolumn \
+      'r.jsonsplit(value, delimiter=":")'
+
+.. _cli_convert_output:
+
+Saving the result to a different column
+---------------------------------------
+
+The ``--output`` and ``--output-type`` options can be used to save the result of the conversion to a separate column, which will be created if that column does not already exist::
+
+    $ sqlite-utils convert content.db articles headline 'value.upper()' \
+      --output headline_upper
+
+The type of the created column defaults to ``text``, but a different column type can be specified using ``--output-type``. This example will create a new floating point column called ``id_as_a_float`` with a copy of each item's ID increased by 0.5::
+
+    $ sqlite-utils convert content.db articles id 'float(value) + 0.5' \
+      --output id_as_a_float \
+      --output-type float
+
+You can drop the original column at the end of the operation by adding ``--drop``.
+
+.. _cli_convert_multi:
+
+Converting a column into multiple columns
+-----------------------------------------
+
+Sometimes you may wish to convert a single column into multiple derived columns. For example, you may have a ``location`` column containing ``latitude,longitude`` values which you wish to split out into separate ``latitude`` and ``longitude`` columns.
+
+You can achieve this using the ``--multi`` option to ``sqlite-utils convert``. This option expects your Python code to return a Python dictionary: new columns well be created and populated for each of the keys in that dictionary.
+
+For the ``latitude,longitude`` example you would use the following::
+
+    $ sqlite-utils convert demo.db places location \
+    'bits = value.split(",")
+    return {
+      "latitude": float(bits[0]),
+      "longitude": float(bits[1]),
+    }' --multi
+
+The type of the returned values will be taken into account when creating the new columns. In this example, the resulting database schema will look like this:
+
+.. code-block:: sql
+
+    CREATE TABLE [places] (
+        [location] TEXT,
+        [latitude] FLOAT,
+        [longitude] FLOAT
+    );
+
+The code function can also return ``None``, in which case its output will be ignored. You can drop the original column at the end of the operation by adding ``--drop``.
+
 .. _cli_create_table:
 
 Creating tables
