@@ -1,3 +1,4 @@
+from sqlite_utils.db import BadMultiValues
 import pytest
 
 
@@ -49,3 +50,21 @@ def test_convert_output_type(fresh_db, type, expected):
     table.insert({"number": "123"})
     table.convert("number", lambda v: v, output="other", output_type=type, drop=True)
     assert list(table.rows) == [expected]
+
+
+def test_convert_multi(fresh_db):
+    table = fresh_db["table"]
+    table.insert({"title": "Mixed Case"})
+    table.convert(
+        "title", lambda v: {"upper": v.upper(), "lower": v.lower()}, multi=True
+    )
+    assert list(table.rows) == [
+        {"title": "Mixed Case", "upper": "MIXED CASE", "lower": "mixed case"}
+    ]
+
+
+def test_convert_multi_exception(fresh_db):
+    table = fresh_db["table"]
+    table.insert({"title": "Mixed Case"})
+    with pytest.raises(BadMultiValues):
+        table.convert("title", lambda v: v.upper(), multi=True)
