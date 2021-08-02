@@ -31,8 +31,11 @@ def suggest_column_types(records):
     for record in records:
         for key, value in record.items():
             all_column_types.setdefault(key, set()).add(type(value))
-    column_types = {}
+    return types_for_column_types(all_column_types)
 
+
+def types_for_column_types(all_column_types):
+    column_types = {}
     for key, types in all_column_types.items():
         # Ignore null values if at least one other type present:
         if len(types) > 1:

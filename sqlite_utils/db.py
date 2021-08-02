@@ -2,11 +2,13 @@ from .utils import (
     sqlite3,
     OperationalError,
     suggest_column_types,
+    types_for_column_types,
     column_affinity,
     progressbar,
 )
 from collections import namedtuple
 from collections.abc import Mapping
+import click
 import contextlib
 import datetime
 import decimal
@@ -157,6 +159,13 @@ class InvalidColumns(Exception):
 
 class DescIndex(str):
     pass
+
+
+class BadMultiValues(Exception):
+    "With multi=True code must return a Python dictionary"
+
+    def __init__(self, values):
+        self.values = values
 
 
 _COUNTS_TABLE_CREATE_SQL = """
@@ -1709,11 +1718,18 @@ class Table(Queryable):
         fn,
         output=None,
         output_type=None,
-        show_progress=False,
         drop=False,
+        multi=False,
+        show_progress=False,
     ):
         if isinstance(columns, str):
             columns = [columns]
+
+        if multi:
+            return self._convert_multi(
+                columns[0], fn, drop=drop, show_progress=show_progress
+            )
+
         todo_count = self.count * len(columns)
 
         if output is not None:
@@ -1744,6 +1760,52 @@ class Table(Queryable):
                 self.db.execute(sql)
                 if drop:
                     self.transform(drop=columns)
+        return self
+
+    def _convert_multi(self, column, fn, drop, show_progress):
+        # First we execute the function
+        pk_to_values = {}
+        new_column_types = {}
+        pks = [column.name for column in self.columns if column.is_pk]
+        if not pks:
+            pks = ["rowid"]
+
+        with progressbar(
+            length=self.count, silent=not show_progress, label="1: Evaluating"
+        ) as bar:
+            for row in self.rows_where(
+                select=", ".join(
+                    "[{}]".format(column_name) for column_name in (pks + [column])
+                )
+            ):
+                row_pk = tuple(row[pk] for pk in pks)
+                if len(row_pk) == 1:
+                    row_pk = row_pk[0]
+                values = fn(row[column])
+                if values is not None and not isinstance(values, dict):
+                    raise BadMultiValues(values)
+                if values:
+                    for key, value in values.items():
+                        new_column_types.setdefault(key, set()).add(type(value))
+                    pk_to_values[row_pk] = values
+                bar.update(1)
+
+        # Add any new columns
+        columns_to_create = types_for_column_types(new_column_types)
+        for column_name, column_type in columns_to_create.items():
+            if column_name not in self.columns_dict:
+                self.add_column(column_name, column_type)
+
+        # Run the updates
+        with progressbar(
+            length=self.count, silent=not show_progress, label="2: Updating"
+        ) as bar:
+            with self.db.conn:
+                for pk, updates in pk_to_values.items():
+                    self.update(pk, updates)
+                    bar.update(1)
+                if drop:
+                    self.transform(drop=(column,))
 
     def build_insert_queries_and_params(
         self,
