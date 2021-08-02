@@ -21,6 +21,7 @@ from .utils import (
     find_spatialite,
     sqlite3,
     decode_base64_values,
+    progressbar,
     rows_from_file,
     Format,
     TypeTracker,
@@ -1744,9 +1745,20 @@ def extract(
 @click.option("--replace", is_flag=True, help="Replace files with matching primary key")
 @click.option("--upsert", is_flag=True, help="Upsert files with matching primary key")
 @click.option("--name", type=str, help="File name to use")
+@click.option("-s", "--silent", is_flag=True, help="Don't show a progress bar")
 @load_extension_option
 def insert_files(
-    path, table, file_or_dir, column, pk, alter, replace, upsert, name, load_extension
+    path,
+    table,
+    file_or_dir,
+    column,
+    pk,
+    alter,
+    replace,
+    upsert,
+    name,
+    silent,
+    load_extension,
 ):
     """
     Insert one or more files using BLOB columns in the specified table
@@ -1783,7 +1795,7 @@ def insert_files(
     # Load all paths so we can show a progress bar
     paths_and_relative_paths = list(yield_paths_and_relative_paths())
 
-    with click.progressbar(paths_and_relative_paths) as bar:
+    with progressbar(paths_and_relative_paths, silent=silent) as bar:
 
         def to_insert():
             for path, relative_path in bar:

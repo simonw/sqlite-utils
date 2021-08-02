@@ -260,14 +260,21 @@ class ValueTracker:
 
 
 class NullProgressBar:
+    def __init__(self, *args):
+        self.args = args
+
+    def __iter__(self):
+        yield from self.args[0]
+
     def update(self, value):
         pass
 
 
 @contextlib.contextmanager
-def progressbar(silent=False, **kwargs):
+def progressbar(*args, **kwargs):
+    silent = kwargs.pop("silent")
     if silent:
-        yield NullProgressBar()
+        yield NullProgressBar(*args)
     else:
-        with click.progressbar(**kwargs) as bar:
+        with click.progressbar(*args, **kwargs) as bar:
             yield bar
