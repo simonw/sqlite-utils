@@ -785,6 +785,14 @@ You can create multiple new columns from a single input column by passing ``mult
         "title", lambda v: {"upper": v.upper(), "lower": v.lower()}, multi=True
     )
 
+The ``.convert()`` method accepts optional ``where=`` and ``where_args=`` parameters which can be used to apply the conversion to a subset of rows specified by a where clause. Here's how to apply the conversion only to rows with an ``id`` that is higher than 20:
+
+.. code-block:: python
+
+    table.convert("title", lambda v: v.upper(), where="id > :id", where_args={"id": 20})
+
+These behave the same as the corresponding parameters to the :ref:`.rows_where() <python_api_rows>` method, so you can use ``?`` placeholders and a list of values instead of ``:named`` placeholders with a dictionary.
+
 .. _python_api_lookup_tables:
 
 Working with lookup tables

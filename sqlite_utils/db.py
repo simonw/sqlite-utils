@@ -1750,7 +1750,7 @@ class Table(Queryable):
             if output not in self.columns_dict:
                 self.add_column(output, output_type or "text")
 
-        todo_count = self.count * len(columns)
+        todo_count = self.count_where(where, where_args) * len(columns)
         with progressbar(length=todo_count, silent=not show_progress) as bar:
 
             def convert_value(v):
@@ -1760,7 +1760,7 @@ class Table(Queryable):
                 return fn(v)
 
             self.db.register_function(convert_value)
-            sql = "update [{table}] set {sets};".format(
+            sql = "update [{table}] set {sets}{where};".format(
                 table=self.name,
                 sets=", ".join(
                     [
@@ -1770,9 +1770,10 @@ class Table(Queryable):
                         for column in columns
                     ]
                 ),
+                where=" where {}".format(where) if where is not None else "",
             )
             with self.db.conn:
-                self.db.execute(sql)
+                self.db.execute(sql, where_args or [])
                 if drop:
                     self.transform(drop=columns)
         return self
@@ -1793,7 +1794,9 @@ class Table(Queryable):
             for row in self.rows_where(
                 select=", ".join(
                     "[{}]".format(column_name) for column_name in (pks + [column])
-                )
+                ),
+                where=where,
+                where_args=where_args,
             ):
                 row_pk = tuple(row[pk] for pk in pks)
                 if len(row_pk) == 1:

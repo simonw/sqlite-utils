@@ -25,6 +25,24 @@ def test_convert(fresh_db, columns, fn, expected):
 
 
 @pytest.mark.parametrize(
+    "where,where_args", (("id > 1", None), ("id > :id", {"id": 1}), ("id > ?", [1]))
+)
+def test_convert_where(fresh_db, where, where_args):
+    table = fresh_db["table"]
+    table.insert_all(
+        [
+            {"id": 1, "title": "One"},
+            {"id": 2, "title": "Two"},
+        ],
+        pk="id",
+    )
+    table.convert(
+        "title", lambda value: value.upper(), where=where, where_args=where_args
+    )
+    assert list(table.rows) == [{"id": 1, "title": "One"}, {"id": 2, "title": "TWO"}]
+
+
+@pytest.mark.parametrize(
     "drop,expected",
     (
         (False, {"title": "Mixed Case", "other": "MIXED CASE"}),
@@ -67,6 +85,28 @@ def test_convert_multi(fresh_db):
     )
     assert list(table.rows) == [
         {"title": "Mixed Case", "upper": "MIXED CASE", "lower": "mixed case"}
+    ]
+
+
+def test_convert_multi_where(fresh_db):
+    table = fresh_db["table"]
+    table.insert_all(
+        [
+            {"id": 1, "title": "One"},
+            {"id": 2, "title": "Two"},
+        ],
+        pk="id",
+    )
+    table.convert(
+        "title",
+        lambda v: {"upper": v.upper(), "lower": v.lower()},
+        multi=True,
+        where="id > ?",
+        where_args=[1],
+    )
+    assert list(table.rows) == [
+        {"id": 1, "lower": None, "title": "One", "upper": None},
+        {"id": 2, "lower": "two", "title": "Two", "upper": "TWO"},
     ]
 
 
