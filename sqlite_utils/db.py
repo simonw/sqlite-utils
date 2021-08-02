@@ -8,7 +8,6 @@ from .utils import (
 )
 from collections import namedtuple
 from collections.abc import Mapping
-import click
 import contextlib
 import datetime
 import decimal

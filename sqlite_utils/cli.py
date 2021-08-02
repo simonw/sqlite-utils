@@ -19,11 +19,9 @@ import tabulate
 from .utils import (
     file_progress,
     find_spatialite,
-    progressbar,
     sqlite3,
     decode_base64_values,
     rows_from_file,
-    types_for_column_types,
     Format,
     TypeTracker,
 )

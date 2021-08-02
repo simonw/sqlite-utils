@@ -1,5 +1,4 @@
 from sqlite_utils import recipes
-from sqlite_utils.utils import sqlite3
 import json
 import pytest
 
@@ -73,7 +72,10 @@ def test_jsonsplit(fresh_db, delimiter):
     )
     fn = recipes.jsonsplit
     if delimiter is not None:
-        fn = lambda value: recipes.jsonsplit(value, delimiter=delimiter)
+
+        def fn(value):
+            return recipes.jsonsplit(value, delimiter=delimiter)
+
     fresh_db["example"].convert("tags", fn)
     assert list(fresh_db["example"].rows) == [
         {"id": 1, "tags": '["foo", "bar"]'},
@@ -98,6 +100,9 @@ def test_jsonsplit_type(fresh_db, type, expected):
     )
     fn = recipes.jsonsplit
     if type is not None:
-        fn = lambda value: recipes.jsonsplit(value, type=type)
+
+        def fn(value):
+            return recipes.jsonsplit(value, type=type)
+
     fresh_db["example"].convert("records", fn)
     assert json.loads(fresh_db["example"].get(1)["records"]) == expected
