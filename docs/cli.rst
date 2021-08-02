@@ -970,7 +970,7 @@ Various built-in recipe functions are available for common operations. These are
 
   The ``delimiter`` parameter can be used to specify a different delimiter.
 
-  The ``type`` parameter can be set to ``float`` or ``int`` to produce a JSON array of different types, for example if the column's string value was ``1.2,3,4`` the following::
+  The ``type`` parameter can be set to ``float`` or ``int`` to produce a JSON array of different types, for example if the column's string value was ``1.2,3,4.5`` the following::
 
       r.jsonsplit(value, type=float)
 
