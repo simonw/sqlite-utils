@@ -286,6 +286,16 @@ This method also accepts ``offset=`` and ``limit=`` arguments, for specifying an
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
 
+.. _python_api_rows_count_where:
+
+Counting rows
+-------------
+
+To count the number of rows that would be returned by a where filter, use ``.count_where(where, where_args)``:
+
+    >>> db["dogs"].count_where("age > ?", [1]):
+    2
+
 .. _python_api_pks_and_rows_where:
 
 Listing rows with their primary keys
@@ -1602,7 +1612,7 @@ The ``.count`` property shows the current number of rows (``select count(*) from
     >>> db["Street_Tree_List"].count
     189144
 
-This property will take advantage of :ref:`python_api_cached_table_counts` if the ``use_counts_table`` property is set on the database. You can avoid that optimization entirely by calling ``table.execute_count()`` instead of accessing the property.
+This property will take advantage of :ref:`python_api_cached_table_counts` if the ``use_counts_table`` property is set on the database. You can avoid that optimization entirely by calling ``table.count_where()`` instead of accessing the property.
 
 .. _python_api_introspection_columns:
 

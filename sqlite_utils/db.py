@@ -682,14 +682,23 @@ class Queryable:
         self.db = db
         self.name = name
 
+    def count_where(
+        self,
+        where=None,
+        where_args=None,
+    ):
+        sql = "select count(*) from [{}]".format(self.name)
+        if where is not None:
+            sql += " where " + where
+        return self.db.execute(sql, where_args or []).fetchone()[0]
+
     def execute_count(self):
-        return self.db.execute(
-            "select count(*) from [{}]".format(self.name)
-        ).fetchone()[0]
+        # Backwards compatibility, see https://github.com/simonw/sqlite-utils/issues/305#issuecomment-890713185
+        return self.count_where()
 
     @property
     def count(self):
-        return self.execute_count()
+        return self.count_where()
 
     @property
     def rows(self):
@@ -820,7 +829,7 @@ class Table(Queryable):
             counts = self.db.cached_counts([self.name])
             if counts:
                 return next(iter(counts.values()))
-        return self.execute_count()
+        return self.count_where()
 
     def exists(self):
         return self.name in self.db.table_names()
@@ -1719,6 +1728,8 @@ class Table(Queryable):
         output_type=None,
         drop=False,
         multi=False,
+        where=None,
+        where_args=None,
         show_progress=False,
     ):
         if isinstance(columns, str):
@@ -1726,7 +1737,12 @@ class Table(Queryable):
 
         if multi:
             return self._convert_multi(
-                columns[0], fn, drop=drop, show_progress=show_progress
+                columns[0],
+                fn,
+                drop=drop,
+                where=where,
+                where_args=where_args,
+                show_progress=show_progress,
             )
 
         if output is not None:
@@ -1761,7 +1777,9 @@ class Table(Queryable):
                     self.transform(drop=columns)
         return self
 
-    def _convert_multi(self, column, fn, drop, show_progress):
+    def _convert_multi(
+        self, column, fn, drop, show_progress, where=None, where_args=None
+    ):
         # First we execute the function
         pk_to_values = {}
         new_column_types = {}

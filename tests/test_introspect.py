@@ -52,7 +52,14 @@ def test_views(fresh_db):
 
 
 def test_count(existing_db):
-    assert 3 == existing_db["foo"].count
+    assert existing_db["foo"].count == 3
+    assert existing_db["foo"].count_where() == 3
+    assert existing_db["foo"].execute_count() == 3
+
+
+def test_count_where(existing_db):
+    assert existing_db["foo"].count_where("text != ?", ["two"]) == 2
+    assert existing_db["foo"].count_where("text != :t", {"t": "two"}) == 2
 
 
 def test_columns(existing_db):

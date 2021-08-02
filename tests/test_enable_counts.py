@@ -132,7 +132,7 @@ def test_uses_counts_after_enable_counts(counts_db_path):
         assert db["foo"].count == 1
         assert logged == [
             ("select name from sqlite_master where type = 'view'", None),
-            ("select count(*) from [foo]", None),
+            ("select count(*) from [foo]", []),
         ]
         logged.clear()
         assert not db.use_counts_table
