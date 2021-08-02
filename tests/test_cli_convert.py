@@ -410,3 +410,32 @@ def test_cannot_use_drop_without_multi_or_output(fresh_db_and_path):
     result = CliRunner().invoke(cli.cli, args)
     assert result.exit_code == 1, result.output
     assert "Error: --drop can only be used with --output or --multi" in result.output
+
+
+def test_cannot_use_multi_with_more_than_one_column(fresh_db_and_path):
+    args = [
+        "convert",
+        fresh_db_and_path[1],
+        "example",
+        "records",
+        "othercol",
+        "value",
+        "--multi",
+    ]
+    result = CliRunner().invoke(cli.cli, args)
+    assert result.exit_code == 1, result.output
+    assert "Error: Cannot use --multi with more than one column" in result.output
+
+
+def test_multi_with_bad_function(test_db_and_path):
+    args = [
+        "convert",
+        test_db_and_path[1],
+        "example",
+        "dt",
+        "value.upper()",
+        "--multi",
+    ]
+    result = CliRunner().invoke(cli.cli, args)
+    assert result.exit_code == 1, result.output
+    assert "When using --multi code must return a Python dictionary" in result.output
