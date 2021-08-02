@@ -987,6 +987,11 @@ Various built-in recipe functions are available for common operations. These are
 These recipes can be used in the code passed to ``sqlite-utils convert`` like this::
 
     $ sqlite-utils convert my.db mytable mycolumn \
+      'r.jsonsplit(value)'
+
+To use any of the documented parameters, do this::
+
+    $ sqlite-utils convert my.db mytable mycolumn \
       'r.jsonsplit(value, delimiter=":")'
 
 .. _cli_convert_output:
