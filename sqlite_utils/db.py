@@ -1729,26 +1729,26 @@ class Table(Queryable):
                 columns[0], fn, drop=drop, show_progress=show_progress
             )
 
-        todo_count = self.count * len(columns)
-
         if output is not None:
+            assert len(columns) == 1, "output= can only be used with a single column"
             if output not in self.columns_dict:
                 self.add_column(output, output_type or "text")
 
+        todo_count = self.count * len(columns)
         with progressbar(length=todo_count, silent=not show_progress) as bar:
 
-            def transform_value(v):
+            def convert_value(v):
                 bar.update(1)
                 if not v:
                     return v
                 return fn(v)
 
-            self.db.register_function(transform_value)
+            self.db.register_function(convert_value)
             sql = "update [{table}] set {sets};".format(
                 table=self.name,
                 sets=", ".join(
                     [
-                        "[{output_column}] = transform_value([{column}])".format(
+                        "[{output_column}] = convert_value([{column}])".format(
                             output_column=output or column, column=column
                         )
                         for column in columns

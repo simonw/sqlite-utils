@@ -38,6 +38,13 @@ def test_convert_output(fresh_db, drop, expected):
     assert list(table.rows) == [expected]
 
 
+def test_convert_output_multiple_column_error(fresh_db):
+    table = fresh_db["table"]
+    with pytest.raises(AssertionError) as excinfo:
+        table.convert(["title", "other"], lambda v: v, output="out")
+        assert "output= can only be used with a single column" in str(excinfo.value)
+
+
 @pytest.mark.parametrize(
     "type,expected",
     (
