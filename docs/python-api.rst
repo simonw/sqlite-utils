@@ -2323,6 +2323,18 @@ If you want to deliberately replace the registered function with a new implement
     def reverse_string(s):
         return s[::-1]
 
+Exceptions that occur inside a user-defined function default to returning the following error::
+
+    Unexpected error: user-defined function raised exception
+
+You can cause ``sqlite3`` to return more useful errors, including the traceback from the custom function, by executing the following before your custom fuctions are executed:
+
+.. code-block:: python
+
+    from sqlite_utils.utils import sqlite3
+
+    sqlite3.enable_callback_tracebacks(True)
+
 .. _python_api_quote:
 
 Quoting strings for use in SQL
