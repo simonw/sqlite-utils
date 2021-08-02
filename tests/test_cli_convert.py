@@ -124,7 +124,8 @@ def test_convert_dryrun(test_db_and_path):
         "\n"
         "None\n"
         " --- becomes:\n"
-        "None"
+        "None\n\n"
+        "Would affect 4 rows"
     )
     # But it should not have actually modified the table data
     assert list(db["example"].rows) == [
@@ -133,6 +134,27 @@ def test_convert_dryrun(test_db_and_path):
         {"id": 3, "dt": ""},
         {"id": 4, "dt": None},
     ]
+    # Test with a where clause too
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "convert",
+            db_path,
+            "example",
+            "dt",
+            "return re.sub('O..', 'OXX', value)",
+            "--import",
+            "re",
+            "--dry-run",
+            "--where",
+            "id = :id",
+            "-p",
+            "id",
+            "4",
+        ],
+    )
+    assert result.exit_code == 0
+    assert result.output.strip().split("\n")[-1] == "Would affect 1 row"
 
 
 @pytest.mark.parametrize("drop", (True, False))
@@ -439,3 +461,57 @@ def test_multi_with_bad_function(test_db_and_path):
     result = CliRunner().invoke(cli.cli, args)
     assert result.exit_code == 1, result.output
     assert "When using --multi code must return a Python dictionary" in result.output
+
+
+def test_convert_where(test_db_and_path):
+    db, db_path = test_db_and_path
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "convert",
+            db_path,
+            "example",
+            "dt",
+            "str(value).upper()",
+            "--where",
+            "id = :id",
+            "-p",
+            "id",
+            2,
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert list(db["example"].rows) == [
+        {"id": 1, "dt": "5th October 2019 12:04"},
+        {"id": 2, "dt": "6TH OCTOBER 2019 00:05:06"},
+        {"id": 3, "dt": ""},
+        {"id": 4, "dt": None},
+    ]
+
+
+def test_convert_where_multi(fresh_db_and_path):
+    db, db_path = fresh_db_and_path
+    db["names"].insert_all(
+        [{"id": 1, "name": "Cleo"}, {"id": 2, "name": "Bants"}], pk="id"
+    )
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "convert",
+            db_path,
+            "names",
+            "name",
+            '{"upper": value.upper()}',
+            "--where",
+            "id = :id",
+            "-p",
+            "id",
+            2,
+            "--multi",
+        ],
+    )
+    assert 0 == result.exit_code, result.output
+    assert list(db["names"].rows) == [
+        {"id": 1, "name": "Cleo", "upper": None},
+        {"id": 2, "name": "Bants", "upper": "BANTS"},
+    ]

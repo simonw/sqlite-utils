@@ -945,6 +945,17 @@ You can specify Python modules that should be imported and made available to you
         '"\n".join(textwrap.wrap(value, 10))' \
         --import=textwrap
 
+The transformation will be applied to every row in the specified table. You can limit that to just rows that match a ``WHERE`` clause using ``--where``::
+
+    $ sqlite-utils convert content.db articles headline 'value.upper()' \
+        --where "headline like '%cat%'"
+
+You can include named parameters in your where clause and populate them using one or more ``--param`` options::
+
+    $ sqlite-utils convert content.db articles headline 'value.upper()' \
+        --where "headline like :like" \
+        --param like '%cat%'
+
 The ``--dry-run`` option will output a preview of the conversion against the first ten rows, without modifying the database.
 
 .. _cli_convert_recipes:

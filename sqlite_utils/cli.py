@@ -1959,6 +1959,14 @@ def _generate_convert_help():
 @click.option(
     "--multi", is_flag=True, help="Populate columns for keys in returned dictionary"
 )
+@click.option("--where", help="Optional where clause")
+@click.option(
+    "-p",
+    "--param",
+    multiple=True,
+    type=(str, str),
+    help="Named :parameters for where clause",
+)
 @click.option("--output", help="Optional separate column to populate with the output")
 @click.option(
     "--output-type",
@@ -1976,6 +1984,8 @@ def convert(
     imports,
     dry_run,
     multi,
+    where,
+    param,
     output,
     output_type,
     drop,
@@ -1992,6 +2002,7 @@ def convert(
     # If single line and no 'return', add the return
     if "\n" not in code and not code.strip().startswith("return "):
         code = "return {}".format(code)
+    where_args = dict(param) if param else []
     # Compile the code into a function body called fn(value)
     new_code = ["def fn(value):"]
     for line in code.split("\n"):
@@ -2010,20 +2021,29 @@ def convert(
             select
                 [{column}] as value,
                 preview_transform([{column}]) as preview
-            from [{table}] limit 10
+            from [{table}]{where} limit 10
         """.format(
-            column=columns[0], table=table
+            column=columns[0],
+            table=table,
+            where=" where {}".format(where) if where is not None else "",
         )
-        for row in db.conn.execute(sql).fetchall():
+        for row in db.conn.execute(sql, where_args).fetchall():
             click.echo(str(row[0]))
             click.echo(" --- becomes:")
             click.echo(str(row[1]))
             click.echo()
+        count = db[table].count_where(
+            where=where,
+            where_args=where_args,
+        )
+        click.echo("Would affect {} row{}".format(count, "" if count == 1 else "s"))
     else:
         try:
             db[table].convert(
                 columns,
                 fn,
+                where=where,
+                where_args=where_args,
                 output=output,
                 output_type=output_type,
                 drop=drop,
