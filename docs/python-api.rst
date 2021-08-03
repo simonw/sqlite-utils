@@ -1096,7 +1096,7 @@ Here's an example of this mechanism in action:
     ])
     db["books"].add_foreign_key("author_id", "authors", "id")
 
-The ``table.add_foreign_key(column, other_table, other_column)`` method takes the name of the column, the table that is being referenced and the key column within that other table. If you ommit the ``other_column`` argument the primary key from that table will be used automatically. If you omit the ``other_table`` argument the table will be guessed based on some simple rules:
+The ``table.add_foreign_key(column, other_table, other_column)`` method takes the name of the column, the table that is being referenced and the key column within that other table. If you omit the ``other_column`` argument the primary key from that table will be used automatically. If you omit the ``other_table`` argument the table will be guessed based on some simple rules:
 
 - If the column is of format ``author_id``, look for tables called ``author`` or ``authors``
 - If the column does not end in ``_id``, try looking for a table with the exact name of the column or that name with an added ``s``
@@ -2327,7 +2327,7 @@ Exceptions that occur inside a user-defined function default to returning the fo
 
     Unexpected error: user-defined function raised exception
 
-You can cause ``sqlite3`` to return more useful errors, including the traceback from the custom function, by executing the following before your custom fuctions are executed:
+You can cause ``sqlite3`` to return more useful errors, including the traceback from the custom function, by executing the following before your custom functions are executed:
 
 .. code-block:: python
 

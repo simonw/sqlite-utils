@@ -32,7 +32,7 @@ setup(
     setup_requires=["pytest-runner"],
     extras_require={
         "test": ["pytest", "black", "hypothesis"],
-        "docs": ["sphinx_rtd_theme", "sphinx-autobuild"],
+        "docs": ["sphinx_rtd_theme", "sphinx-autobuild", "codespell"],
         "mypy": ["mypy", "types-click", "types-tabulate", "types-python-dateutil"],
         "flake8": ["flake8"],
     },

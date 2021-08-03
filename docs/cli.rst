@@ -361,7 +361,7 @@ Passing ``--save other.db`` will instead use that SQL to populate a new database
 
     % sqlite-utils memory dogs.csv --save dogs.db
 
-These features are mainly intented as debugging tools - for much more finely grained control over how data is inserted into a SQLite database file see :ref:`cli_inserting_data` and :ref:`cli_insert_csv_tsv`.
+These features are mainly intended as debugging tools - for much more finely grained control over how data is inserted into a SQLite database file see :ref:`cli_inserting_data` and :ref:`cli_insert_csv_tsv`.
 
 .. _cli_rows:
 
@@ -617,7 +617,7 @@ The ``_analyze_tables_`` table has the following schema::
         PRIMARY KEY ([table], [column])
     );
 
-The ``most_common`` and ``least_common`` columns will contain nested JSON arrays of the most commond and least common values that look like this::
+The ``most_common`` and ``least_common`` columns will contain nested JSON arrays of the most common and least common values that look like this::
 
     [
         ["Del Libertador, Av", 5068],
