@@ -44,7 +44,7 @@ It's often worth trying: --encoding=latin-1
 """.strip()
 
 
-# Increase CSV field size limit to maximim possible
+# Increase CSV field size limit to maximum possible
 # https://stackoverflow.com/a/15063941
 field_size_limit = sys.maxsize
 
