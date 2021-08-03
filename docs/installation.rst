@@ -11,7 +11,7 @@
 Using Homebrew
 ==============
 
-The :ref:`sqlite-utils commad-line tool <cli>` can be installed on macOS using Homebrew::
+The :ref:`sqlite-utils command-line tool <cli>` can be installed on macOS using Homebrew::
 
     brew install sqlite-utils
 
