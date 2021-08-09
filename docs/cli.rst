@@ -746,7 +746,7 @@ Consider this example document, in a file called ``log.json``::
         }
     }
 
-Inserting this into a table using ``sqlite-utils insert logs.db log log.json`` will create a table with the following schema::
+Inserting this into a table using ``sqlite-utils insert logs.db logs log.json`` will create a table with the following schema::
 
     CREATE TABLE [logs] (
        [httpRequest] TEXT,
@@ -754,7 +754,7 @@ Inserting this into a table using ``sqlite-utils insert logs.db log log.json`` w
        [labels] TEXT
     );
 
-With the ``--flatten`` option columns will be created using ``topkey_nextkey`` column names - so running ``sqlite-utils insert logs.db log log.json --flatten`` will create the following schema instead::
+With the ``--flatten`` option columns will be created using ``topkey_nextkey`` column names - so running ``sqlite-utils insert logs.db logs log.json --flatten`` will create the following schema instead::
 
     CREATE TABLE [logs] (
        [httpRequest_latency] TEXT,
