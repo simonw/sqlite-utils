@@ -643,7 +643,7 @@ def insert_upsert_options(fn):
                 "--pk", help="Columns to use as the primary key, e.g. id", multiple=True
             ),
             click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
-            click.option("--flatten", is_flag=True, help="Flatten nested JSON objets"),
+            click.option("--flatten", is_flag=True, help="Flatten nested JSON objects"),
             click.option("-c", "--csv", is_flag=True, help="Expect CSV"),
             click.option("--tsv", is_flag=True, help="Expect TSV"),
             click.option("--delimiter", help="Delimiter to use for CSV files"),
