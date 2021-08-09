@@ -795,12 +795,12 @@ def insert_upsert_implementation(
             raise click.ClickException(
                 "{}\n\nTry using --alter to add additional columns".format(e.args[0])
             )
-        # If we can find sql= and params= arguments, show those
-        variables = _find_variables(e.__traceback__, ["sql", "params"])
-        if "sql" in variables and "params" in variables:
+        # If we can find sql= and parameters= arguments, show those
+        variables = _find_variables(e.__traceback__, ["sql", "parameters"])
+        if "sql" in variables and "parameters" in variables:
             raise click.ClickException(
-                "{}\n\nsql = {}\nparams={}".format(
-                    str(e), variables["sql"], variables["params"]
+                "{}\n\nsql = {}\nparameters = {}".format(
+                    str(e), variables["sql"], variables["parameters"]
                 )
             )
         else:
