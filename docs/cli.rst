@@ -729,7 +729,7 @@ Flattening nested JSON objects
 
 ``sqlite-utils insert`` expects incoming data to consist of an array of JSON objects, where the top-level keys of each object will become columns in the created database table.
 
-If your data is nested you can use the `--flatten` object to create columns that are derived from the nested data.
+If your data is nested you can use the ``--flatten`` option to create columns that are derived from the nested data.
 
 Consider this example document, in a file called ``log.json``::
 
