@@ -1256,7 +1256,11 @@ def test_upsert_alter(db_path, tmpdir):
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id"]
     )
     assert 1 == result.exit_code
-    assert "no such column: age" == str(result.exception)
+    assert (
+        "Error: no such column: age\n\n"
+        "sql = UPDATE [dogs] SET [age] = ? WHERE [id] = ?\n"
+        "params=[5, 1]"
+    ) == result.output.strip()
     # Should succeed with --alter
     result = CliRunner().invoke(
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id", "--alter"]
@@ -2304,3 +2308,18 @@ def test_insert_detect_types(tmpdir, option_or_env_var):
 )
 def test_flatten_helper(input, expected):
     assert dict(cli._flatten(input)) == expected
+
+
+def test_integer_overflow_error(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "items", "-"],
+        input=json.dumps({"bignumber": 34223049823094832094802398430298048240}),
+    )
+    assert result.exit_code == 1
+    assert result.output == (
+        "Error: Python int too large to convert to SQLite INTEGER\n\n"
+        "sql = INSERT INTO [items] ([bignumber]) VALUES (?);\n"
+        "params=[34223049823094832094802398430298048240]\n"
+    )

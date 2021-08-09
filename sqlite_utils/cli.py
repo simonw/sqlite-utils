@@ -786,12 +786,25 @@ def insert_upsert_implementation(
         db[table].insert_all(
             docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
         )
-    except sqlite3.OperationalError as e:
-        if e.args and "has no column named" in e.args[0]:
+    except Exception as e:
+        if (
+            isinstance(e, sqlite3.OperationalError)
+            and e.args
+            and "has no column named" in e.args[0]
+        ):
             raise click.ClickException(
                 "{}\n\nTry using --alter to add additional columns".format(e.args[0])
             )
-        raise
+        # If we can find sql= and params= arguments, show those
+        variables = _find_variables(e.__traceback__, ["sql", "params"])
+        if "sql" in variables and "params" in variables:
+            raise click.ClickException(
+                "{}\n\nsql = {}\nparams={}".format(
+                    str(e), variables["sql"], variables["params"]
+                )
+            )
+        else:
+            raise
     if tracker is not None:
         db[table].transform(types=tracker.types)
 
@@ -803,6 +816,18 @@ def _flatten(d):
                 yield key + "_" + key2, value2
         else:
             yield key, value
+
+
+def _find_variables(tb, vars):
+    to_find = list(vars)
+    found = {}
+    for var in to_find:
+        if var in tb.tb_frame.f_locals:
+            vars.remove(var)
+            found[var] = tb.tb_frame.f_locals[var]
+    if vars and tb.tb_next:
+        found.update(_find_variables(tb.tb_next, vars))
+    return found
 
 
 @cli.command()
