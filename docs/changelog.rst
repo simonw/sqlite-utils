@@ -2,6 +2,15 @@
  Changelog
 ===========
 
+.. _v3_15:
+
+3.15 (2021-08-09)
+-----------------
+
+- ``sqlite-utils insert --flatten`` option for :ref:`flattening nested JSON objects <cli_inserting_data_flatten>` to create tables with column names like ``topkey_nestedkey``. (:issue:`310`)
+- Fixed several spelling mistakes in the documentation, spotted `using codespell <https://til.simonwillison.net/python/codespell>`__.
+- Errors that occur while using the ``sqlite-utils`` CLI tool now show the responsible SQL and query parameters, if possible. (:issue:`309`)
+
 .. _v3_14:
 
 3.14 (2021-08-02)
