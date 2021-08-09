@@ -648,6 +648,34 @@ def test_insert_invalid_json_error(tmpdir):
     )
 
 
+def test_insert_json_flatten(tmpdir):
+    db_path = str(tmpdir / "flat.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "items", "-", "--flatten"],
+        input=json.dumps({"nested": {"data": 4}}),
+    )
+    assert result.exit_code == 0
+    assert list(Database(db_path).query("select * from items")) == [{"nested_data": 4}]
+
+
+def test_insert_json_flatten_nl(tmpdir):
+    db_path = str(tmpdir / "flat.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "items", "-", "--flatten", "--nl"],
+        input="\n".join(
+            json.dumps(item)
+            for item in [{"nested": {"data": 4}}, {"nested": {"other": 3}}]
+        ),
+    )
+    assert result.exit_code == 0
+    assert list(Database(db_path).query("select * from items")) == [
+        {"nested_data": 4, "nested_other": None},
+        {"nested_data": None, "nested_other": 3},
+    ]
+
+
 def test_insert_with_primary_key(db_path, tmpdir):
     json_path = str(tmpdir / "dog.json")
     open(json_path, "w").write(json.dumps({"id": 1, "name": "Cleo", "age": 4}))
@@ -1194,6 +1222,21 @@ def test_upsert(db_path, tmpdir):
     assert list(db.query("select * from dogs order by id")) == [
         {"id": 1, "name": "Cleo", "age": 5},
         {"id": 2, "name": "Nixie", "age": 5},
+    ]
+
+
+def test_upsert_flatten(tmpdir):
+    db_path = str(tmpdir / "flat.db")
+    db = Database(db_path)
+    db["upsert_me"].insert({"id": 1, "name": "Example"}, pk="id")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "upsert_me", "-", "--flatten", "--pk", "id", "--alter"],
+        input=json.dumps({"id": 1, "nested": {"two": 2}}),
+    )
+    assert result.exit_code == 0
+    assert list(db.query("select * from upsert_me")) == [
+        {"id": 1, "name": "Example", "nested_two": 2}
     ]
 
 
@@ -2249,3 +2292,15 @@ def test_insert_detect_types(tmpdir, option_or_env_var):
             _test()
     else:
         _test()
+
+
+@pytest.mark.parametrize(
+    "input,expected",
+    (
+        ({"foo": {"bar": 1}}, {"foo_bar": 1}),
+        ({"foo": {"bar": [1, 2, {"baz": 3}]}}, {"foo_bar": [1, 2, {"baz": 3}]}),
+        ({"foo": {"bar": 1, "baz": {"three": 3}}}, {"foo_bar": 1, "foo_baz_three": 3}),
+    ),
+)
+def test_flatten_helper(input, expected):
+    assert dict(cli._flatten(input)) == expected

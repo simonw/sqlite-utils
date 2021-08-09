@@ -643,6 +643,7 @@ def insert_upsert_options(fn):
                 "--pk", help="Columns to use as the primary key, e.g. id", multiple=True
             ),
             click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
+            click.option("--flatten", is_flag=True, help="Flatten nested JSON objets"),
             click.option("-c", "--csv", is_flag=True, help="Expect CSV"),
             click.option("--tsv", is_flag=True, help="Expect TSV"),
             click.option("--delimiter", help="Delimiter to use for CSV files"),
@@ -697,6 +698,7 @@ def insert_upsert_implementation(
     json_file,
     pk,
     nl,
+    flatten,
     csv,
     tsv,
     delimiter,
@@ -722,6 +724,8 @@ def insert_upsert_implementation(
         csv = True
     if (nl + csv + tsv) >= 2:
         raise click.ClickException("Use just one of --nl, --csv or --tsv")
+    if (csv or tsv) and flatten:
+        raise click.ClickException("--flatten cannot be used with --csv or --tsv")
     if encoding and not (csv or tsv):
         raise click.ClickException("--encoding must be used with --csv or --tsv")
     if pk and len(pk) == 1:
@@ -766,6 +770,8 @@ def insert_upsert_implementation(
             raise click.ClickException(
                 "Invalid JSON - use --csv for CSV or --tsv for TSV files"
             )
+        if flatten:
+            docs = (dict(_flatten(doc)) for doc in docs)
 
     extra_kwargs = {"ignore": ignore, "replace": replace, "truncate": truncate}
     if not_null:
@@ -788,6 +794,15 @@ def insert_upsert_implementation(
         raise
     if tracker is not None:
         db[table].transform(types=tracker.types)
+
+
+def _flatten(d):
+    for key, value in d.items():
+        if isinstance(value, dict):
+            for key2, value2 in _flatten(value):
+                yield key + "_" + key2, value2
+        else:
+            yield key, value
 
 
 @cli.command()
@@ -813,6 +828,7 @@ def insert(
     json_file,
     pk,
     nl,
+    flatten,
     csv,
     tsv,
     delimiter,
@@ -844,6 +860,7 @@ def insert(
             json_file,
             pk,
             nl,
+            flatten,
             csv,
             tsv,
             delimiter,
@@ -875,6 +892,7 @@ def upsert(
     json_file,
     pk,
     nl,
+    flatten,
     csv,
     tsv,
     batch_size,
@@ -902,6 +920,7 @@ def upsert(
             json_file,
             pk,
             nl,
+            flatten,
             csv,
             tsv,
             delimiter,

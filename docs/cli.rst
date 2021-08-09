@@ -722,6 +722,49 @@ This also means you pipe ``sqlite-utils`` together to easily create a new SQLite
     207368,920 Kirkham St,37.760210314285,-122.47073935813
     188702,1501 Evans Ave,37.7422086702947,-122.387293152263
 
+.. _cli_inserting_data_flatten:
+
+Flattening nested JSON objects
+------------------------------
+
+``sqlite-utils insert`` expects incoming data to consist of an array of JSON objects, where the top-level keys of each object will become columns in the created database table.
+
+If your data is nested you can use the `--flatten` object to create columns that are derived from the nested data.
+
+Consider this example document, in a file called ``log.json``::
+
+    {
+        "httpRequest": {
+            "latency": "0.112114537s",
+            "requestMethod": "GET",
+            "requestSize": "534",
+            "status": 200
+        },
+        "insertId": "6111722f000b5b4c4d4071e2",
+        "labels": {
+            "service": "datasette-io"
+        }
+    }
+
+Inserting this into a table using ``sqlite-utils insert logs.db log log.json`` will create a table with the following schema::
+
+    CREATE TABLE [logs] (
+       [httpRequest] TEXT,
+       [insertId] TEXT,
+       [labels] TEXT
+    );
+
+With the ``--flatten`` option columns will be created using ``topkey_nextkey`` column names - so running ``sqlite-utils insert logs.db log log.json --flatten`` will create the following schema instead::
+
+    CREATE TABLE [logs] (
+       [httpRequest_latency] TEXT,
+       [httpRequest_requestMethod] TEXT,
+       [httpRequest_requestSize] TEXT,
+       [httpRequest_status] INTEGER,
+       [insertId] TEXT,
+       [labels_service] TEXT
+    );
+
 .. _cli_insert_csv_tsv:
 
 Inserting CSV or TSV data
