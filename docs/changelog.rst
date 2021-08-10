@@ -2,6 +2,16 @@
  Changelog
 ===========
 
+.. _v3_15.1:
+
+3.15.1 (2021-08-10)
+-------------------
+
+- Python library now includes type annotations on almost all of the methods, plus detailed docstrings describing each one. (:issue:`311`)
+- New :ref:`reference` documentation page, powered by those docstrings.
+- Fixed bug where ``.add_foreign_keys()`` failed to raise an error if called against a ``View``. (:issue:`313`)
+- Fixed bug where ``.delete_where()`` returned a ``[]`` instead of returning ``self`` if called against a non-existant table. (:issue:`315`)
+
 .. _v3_15:
 
 3.15 (2021-08-09)
