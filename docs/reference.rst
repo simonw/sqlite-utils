@@ -6,8 +6,8 @@
 
 .. _reference_db_database:
 
-sqlit_utils.db.Database
-=======================
+sqlite_utils.db.Database
+========================
 
 .. autoclass:: sqlite_utils.db.Database
     :members:
@@ -18,17 +18,20 @@ sqlit_utils.db.Database
 
 .. _reference_db_queryable:
 
-sqlit_utils.db.Queryable
-========================
+sqlite_utils.db.Queryable
+=========================
+
+:ref:`Table <reference_db_table>` and :ref:`View <reference_db_view>` are  both subclasses of ``Queryable``, providing access to the following methods:
 
 .. autoclass:: sqlite_utils.db.Queryable
     :members:
     :undoc-members:
+    :exclude-members: execute_count
 
 .. _reference_db_table:
 
-sqlit_utils.db.Table
-====================
+sqlite_utils.db.Table
+=====================
 
 .. autoclass:: sqlite_utils.db.Table
     :members:
@@ -37,8 +40,8 @@ sqlit_utils.db.Table
 
 .. _reference_db_view:
 
-sqlit_utils.db.View
-===================
+sqlite_utils.db.View
+====================
 
 .. autoclass:: sqlite_utils.db.View
     :members:
@@ -50,6 +53,16 @@ sqlit_utils.db.View
 Other
 =====
 
+.. _reference_db_other_column:
+
+sqlite_utils.db.Column
+----------------------
+
 .. autoclass:: sqlite_utils.db.Column
+
+.. _reference_db_other_column_details:
+
+sqlite_utils.db.ColumnDetails
+-----------------------------
 
 .. autoclass:: sqlite_utils.db.ColumnDetails

@@ -814,7 +814,8 @@ class Database:
 
 
 class Queryable:
-    def exists(self):
+    def exists(self) -> bool:
+        "Does this table or view exist yet?"
         return False
 
     def __init__(self, db, name):
@@ -823,9 +824,10 @@ class Queryable:
 
     def count_where(
         self,
-        where=None,
-        where_args=None,
-    ):
+        where: str = None,
+        where_args: Optional[Union[Iterable, dict]] = None,
+    ) -> int:
+        "Executes ``SELECT count(*) FROM table WHERE ...`` and returns a count."
         sql = "select count(*) from [{}]".format(self.name)
         if where is not None:
             sql += " where " + where
@@ -836,24 +838,38 @@ class Queryable:
         return self.count_where()
 
     @property
-    def count(self):
+    def count(self) -> int:
+        "A count of the rows in this table or view."
         return self.count_where()
 
     @property
-    def rows(self):
+    def rows(self) -> Generator[dict, None, None]:
+        "Iterate over every dictionaries for each row in this table or view."
         return self.rows_where()
 
     def rows_where(
         self,
-        where=None,
-        where_args=None,
-        order_by=None,
-        select="*",
-        limit=None,
-        offset=None,
-    ):
+        where: str = None,
+        where_args: Optional[Union[Iterable, dict]] = None,
+        order_by: str = None,
+        select: str = "*",
+        limit: int = None,
+        offset: int = None,
+    ) -> Generator[dict, None, None]:
+        """
+        Iterate over every row in this table or view that matches the specified where clause.
+
+        - ``where`` - a SQL fragment to use as a ``WHERE`` clause, e.g. ``age > ?`` or ``age > :age``.
+        - ``where_args`` - a list of arguments (if using ``?``) or a dictionary (if using ``:age``).
+        - ``order_by`` - optional column or fragment of SQL to order by.
+        - ``select`` - optional comma-separated list of columns to select.
+        - ``limit`` - optional integer number of rows to limit to.
+        - ``offset`` - optional integer for SQL offset.
+
+        Returns each row as a dictionary. See :ref:`python_api_rows` for more details.
+        """
         if not self.exists():
-            return []
+            return
         sql = "select {} from [{}]".format(select, self.name)
         if where is not None:
             sql += " where " + where
@@ -870,13 +886,13 @@ class Queryable:
 
     def pks_and_rows_where(
         self,
-        where=None,
-        where_args=None,
-        order_by=None,
-        limit=None,
-        offset=None,
-    ):
-        "Like .rows_where() but returns (pk, row) pairs - pk can be a single value or tuple"
+        where: str = None,
+        where_args: Optional[Union[Iterable, dict]] = None,
+        order_by: str = None,
+        limit: int = None,
+        offset: int = None,
+    ) -> Generator[Tuple[Any, Dict], None, None]:
+        "Like ``.rows_where()`` but returns ``(pk, row)`` pairs - pk can be a single value or tuple"
         column_names = [column.name for column in self.columns]
         pks = [column.name for column in self.columns if column.is_pk]
         if not pks:
@@ -897,19 +913,21 @@ class Queryable:
             yield row_pk, row
 
     @property
-    def columns(self):
+    def columns(self) -> List["Column"]:
+        "List of :ref:`Columns <reference_db_other_column>` representing the columns in this table or view."
         if not self.exists():
             return []
         rows = self.db.execute("PRAGMA table_info([{}])".format(self.name)).fetchall()
         return [Column(*row) for row in rows]
 
     @property
-    def columns_dict(self):
-        "Returns {column: python-type} dictionary"
+    def columns_dict(self) -> Dict[str, Any]:
+        "``{column_name: python-type}`` dictionary representing columns in this table or view."
         return {column.name: column_affinity(column.type) for column in self.columns}
 
     @property
-    def schema(self):
+    def schema(self) -> str:
+        "SQL schema for this table or view"
         return self.db.execute(
             "select sql from sqlite_master where name = ?", (self.name,)
         ).fetchone()[0]
@@ -921,8 +939,8 @@ class Table(Queryable):
 
     def __init__(
         self,
-        db,
-        name,
+        db: Database,
+        name: str,
         pk=None,
         foreign_keys=None,
         column_order=None,
