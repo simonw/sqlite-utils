@@ -21,7 +21,17 @@ import re
 from sqlite_fts4 import rank_bm25  # type: ignore
 import sys
 import textwrap
-from typing import Callable, Dict, Generator, Iterable, Union, Optional, List, Tuple
+from typing import (
+    cast,
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    Union,
+    Optional,
+    List,
+    Tuple,
+)
 import uuid
 
 SQLITE_MAX_VARS = 999
@@ -253,7 +263,7 @@ class Database:
         finally:
             self._tracer = prev_tracer
 
-    def __getitem__(self, table_name: str):
+    def __getitem__(self, table_name: str) -> Union["Table", "View"]:
         """
         ``db[table_name]`` returns a :class:`.Table` object for the table with the specified name.
         If the table does not exist yet it will be created the first time data is inserted into it.
@@ -282,6 +292,8 @@ class Database:
 
         - ``deterministic`` - set ``True`` for functions that always returns the same output for a given input
         - ``replace`` - set ``True`` to replace an existing function with the same name - otherwise throw an error
+
+        See :ref:`python_api_register_function`.
         """
 
         def register(fn):
@@ -333,7 +345,7 @@ class Database:
             self._tracer(sql, None)
         return self.conn.executescript(sql)
 
-    def table(self, table_name, **kwargs):
+    def table(self, table_name: str, **kwargs) -> Union["Table", "View"]:
         "Return a table object, optionally configured with default options"
         klass = View if table_name in self.view_names() else Table
         return klass(self, table_name, **kwargs)
@@ -371,12 +383,12 @@ class Database:
     @property
     def tables(self) -> List["Table"]:
         "A list of Table objects in this database"
-        return [self[name] for name in self.table_names()]
+        return cast(List["Table"], [self[name] for name in self.table_names()])
 
     @property
-    def views(self) -> List[str]:
+    def views(self) -> List["View"]:
         "A list of View objects in this database"
-        return [self[name] for name in self.view_names()]
+        return cast(List["View"], [self[name] for name in self.view_names()])
 
     @property
     def triggers(self) -> List[Trigger]:
@@ -696,7 +708,11 @@ class Database:
         for table, column, other_table, other_column in foreign_keys:
             if not self[table].exists():
                 raise AlterError("No such table: {}".format(table))
-            if column not in self[table].columns_dict:
+            table_obj = self[table]
+            if not isinstance(table_obj, Table):
+                raise AlterError("Must be a table, not a view: {}".format(table))
+            table_obj = cast(Table, table_obj)
+            if column not in table_obj.columns_dict:
                 raise AlterError("No such column: {} in {}".format(column, table))
             if not self[other_table].exists():
                 raise AlterError("No such other_table: {}".format(other_table))
@@ -710,7 +726,7 @@ class Database:
             # We will silently skip foreign keys that exist already
             if not any(
                 fk
-                for fk in self[table].foreign_keys
+                for fk in table_obj.foreign_keys
                 if fk.column == column
                 and fk.other_table == other_table
                 and fk.other_column == other_column
