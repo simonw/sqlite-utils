@@ -264,13 +264,19 @@ class Database:
         return "<Database {}>".format(self.conn)
 
     def register_function(
-        self, fn: Callable, deterministic: bool = False, replace: bool = False
+        self, fn: Callable=None, deterministic: bool = False, replace: bool = False
     ):
         """
         ``fn`` will be made available as a function within SQL, with the same name and number
         of arguments. Can be used as a decorator::
 
             @db.register
+            def upper(value):
+                return str(value).upper()
+
+        The decorator can take arguments::
+
+            @db.register(deterministic=True, replace=True)
             def upper(value):
                 return str(value).upper()
 
