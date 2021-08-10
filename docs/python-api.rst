@@ -962,7 +962,7 @@ The ``table.analyze_column(column, common_limit=10, value_truncate=None)`` metho
     The name of the column
 
 ``total_rows``
-    The total number of rows in the table`
+    The total number of rows in the table
 
 ``num_null``
     The number of rows for which this column is null

@@ -31,6 +31,7 @@ from typing import (
     Union,
     Optional,
     List,
+    Set,
     Tuple,
 )
 import uuid
@@ -52,7 +53,7 @@ _virtual_table_using_re = re.compile(
     )
 )
 \s+(IF\s+NOT\s+EXISTS\s+)?      # IF NOT EXISTS (optional)
-USING\s+(?P<using>\w+)          # e.g. USING FTS5
+USING\s+(?P<using>\w+)          # for example USING FTS5
 """,
     re.VERBOSE | re.IGNORECASE,
 )
@@ -70,9 +71,28 @@ except ImportError:
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
 )
-Column.__doc__ = (
-    "Describes a SQLite column, returned by the  :attr:`.Table.columns` property."
-)
+Column.__doc__ = """
+Describes a SQLite column returned by the  :attr:`.Table.columns` property.
+
+``cid``
+    Column index
+
+``name``
+    Column name
+
+``type``
+    Column type
+
+``notnull``
+    Does the column have a ``not null` constraint
+
+``default_value``
+    Default value for this column
+
+``is_pk``
+    Is this column part of the primary key
+"""
+
 ColumnDetails = namedtuple(
     "ColumnDetails",
     (
@@ -86,9 +106,34 @@ ColumnDetails = namedtuple(
         "least_common",
     ),
 )
-ColumnDetails.__doc__ = (
-    "Summary information about a column, see :ref:`python_api_analyze_column`."
-)
+ColumnDetails.__doc__ = """
+Summary information about a column, see :ref:`python_api_analyze_column`.
+
+``table``
+    The name of the table
+
+``column``
+    The name of the column
+
+``total_rows``
+    The total number of rows in the table
+
+``num_null``
+    The number of rows for which this column is null
+
+``num_blank``
+    The number of rows for which this column is blank (the empty string)
+
+``num_distinct``
+    The number of distinct values in this column
+
+``most_common``
+    The ``N`` most common values as a list of ``(value, count)`` tuples`, or ``None`` if the table consists entirely of distinct values
+
+``least_common``
+    The ``N`` least common values as a list of ``(value, count)`` tuples`, or ``None`` if the table is entirely distinct
+    or if the number of distinct values is less than N (since they will already have been returned in ``most_common``)
+"""
 ForeignKey = namedtuple(
     "ForeignKey", ("table", "column", "other_table", "other_column")
 )
@@ -100,7 +145,11 @@ XIndexColumn = namedtuple(
 Trigger = namedtuple("Trigger", ("name", "table", "sql"))
 
 
-DEFAULT = object()
+class Default:
+    pass
+
+
+DEFAULT = Default()
 
 COLUMN_TYPE_MAPPING = {
     float: "FLOAT",
@@ -540,7 +589,7 @@ class Database:
         self,
         name: str,
         columns: Dict[str, Any],
-        pk: Optional[str] = None,
+        pk: Optional[Any] = None,
         foreign_keys=None,
         column_order=None,
         not_null=None,
@@ -647,7 +696,7 @@ class Database:
         self,
         name: str,
         columns: Dict[str, Any],
-        pk: Optional[str] = None,
+        pk: Optional[Any] = None,
         foreign_keys=None,
         column_order=None,
         not_null=None,
@@ -859,7 +908,7 @@ class Queryable:
         """
         Iterate over every row in this table or view that matches the specified where clause.
 
-        - ``where`` - a SQL fragment to use as a ``WHERE`` clause, e.g. ``age > ?`` or ``age > :age``.
+        - ``where`` - a SQL fragment to use as a ``WHERE`` clause, for example ``age > ?`` or ``age > :age``.
         - ``where_args`` - a list of arguments (if using ``?``) or a dictionary (if using ``:age``).
         - ``order_by`` - optional column or fragment of SQL to order by.
         - ``select`` - optional comma-separated list of columns to select.
@@ -1679,7 +1728,7 @@ class Table(Queryable):
         - ``columns`` - list of column names to include in the search index.
         - ``fts_version`` - FTS version to use - defaults to ``FTS5`` but you may want ``FTS4`` for older SQLite versions.
         - ``create_triggers`` - should triggers be created to keep the search index up-to-date? Defaults to ``False``.
-        - ``tokenize`` - custom SQLite tokenizer to use, e.g. ``"porter"`` to enable Porter stemming.
+        - ``tokenize`` - custom SQLite tokenizer to use, for example ``"porter"`` to enable Porter stemming.
         - ``replace`` - should any existing FTS index for this table be replaced by the new one?
 
         See :ref:`python_api_fts` for more details.
@@ -1980,7 +2029,7 @@ class Table(Queryable):
           table has a compound primary key.
         - ``updates`` - a dictionary mapping columns to their updated values.
         - ``alter``` - set to ``True`` to add any missing columns.
-        - ``conversions`` - optional dictionary of SQL functions to apply during the update, e.g.
+        - ``conversions`` - optional dictionary of SQL functions to apply during the update, for example
           ``{"mycolumn": "upper(?)"}``.
 
         See :ref:`python_api_update`.
@@ -2024,16 +2073,34 @@ class Table(Queryable):
 
     def convert(
         self,
-        columns,
-        fn,
-        output=None,
-        output_type=None,
-        drop=False,
-        multi=False,
-        where=None,
-        where_args=None,
-        show_progress=False,
+        columns: Union[str, List[str]],
+        fn: Callable,
+        output: Optional[str] = None,
+        output_type: Optional[Any] = None,
+        drop: bool = False,
+        multi: bool = False,
+        where: Optional[str] = None,
+        where_args: Optional[Union[Iterable, dict]] = None,
+        show_progress: bool = False,
     ):
+        """
+        Apply conversion function ``fn`` to every value in the specified columns.
+
+        - ``columns`` - a single column or list of string column names to convert.
+        - ``fn`` - a callable that takes a single argument, ``value``, and returns it converted.
+        - ``output`` - optional string column name to write the results to (defaults to the input column).
+        - ``output_type`` - if the output column needs to be created, this is the type that will be used
+          for the new column.
+        - ``drop`` - boolean, should the original column be dropped once the conversion is complete?
+        - ``multi`` - boolean, if ``True`` the return value of ``fn(value)`` will be expected to be a
+          dictionary, and new columns will be created for each key of that dictionary.
+        - ``where`` - a SQL fragment to use as a ``WHERE`` clause to limit the rows to which the conversion
+          is applied, for example ``age > ?`` or ``age > :age``.
+        - ``where_args`` - a list of arguments (if using ``?``) or a dictionary (if using ``:age``).
+        - ``show_progress`` - boolean, should a progress bar be displayed?
+
+        See :ref:`python_api_convert`.
+        """
         if isinstance(columns, str):
             columns = [columns]
 
@@ -2314,20 +2381,51 @@ class Table(Queryable):
 
     def insert(
         self,
-        record,
+        record: Dict[str, Any],
         pk=DEFAULT,
         foreign_keys=DEFAULT,
-        column_order=DEFAULT,
-        not_null=DEFAULT,
-        defaults=DEFAULT,
-        hash_id=DEFAULT,
-        alter=DEFAULT,
-        ignore=DEFAULT,
-        replace=DEFAULT,
-        extracts=DEFAULT,
-        conversions=DEFAULT,
-        columns=DEFAULT,
-    ):
+        column_order: Optional[Union[List[str], Default]] = DEFAULT,
+        not_null: Optional[Union[Set[str], Default]] = DEFAULT,
+        defaults: Optional[Union[Dict[str, Any], Default]] = DEFAULT,
+        hash_id: Optional[Union[str, Default]] = DEFAULT,
+        alter: Optional[Union[bool, Default]] = DEFAULT,
+        ignore: Optional[Union[bool, Default]] = DEFAULT,
+        replace: Optional[Union[bool, Default]] = DEFAULT,
+        extracts: Optional[Union[Dict[str, str], List[str], Default]] = DEFAULT,
+        conversions: Optional[Union[Dict[str, str], Default]] = DEFAULT,
+        columns: Optional[Union[Dict[str, Any], Default]] = DEFAULT,
+    ) -> "Table":
+        """
+        Insert a single record into the table. The table will be created with a schema that matches
+        the inserted record if it does not already exist, see :ref:`python_api_creating_tables`.
+
+        - ``record`` - required: a dictionary representing the record to be inserted.
+
+        The other parameters are optional, and mostly influence how the new table will be created if
+        that table does not exist yet.
+
+        Each of them defaults to ``DEFAULT``, which indicates that the default setting for the current
+        ``Table`` object (specified in the table constructor) should be used.
+
+        - ``pk`` - if creating the table, which column should be the primary key.
+        - ``foreign_keys`` - see :ref:`python_api_foreign_keys`.
+        - ``column_order`` - optional list of strings specifying a full or partial column order
+          to use when creating the table.
+        - ``not_null`` - optional set of strings specifying columns that should be ``NOT NULL``.
+        - ``defaults`` - optional dictionary specifying default values for specific columns.
+        - ``hash_id`` - optional name of a column to create and use as a primary key, where the
+          value of thet primary key will be derived as a SHA1 hash of the other column values
+          in the record. ``hash_id="id"`` is a common column name used for this.
+        - ``alter`` - boolean, should any missing columns be added automatically?
+        - ``ignore`` - boolean, if a record already exists with this primary key, ignore this insert.
+        - ``replace`` - boolean, if a record already exists with this primary key, replace it with this new record.
+        - ``extracts`` - a list of columns to extract to other tables, or a dictionary that maps
+          ``{column_name: other_table_name}``. See :ref:`python_api_extracts`.
+        - ``conversions`` - dictionary specifying SQL conversion functions to be applied to the data while it
+          is being inserted, for example ``{"name": "upper(?)"}``. See :ref:`python_api_conversions`.
+        - ``columns`` - dictionary over-riding the detected types used for the columns, for example
+          ``{"age": int, "weight": float}``.
+        """
         return self.insert_all(
             [record],
             pk=pk,
@@ -2362,11 +2460,10 @@ class Table(Queryable):
         conversions=DEFAULT,
         columns=DEFAULT,
         upsert=False,
-    ):
+    ) -> "Table":
         """
-        Like .insert() but takes a list of records and ensures that the table
-        that it creates (if table does not exist) has columns for ALL of that
-        data
+        Like ``.insert()`` but takes a list of records and ensures that the table
+        that it creates (if table does not exist) has columns for ALL of that data.
         """
         pk = self.value_or_default("pk", pk)
         foreign_keys = self.value_or_default("foreign_keys", foreign_keys)
@@ -2391,7 +2488,7 @@ class Table(Queryable):
         assert not (
             ignore and replace
         ), "Use either ignore=True or replace=True, not both"
-        all_columns = None
+        all_columns = []
         first = True
         num_records_processed = 0
         # We can only handle a max of 999 variables in a SQL insert, so
@@ -2429,10 +2526,10 @@ class Table(Queryable):
                         hash_id=hash_id,
                         extracts=extracts,
                     )
-                all_columns = set()
+                all_columns_set = set()
                 for record in chunk:
-                    all_columns.update(record.keys())
-                all_columns = list(sorted(all_columns))
+                    all_columns_set.update(record.keys())
+                all_columns = list(sorted(all_columns_set))
                 if hash_id:
                     all_columns.insert(0, hash_id)
             else:
@@ -2473,7 +2570,13 @@ class Table(Queryable):
         extracts=DEFAULT,
         conversions=DEFAULT,
         columns=DEFAULT,
-    ):
+    ) -> "Table":
+        """
+        Like ``.insert()`` but performs an ``UPSERT``, where records are inserted if they do
+        not exist and updated if they DO exist, based on matching against their primary key.
+
+        See :ref:`python_api_upsert`.
+        """
         return self.upsert_all(
             [record],
             pk=pk,
@@ -2502,7 +2605,10 @@ class Table(Queryable):
         extracts=DEFAULT,
         conversions=DEFAULT,
         columns=DEFAULT,
-    ):
+    ) -> "Table":
+        """
+        Like ``.upsert()`` but can be applied to a list of records.
+        """
         return self.insert_all(
             records,
             pk=pk,
@@ -2519,7 +2625,7 @@ class Table(Queryable):
             upsert=True,
         )
 
-    def add_missing_columns(self, records):
+    def add_missing_columns(self, records: Iterable[Dict[str, Any]]) -> "Table":
         needed_columns = suggest_column_types(records)
         current_columns = {c.lower() for c in self.columns_dict}
         for col_name, col_type in needed_columns.items():
@@ -2527,7 +2633,20 @@ class Table(Queryable):
                 self.add_column(col_name, col_type)
         return self
 
-    def lookup(self, column_values):
+    def lookup(self, column_values: Dict[str, Any]):
+        """
+        Create or populate a lookup table with the specified values.
+
+        ``db["Species"].lookup({"name": "Palm"})`` will create a table called ``Species``
+        (if one does not already exist) with two columns: ``id`` and ``name``. It will
+        set up a unique constraint on the ``name`` column to guarantee it will not
+        contain duplicate rows.
+
+        It well then inserts a new row with the ``name`` set to ``Palm`` and return the
+        new integer primary key value.
+
+        See :ref:`python_api_lookup_tables` for more details.
+        """
         # lookups is a dictionary - all columns will be used for a unique index
         assert isinstance(column_values, dict)
         if self.exists():
@@ -2552,15 +2671,38 @@ class Table(Queryable):
 
     def m2m(
         self,
-        other_table,
-        record_or_iterable=None,
-        pk=DEFAULT,
-        lookup=None,
-        m2m_table=None,
-        alter=False,
+        other_table: Union[str, "Table"],
+        record_or_iterable: Optional[
+            Union[Iterable[Dict[str, Any]], Dict[str, Any]]
+        ] = None,
+        pk: Optional[Union[Any, Default]] = DEFAULT,
+        lookup: Optional[Dict[str, Any]] = None,
+        m2m_table: Optional[str] = None,
+        alter: bool = False,
     ):
+        """
+        After inserting a record in a table, create one or more records in some other
+        table and then create many-to-many records linking the original record and the
+        newly created records together.
+
+        For example::
+
+            db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id").m2m(
+                "humans", {"id": 1, "name": "Natalie"}, pk="id"
+            )
+        See :ref:`python_api_m2m` for details.
+
+        - ``other_table`` - the name of the table to insert the new records into.
+        - ``record_or_iterable`` - a single dictionary record to insert, or a list of records.
+        - ``pk`` - the primary key to use if creating ``other_table``.
+        - ``lookup`` - same dictionary as for ``.lookup()``, to create a many-to-many lookup table.
+        - ``m2m_table`` - the string name to use for the many-to-many table, defaults to creating
+          this automatically based on the names of the two tables.
+        - ``alter``` - set to ``True`` to add any missing columns on ``other_table`` if that table
+          already exists.
+        """
         if isinstance(other_table, str):
-            other_table = self.db.table(other_table, pk=pk)
+            other_table = cast(Table, self.db.table(other_table, pk=pk))
         our_id = self.last_pk
         if lookup is not None:
             assert record_or_iterable is None, "Provide lookup= or record, not both"
@@ -2584,20 +2726,19 @@ class Table(Queryable):
             else:
                 # If not, create a new table
                 m2m_table_name = m2m_table or "{}_{}".format(*tables)
-        m2m_table = self.db.table(m2m_table_name, pk=columns, foreign_keys=columns)
+        m2m_table_obj = self.db.table(m2m_table_name, pk=columns, foreign_keys=columns)
         if lookup is None:
             # if records is only one record, put the record in a list
-            records = (
-                [record_or_iterable]
-                if isinstance(record_or_iterable, Mapping)
-                else record_or_iterable
-            )
+            if isinstance(record_or_iterable, Mapping):
+                records = [record_or_iterable]
+            else:
+                records = cast(List, record_or_iterable)
             # Ensure each record exists in other table
             for record in records:
                 id = other_table.insert(
-                    record, pk=pk, replace=True, alter=alter
+                    cast(dict, record), pk=pk, replace=True, alter=alter
                 ).last_pk
-                m2m_table.insert(
+                m2m_table_obj.insert(
                     {
                         "{}_id".format(other_table.name): id,
                         "{}_id".format(self.name): our_id,
@@ -2606,7 +2747,7 @@ class Table(Queryable):
                 )
         else:
             id = other_table.lookup(lookup)
-            m2m_table.insert(
+            m2m_table_obj.insert(
                 {
                     "{}_id".format(other_table.name): id,
                     "{}_id".format(self.name): our_id,
@@ -2616,8 +2757,13 @@ class Table(Queryable):
         return self
 
     def analyze_column(
-        self, column, common_limit=10, value_truncate=None, total_rows=None
-    ):
+        self, column: str, common_limit: int = 10, value_truncate=None, total_rows=None
+    ) -> "ColumnDetails":
+        """
+        Return statistics about the specified column.
+
+        See :ref:`python_api_analyze_column`.
+        """
         db = self.db
         table = self.name
         if total_rows is None:
