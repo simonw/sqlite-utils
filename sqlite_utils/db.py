@@ -264,7 +264,7 @@ class Database:
         return "<Database {}>".format(self.conn)
 
     def register_function(
-        self, fn: Callable=None, deterministic: bool = False, replace: bool = False
+        self, fn: Callable = None, deterministic: bool = False, replace: bool = False
     ):
         """
         ``fn`` will be made available as a function within SQL, with the same name and number
@@ -318,7 +318,7 @@ class Database:
         ).strip()
         self.execute(attach_sql)
 
-    def execute(self, sql, parameters=None):
+    def execute(self, sql: str, parameters: Optional[Union[Iterable, dict]] = None):
         "Execute SQL query and return a ``sqlite3.Cursor``"
         if self._tracer:
             self._tracer(sql, parameters)
