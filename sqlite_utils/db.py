@@ -208,7 +208,7 @@ class Database:
     - ``recreate`` - set to ``True`` to delete and recreate a file database (**dangerous**)
     - ``recursive_triggers`` - defaults to ``True``, which sets ``PRAGMA recursive_triggers=on;`` -
       set to ``False`` to avoid setting this pragma
-    - ``tracer``` - set a tracer function (``print`` works for this) which will be called with
+    - ``tracer`` - set a tracer function (``print`` works for this) which will be called with
       ``sql, parameters`` every time a SQL query is executed
     - ``use_counts_table`` - set to ``True`` to use a cached counts table, if available. See
       :ref:`python_api_cached_table_counts`.
