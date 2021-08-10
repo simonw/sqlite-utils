@@ -892,7 +892,7 @@ class Queryable:
         limit: int = None,
         offset: int = None,
     ) -> Generator[Tuple[Any, Dict], None, None]:
-        "Like ``.rows_where()`` but returns ``(pk, row)`` pairs - pk can be a single value or tuple"
+        "Like ``.rows_where()`` but returns ``(pk, row)`` pairs - ``pk`` can be a single value or tuple."
         column_names = [column.name for column in self.columns]
         pks = [column.name for column in self.columns if column.is_pk]
         if not pks:
@@ -927,15 +927,18 @@ class Queryable:
 
     @property
     def schema(self) -> str:
-        "SQL schema for this table or view"
+        "SQL schema for this table or view."
         return self.db.execute(
             "select sql from sqlite_master where name = ?", (self.name,)
         ).fetchone()[0]
 
 
 class Table(Queryable):
-    last_rowid = None
-    last_pk = None
+    "Tables should usually be initialized using the ``db.table(table_name)`` or ``db[table_name]`` methods."
+    #: The ``rowid`` of the last inserted, updated or selected row.`
+    last_rowid: Optional[int] = None
+    #: The primary key of the last inserted, updated or selected row.`
+    last_pk: Optional[Any] = None
 
     def __init__(
         self,
@@ -972,7 +975,7 @@ class Table(Queryable):
             columns=columns,
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Table {}{}>".format(
             self.name,
             " (does not exist yet)"
@@ -981,7 +984,8 @@ class Table(Queryable):
         )
 
     @property
-    def count(self):
+    def count(self) -> int:
+        "Count of the rows in this table - optionally from the table count cache, if configured."
         if self.db.use_counts_table:
             counts = self.db.cached_counts([self.name])
             if counts:
@@ -992,17 +996,26 @@ class Table(Queryable):
         return self.name in self.db.table_names()
 
     @property
-    def pks(self):
+    def pks(self) -> List[str]:
+        "Primary key columns for this table."
         names = [column.name for column in self.columns if column.is_pk]
         if not names:
             names = ["rowid"]
         return names
 
     @property
-    def use_rowid(self):
+    def use_rowid(self) -> bool:
+        "Does this table use ``rowid`` for its primary key (no other primary keys are specified)?"
         return not any(column for column in self.columns if column.is_pk)
 
-    def get(self, pk_values):
+    def get(self, pk_values: Union[list, tuple, str, int]) -> dict:
+        """
+        Return row (as dictionary) for the specified primary key.
+
+        Primary key can be a single value, or a tuple for tables with a compound primary key.
+
+        Raises ``NotFoundError`` if a matching row cannot be found.
+        """
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
         pks = self.pks
@@ -1024,7 +1037,8 @@ class Table(Queryable):
             raise NotFoundError
 
     @property
-    def foreign_keys(self):
+    def foreign_keys(self) -> List["ForeignKey"]:
+        "List of foreign keys defined on this table."
         fks = []
         for row in self.db.execute(
             "PRAGMA foreign_key_list([{}])".format(self.name)
@@ -1042,15 +1056,16 @@ class Table(Queryable):
         return fks
 
     @property
-    def virtual_table_using(self):
-        "Returns type of virtual table or None if this is not a virtual table"
+    def virtual_table_using(self) -> Optional[str]:
+        "Type of virtual table, or ``None`` if this is not a virtual table."
         match = _virtual_table_using_re.match(self.schema)
         if match is None:
             return None
         return match.groupdict()["using"].upper()
 
     @property
-    def indexes(self):
+    def indexes(self) -> List[Index]:
+        "List of indexes defined on this table."
         sql = 'PRAGMA index_list("{}")'.format(self.name)
         indexes = []
         for row in self.db.execute_returning_dicts(sql):
@@ -1073,7 +1088,8 @@ class Table(Queryable):
         return indexes
 
     @property
-    def xindexes(self):
+    def xindexes(self) -> List[XIndex]:
+        "List of indexes defined on this table using the more detailed ``XIndex`` format."
         sql = 'PRAGMA index_list("{}")'.format(self.name)
         indexes = []
         for row in self.db.execute_returning_dicts(sql):
@@ -1091,7 +1107,8 @@ class Table(Queryable):
         return indexes
 
     @property
-    def triggers(self):
+    def triggers(self) -> List[Trigger]:
+        "List of triggers defined on this table."
         return [
             Trigger(*r)
             for r in self.db.execute(
@@ -1102,8 +1119,8 @@ class Table(Queryable):
         ]
 
     @property
-    def triggers_dict(self):
-        "Returns {trigger_name: sql} dictionary"
+    def triggers_dict(self) -> Dict[str, str]:
+        "``{trigger_name: sql}`` dictionary of triggers defined on this table."
         return {trigger.name: trigger.sql for trigger in self.triggers}
 
     def create(
@@ -1116,7 +1133,12 @@ class Table(Queryable):
         defaults=None,
         hash_id=None,
         extracts=None,
-    ):
+    ) -> "Table":
+        """
+        Create a table with the specified columns.
+
+        See :ref:`python_api_explicit_create` for full details.
+        """
         columns = {name: value for (name, value) in columns.items()}
         with self.db.conn:
             self.db.create_table(
@@ -1143,7 +1165,13 @@ class Table(Queryable):
         defaults=None,
         drop_foreign_keys=None,
         column_order=None,
-    ):
+    ) -> "Table":
+        """
+        Apply an advanced alter table, including operations that are not supported by
+        ``ALTER TABLE`` in SQLite itself.
+
+        See :ref:`python_api_transform` for full details.
+        """
         assert self.exists(), "Cannot transform a table that doesn't exist yet"
         sqls = self.transform_sql(
             types=types,
@@ -1184,7 +1212,8 @@ class Table(Queryable):
         drop_foreign_keys=None,
         column_order=None,
         tmp_suffix=None,
-    ):
+    ) -> List[str]:
+        "Returns a list of SQL statements that would be executed in order to apply this transformation."
         types = types or {}
         rename = rename or {}
         drop = drop or set()
@@ -1290,7 +1319,18 @@ class Table(Queryable):
         )
         return sqls
 
-    def extract(self, columns, table=None, fk_column=None, rename=None):
+    def extract(
+        self,
+        columns: Union[str, Iterable[str]],
+        table: Optional[str] = None,
+        fk_column: Optional[str] = None,
+        rename: Optional[Dict[str, str]] = None,
+    ) -> "Table":
+        """
+        Extract specified columns into a separate table.
+
+        See :ref:`python_api_extract` for details.
+        """
         rename = rename or {}
         if isinstance(columns, str):
             columns = [columns]
@@ -1382,7 +1422,24 @@ class Table(Queryable):
         self.add_foreign_key(fk_column, table, "id")
         return self
 
-    def create_index(self, columns, index_name=None, unique=False, if_not_exists=False):
+    def create_index(
+        self,
+        columns: Iterable[Union[str, DescIndex]],
+        index_name: Optional[str] = None,
+        unique: bool = False,
+        if_not_exists: bool = False,
+    ):
+        """
+        Create an index on this table.
+
+        - ``columns`` - a single columns or list of columns to index. These can be strings or,
+          to create an index using the column in descending order, ``db.DescIndex(column_name)`` objects.
+        - ``index_name`` - the name to use for the new index. Defaults to the column names joined on ``_``.
+        - ``unique`` - should the index be marked as unique, forcing unique values?
+        - ``if_not_exists`` - only create the index if one with that name does not already exist.
+
+        See :ref:`python_api_create_index`.
+        """
         if index_name is None:
             index_name = "idx_{}_{}".format(
                 self.name.replace(" ", "_"), "_".join(columns)
@@ -1414,8 +1471,9 @@ class Table(Queryable):
         return self
 
     def add_column(
-        self, col_name, col_type=None, fk=None, fk_col=None, not_null_default=None
+        self, col_name: str, col_type=None, fk=None, fk_col=None, not_null_default=None
     ):
+        "Add a column to this table. See :ref:`python_api_add_column`."
         fk_col_type = None
         if fk is not None:
             # fk must be a valid table
@@ -1450,14 +1508,24 @@ class Table(Queryable):
             self.add_foreign_key(col_name, fk, fk_col)
         return self
 
-    def drop(self, ignore=False):
+    def drop(self, ignore: bool = False):
+        "Drop this table. ``ignore=True`` means errors will be ignored."
         try:
             self.db.execute("DROP TABLE [{}]".format(self.name))
         except sqlite3.OperationalError:
             if not ignore:
                 raise
 
-    def guess_foreign_table(self, column):
+    def guess_foreign_table(self, column: str) -> str:
+        """
+        For a given column, suggest another table that might be referenced by this
+        column should it be used as a foreign key.
+
+        For example, a column called ``tag_id`` or ``tag`` or ``tags`` might suggest
+        a ``tag`` table, if one exists.
+
+        If no candidates can be found, raises a ``NoObviousTable`` exception.
+        """
         column = column.lower()
         possibilities = [column]
         if column.endswith("_id"):
@@ -1478,7 +1546,7 @@ class Table(Queryable):
             )
         )
 
-    def guess_foreign_column(self, other_table):
+    def guess_foreign_column(self, other_table: str):
         pks = [c for c in self.db[other_table].columns if c.is_pk]
         if len(pks) != 1:
             raise BadPrimaryKey(
@@ -1488,8 +1556,20 @@ class Table(Queryable):
             return pks[0].name
 
     def add_foreign_key(
-        self, column, other_table=None, other_column=None, ignore=False
+        self,
+        column: str,
+        other_table: Optional[str] = None,
+        other_column: Optional[str] = None,
+        ignore: bool = False,
     ):
+        """
+        Alter the schema to mark the specified column as a foreign key to another table.
+
+        - ``column`` - the column to mark as a foreign key.
+        - ``other_table`` - the table it refers to - if omitted, will be guessed based on the column name.
+        - ``other_column`` - the column on the other table it - if omitted, will be guessed.
+        - ``ignore`` - set this to ``True`` to ignore an existing foreign key - otherwise a ``AlterError` will be raised.
+        """
         # Ensure column exists
         if column not in self.columns_dict:
             raise AlterError("No such column: {}".format(column))
@@ -1526,6 +1606,11 @@ class Table(Queryable):
         return self
 
     def enable_counts(self):
+        """
+        Set up triggers to update a cache of the count of rows in this table.
+
+        See :ref:`python_api_cached_table_counts` for details.
+        """
         sql = (
             textwrap.dedent(
                 """
@@ -1570,7 +1655,8 @@ class Table(Queryable):
         self.db.use_counts_table = True
 
     @property
-    def has_counts_triggers(self):
+    def has_counts_triggers(self) -> bool:
+        "Does this table have triggers setup to update cached counts?"
         trigger_names = {
             "{table}{counts_table}_{suffix}".format(
                 counts_table=self.db._counts_table_name, table=self.name, suffix=suffix
@@ -1581,13 +1667,23 @@ class Table(Queryable):
 
     def enable_fts(
         self,
-        columns,
-        fts_version="FTS5",
-        create_triggers=False,
-        tokenize=None,
-        replace=False,
+        columns: Iterable[str],
+        fts_version: str = "FTS5",
+        create_triggers: bool = False,
+        tokenize: Optional[str] = None,
+        replace: bool = False,
     ):
-        "Enables FTS on the specified columns."
+        """
+        Enable SQLite full-text search against the specified columns.
+
+        - ``columns`` - list of column names to include in the search index.
+        - ``fts_version`` - FTS version to use - defaults to ``FTS5`` but you may want ``FTS4`` for older SQLite versions.
+        - ``create_triggers`` - should triggers be created to keep the search index up-to-date? Defaults to ``False``.
+        - ``tokenize`` - custom SQLite tokenizer to use, e.g. ``"porter"`` to enable Porter stemming.
+        - ``replace`` - should any existing FTS index for this table be replaced by the new one?
+
+        See :ref:`python_api_fts` for more details.
+        """
         create_fts_sql = (
             textwrap.dedent(
                 """
@@ -1655,7 +1751,11 @@ class Table(Queryable):
             self.db.executescript(triggers)
         return self
 
-    def populate_fts(self, columns):
+    def populate_fts(self, columns: Iterable[str]) -> "Table":
+        """
+        Update the associated SQLite full-text search index with the latest data from the
+        table for the specified columns.
+        """
         sql = (
             textwrap.dedent(
                 """
@@ -1671,7 +1771,8 @@ class Table(Queryable):
         self.db.executescript(sql)
         return self
 
-    def disable_fts(self):
+    def disable_fts(self) -> "Table":
+        "Remove any full-text search index and related triggers configured for this table."
         fts_table = self.detect_fts()
         if fts_table:
             self.db[fts_table].drop()
@@ -1696,6 +1797,7 @@ class Table(Queryable):
         return self
 
     def rebuild_fts(self):
+        "Run the ``rebuild`` operation against the associated full-text search index table."
         fts_table = self.detect_fts()
         if fts_table is None:
             # Assume this is itself an FTS table
@@ -1707,7 +1809,7 @@ class Table(Queryable):
         )
         return self
 
-    def detect_fts(self):
+    def detect_fts(self) -> Optional[str]:
         "Detect if table has a corresponding FTS virtual table and return it"
         sql = (
             textwrap.dedent(
@@ -1732,7 +1834,8 @@ class Table(Queryable):
         else:
             return rows[0][0]
 
-    def optimize(self):
+    def optimize(self) -> "Table":
+        "Run the ``optimize`` operation against the associated full-text search index table."
         fts_table = self.detect_fts()
         if fts_table is not None:
             self.db.execute(
@@ -1744,7 +1847,8 @@ class Table(Queryable):
             )
         return self
 
-    def search_sql(self, columns=None, order_by=None, limit=None, offset=None):
+    def search_sql(self, columns=None, order_by=None, limit=None, offset=None) -> str:
+        "Return SQL string that can be used to execute searches against this table."
         # Pick names for table and rank column that don't clash
         original = "original_" if self.name == "original" else "original"
         columns_sql = "*"
@@ -1801,7 +1905,26 @@ class Table(Queryable):
             limit_offset=limit_offset.strip(),
         ).strip()
 
-    def search(self, q, order_by=None, columns=None, limit=None, offset=None):
+    def search(
+        self,
+        q: str,
+        order_by: Optional[str] = None,
+        columns: Optional[List[str]] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> Generator[dict, None, None]:
+        """
+        Execute a search against this table using SQLite full-text search, returning a sequence of
+        dictionaries for each row.
+
+        - ``q`` - words to search for
+        - ``order_by`` - defaults to order by rank, or specify a column here.
+        - ``columns`` - list of columns to return, defaults to all columns.
+        - ``limit`` - optional integer limit for returned rows.
+        - ``offset`` - optional integer SQL offset.
+
+        See :ref:`python_api_fts_search`.
+        """
         cursor = self.db.execute(
             self.search_sql(
                 order_by=order_by,
@@ -1818,7 +1941,8 @@ class Table(Queryable):
     def value_or_default(self, key, value):
         return self._defaults[key] if value is DEFAULT else value
 
-    def delete(self, pk_values):
+    def delete(self, pk_values: Union[list, tuple, str, int, float]) -> "Table":
+        "Delete row matching the specified primary key."
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
         self.get(pk_values)
@@ -1830,16 +1954,37 @@ class Table(Queryable):
             self.db.execute(sql, pk_values)
         return self
 
-    def delete_where(self, where=None, where_args=None):
+    def delete_where(
+        self, where: str = None, where_args: Optional[Union[Iterable, dict]] = None
+    ) -> "Table":
+        "Delete rows matching specified where clause, or delete all rows in the table."
         if not self.exists():
-            return []
+            return self
         sql = "delete from [{}]".format(self.name)
         if where is not None:
             sql += " where " + where
         self.db.execute(sql, where_args or [])
         return self
 
-    def update(self, pk_values, updates=None, alter=False, conversions=None):
+    def update(
+        self,
+        pk_values: Union[list, tuple, str, int, float],
+        updates: Optional[dict] = None,
+        alter: bool = False,
+        conversions: Optional[dict] = None,
+    ) -> "Table":
+        """
+        Execute a SQL ``UPDATE`` against the specified row.
+
+        - ``pk_values`` - the primary key of an individual record - can be a tuple if the
+          table has a compound primary key.
+        - ``updates`` - a dictionary mapping columns to their updated values.
+        - ``alter``` - set to ``True`` to add any missing columns.
+        - ``conversions`` - optional dictionary of SQL functions to apply during the update, e.g.
+          ``{"mycolumn": "upper(?)"}``.
+
+        See :ref:`python_api_update`.
+        """
         updates = updates or {}
         conversions = conversions or {}
         if not isinstance(pk_values, (list, tuple)):

@@ -37,6 +37,7 @@ sqlite_utils.db.Table
     :members:
     :undoc-members:
     :show-inheritance:
+    :exclude-members: guess_foreign_column, value_or_default, build_insert_queries_and_params, insert_chunk
 
 .. _reference_db_view:
 
