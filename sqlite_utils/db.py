@@ -363,7 +363,7 @@ class Database:
         ]
 
     @property
-    def tables(self) -> List[Table]:
+    def tables(self) -> List["Table"]:
         "A list of Table objects in this database"
         return [self[name] for name in self.table_names()]
 
