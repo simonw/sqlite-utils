@@ -23,6 +23,7 @@ import sys
 import textwrap
 from typing import (
     cast,
+    Any,
     Callable,
     Dict,
     Generator,
@@ -70,7 +71,7 @@ Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
 )
 Column.__doc__ = (
-    "Describes a SQLite column, returned by the  :attr:`.Table.columns` property"
+    "Describes a SQLite column, returned by the  :attr:`.Table.columns` property."
 )
 ColumnDetails = namedtuple(
     "ColumnDetails",
@@ -85,7 +86,9 @@ ColumnDetails = namedtuple(
         "least_common",
     ),
 )
-ColumnDetails.__doc__ = "Column analytics"
+ColumnDetails.__doc__ = (
+    "Summary information about a column, see :ref:`python_api_analyze_column`."
+)
 ForeignKey = namedtuple(
     "ForeignKey", ("table", "column", "other_table", "other_column")
 )
@@ -314,7 +317,7 @@ class Database:
             register(fn)
 
     def register_fts4_bm25(self):
-        "Register the ``rank_bm25(match_info)`` function used for calculating relevance with SQLite FTS4"
+        "Register the ``rank_bm25(match_info)`` function used for calculating relevance with SQLite FTS4."
         self.register_function(rank_bm25, deterministic=True)
 
     def attach(self, alias: str, filepath: Union[str, pathlib.Path]):
@@ -330,8 +333,19 @@ class Database:
         ).strip()
         self.execute(attach_sql)
 
-    def execute(self, sql: str, parameters: Optional[Union[Iterable, dict]] = None):
-        "Execute SQL query and return a ``sqlite3.Cursor``"
+    def query(
+        self, sql: str, params: Optional[Union[Iterable, dict]] = None
+    ) -> Generator[dict, None, None]:
+        "Execute ``sql`` and return an iterable of dictionaries representing each row."
+        cursor = self.execute(sql, params or tuple())
+        keys = [d[0] for d in cursor.description]
+        for row in cursor:
+            yield dict(zip(keys, row))
+
+    def execute(
+        self, sql: str, parameters: Optional[Union[Iterable, dict]] = None
+    ) -> sqlite3.Cursor:
+        "Execute SQL query and return a ``sqlite3.Cursor``."
         if self._tracer:
             self._tracer(sql, parameters)
         if parameters is not None:
@@ -339,19 +353,19 @@ class Database:
         else:
             return self.conn.execute(sql)
 
-    def executescript(self, sql):
-        "Execute multiple SQL statements separated by ; and return the ``sqlite3.Cursor``"
+    def executescript(self, sql: str) -> sqlite3.Cursor:
+        "Execute multiple SQL statements separated by ; and return the ``sqlite3.Cursor``."
         if self._tracer:
             self._tracer(sql, None)
         return self.conn.executescript(sql)
 
     def table(self, table_name: str, **kwargs) -> Union["Table", "View"]:
-        "Return a table object, optionally configured with default options"
+        "Return a table object, optionally configured with default options."
         klass = View if table_name in self.view_names() else Table
         return klass(self, table_name, **kwargs)
 
-    def quote(self, value):
-        "Apply SQLite string quoting to a value, including wrappping it in single quotes"
+    def quote(self, value: str) -> str:
+        "Apply SQLite string quoting to a value, including wrappping it in single quotes."
         # Normally we would use .execute(sql, [params]) for escaping, but
         # occasionally that isn't available - most notable when we need
         # to include a "... DEFAULT 'value'" in a column definition.
@@ -361,8 +375,8 @@ class Database:
             {"value": value},
         ).fetchone()[0]
 
-    def table_names(self, fts4=False, fts5=False):
-        "A list of string table names in this database"
+    def table_names(self, fts4: bool = False, fts5: bool = False) -> List[str]:
+        "A list of string table names in this database."
         where = ["type = 'table'"]
         if fts4:
             where.append("sql like '%USING FTS4%'")
@@ -371,8 +385,8 @@ class Database:
         sql = "select name from sqlite_master where {}".format(" AND ".join(where))
         return [r[0] for r in self.execute(sql).fetchall()]
 
-    def view_names(self):
-        "A list of string view names in this database"
+    def view_names(self) -> List[str]:
+        "A list of string view names in this database."
         return [
             r[0]
             for r in self.execute(
@@ -382,17 +396,17 @@ class Database:
 
     @property
     def tables(self) -> List["Table"]:
-        "A list of Table objects in this database"
+        "A list of Table objects in this database."
         return cast(List["Table"], [self[name] for name in self.table_names()])
 
     @property
     def views(self) -> List["View"]:
-        "A list of View objects in this database"
+        "A list of View objects in this database."
         return cast(List["View"], [self[name] for name in self.view_names()])
 
     @property
     def triggers(self) -> List[Trigger]:
-        "A list of ``(name, table_name, sql)`` tuples representing triggers in this database"
+        "A list of ``(name, table_name, sql)`` tuples representing triggers in this database."
         return [
             Trigger(*r)
             for r in self.execute(
@@ -401,13 +415,13 @@ class Database:
         ]
 
     @property
-    def triggers_dict(self):
-        "A {trigger_name: sql} dictionary for triggers in this database"
+    def triggers_dict(self) -> Dict[str, str]:
+        "A ``{trigger_name: sql}`` dictionary of triggers in this database."
         return {trigger.name: trigger.sql for trigger in self.triggers}
 
     @property
-    def schema(self):
-        "SQL schema of this database"
+    def schema(self) -> str:
+        "SQL schema for this database"
         sqls = []
         for row in self.execute(
             "select sql from sqlite_master where sql is not null"
@@ -419,17 +433,17 @@ class Database:
         return "\n".join(sqls)
 
     @property
-    def journal_mode(self):
-        "Current journal_mode of this database"
+    def journal_mode(self) -> str:
+        "Current ``journal_mode`` of this database."
         return self.execute("PRAGMA journal_mode;").fetchone()[0]
 
     def enable_wal(self):
-        "Set journal_mode to 'wal' to enable Write-Ahead Log mode"
+        "Set ``journal_mode`` to ``'wal'`` to enable Write-Ahead Log mode."
         if self.journal_mode != "wal":
             self.execute("PRAGMA journal_mode=wal;")
 
     def disable_wal(self):
-        "Set journal_mode to 'delete' to disable Write-Ahead Log mode"
+        "Set ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode."
         if self.journal_mode != "delete":
             self.execute("PRAGMA journal_mode=delete;")
 
@@ -438,6 +452,10 @@ class Database:
             self.execute(_COUNTS_TABLE_CREATE_SQL.format(self._counts_table_name))
 
     def enable_counts(self):
+        """
+        Enable trigger-based count caching for every table in the database, see
+        :ref:`python_api_cached_table_counts`.
+        """
         self._ensure_counts_table()
         for table in self.tables:
             if (
@@ -447,7 +465,11 @@ class Database:
                 table.enable_counts()
         self.use_counts_table = True
 
-    def cached_counts(self, tables=None):
+    def cached_counts(self, tables: Optional[Iterable[str]] = None) -> Dict[str, int]:
+        """
+        Return ``{table_name: count}`` dictionary of cached counts for specified tables, or
+        all tables if ``tables`` not provided.
+        """
         sql = "select [table], count from {}".format(self._counts_table_name)
         if tables:
             sql += " where [table] in ({})".format(", ".join("?" for table in tables))
@@ -457,6 +479,7 @@ class Database:
             return {}
 
     def reset_counts(self):
+        "Re-calculate cached counts for tables."
         tables = [table for table in self.tables if table.has_counts_triggers]
         with self.conn:
             self._ensure_counts_table()
@@ -466,14 +489,6 @@ class Database:
                 {"table": table.name, "count": table.execute_count()}
                 for table in tables
             )
-
-    def query(
-        self, sql: str, params: Optional[Union[Iterable, dict]] = None
-    ) -> Generator[dict, None, None]:
-        cursor = self.execute(sql, params or tuple())
-        keys = [d[0] for d in cursor.description]
-        for row in cursor:
-            yield dict(zip(keys, row))
 
     def execute_returning_dicts(
         self, sql: str, params: Optional[Union[Iterable, dict]] = None
@@ -523,16 +538,17 @@ class Database:
 
     def create_table_sql(
         self,
-        name,
-        columns,
-        pk=None,
+        name: str,
+        columns: Dict[str, Any],
+        pk: Optional[str] = None,
         foreign_keys=None,
         column_order=None,
         not_null=None,
         defaults=None,
         hash_id=None,
         extracts=None,
-    ):
+    ) -> str:
+        "Returns the SQL ``CREATE TABLE`` statement for creating the specified table."
         foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
         foreign_keys_by_column = {fk.column: fk for fk in foreign_keys}
         # any extracts will be treated as integer columns with a foreign key
@@ -629,16 +645,21 @@ class Database:
 
     def create_table(
         self,
-        name,
-        columns,
-        pk=None,
+        name: str,
+        columns: Dict[str, Any],
+        pk: Optional[str] = None,
         foreign_keys=None,
         column_order=None,
         not_null=None,
         defaults=None,
         hash_id=None,
         extracts=None,
-    ):
+    ) -> "Table":
+        """
+        Create a table with the specified name and the specified ``{column_name: type}`` columns.
+
+        See :ref:`python_api_explicit_create`.
+        """
         sql = self.create_table_sql(
             name=name,
             columns=columns,
@@ -651,7 +672,7 @@ class Database:
             extracts=extracts,
         )
         self.execute(sql)
-        return self.table(
+        table = self.table(
             name,
             pk=pk,
             foreign_keys=foreign_keys,
@@ -660,8 +681,17 @@ class Database:
             defaults=defaults,
             hash_id=hash_id,
         )
+        return cast(Table, table)
 
-    def create_view(self, name, sql, ignore=False, replace=False):
+    def create_view(
+        self, name: str, sql: str, ignore: bool = False, replace: bool = False
+    ):
+        """
+        Create a new SQL view with the specified name - ``sql`` should start with ``SELECT ...``.
+
+        - ``ignore`` - set to ``True`` to do nothing if a view with this name already exists
+        - ``replace`` - set to ``True`` to do replace the view if one with this name already exists
+        """
         assert not (
             ignore and replace
         ), "Use one or the other of ignore/replace, not both"
@@ -679,20 +709,24 @@ class Database:
         self.execute(create_sql)
         return self
 
-    def m2m_table_candidates(self, table, other_table):
-        "Returns potential m2m tables for arguments, based on FKs"
+    def m2m_table_candidates(self, table: str, other_table: str) -> List[str]:
+        """
+        Given two table names returns the name of tables that could define a
+        many-to-many relationship between those two tables, based on having
+        foreign keys to both of the provided tables.
+        """
         candidates = []
         tables = {table, other_table}
-        for table in self.tables:
+        for table_obj in self.tables:
             # Does it have foreign keys to both table and other_table?
-            has_fks_to = {fk.other_table for fk in table.foreign_keys}
+            has_fks_to = {fk.other_table for fk in table_obj.foreign_keys}
             if has_fks_to.issuperset(tables):
-                candidates.append(table.name)
+                candidates.append(table_obj.name)
         return candidates
 
     def add_foreign_keys(self, foreign_keys: Iterable[Tuple[str, str, str, str]]):
         """
-        Add multiple foreign keys at once.
+        See :ref:`python_api_add_foreign_keys`.
 
         ``foreign_keys`` should be a list of  ``(table, column, other_table, other_column)``
         tuples, see :ref:`python_api_add_foreign_keys`.
@@ -764,6 +798,7 @@ class Database:
         self.vacuum()
 
     def index_foreign_keys(self):
+        "Create indexes for every foreign key column on every table in the database."
         for table_name in self.table_names():
             table = self[table_name]
             existing_indexes = {
@@ -774,6 +809,7 @@ class Database:
                     table.create_index([fk.column])
 
     def vacuum(self):
+        "Run a SQLite ``VACUUM`` against the database."
         self.execute("VACUUM;")
 
 

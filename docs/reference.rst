@@ -14,7 +14,7 @@ sqlit_utils.db.Database
     :undoc-members:
     :show-inheritance:
     :special-members: __getitem__
-    :exclude-members: use_counts_table
+    :exclude-members: use_counts_table, execute_returning_dicts, resolve_foreign_keys
 
 .. _reference_db_queryable:
 
