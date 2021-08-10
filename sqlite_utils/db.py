@@ -21,7 +21,7 @@ import re
 from sqlite_fts4 import rank_bm25  # type: ignore
 import sys
 import textwrap
-from typing import Generator, Iterable, Union, Optional, List
+from typing import Callable, Dict, Generator, Iterable, Union, Optional, List, Tuple
 import uuid
 
 SQLITE_MAX_VARS = 999
@@ -49,7 +49,7 @@ USING\s+(?P<using>\w+)          # e.g. USING FTS5
 try:
     import pandas as pd  # type: ignore
 except ImportError:
-    pd = None
+    pd = None  # type: ignore
 
 try:
     import numpy as np  # type: ignore
@@ -58,6 +58,9 @@ except ImportError:
 
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
+)
+Column.__doc__ = (
+    "Describes a SQLite column, returned by the  :attr:`.Table.columns` property"
 )
 ColumnDetails = namedtuple(
     "ColumnDetails",
@@ -72,6 +75,7 @@ ColumnDetails = namedtuple(
         "least_common",
     ),
 )
+ColumnDetails.__doc__ = "Column analytics"
 ForeignKey = namedtuple(
     "ForeignKey", ("table", "column", "other_table", "other_column")
 )
@@ -133,26 +137,32 @@ if pd:
 
 
 class AlterError(Exception):
+    "Error altering table"
     pass
 
 
 class NoObviousTable(Exception):
+    "Could not tell which table this operation refers to"
     pass
 
 
 class BadPrimaryKey(Exception):
+    "Table does not have a single obvious primary key"
     pass
 
 
 class NotFoundError(Exception):
+    "Record not found"
     pass
 
 
 class PrimaryKeyRequired(Exception):
+    "Primary key needs to be specified"
     pass
 
 
 class InvalidColumns(Exception):
+    "Specified columns do not exist"
     pass
 
 
@@ -176,17 +186,32 @@ CREATE TABLE IF NOT EXISTS [{}](
 
 
 class Database:
+    """
+    Wrapper for a SQLite database connection that adds a variety of useful utility methods.
+
+    - ``filename_or_conn`` - String path to a file, or a ``pathlib.Path`` object, or a
+      ``sqlite3`` connection
+    - ``memory`` - set to ``True`` to create an in-memory database
+    - ``recreate`` - set to ``True`` to delete and recreate a file database (**dangerous**)
+    - ``recursive_triggers`` - defaults to ``True``, which sets ``PRAGMA recursive_triggers=on;`` -
+      set to ``False`` to avoid setting this pragma
+    - ``tracer``` - set a tracer function (``print`` works for this) which will be called with
+      ``sql, parameters`` every time a SQL query is executed
+    - ``use_counts_table`` - set to ``True`` to use a cached counts table, if available. See
+      :ref:`python_api_cached_table_counts`.
+    """
+
     _counts_table_name = "_counts"
     use_counts_table = False
 
     def __init__(
         self,
         filename_or_conn=None,
-        memory=False,
-        recreate=False,
-        recursive_triggers=True,
-        tracer=None,
-        use_counts_table=False,
+        memory: bool = False,
+        recreate: bool = False,
+        recursive_triggers: bool = True,
+        tracer: Callable = None,
+        use_counts_table: bool = False,
     ):
         assert (filename_or_conn is not None and not memory) or (
             filename_or_conn is None and memory
@@ -203,11 +228,24 @@ class Database:
         self._tracer = tracer
         if recursive_triggers:
             self.execute("PRAGMA recursive_triggers=on;")
-        self._registered_functions = set()
+        self._registered_functions: set = set()
         self.use_counts_table = use_counts_table
 
     @contextlib.contextmanager
-    def tracer(self, tracer=None):
+    def tracer(self, tracer: Callable = None):
+        """
+        Context manager to temporarily set a tracer function - all executed SQL queries will
+        be passed to this.
+
+        The tracer function should accept two arguments: ``sql`` and ``parameters``
+
+        Example usage::
+
+            with db.tracer(print):
+                db["creatures"].insert({"name": "Cleo"})
+
+        See :ref:`python_api_tracing`.
+        """
         prev_tracer = self._tracer
         self._tracer = tracer or print
         try:
@@ -215,13 +253,31 @@ class Database:
         finally:
             self._tracer = prev_tracer
 
-    def __getitem__(self, table_name):
+    def __getitem__(self, table_name: str):
+        """
+        ``db[table_name]`` returns a :class:`.Table` object for the table with the specified name.
+        If the table does not exist yet it will be created the first time data is inserted into it.
+        """
         return self.table(table_name)
 
     def __repr__(self):
         return "<Database {}>".format(self.conn)
 
-    def register_function(self, fn=None, deterministic=None, replace=False):
+    def register_function(
+        self, fn: Callable, deterministic: bool = False, replace: bool = False
+    ):
+        """
+        ``fn`` will be made available as a function within SQL, with the same name and number
+        of arguments. Can be used as a decorator::
+
+            @db.register
+            def upper(value):
+                return str(value).upper()
+
+        - ``deterministic`` - set ``True`` for functions that always returns the same output for a given input
+        - ``replace`` - set ``True`` to replace an existing function with the same name - otherwise throw an error
+        """
+
         def register(fn):
             name = fn.__name__
             arity = len(inspect.signature(fn).parameters)
@@ -240,9 +296,15 @@ class Database:
             register(fn)
 
     def register_fts4_bm25(self):
+        "Register the ``rank_bm25(match_info)`` function used for calculating relevance with SQLite FTS4"
         self.register_function(rank_bm25, deterministic=True)
 
-    def attach(self, alias, filepath):
+    def attach(self, alias: str, filepath: Union[str, pathlib.Path]):
+        """
+        Attach another SQLite database file to this connection with the specified alias, equivalent to::
+
+            ATTACH DATABASE 'filepath.db' AS alias
+        """
         attach_sql = """
             ATTACH DATABASE '{}' AS [{}];
         """.format(
@@ -251,6 +313,7 @@ class Database:
         self.execute(attach_sql)
 
     def execute(self, sql, parameters=None):
+        "Execute SQL query and return a ``sqlite3.Cursor``"
         if self._tracer:
             self._tracer(sql, parameters)
         if parameters is not None:
@@ -259,15 +322,18 @@ class Database:
             return self.conn.execute(sql)
 
     def executescript(self, sql):
+        "Execute multiple SQL statements separated by ; and return the ``sqlite3.Cursor``"
         if self._tracer:
             self._tracer(sql, None)
         return self.conn.executescript(sql)
 
     def table(self, table_name, **kwargs):
+        "Return a table object, optionally configured with default options"
         klass = View if table_name in self.view_names() else Table
         return klass(self, table_name, **kwargs)
 
     def quote(self, value):
+        "Apply SQLite string quoting to a value, including wrappping it in single quotes"
         # Normally we would use .execute(sql, [params]) for escaping, but
         # occasionally that isn't available - most notable when we need
         # to include a "... DEFAULT 'value'" in a column definition.
@@ -278,6 +344,7 @@ class Database:
         ).fetchone()[0]
 
     def table_names(self, fts4=False, fts5=False):
+        "A list of string table names in this database"
         where = ["type = 'table'"]
         if fts4:
             where.append("sql like '%USING FTS4%'")
@@ -287,6 +354,7 @@ class Database:
         return [r[0] for r in self.execute(sql).fetchall()]
 
     def view_names(self):
+        "A list of string view names in this database"
         return [
             r[0]
             for r in self.execute(
@@ -295,15 +363,18 @@ class Database:
         ]
 
     @property
-    def tables(self):
+    def tables(self) -> List[Table]:
+        "A list of Table objects in this database"
         return [self[name] for name in self.table_names()]
 
     @property
-    def views(self):
+    def views(self) -> List[str]:
+        "A list of View objects in this database"
         return [self[name] for name in self.view_names()]
 
     @property
-    def triggers(self):
+    def triggers(self) -> List[Trigger]:
+        "A list of ``(name, table_name, sql)`` tuples representing triggers in this database"
         return [
             Trigger(*r)
             for r in self.execute(
@@ -313,11 +384,12 @@ class Database:
 
     @property
     def triggers_dict(self):
-        "Returns {trigger_name: sql} dictionary"
+        "A {trigger_name: sql} dictionary for triggers in this database"
         return {trigger.name: trigger.sql for trigger in self.triggers}
 
     @property
     def schema(self):
+        "SQL schema of this database"
         sqls = []
         for row in self.execute(
             "select sql from sqlite_master where sql is not null"
@@ -330,13 +402,16 @@ class Database:
 
     @property
     def journal_mode(self):
+        "Current journal_mode of this database"
         return self.execute("PRAGMA journal_mode;").fetchone()[0]
 
     def enable_wal(self):
+        "Set journal_mode to 'wal' to enable Write-Ahead Log mode"
         if self.journal_mode != "wal":
             self.execute("PRAGMA journal_mode=wal;")
 
     def disable_wal(self):
+        "Set journal_mode to 'delete' to disable Write-Ahead Log mode"
         if self.journal_mode != "delete":
             self.execute("PRAGMA journal_mode=delete;")
 
@@ -597,7 +672,13 @@ class Database:
                 candidates.append(table.name)
         return candidates
 
-    def add_foreign_keys(self, foreign_keys):
+    def add_foreign_keys(self, foreign_keys: Iterable[Tuple[str, str, str, str]]):
+        """
+        Add multiple foreign keys at once.
+
+        ``foreign_keys`` should be a list of  ``(table, column, other_table, other_column)``
+        tuples, see :ref:`python_api_add_foreign_keys`.
+        """
         # foreign_keys is a list of explicit 4-tuples
         assert all(
             len(fk) == 4 and isinstance(fk, (list, tuple)) for fk in foreign_keys
@@ -633,7 +714,7 @@ class Database:
                 )
 
         # Construct SQL for use with "UPDATE sqlite_master SET sql = ? WHERE name = ?"
-        table_sql = {}
+        table_sql: Dict[str, str] = {}
         for table, column, other_table, other_column in foreign_keys_to_create:
             old_sql = table_sql.get(table, self[table].schema)
             extra_sql = ",\n   FOREIGN KEY([{column}]) REFERENCES [{other_table}]([{other_column}])\n".format(

@@ -32,6 +32,7 @@ Contents
    installation
    cli
    python-api
+   reference
    contributing
    changelog
 
