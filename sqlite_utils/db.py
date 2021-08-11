@@ -746,7 +746,7 @@ class Database:
         Create a new SQL view with the specified name - ``sql`` should start with ``SELECT ...``.
 
         - ``ignore`` - set to ``True`` to do nothing if a view with this name already exists
-        - ``replace`` - set to ``True`` to do replace the view if one with this name already exists
+        - ``replace`` - set to ``True`` to replace the view if one with this name already exists
         """
         assert not (
             ignore and replace
