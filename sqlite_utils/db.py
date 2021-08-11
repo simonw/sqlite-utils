@@ -251,6 +251,13 @@ class Database:
     """
     Wrapper for a SQLite database connection that adds a variety of useful utility methods.
 
+    To create an instance::
+
+        # create data.db file, or open existing:
+        db = Database("data.db")
+        # Create an in-memory database:
+        dB = Database(memory=True)
+
     - ``filename_or_conn`` - String path to a file, or a ``pathlib.Path`` object, or a
       ``sqlite3`` connection
     - ``memory`` - set to ``True`` to create an in-memory database
