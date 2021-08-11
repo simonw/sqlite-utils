@@ -14,7 +14,6 @@ sqlite_utils.db.Database
 .. autoclass:: sqlite_utils.db.Database
     :members:
     :undoc-members:
-    :show-inheritance:
     :special-members: __getitem__
     :exclude-members: use_counts_table, execute_returning_dicts, resolve_foreign_keys
 
