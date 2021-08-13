@@ -991,9 +991,9 @@ class Queryable:
 
 class Table(Queryable):
     "Tables should usually be initialized using the ``db.table(table_name)`` or ``db[table_name]`` methods."
-    #: The ``rowid`` of the last inserted, updated or selected row.`
+    #: The ``rowid`` of the last inserted, updated or selected row.
     last_rowid: Optional[int] = None
-    #: The primary key of the last inserted, updated or selected row.`
+    #: The primary key of the last inserted, updated or selected row.
     last_pk: Optional[Any] = None
 
     def __init__(
