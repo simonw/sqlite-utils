@@ -84,7 +84,7 @@ Describes a SQLite column returned by the  :attr:`.Table.columns` property.
     Column type
 
 ``notnull``
-    Does the column have a ``not null` constraint
+    Does the column have a ``not null`` constraint
 
 ``default_value``
     Default value for this column
@@ -128,10 +128,10 @@ Summary information about a column, see :ref:`python_api_analyze_column`.
     The number of distinct values in this column
 
 ``most_common``
-    The ``N`` most common values as a list of ``(value, count)`` tuples`, or ``None`` if the table consists entirely of distinct values
+    The ``N`` most common values as a list of ``(value, count)`` tuples, or ``None`` if the table consists entirely of distinct values
 
 ``least_common``
-    The ``N`` least common values as a list of ``(value, count)`` tuples`, or ``None`` if the table is entirely distinct
+    The ``N`` least common values as a list of ``(value, count)`` tuples, or ``None`` if the table is entirely distinct
     or if the number of distinct values is less than N (since they will already have been returned in ``most_common``)
 """
 ForeignKey = namedtuple(
@@ -1624,7 +1624,7 @@ class Table(Queryable):
         - ``column`` - the column to mark as a foreign key.
         - ``other_table`` - the table it refers to - if omitted, will be guessed based on the column name.
         - ``other_column`` - the column on the other table it - if omitted, will be guessed.
-        - ``ignore`` - set this to ``True`` to ignore an existing foreign key - otherwise a ``AlterError` will be raised.
+        - ``ignore`` - set this to ``True`` to ignore an existing foreign key - otherwise a ``AlterError`` will be raised.
         """
         # Ensure column exists
         if column not in self.columns_dict:
@@ -2035,7 +2035,7 @@ class Table(Queryable):
         - ``pk_values`` - the primary key of an individual record - can be a tuple if the
           table has a compound primary key.
         - ``updates`` - a dictionary mapping columns to their updated values.
-        - ``alter``` - set to ``True`` to add any missing columns.
+        - ``alter`` - set to ``True`` to add any missing columns.
         - ``conversions`` - optional dictionary of SQL functions to apply during the update, for example
           ``{"mycolumn": "upper(?)"}``.
 
@@ -2705,7 +2705,7 @@ class Table(Queryable):
         - ``lookup`` - same dictionary as for ``.lookup()``, to create a many-to-many lookup table.
         - ``m2m_table`` - the string name to use for the many-to-many table, defaults to creating
           this automatically based on the names of the two tables.
-        - ``alter``` - set to ``True`` to add any missing columns on ``other_table`` if that table
+        - ``alter`` - set to ``True`` to add any missing columns on ``other_table`` if that table
           already exists.
         """
         if isinstance(other_table, str):
