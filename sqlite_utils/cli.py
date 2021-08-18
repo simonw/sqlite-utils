@@ -1375,6 +1375,7 @@ def _execute_query(
 @click.option(
     "--sql", "show_sql", is_flag=True, help="Show SQL query that would be run"
 )
+@click.option("--quote", is_flag=True, help="Apply FTS quoting rules to search term")
 @output_options
 @load_extension_option
 @click.pass_context
@@ -1385,6 +1386,7 @@ def search(
     q,
     order,
     show_sql,
+    quote,
     column,
     limit,
     nl,
@@ -1420,21 +1422,31 @@ def search(
     if show_sql:
         click.echo(sql)
         return
-    ctx.invoke(
-        query,
-        path=path,
-        sql=sql,
-        nl=nl,
-        arrays=arrays,
-        csv=csv,
-        tsv=tsv,
-        no_headers=no_headers,
-        table=table,
-        fmt=fmt,
-        json_cols=json_cols,
-        param=[("query", q)],
-        load_extension=load_extension,
-    )
+    if quote:
+        q = db.quote_fts(q)
+    try:
+        ctx.invoke(
+            query,
+            path=path,
+            sql=sql,
+            nl=nl,
+            arrays=arrays,
+            csv=csv,
+            tsv=tsv,
+            no_headers=no_headers,
+            table=table,
+            fmt=fmt,
+            json_cols=json_cols,
+            param=[("query", q)],
+            load_extension=load_extension,
+        )
+    except click.ClickException as e:
+        if "malformed MATCH expression" in str(e) or "unterminated string" in str(e):
+            raise click.ClickException(
+                "{}\n\nTry running this again with the --quote option".format(str(e))
+            )
+        else:
+            raise
 
 
 @cli.command()

@@ -1994,6 +1994,25 @@ def test_search(tmpdir, fts, extra_arg, expected):
     assert result.output.replace("\r", "") == expected
 
 
+def test_search_quote(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    db["creatures"].insert({"name": "dog."}).enable_fts(["name"])
+    # Without --quote should return an error
+    error_result = CliRunner().invoke(cli.cli, ["search", db_path, "creatures", 'dog"'])
+    assert error_result.exit_code == 1
+    assert error_result.output == (
+        "Error: unterminated string\n\n"
+        "Try running this again with the --quote option\n"
+    )
+    # With --quote it should work
+    result = CliRunner().invoke(
+        cli.cli, ["search", db_path, "creatures", 'dog"', "--quote"]
+    )
+    assert result.exit_code == 0
+    assert result.output.strip() == '[{"rowid": 1, "name": "dog."}]'
+
+
 def test_indexes(tmpdir):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
