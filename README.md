@@ -43,9 +43,9 @@ Now you can do things with the CLI utility like this:
     $ sqlite-utils tables dogs.db --counts
     [{"table": "dogs", "count": 2}]
 
-    $ sqlite-utils dogs.db "select * from dogs"
-    [{"id": 1, "age": 4, "name": "Cleo"},
-     {"id": 2, "age": 2, "name": "Pancakes"}]
+    $ sqlite-utils dogs.db "select id, name from dogs"
+    [{"id": 1, "name": "Cleo"},
+     {"id": 2, "name": "Pancakes"}]
 
     $ sqlite-utils dogs.db "select * from dogs" --csv
     id,age,name
