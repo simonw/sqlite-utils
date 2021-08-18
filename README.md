@@ -38,8 +38,7 @@ Now you can do things with the CLI utility like this:
      {"id": 2, "age": 2, "name": "Pancakes"}]
 
     $ sqlite-utils insert dogs.db dogs dogs.csv --csv
-    [{"id": 1, "age": 4, "name": "Cleo"},
-     {"id": 2, "age": 2, "name": "Pancakes"}]
+    [####################################]  100%
 
     $ sqlite-utils tables dogs.db --counts
     [{"table": "dogs", "count": 2}]
