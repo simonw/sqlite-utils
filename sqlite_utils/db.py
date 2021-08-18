@@ -2718,6 +2718,7 @@ class Table(Queryable):
             db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id").m2m(
                 "humans", {"id": 1, "name": "Natalie"}, pk="id"
             )
+
         See :ref:`python_api_m2m` for details.
 
         - ``other_table`` - the name of the table to insert the new records into.
