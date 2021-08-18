@@ -1909,6 +1909,18 @@ To remove the FTS tables and triggers you created, use the ``disable_fts()`` tab
 
     db["dogs"].disable_fts()
 
+.. _python_api_quote_fts:
+
+Quoting characters for use in search
+------------------------------------
+
+SQLite supports `advanced search query syntax <https://www.sqlite.org/fts3.html#full_text_index_queries>`__. In some situations you may wish to disable this, since characters such as ``.`` may have special meaning that causes errors when searching for strings provided by your users.
+
+The ``db.quote_fts(query)`` method returns the query with SQLite full-text search quoting applied such that the query should be safe to use in a search::
+
+    db.quote_fts("Search term.")
+    # Returns: '"Search" "term."'
+
 .. _python_api_fts_search:
 
 Searching with table.search()
