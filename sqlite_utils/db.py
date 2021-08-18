@@ -277,7 +277,7 @@ class Database:
 
     def __init__(
         self,
-        filename_or_conn=None,
+        filename_or_conn: Union[str, pathlib.Path, sqlite3.Connection] = None,
         memory: bool = False,
         recreate: bool = False,
         recursive_triggers: bool = True,
@@ -331,7 +331,7 @@ class Database:
         """
         return self.table(table_name)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Database {}>".format(self.conn)
 
     def register_function(
@@ -1069,7 +1069,7 @@ class Table(Queryable):
                 return next(iter(counts.values()))
         return self.count_where()
 
-    def exists(self):
+    def exists(self) -> bool:
         return self.name in self.db.table_names()
 
     @property
