@@ -1843,8 +1843,15 @@ The ``.has_counts_triggers`` property shows if a table has been configured with 
 
 .. _python_api_fts:
 
-Enabling full-text search
-=========================
+Full-text search
+================
+
+SQLite includes bundled extensions that implement `powerful full-text search <https://www.sqlite.org/fts5.html>`__.
+
+.. _python_api_fts_enable:
+
+Enabling full-text search for a table
+-------------------------------------
 
 You can enable full-text search on a table using ``.enable_fts(columns)``:
 
@@ -1946,6 +1953,9 @@ The ``.search()`` method also accepts the following optional parameters:
 
 ``offset`` integer
     Offset to use along side the limit parameter.
+
+``quote`` bool
+    Apply :ref:`FTS quoting rules <python_api_quote_fts>` to the search query, disabling advanced query syntax in a way that avoids surprising errors.
 
 To return just the title and published columns for three matches for ``"dog"`` ordered by ``published`` with the most recent first, use the following:
 

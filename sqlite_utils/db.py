@@ -1924,7 +1924,13 @@ class Table(Queryable):
             )
         return self
 
-    def search_sql(self, columns=None, order_by=None, limit=None, offset=None) -> str:
+    def search_sql(
+        self,
+        columns: Optional[Iterable[str]] = None,
+        order_by: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> str:
         "Return SQL string that can be used to execute searches against this table."
         # Pick names for table and rank column that don't clash
         original = "original_" if self.name == "original" else "original"
@@ -1986,19 +1992,21 @@ class Table(Queryable):
         self,
         q: str,
         order_by: Optional[str] = None,
-        columns: Optional[List[str]] = None,
+        columns: Optional[Iterable[str]] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
+        quote: bool = False,
     ) -> Generator[dict, None, None]:
         """
         Execute a search against this table using SQLite full-text search, returning a sequence of
         dictionaries for each row.
 
-        - ``q`` - words to search for
+        - ``q`` - terms to search for
         - ``order_by`` - defaults to order by rank, or specify a column here.
         - ``columns`` - list of columns to return, defaults to all columns.
         - ``limit`` - optional integer limit for returned rows.
         - ``offset`` - optional integer SQL offset.
+        - ``quote`` - apply quoting to disable any special characters in the search query
 
         See :ref:`python_api_fts_search`.
         """
@@ -2009,7 +2017,7 @@ class Table(Queryable):
                 limit=limit,
                 offset=offset,
             ),
-            {"query": q},
+            {"query": self.db.quote_fts(q) if quote else q},
         )
         columns = [c[0] for c in cursor.description]
         for row in cursor:

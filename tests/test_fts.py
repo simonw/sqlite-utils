@@ -503,13 +503,38 @@ def test_search_sql(kwargs, fts, expected):
     assert sql == expected
 
 
-def test_quote_fts_query(fresh_db):
-
+@pytest.mark.parametrize(
+    "input,expected",
+    (
+        ("dog", '"dog"'),
+        ("cat,", '"cat,"'),
+        ("cat's", '"cat\'s"'),
+        ("dog.", '"dog."'),
+        ("cat dog", '"cat" "dog"'),
+        # If a phrase is already double quoted, leave it so
+        ('"cat dog"', '"cat dog"'),
+        ('"cat dog" fish', '"cat dog" "fish"'),
+        # Sensibly handle unbalanced double quotes
+        ('cat"', '"cat"'),
+        ('"cat dog" "fish', '"cat dog" "fish"'),
+    ),
+)
+def test_quote_fts_query(fresh_db, input, expected):
     table = fresh_db["searchable"]
     table.insert_all(search_records)
     table.enable_fts(["text", "country"])
-
-    query = "cat's"
-    result = fresh_db.quote_fts(query)
+    quoted = fresh_db.quote_fts(input)
+    assert quoted == expected
     # Executing query does not crash.
-    list(table.search(result))
+    list(table.search(quoted))
+
+
+def test_search_quote(fresh_db):
+    table = fresh_db["searchable"]
+    table.insert_all(search_records)
+    table.enable_fts(["text", "country"])
+    query = "cat's"
+    with pytest.raises(sqlite3.OperationalError):
+        list(table.search(query))
+    # No exception with quote=True
+    list(table.search(query, quote=True))
