@@ -33,7 +33,7 @@ setup(
     extras_require={
         "test": ["pytest", "black", "hypothesis"],
         "docs": ["sphinx_rtd_theme", "sphinx-autobuild", "codespell"],
-        "mypy": ["mypy", "types-click", "types-tabulate", "types-python-dateutil"],
+        "mypy": ["mypy", "types-click", "types-tabulate", "types-python-dateutil", "data-science-types"],
         "flake8": ["flake8"],
     },
     entry_points="""

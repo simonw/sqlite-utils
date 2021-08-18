@@ -33,7 +33,7 @@ jobs:
       run: |
         pytest
     - name: run mypy
-      run: mypy sqlite_utils
+      run: mypy sqlite_utils tests
     - name: run flake8
       run: flake8
     - name: Check formatting

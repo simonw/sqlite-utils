@@ -20,9 +20,9 @@ import uuid
 from .utils import collapse_whitespace
 
 try:
-    import pandas as pd
+    import pandas as pd  # type: ignore
 except ImportError:
-    pd = None
+    pd = None  # type: ignore
 
 
 def test_create_table(fresh_db):
