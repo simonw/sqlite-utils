@@ -1,4 +1,4 @@
-from sqlite_utils.db import Index, InvalidColumns
+from sqlite_utils.db import InvalidColumns
 import itertools
 import pytest
 
@@ -126,11 +126,24 @@ def test_extract_rowid_table(fresh_db):
     fresh_db["tree"].extract(["common_name", "latin_name"])
     assert fresh_db["tree"].schema == (
         'CREATE TABLE "tree" (\n'
-        "   [rowid] INTEGER PRIMARY KEY,\n"
         "   [name] TEXT,\n"
         "   [common_name_latin_name_id] INTEGER,\n"
         "   FOREIGN KEY([common_name_latin_name_id]) REFERENCES [common_name_latin_name]([id])\n"
         ")"
+    )
+    assert (
+        fresh_db.execute(
+            """
+        select
+            tree.name,
+            common_name_latin_name.common_name,
+            common_name_latin_name.latin_name
+        from tree
+            join common_name_latin_name
+            on tree.common_name_latin_name_id = common_name_latin_name.id
+    """
+        ).fetchall()
+        == [("Tree 1", "Palm", "Arecaceae")]
     )
 
 

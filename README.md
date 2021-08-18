@@ -1,10 +1,11 @@
 # sqlite-utils
 
 [![PyPI](https://img.shields.io/pypi/v/sqlite-utils.svg)](https://pypi.org/project/sqlite-utils/)
-[![Changelog](https://img.shields.io/github/v/release/simonw/sqlite-utils?include_prereleases&label=changelog)](https://sqlite-utils.datasette.io/en/latest/changelog.html)
+[![Changelog](https://img.shields.io/github/v/release/simonw/sqlite-utils?include_prereleases&label=changelog)](https://sqlite-utils.datasette.io/en/stable/changelog.html)
 [![Python 3.x](https://img.shields.io/pypi/pyversions/sqlite-utils.svg?logo=python&logoColor=white)](https://pypi.org/project/sqlite-utils/)
 [![Tests](https://github.com/simonw/sqlite-utils/workflows/Test/badge.svg)](https://github.com/simonw/sqlite-utils/actions?query=workflow%3ATest)
-[![Documentation Status](https://readthedocs.org/projects/sqlite-utils/badge/?version=latest)](http://sqlite-utils.datasette.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/sqlite-utils/badge/?version=stable)](http://sqlite-utils.datasette.io/en/stable/?badge=stable)
+[![codecov](https://codecov.io/gh/simonw/sqlite-utils/branch/main/graph/badge.svg)](https://codecov.io/gh/simonw/sqlite-utils)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/simonw/sqlite-utils/blob/main/LICENSE)
 
 Python CLI utility and library for manipulating SQLite databases.
@@ -56,7 +57,11 @@ You can import JSON data into a new database table like this:
 
 Or for data in a CSV file:
 
-    $ sqlite-utils insert dogs.db dogs docs.csv --csv
+    $ sqlite-utils insert dogs.db dogs dogs.csv --csv
+
+`sqlite-utils memory` lets you import CSV or JSON data into an in-memory database and run SQL queries against it in a single command:
+
+    $ cat dogs.csv | sqlite-utils memory - "select name, age from dogs"
 
 See the [full CLI documentation](https://sqlite-utils.datasette.io/en/stable/cli.html) for comprehensive coverage of many more commands.
 

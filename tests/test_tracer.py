@@ -1,4 +1,3 @@
-import pytest
 from sqlite_utils import Database
 
 
@@ -32,7 +31,9 @@ def test_tracer():
 
 def test_with_tracer():
     collected = []
-    tracer = lambda sql, params: collected.append((sql, params))
+
+    def tracer(sql, params):
+        return collected.append((sql, params))
 
     db = Database(memory=True)
 
@@ -48,13 +49,39 @@ def test_with_tracer():
     assert collected == [
         ("select name from sqlite_master where type = 'view'", None),
         (
-            "SELECT name FROM sqlite_master\n    WHERE rootpage = 0\n    AND (\n        sql LIKE '%VIRTUAL TABLE%USING FTS%content=%dogs%'\n        OR (\n            tbl_name = \"dogs\"\n            AND sql LIKE '%VIRTUAL TABLE%USING FTS%'\n        )\n    )",
+            (
+                "SELECT name FROM sqlite_master\n"
+                "    WHERE rootpage = 0\n"
+                "    AND (\n"
+                "        sql LIKE '%VIRTUAL TABLE%USING FTS%content=%dogs%'\n"
+                "        OR (\n"
+                '            tbl_name = "dogs"\n'
+                "            AND sql LIKE '%VIRTUAL TABLE%USING FTS%'\n"
+                "        )\n"
+                "    )"
+            ),
             None,
         ),
         ("select name from sqlite_master where type = 'view'", None),
         ("select sql from sqlite_master where name = ?", ("dogs_fts",)),
         (
-            "with original as (\n    select\n        rowid,\n        *\n    from [dogs]\n)\nselect\n    [original].*\nfrom\n    [original]\n    join [dogs_fts] on [original].rowid = [dogs_fts].rowid\nwhere\n    [dogs_fts] match :query\norder by\n    [dogs_fts].rank",
+            (
+                "with original as (\n"
+                "    select\n"
+                "        rowid,\n"
+                "        *\n"
+                "    from [dogs]\n"
+                ")\n"
+                "select\n"
+                "    [original].*\n"
+                "from\n"
+                "    [original]\n"
+                "    join [dogs_fts] on [original].rowid = [dogs_fts].rowid\n"
+                "where\n"
+                "    [dogs_fts] match :query\n"
+                "order by\n"
+                "    [dogs_fts].rank"
+            ),
             {"query": "Cleopaws"},
         ),
     ]

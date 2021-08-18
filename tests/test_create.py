@@ -1,7 +1,7 @@
 from sqlite_utils.db import (
     Index,
     Database,
-    ForeignKey,
+    DescIndex,
     AlterError,
     NoObviousTable,
     ForeignKey,
@@ -147,8 +147,8 @@ def test_create_table_with_not_null(fresh_db):
 )
 def test_create_table_from_example(fresh_db, example, expected_columns):
     people_table = fresh_db["people"]
-    assert None == people_table.last_rowid
-    assert None == people_table.last_pk
+    assert people_table.last_rowid is None
+    assert people_table.last_pk is None
     people_table.insert(example)
     assert 1 == people_table.last_rowid
     assert 1 == people_table.last_pk
@@ -514,7 +514,7 @@ def test_insert_row_alter_table(
 
 def test_insert_row_alter_table_invalid_column_characters(fresh_db):
     table = fresh_db["table"]
-    rowid = table.insert({"foo": "bar"}).last_pk
+    table.insert({"foo": "bar"}).last_pk
     with pytest.raises(AssertionError):
         table.insert({"foo": "baz", "new_col[abc]": 1.2}, alter=True)
 
@@ -739,6 +739,19 @@ def test_create_index_if_not_exists(fresh_db):
     dogs.create_index(["name"], if_not_exists=True)
 
 
+def test_create_index_desc(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is good dog": True})
+    assert [] == dogs.indexes
+    dogs.create_index([DescIndex("age"), "name"])
+    sql = fresh_db.execute(
+        "select sql from sqlite_master where name='idx_dogs_age_name'"
+    ).fetchone()[0]
+    assert sql == (
+        "CREATE INDEX [idx_dogs_age_name]\n" "    ON [dogs] ([age] desc, [name])"
+    )
+
+
 @pytest.mark.parametrize(
     "data_structure",
     (
@@ -748,7 +761,7 @@ def test_create_index_if_not_exists(fresh_db):
         {"dictionary": {"nested": "complex"}},
         collections.OrderedDict(
             [
-                ("key1", {"nested": "complex"}),
+                ("key1", {"nested": ["cømplex"]}),
                 ("key2", "foo"),
             ]
         ),
@@ -760,6 +773,14 @@ def test_insert_dictionaries_and_lists_as_json(fresh_db, data_structure):
     row = fresh_db.execute("select id, data from test").fetchone()
     assert row[0] == 1
     assert data_structure == json.loads(row[1])
+
+
+def test_insert_list_nested_unicode(fresh_db):
+    fresh_db["test"].insert(
+        {"id": 1, "data": {"key1": {"nested": ["cømplex"]}}}, pk="id"
+    )
+    row = fresh_db.execute("select id, data from test").fetchone()
+    assert row[1] == '{"key1": {"nested": ["cømplex"]}}'
 
 
 def test_insert_uuid(fresh_db):
@@ -805,8 +826,8 @@ def test_insert_thousands_adds_extra_columns_after_first_100_with_alter(fresh_db
         + [{"i": 101, "extra": "Should trigger ALTER"}],
         alter=True,
     )
-    rows = fresh_db.execute_returning_dicts("select * from test where i = 101")
-    assert [{"i": 101, "word": None, "extra": "Should trigger ALTER"}] == rows
+    rows = list(fresh_db.query("select * from test where i = 101"))
+    assert rows == [{"i": 101, "word": None, "extra": "Should trigger ALTER"}]
 
 
 def test_insert_ignore(fresh_db):
@@ -817,8 +838,8 @@ def test_insert_ignore(fresh_db):
     # Using ignore=True should cause our insert to be silently ignored
     fresh_db["test"].insert({"id": 1, "bar": 3}, pk="id", ignore=True)
     # Only one row, and it should be bar=2, not bar=3
-    rows = fresh_db.execute_returning_dicts("select * from test")
-    assert [{"id": 1, "bar": 2}] == rows
+    rows = list(fresh_db.query("select * from test"))
+    assert rows == [{"id": 1, "bar": 2}]
 
 
 def test_insert_hash_id(fresh_db):
@@ -848,8 +869,6 @@ def test_works_with_pathlib_path(tmpdir):
 
 @pytest.mark.skipif(pd is None, reason="pandas and numpy are not installed")
 def test_create_table_numpy(fresh_db):
-    import numpy as np
-
     df = pd.DataFrame({"col 1": range(3), "col 2": range(3)})
     fresh_db["pandas"].insert_all(df.to_dict(orient="records"))
     assert [
@@ -967,6 +986,13 @@ def test_insert_all_empty_list(fresh_db):
     assert 1 == fresh_db["t"].count
     fresh_db["t"].insert_all([], replace=True)
     assert 1 == fresh_db["t"].count
+
+
+def test_insert_all_single_column(fresh_db):
+    table = fresh_db["table"]
+    table.insert_all([{"name": "Cleo"}], pk="name")
+    assert [{"name": "Cleo"}] == list(table.rows)
+    assert table.pks == ["name"]
 
 
 def test_create_with_a_null_column(fresh_db):

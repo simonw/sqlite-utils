@@ -1,4 +1,4 @@
-from sqlite_utils.db import Index, View, Database
+from sqlite_utils.db import Index, View, Database, XIndex, XIndexColumn
 import pytest
 
 
@@ -33,7 +33,7 @@ def test_detect_fts(existing_db):
     assert "woo_fts" == existing_db["woo_fts"].detect_fts()
     assert "woo2_fts" == existing_db["woo2"].detect_fts()
     assert "woo2_fts" == existing_db["woo2_fts"].detect_fts()
-    assert None == existing_db["foo"].detect_fts()
+    assert existing_db["foo"].detect_fts() is None
 
 
 def test_tables(existing_db):
@@ -52,7 +52,14 @@ def test_views(fresh_db):
 
 
 def test_count(existing_db):
-    assert 3 == existing_db["foo"].count
+    assert existing_db["foo"].count == 3
+    assert existing_db["foo"].count_where() == 3
+    assert existing_db["foo"].execute_count() == 3
+
+
+def test_count_where(existing_db):
+    assert existing_db["foo"].count_where("text != ?", ["two"]) == 2
+    assert existing_db["foo"].count_where("text != :t", {"t": "two"}) == 2
 
 
 def test_columns(existing_db):
@@ -62,8 +69,12 @@ def test_columns(existing_db):
     ]
 
 
-def test_schema(existing_db):
-    assert "CREATE TABLE foo (text TEXT)" == existing_db["foo"].schema
+def test_table_schema(existing_db):
+    assert existing_db["foo"].schema == "CREATE TABLE foo (text TEXT)"
+
+
+def test_database_schema(existing_db):
+    assert existing_db.schema == "CREATE TABLE foo (text TEXT);"
 
 
 def test_table_repr(fresh_db):
@@ -91,6 +102,33 @@ def test_indexes(fresh_db):
         ),
         Index(seq=1, name="Gosh_c1", unique=0, origin="c", partial=0, columns=["c1"]),
     ] == fresh_db["Gosh"].indexes
+
+
+def test_xindexes(fresh_db):
+    fresh_db.executescript(
+        """
+        create table Gosh (c1 text, c2 text, c3 text);
+        create index Gosh_c1 on Gosh(c1);
+        create index Gosh_c2c3 on Gosh(c2, c3 desc);
+    """
+    )
+    assert fresh_db["Gosh"].xindexes == [
+        XIndex(
+            name="Gosh_c2c3",
+            columns=[
+                XIndexColumn(seqno=0, cid=1, name="c2", desc=0, coll="BINARY", key=1),
+                XIndexColumn(seqno=1, cid=2, name="c3", desc=1, coll="BINARY", key=1),
+                XIndexColumn(seqno=2, cid=-1, name=None, desc=0, coll="BINARY", key=0),
+            ],
+        ),
+        XIndex(
+            name="Gosh_c1",
+            columns=[
+                XIndexColumn(seqno=0, cid=0, name="c1", desc=0, coll="BINARY", key=1),
+                XIndexColumn(seqno=1, cid=-1, name=None, desc=0, coll="BINARY", key=0),
+            ],
+        ),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -144,9 +182,21 @@ def test_triggers_and_triggers_dict(fresh_db):
         (t.name, t.table) for t in fresh_db["authors"].triggers
     }
     expected_triggers = {
-        "authors_ai": "CREATE TRIGGER [authors_ai] AFTER INSERT ON [authors] BEGIN\n  INSERT INTO [authors_fts] (rowid, [name], [famous_works]) VALUES (new.rowid, new.[name], new.[famous_works]);\nEND",
-        "authors_ad": "CREATE TRIGGER [authors_ad] AFTER DELETE ON [authors] BEGIN\n  INSERT INTO [authors_fts] ([authors_fts], rowid, [name], [famous_works]) VALUES('delete', old.rowid, old.[name], old.[famous_works]);\nEND",
-        "authors_au": "CREATE TRIGGER [authors_au] AFTER UPDATE ON [authors] BEGIN\n  INSERT INTO [authors_fts] ([authors_fts], rowid, [name], [famous_works]) VALUES('delete', old.rowid, old.[name], old.[famous_works]);\n  INSERT INTO [authors_fts] (rowid, [name], [famous_works]) VALUES (new.rowid, new.[name], new.[famous_works]);\nEND",
+        "authors_ai": (
+            "CREATE TRIGGER [authors_ai] AFTER INSERT ON [authors] BEGIN\n"
+            "  INSERT INTO [authors_fts] (rowid, [name], [famous_works]) VALUES (new.rowid, new.[name], new.[famous_works]);\n"
+            "END"
+        ),
+        "authors_ad": (
+            "CREATE TRIGGER [authors_ad] AFTER DELETE ON [authors] BEGIN\n"
+            "  INSERT INTO [authors_fts] ([authors_fts], rowid, [name], [famous_works]) VALUES('delete', old.rowid, old.[name], old.[famous_works]);\n"
+            "END"
+        ),
+        "authors_au": (
+            "CREATE TRIGGER [authors_au] AFTER UPDATE ON [authors] BEGIN\n"
+            "  INSERT INTO [authors_fts] ([authors_fts], rowid, [name], [famous_works]) VALUES('delete', old.rowid, old.[name], old.[famous_works]);\n"
+            "  INSERT INTO [authors_fts] (rowid, [name], [famous_works]) VALUES (new.rowid, new.[name], new.[famous_works]);\nEND"
+        ),
     }
     assert authors.triggers_dict == expected_triggers
     assert fresh_db["other"].triggers == []
@@ -206,3 +256,11 @@ def test_virtual_table_using(sql, expected_name, expected_using):
     db = Database(memory=True)
     db.execute(sql)
     assert db[expected_name].virtual_table_using == expected_using
+
+
+def test_use_rowid():
+    db = Database(memory=True)
+    db["rowid_table"].insert({"name": "Cleo"})
+    db["regular_table"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    assert db["rowid_table"].use_rowid
+    assert not db["regular_table"].use_rowid

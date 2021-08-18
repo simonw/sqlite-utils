@@ -13,7 +13,7 @@
 .. |License| image:: https://img.shields.io/badge/license-Apache%202.0-blue.svg
    :target: https://github.com/simonw/sqlite-utils/blob/main/LICENSE
 
-*Python utility functions for manipulating SQLite databases*
+*CLI tool and Python utility functions for manipulating SQLite databases*
 
 This library and command-line utility helps create SQLite databases from an existing collection of data.
 
@@ -29,8 +29,9 @@ Contents
 .. toctree::
    :maxdepth: 3
 
+   installation
    cli
    python-api
+   reference
+   contributing
    changelog
-
-Take a look at `this script <https://github.com/simonw/russian-ira-facebook-ads-datasette/blob/master/fetch_and_build_russian_ads.py>`_ for an example of this library in action.

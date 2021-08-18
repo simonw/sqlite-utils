@@ -8,25 +8,31 @@ The ``sqlite-utils`` command-line tool can be used to manipulate SQLite database
 
 .. contents:: :local:
 
-.. _cli_query_json:
+.. _cli_query:
 
-Running queries and returning JSON
-==================================
+Running SQL queries
+===================
 
-You can execute a SQL query against a database and get the results back as JSON like this::
+The ``sqlite-utils query`` command lets you run queries directly against a SQLite database file. This is the default subcommand, so the following two examples work the same way::
 
     $ sqlite-utils query dogs.db "select * from dogs"
+    $ sqlite-utils dogs.db "select * from dogs"
+
+.. _cli_query_json:
+
+Returning JSON
+--------------
+
+The default format returned for queries is JSON::
+
+    $ sqlite-utils dogs.db "select * from dogs"
     [{"id": 1, "age": 4, "name": "Cleo"},
      {"id": 2, "age": 2, "name": "Pancakes"}]
 
-This is the default command for ``sqlite-utils``, so you can instead use this::
+.. _cli_query_nl:
 
-    $ sqlite-utils dogs.db "select * from dogs"
-
-You can pass named parameters to the query using ``-p``::
-
-    $ sqlite-utils query dogs.db "select :num * :num2" -p num 5 -p num2 6
-    [{":num * :num2": 30}]
+Newline-delimited JSON
+~~~~~~~~~~~~~~~~~~~~~~
 
 Use ``--nl`` to get back newline-delimited JSON objects::
 
@@ -34,7 +40,12 @@ Use ``--nl`` to get back newline-delimited JSON objects::
     {"id": 1, "age": 4, "name": "Cleo"}
     {"id": 2, "age": 2, "name": "Pancakes"}
 
-You can use ``--arrays`` to request ararys instead of objects::
+.. _cli_query_arrays:
+
+JSON arrays
+~~~~~~~~~~~
+
+You can use ``--arrays`` to request arrays instead of objects::
 
     $ sqlite-utils dogs.db "select * from dogs" --arrays
     [[1, 4, "Cleo"],
@@ -62,6 +73,11 @@ If you want to pretty-print the output further, you can pipe it through ``python
         }
     ]
 
+.. _cli_query_binary_json:
+
+Binary data in JSON
+~~~~~~~~~~~~~~~~~~~
+
 Binary strings are not valid JSON, so BLOB columns containing binary data will be returned as a JSON object containing base64 encoded data, that looks like this::
 
     $ sqlite-utils dogs.db "select name, content from images" | python -mjson.tool
@@ -75,25 +91,11 @@ Binary strings are not valid JSON, so BLOB columns containing binary data will b
         }
     ]
 
-If you execute an ``UPDATE``, ``INSERT`` or ``DELETE`` query the comand will return the number of affected rows::
-
-    $ sqlite-utils dogs.db "update dogs set age = 5 where name = 'Cleo'"   
-    [{"rows_affected": 1}]
-
-You can run queries against a temporary in-memory database by passing ``:memory:`` as the filename::
-
-    $ sqlite-utils :memory: "select sqlite_version()"
-    [{"sqlite_version()": "3.29.0"}]
-
-You can load SQLite extension modules using the `--load-extension` option::
-
-    $ sqlite-utils :memory: "select spatialite_version()" --load-extension=/usr/local/lib/mod_spatialite.dylib
-    [{"spatialite_version()": "4.3.0a"}]
 
 .. _cli_json_values:
 
 Nested JSON values
-------------------
+~~~~~~~~~~~~~~~~~~
 
 If one of your columns contains JSON, by default it will be returned as an escaped string::
 
@@ -124,24 +126,10 @@ You can use the ``--json-cols`` option to automatically detect these JSON column
         }
     ]
 
-.. _cli_attach:
-
-Attaching additional databases
-------------------------------
-
-SQLite supports cross-database SQL queries, which can join data from tables in more than one database file.
-
-You can attach one or more additional databases using the ``--attach`` option, providing an alias to use for that database and the path to the SQLite file on disk.
-
-This example attaches the ``books.db`` database under the alias ``books`` and then runs a query that combines data from that database with the default ``dogs.db`` database::
-
-    sqlite-utils dogs.db --attach books books.db \
-       'select * from sqlite_master union all select * from books.sqlite_master'
-
 .. _cli_query_csv:
 
-Running queries and returning CSV
-=================================
+Returning CSV or TSV
+--------------------
 
 You can use the ``--csv`` option to return results as CSV::
 
@@ -165,8 +153,8 @@ Use ``--tsv`` instead of ``--csv`` to get back tab-separated values::
 
 .. _cli_query_table:
 
-Running queries and outputting a table
-======================================
+Table-formatted output
+----------------------
 
 You can use the ``--table`` option (or ``-t`` shortcut) to output query results as a table::
 
@@ -190,14 +178,190 @@ For a full list of table format options, run ``sqlite-utils query --help``.
 
 .. _cli_query_raw:
 
-Returning raw data from a query, such as binary content
-=======================================================
+Returning raw data, such as binary content
+------------------------------------------
 
 If your table contains binary data in a ``BLOB`` you can use the ``--raw`` option to output specific columns directly to standard out.
 
 For example, to retrieve a binary image from a ``BLOB`` column and store it in a file you can use the following::
 
     $ sqlite-utils photos.db "select contents from photos where id=1" --raw > myphoto.jpg
+
+
+.. _cli_query_parameters:
+
+Using named parameters
+----------------------
+
+You can pass named parameters to the query using ``-p``::
+
+    $ sqlite-utils query dogs.db "select :num * :num2" -p num 5 -p num2 6
+    [{":num * :num2": 30}]
+
+These will be correctly quoted and escaped in the SQL query, providing a safe way to combine other values with SQL.
+
+.. _cli_query_update_insert_delete:
+
+UPDATE, INSERT and DELETE
+-------------------------
+
+If you execute an ``UPDATE``, ``INSERT`` or ``DELETE`` query the command will return the number of affected rows::
+
+    $ sqlite-utils dogs.db "update dogs set age = 5 where name = 'Cleo'"
+    [{"rows_affected": 1}]
+
+SQLite extensions
+-----------------
+
+You can load SQLite extension modules using the ``--load-extension`` option, see :ref:`cli_load_extension`.
+
+::
+
+    $ sqlite-utils dogs.db "select spatialite_version()" --load-extension=spatialite
+    [{"spatialite_version()": "4.3.0a"}]
+
+.. _cli_query_attach:
+
+Attaching additional databases
+------------------------------
+
+SQLite supports cross-database SQL queries, which can join data from tables in more than one database file.
+
+You can attach one or more additional databases using the ``--attach`` option, providing an alias to use for that database and the path to the SQLite file on disk.
+
+This example attaches the ``books.db`` database under the alias ``books`` and then runs a query that combines data from that database with the default ``dogs.db`` database::
+
+    sqlite-utils dogs.db --attach books books.db \
+       'select * from sqlite_master union all select * from books.sqlite_master'
+
+.. _cli_memory:
+
+Querying data directly using an in-memory database
+==================================================
+
+The ``sqlite-utils memory`` command works similar to ``sqlite-utils query``, but allows you to execute queries against an in-memory database.
+
+You can also pass this command CSV or JSON files which will be loaded into a temporary in-memory table, allowing you to execute SQL against that data without a separate step to first convert it to SQLite.
+
+Without any extra arguments, this command executes SQL against the in-memory database directly::
+
+    $ sqlite-utils memory 'select sqlite_version()'
+    [{"sqlite_version()": "3.35.5"}]
+
+It takes all of the same output formatting options as :ref:`sqlite-utils query <cli_query>`: ``--csv`` and ``--csv`` and ``--table`` and ``--nl``::
+
+    $ sqlite-utils memory 'select sqlite_version()' --csv             
+    sqlite_version()
+    3.35.5
+    $ sqlite-utils memory 'select sqlite_version()' --table --fmt grid
+    +--------------------+
+    | sqlite_version()   |
+    +====================+
+    | 3.35.5             |
+    +--------------------+
+
+.. _cli_memory_csv_json:
+
+Running queries directly against CSV or JSON
+--------------------------------------------
+
+If you have data in CSV or JSON format you can load it into an in-memory SQLite database and run queries against it directly in a single command using ``sqlite-utils memory`` like this::
+
+    $ sqlite-utils memory data.csv "select * from data"
+
+You can pass multiple files to the command if you want to run joins between data from different files::
+
+    $ sqlite-utils memory one.csv two.json "select * from one join two on one.id = two.other_id"
+
+If your data is JSON it should be the same format supported by the :ref:`sqlite-utils insert command <cli_inserting_data>` - so either a single JSON object (treated as a single row) or a list of JSON objects.
+
+CSV data can be comma- or tab- delimited.
+
+The in-memory tables will be named after the files without their extensions. The tool also sets up aliases for those tables (using SQL views) as ``t1``, ``t2`` and so on, or you can use the alias ``t`` to refer to the first table::
+
+    $ sqlite-utils memory example.csv "select * from t"
+
+To read from standard input, use either ``-`` or ``stdin`` as the filename - then use ``stdin`` or ``t`` or ``t1`` as the table name::
+
+    $ cat example.csv | sqlite-utils memory - "select * from stdin"
+
+Incoming CSV data will be assumed to use ``utf-8``. If your data uses a different character encoding you can specify that with ``--encoding``::
+
+    $ cat example.csv | sqlite-utils memory - "select * from stdin" --encoding=latin-1
+
+If you are joining across multiple CSV files they must all use the same encoding.
+
+Column types will be automatically detected in CSV or TSV data, using the same mechanism as ``--detect-types`` described in :ref:`cli_insert_csv_tsv`. You can pass the ``--no-detect-types`` option to disable this automatic type detection and treat all CSV and TSV columns as ``TEXT``.
+
+.. _cli_memory_explicit:
+
+Explicitly specifying the format
+--------------------------------
+
+By default, ``sqlite-utils memory`` will attempt to detect the incoming data format (JSON, TSV or CSV) automatically.
+
+You can instead specify an explicit format by adding a ``:csv``, ``:tsv``, ``:json`` or ``:nl`` (for newline-delimited JSON) suffix to the filename. For example::
+
+    $ sqlite-utils memory one.dat:csv two.dat:nl "select * from one union select * from two"
+
+Here the contents of ``one.dat`` will be treated as CSV and the contents of ``two.dat`` will be treated as newline-delimited JSON.
+
+To explicitly specify the format for data piped into the tool on standard input, use ``stdin:format`` - for example::
+
+    $ cat one.dat | sqlite-utils memory stdin:csv "select * from stdin"
+
+.. _cli_memory_attach:
+
+Joining in-memory data against existing databases using \-\-attach
+------------------------------------------------------------------
+
+The :ref:`attach option <cli_query_attach>` can be used to attach database files to the in-memory connection, enabling joins between in-memory data loaded from a file and tables in existing SQLite database files. An example::
+
+    $ echo "id\n1\n3\n5" | sqlite-utils memory - --attach trees trees.db \
+      "select * from trees.trees where rowid in (select id from stdin)"
+
+Here the ``--attach trees trees.db`` option makes the ``trees.db`` database available with an alias of ``trees``.
+
+``select * from trees.trees where ...`` can then query the ``trees`` table in that database.
+
+The CSV data that was piped into the script is available in the ``stdin`` table, so  ``... where rowid in (select id from stdin)`` can be used to return rows from the ``trees`` table that match IDs that were piped in as CSV content.
+
+.. _cli_memory_schema_dump_save:
+
+\-\-schema, \-\-dump and \-\-save
+---------------------------------
+
+To see the schema that will be created for a file or multiple files, use ``--schema``::
+
+    % sqlite-utils memory dogs.csv --schema
+    CREATE TABLE [dogs] (
+        [id] INTEGER,
+        [age] INTEGER,
+        [name] TEXT
+    );
+    CREATE VIEW t1 AS select * from [dogs];
+    CREATE VIEW t AS select * from [dogs];
+
+You can output SQL that will both create the tables and insert the full data used to populate the in-memory database using ``--dump``::
+
+    % sqlite-utils memory dogs.csv --dump
+    BEGIN TRANSACTION;
+    CREATE TABLE [dogs] (
+        [id] INTEGER,
+        [age] INTEGER,
+        [name] TEXT
+    );
+    INSERT INTO "dogs" VALUES('1','4','Cleo');
+    INSERT INTO "dogs" VALUES('2','2','Pancakes');
+    CREATE VIEW t1 AS select * from [dogs];
+    CREATE VIEW t AS select * from [dogs];
+    COMMIT;
+
+Passing ``--save other.db`` will instead use that SQL to populate a new database file::
+
+    % sqlite-utils memory dogs.csv --save dogs.db
+
+These features are mainly intended as debugging tools - for much more finely grained control over how data is inserted into a SQLite database file see :ref:`cli_inserting_data` and :ref:`cli_insert_csv_tsv`.
 
 .. _cli_rows:
 
@@ -268,7 +432,7 @@ Use ``--schema`` to include the schema of each table::
                [age] INTEGER,
                [name] TEXT)
 
-The ``--nl``, ``--csv``, ``--tsv`` and ``--table`` options are all available.
+The ``--nl``, ``--csv``, ``--tsv``, ``--table`` and ``--fmt`` options are also available.
 
 .. _cli_views:
 
@@ -292,6 +456,33 @@ It takes the same options as the ``tables`` command:
 * ``--csv``
 * ``--tsv``
 * ``--table``
+
+.. _cli_indexes:
+
+Listing indexes
+===============
+
+The ``indexes`` command lists any indexes configured for the database::
+
+    $ sqlite-utils indexes covid.db --table
+    table                             index_name                                                seqno    cid  name                 desc  coll      key
+    --------------------------------  ------------------------------------------------------  -------  -----  -----------------  ------  ------  -----
+    johns_hopkins_csse_daily_reports  idx_johns_hopkins_csse_daily_reports_combined_key             0     12  combined_key            0  BINARY      1
+    johns_hopkins_csse_daily_reports  idx_johns_hopkins_csse_daily_reports_country_or_region        0      1  country_or_region       0  BINARY      1
+    johns_hopkins_csse_daily_reports  idx_johns_hopkins_csse_daily_reports_province_or_state        0      2  province_or_state       0  BINARY      1
+    johns_hopkins_csse_daily_reports  idx_johns_hopkins_csse_daily_reports_day                      0      0  day                     0  BINARY      1
+    ny_times_us_counties              idx_ny_times_us_counties_date                                 0      0  date                    1  BINARY      1
+    ny_times_us_counties              idx_ny_times_us_counties_fips                                 0      3  fips                    0  BINARY      1
+    ny_times_us_counties              idx_ny_times_us_counties_county                               0      1  county                  0  BINARY      1
+    ny_times_us_counties              idx_ny_times_us_counties_state                                0      2  state                   0  BINARY      1
+
+It shows indexes across all tables. To see indexes for specific tables, list those after the database::
+
+    $ sqlite-utils indexes covid.db johns_hopkins_csse_daily_reports --table
+
+The command defaults to only showing the columns that are explicitly part of the index. To also include auxiliary columns use the ``--aux`` option - these columns will be listed with a ``key`` of ``0``.
+
+The command takes the same format options as the ``tables`` and ``views`` commands.
 
 .. _cli_triggers:
 
@@ -320,6 +511,24 @@ It defaults to showing triggers for all tables. To see triggers for one or more 
     $ sqlite-utils triggers global-power-plants.db plants
 
 The command takes the same format options as the ``tables`` and ``views`` commands.
+
+.. _cli_schema:
+
+Showing the schema
+==================
+
+The ``sqlite-utils schema`` command shows the full SQL schema for the database::
+
+    $ sqlite-utils schema dogs.db
+    CREATE TABLE "dogs" (
+        [id] INTEGER PRIMARY KEY,
+        [name] TEXT
+    );
+
+This will show the schema for every table and index in the database. To view the schema just for a specified subset of tables pass those as additional arguments::
+
+    $ sqlite-utils schema dogs.db dogs chickens
+    ...
 
 .. _cli_analyze_tables:
 
@@ -408,6 +617,21 @@ The ``_analyze_tables_`` table has the following schema::
         PRIMARY KEY ([table], [column])
     );
 
+The ``most_common`` and ``least_common`` columns will contain nested JSON arrays of the most common and least common values that look like this::
+
+    [
+        ["Del Libertador, Av", 5068],
+        ["Alberdi Juan Bautista Av.", 4612],
+        ["Directorio Av.", 4552],
+        ["Rivadavia, Av", 4532],
+        ["Yerbal", 4512],
+        ["Cosquín", 4472],
+        ["Estado Plurinacional de Bolivia", 4440],
+        ["Gordillo Timoteo", 4424],
+        ["Montiel", 4360],
+        ["Condarco", 4288]
+    ]
+
 .. _cli_inserting_data:
 
 Inserting JSON data
@@ -445,6 +669,23 @@ If you feed it a JSON list it will insert multiple records. For example, if ``do
         }
     ]
 
+You can import all three records into an automatically created ``dogs`` table and set the ``id`` column as the primary key like so::
+
+    $ sqlite-utils insert dogs.db dogs dogs.json --pk=id
+
+You can skip inserting any records that have a primary key that already exists using ``--ignore``::
+
+    $ sqlite-utils insert dogs.db dogs dogs.json --ignore
+
+You can delete all the existing rows in the table before inserting the new records using ``--truncate``::
+
+    $ sqlite-utils insert dogs.db dogs dogs.json --truncate
+
+.. _cli_inserting_data_binary:
+
+Inserting binary data
+---------------------
+
 You can insert binary data into a BLOB column by first encoding it using base64 and then structuring it like this::
 
     [
@@ -457,17 +698,10 @@ You can insert binary data into a BLOB column by first encoding it using base64 
         }
     ]
 
-You can import all three records into an automatically created ``dogs`` table and set the ``id`` column as the primary key like so::
+.. _cli_inserting_data_nl_json:
 
-    $ sqlite-utils insert dogs.db dogs dogs.json --pk=id
-
-You can skip inserting any records that have a primary key that already exists using ``--ignore``::
-
-    $ sqlite-utils insert dogs.db dogs dogs.json --ignore
-
-You can delete all the existing rows in the table before inserting the new records using ``--truncate``::
-
-    $ sqlite-utils insert dogs.db dogs dogs.json --truncate
+Inserting newline-delimited JSON
+--------------------------------
 
 You can also import newline-delimited JSON using the ``--nl`` option. Since `Datasette <https://datasette.io/>`__ can export newline-delimited JSON, you can combine the two tools like so::
 
@@ -488,6 +722,49 @@ This also means you pipe ``sqlite-utils`` together to easily create a new SQLite
     207368,920 Kirkham St,37.760210314285,-122.47073935813
     188702,1501 Evans Ave,37.7422086702947,-122.387293152263
 
+.. _cli_inserting_data_flatten:
+
+Flattening nested JSON objects
+------------------------------
+
+``sqlite-utils insert`` expects incoming data to consist of an array of JSON objects, where the top-level keys of each object will become columns in the created database table.
+
+If your data is nested you can use the ``--flatten`` option to create columns that are derived from the nested data.
+
+Consider this example document, in a file called ``log.json``::
+
+    {
+        "httpRequest": {
+            "latency": "0.112114537s",
+            "requestMethod": "GET",
+            "requestSize": "534",
+            "status": 200
+        },
+        "insertId": "6111722f000b5b4c4d4071e2",
+        "labels": {
+            "service": "datasette-io"
+        }
+    }
+
+Inserting this into a table using ``sqlite-utils insert logs.db logs log.json`` will create a table with the following schema::
+
+    CREATE TABLE [logs] (
+       [httpRequest] TEXT,
+       [insertId] TEXT,
+       [labels] TEXT
+    );
+
+With the ``--flatten`` option columns will be created using ``topkey_nextkey`` column names - so running ``sqlite-utils insert logs.db logs log.json --flatten`` will create the following schema instead::
+
+    CREATE TABLE [logs] (
+       [httpRequest_latency] TEXT,
+       [httpRequest_requestMethod] TEXT,
+       [httpRequest_requestSize] TEXT,
+       [httpRequest_status] INTEGER,
+       [insertId] TEXT,
+       [labels_service] TEXT
+    );
+
 .. _cli_insert_csv_tsv:
 
 Inserting CSV or TSV data
@@ -506,6 +783,31 @@ Data is expected to be encoded as Unicode UTF-8. If your data is an another char
     $ sqlite-utils insert dogs.db dogs dogs.tsv --tsv --encoding=latin-1
 
 A progress bar is displayed when inserting data from a file. You can hide the progress bar using the ``--silent`` option.
+
+By default every column inserted from a CSV or TSV file will be of type ``TEXT``. To automatically detect column types - resulting in a mix of ``TEXT``, ``INTEGER`` and ``FLOAT`` columns, use the ``--detect-types`` option (or its shortcut ``-d``).
+
+For example, given a ``creatures.csv`` file containing this::
+
+    name,age,weight
+    Cleo,6,45.5
+    Dori,1,3.5
+
+The following command::
+
+    $ sqlite-utils insert creatures.db creatures creatures.csv --csv --detect-types
+
+Will produce this schema::
+
+    $ sqlite-utils schema creatures.db
+    CREATE TABLE "creatures" (
+       [name] TEXT,
+       [age] INTEGER,
+       [weight] FLOAT
+    );
+
+You can set the ``SQLITE_UTILS_DETECT_TYPES`` environment variable if you want ``--detect-types`` to be the default behavior::
+
+    $ export SQLITE_UTILS_DETECT_TYPES=1
 
 .. _cli_insert_csv_tsv_delimiter:
 
@@ -660,6 +962,128 @@ You can insert data piped from standard input like this::
 The ``-`` argument indicates data should be read from standard input. The string passed using the ``--name`` option will be used for the file name and path values.
 
 When inserting data from standard input only the following column definitions are supported: ``name``, ``path``, ``content``, ``sha256``, ``md5`` and ``size``.
+
+.. _cli_convert:
+
+Converting data in columns
+==========================
+
+The ``convert`` command can be used to transform the data in a specified column - for example to parse a date string into an ISO timestamp, or to split a string of tags into a JSON array.
+
+The command accepts a database, table, one or more columns and a string of Python code to be executed against the values from those columns. The following example would replace the values in the ``headline`` column in the ``articles`` table with an upper-case version::
+
+    $ sqlite-utils convert content.db articles headline 'value.upper()'
+
+The Python code is passed as a string. Within that Python code the ``value`` variable will be the value of the current column.
+
+The code you provide will be compiled into a function that takes ``value`` as a single argument. If you break your function body into multiple lines the last line should be a ``return`` statement::
+
+    $ sqlite-utils convert content.db articles headline '
+    value = str(value)
+    return value.upper()'
+
+You can specify Python modules that should be imported and made available to your code using one or more ``--import`` options. This example uses the ``textwrap`` module to wrap the ``content`` column at 100 characters::
+
+    $ sqlite-utils convert content.db articles content \
+        '"\n".join(textwrap.wrap(value, 100))' \
+        --import=textwrap
+
+The transformation will be applied to every row in the specified table. You can limit that to just rows that match a ``WHERE`` clause using ``--where``::
+
+    $ sqlite-utils convert content.db articles headline 'value.upper()' \
+        --where "headline like '%cat%'"
+
+You can include named parameters in your where clause and populate them using one or more ``--param`` options::
+
+    $ sqlite-utils convert content.db articles headline 'value.upper()' \
+        --where "headline like :like" \
+        --param like '%cat%'
+
+The ``--dry-run`` option will output a preview of the conversion against the first ten rows, without modifying the database.
+
+.. _cli_convert_recipes:
+
+sqlite-utils convert recipes
+----------------------------
+
+Various built-in recipe functions are available for common operations. These are:
+
+``r.jsonsplit(value, delimiter=',', type=<class 'str'>)``
+  Convert a string like ``a,b,c`` into a JSON array ``["a", "b", "c"]``
+
+  The ``delimiter`` parameter can be used to specify a different delimiter.
+
+  The ``type`` parameter can be set to ``float`` or ``int`` to produce a JSON array of different types, for example if the column's string value was ``1.2,3,4.5`` the following::
+
+      r.jsonsplit(value, type=float)
+
+  Would produce an array like this: ``[1.2, 3.0, 4.5]``
+
+``r.parsedate(value, dayfirst=False, yearfirst=False)``
+  Parse a date and convert it to ISO date format: ``yyyy-mm-dd``
+
+  In the case of dates such as ``03/04/05`` U.S. ``MM/DD/YY`` format is assumed - you can use ``dayfirst=True`` or ``yearfirst=True`` to change how these ambiguous dates are interpreted.
+
+``r.parsedatetime(value, dayfirst=False, yearfirst=False)``
+  Parse a datetime and convert it to ISO datetime format: ``yyyy-mm-ddTHH:MM:SS``
+
+These recipes can be used in the code passed to ``sqlite-utils convert`` like this::
+
+    $ sqlite-utils convert my.db mytable mycolumn \
+      'r.jsonsplit(value)'
+
+To use any of the documented parameters, do this::
+
+    $ sqlite-utils convert my.db mytable mycolumn \
+      'r.jsonsplit(value, delimiter=":")'
+
+.. _cli_convert_output:
+
+Saving the result to a different column
+---------------------------------------
+
+The ``--output`` and ``--output-type`` options can be used to save the result of the conversion to a separate column, which will be created if that column does not already exist::
+
+    $ sqlite-utils convert content.db articles headline 'value.upper()' \
+      --output headline_upper
+
+The type of the created column defaults to ``text``, but a different column type can be specified using ``--output-type``. This example will create a new floating point column called ``id_as_a_float`` with a copy of each item's ID increased by 0.5::
+
+    $ sqlite-utils convert content.db articles id 'float(value) + 0.5' \
+      --output id_as_a_float \
+      --output-type float
+
+You can drop the original column at the end of the operation by adding ``--drop``.
+
+.. _cli_convert_multi:
+
+Converting a column into multiple columns
+-----------------------------------------
+
+Sometimes you may wish to convert a single column into multiple derived columns. For example, you may have a ``location`` column containing ``latitude,longitude`` values which you wish to split out into separate ``latitude`` and ``longitude`` columns.
+
+You can achieve this using the ``--multi`` option to ``sqlite-utils convert``. This option expects your Python code to return a Python dictionary: new columns well be created and populated for each of the keys in that dictionary.
+
+For the ``latitude,longitude`` example you would use the following::
+
+    $ sqlite-utils convert demo.db places location \
+    'bits = value.split(",")
+    return {
+      "latitude": float(bits[0]),
+      "longitude": float(bits[1]),
+    }' --multi
+
+The type of the returned values will be taken into account when creating the new columns. In this example, the resulting database schema will look like this:
+
+.. code-block:: sql
+
+    CREATE TABLE [places] (
+        [location] TEXT,
+        [latitude] FLOAT,
+        [longitude] FLOAT
+    );
+
+The code function can also return ``None``, in which case its output will be ignored. You can drop the original column at the end of the operation by adding ``--drop``.
 
 .. _cli_create_table:
 
@@ -861,45 +1285,44 @@ Here's a more complex example that makes use of these options. It converts `this
         --fk-column country_id \
         --rename country_long name
 
-After running the above, the command ``sqlite3 global.db .schema`` reveals the following schema:
+After running the above, the command ``sqlite-utils schema global.db`` reveals the following schema:
 
 .. code-block:: sql
 
     CREATE TABLE [countries] (
-        [id] INTEGER PRIMARY KEY,
-        [country] TEXT,
-        [name] TEXT
+       [id] INTEGER PRIMARY KEY,
+       [country] TEXT,
+       [name] TEXT
+    );
+    CREATE TABLE "power_plants" (
+       [country_id] INTEGER,
+       [name] TEXT,
+       [gppd_idnr] TEXT,
+       [capacity_mw] TEXT,
+       [latitude] TEXT,
+       [longitude] TEXT,
+       [primary_fuel] TEXT,
+       [other_fuel1] TEXT,
+       [other_fuel2] TEXT,
+       [other_fuel3] TEXT,
+       [commissioning_year] TEXT,
+       [owner] TEXT,
+       [source] TEXT,
+       [url] TEXT,
+       [geolocation_source] TEXT,
+       [wepp_id] TEXT,
+       [year_of_capacity_data] TEXT,
+       [generation_gwh_2013] TEXT,
+       [generation_gwh_2014] TEXT,
+       [generation_gwh_2015] TEXT,
+       [generation_gwh_2016] TEXT,
+       [generation_gwh_2017] TEXT,
+       [generation_data_source] TEXT,
+       [estimated_generation_gwh] TEXT,
+       FOREIGN KEY([country_id]) REFERENCES [countries]([id])
     );
     CREATE UNIQUE INDEX [idx_countries_country_name]
         ON [countries] ([country], [name]);
-    CREATE TABLE IF NOT EXISTS "power_plants" (
-        [rowid] INTEGER PRIMARY KEY,
-        [country_id] INTEGER,
-        [name] TEXT,
-        [gppd_idnr] TEXT,
-        [capacity_mw] TEXT,
-        [latitude] TEXT,
-        [longitude] TEXT,
-        [primary_fuel] TEXT,
-        [other_fuel1] TEXT,
-        [other_fuel2] TEXT,
-        [other_fuel3] TEXT,
-        [commissioning_year] TEXT,
-        [owner] TEXT,
-        [source] TEXT,
-        [url] TEXT,
-        [geolocation_source] TEXT,
-        [wepp_id] TEXT,
-        [year_of_capacity_data] TEXT,
-        [generation_gwh_2013] TEXT,
-        [generation_gwh_2014] TEXT,
-        [generation_gwh_2015] TEXT,
-        [generation_gwh_2016] TEXT,
-        [generation_gwh_2017] TEXT,
-        [generation_data_source] TEXT,
-        [estimated_generation_gwh] TEXT,
-        FOREIGN KEY(country_id) REFERENCES countries(id)
-    );
 
 .. _cli_create_view:
 
@@ -1032,6 +1455,14 @@ The name of the index will be automatically derived from the table and columns. 
 Use the ``--unique`` option to create a unique index.
 
 Use ``--if-not-exists`` to avoid attempting to create the index if one with that name already exists.
+
+To add an index on a column in descending order, prefix the column with a hyphen. Since this can be confused for a command-line option you need to construct that like this::
+
+    $ sqlite-utils create-index mydb.db mytable -- col1 -col2 col3
+
+This will create an index on that table on ``(col1, col2 desc, col3)``.
+
+If your column names are already prefixed with a hyphen you'll need to manually execute a ``CREATE INDEX`` SQL statement to add indexes to them rather than using this tool.
 
 .. _cli_fts:
 
@@ -1181,16 +1612,29 @@ You can disable WAL mode using ``disable-wal``::
 
 Both of these commands accept one or more database files as arguments.
 
+.. _cli_dump:
+
+Dumping the database to SQL
+===========================
+
+The ``dump`` command outputs a SQL dump of the schema and full contents of the specified database file::
+
+    $ sqlite-utils dump mydb.db
+    BEGIN TRANSACTION;
+    CREATE TABLE ...
+    ...
+    COMMIT;
+
 .. _cli_load_extension:
 
 Loading SQLite extensions
 =========================
 
-Many of these commands have the ablity to load additional SQLite extensions using the ``--load-extension=/path/to/extension`` option - use ``--help`` to check for support, e.g. ``sqlite-utils rows --help``.
+Many of these commands have the ability to load additional SQLite extensions using the ``--load-extension=/path/to/extension`` option - use ``--help`` to check for support, e.g. ``sqlite-utils rows --help``.
 
 This option can be applied multiple times to load multiple extensions.
 
 Since `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ is commonly used with SQLite, the value ``spatialite`` is special: it will search for SpatiaLite in the most common installation locations, saving you from needing to remember exactly where that module is located::
 
-    $ sqlite-utils :memory: "select spatialite_version()" --load-extension=spatialite
+    $ sqlite-utils memory "select spatialite_version()" --load-extension=spatialite
     [{"spatialite_version()": "4.3.0a"}]

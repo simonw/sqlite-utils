@@ -1,6 +1,3 @@
-import pytest
-
-
 def test_insert_conversion(fresh_db):
     table = fresh_db["table"]
     table.insert({"foo": "bar"}, conversions={"foo": "upper(?)"})

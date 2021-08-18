@@ -1,8 +1,8 @@
 .. _python_api:
 
-============
- Python API
-============
+=============================
+ sqlite_utils Python library
+=============================
 
 .. contents:: :local:
 
@@ -59,12 +59,11 @@ You can attach an additional database using the ``.attach()`` method, providing 
     db = Database("first.db")
     db.attach("second", "second.db")
     # Now you can run queries like this one:
-    cursor = db.execute("""
+    print(db.query("""
     select * from table_in_first
         union all
     select * from second.table_in_second
-    """)
-    print(cursor.fetchall())
+    """))
 
 You can reference tables in the attached database using the alias value you passed to ``db.attach(alias, filepath)`` as a prefix, for example the ``second.table_in_second`` reference in the SQL query above.
 
@@ -97,27 +96,77 @@ You can also turn on a tracer function temporarily for a block of code using the
 
 This example will print queries only for the duration of the ``with`` block.
 
-.. _python_api_execute:
+.. _python_api_executing_queries:
 
 Executing queries
 =================
 
-The ``db.execute()`` and ``db.executescript()`` methods provide wrappers around ``.execute()`` and ``.executescript()`` on the underlying SQLite connection. These wrappers log to the tracer function if one has been registered.
+The ``Database`` class offers several methods for directly executing SQL queries.
+
+.. _python_api_query:
+
+db.query(sql, params)
+---------------------
+
+The ``db.query(sql)`` function executes a SQL query and returns an iterator over Python dictionaries representing the resulting rows:
+
+.. code-block:: python
+
+    db = Database(memory=True)
+    db["dogs"].insert_all([{"name": "Cleo"}, {"name": "Pancakes"}])
+    for row in db.query("select * from dogs"):
+        print(row)
+    # Outputs:
+    # {'name': 'Cleo'}
+    # {'name': 'Pancakes'}
+
+.. _python_api_execute:
+
+db.execute(sql, params)
+-----------------------
+
+The ``db.execute()`` and ``db.executescript()`` methods provide wrappers around ``.execute()`` and ``.executescript()`` on the underlying SQLite connection. These wrappers log to the :ref:`tracer function <python_api_tracing>` if one has been registered.
+
+``db.execute(sql)`` returns a `sqlite3.Cursor <https://docs.python.org/3/library/sqlite3.html#sqlite3.Cursor>`__ that was used to execute the SQL.
 
 .. code-block:: python
 
     db = Database(memory=True)
     db["dogs"].insert({"name": "Cleo"})
-    db.execute("update dogs set name = 'Cleopaws'")
+    cursor = db.execute("update dogs set name = 'Cleopaws'")
+    print(cursor.rowcount)
+    # Outputs the number of rows affected by the update
+    # In this case 2
 
-You can pass parameters as an optional second argument, using either a list or a dictionary. These will be correctly quoted and escaped.
+Other cursor methods such as ``.fetchone()`` and ``.fetchall()`` are also available, see the `standard library documentation <https://docs.python.org/3/library/sqlite3.html#sqlite3.Cursor>`__.
+
+.. _python_api_parameters:
+
+Passing parameters
+------------------
+
+Both ``db.query()`` and ``db.execute()`` accept an optional second argument for parameters to be passed to the SQL query.
+
+This can take the form of either a tuple/list or a dictionary, depending on the type of parameters used in the query. Values passed in this way will be correctly quoted and escaped, helping avoid XSS vulnerabilities.
+
+``?`` parameters in the SQL query can be filled in using a list:
 
 .. code-block:: python
 
-    # Using ? and a list:
     db.execute("update dogs set name = ?", ["Cleopaws"])
-    # Or using :name and a dictionary:
-    db.execute("update dogs set name = :name", {"name": "Cleopaws"})
+    # This will rename ALL dogs to be called "Cleopaws"
+
+Named parameters using ``:name`` can be filled using a dictionary:
+
+.. code-block:: python
+
+    dog = next(db.query(
+        "select rowid, name from dogs where name = :name",
+        {"name": "Cleopaws"}
+    ))
+    # dog is now {'rowid': 1, 'name': 'Cleopaws'}
+
+In this example ``next()`` is used to retrieve the first result in the iterator returned by the ``db.query()`` method.
 
 .. _python_api_table:
 
@@ -202,7 +251,13 @@ You can filter rows by a WHERE clause using ``.rows_where(where, where_args)``::
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
 
-To return custom columns (instead of using ``select *``) pass ``select=``::
+The first argument is a fragment of SQL. The second, optional argument is values to be passed to that fragment - you can use ``?`` placeholders and pass an array, or you can use ``:named`` parameters and pass a dictionary, like this::
+
+    >>> for row in db["dogs"].rows_where("age > :age", {"age": 3}):
+    ...     print(row)
+    {'id': 1, 'age': 4, 'name': 'Cleo'}
+
+To return custom columns (instead of the default that uses ``select *``) pass ``select="column1, column2"``::
 
     >>> db = sqlite_utils.Database("dogs.db")
     >>> for row in db["dogs"].rows_where(select='name, age'):
@@ -230,6 +285,16 @@ This method also accepts ``offset=`` and ``limit=`` arguments, for specifying an
     >>> for row in db["dogs"].rows_where(order_by="age desc", limit=1):
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
+
+.. _python_api_rows_count_where:
+
+Counting rows
+-------------
+
+To count the number of rows that would be returned by a where filter, use ``.count_where(where, where_args)``:
+
+    >>> db["dogs"].count_where("age > ?", [1]):
+    2
 
 .. _python_api_pks_and_rows_where:
 
@@ -290,6 +355,21 @@ If the record does not exist a ``NotFoundError`` will be raised:
         row = db["dogs"].get(5)
     except NotFoundError:
         print("Dog not found")
+
+.. _python_api_schema:
+
+Showing the schema
+==================
+
+The ``db.schema`` property returns the full SQL schema for the database as a string::
+
+    >>> db = sqlite_utils.Database("dogs.db")
+    >>> print(db.schema)
+    >>> print(db.schema)
+    CREATE TABLE "dogs" (
+        [id] INTEGER PRIMARY KEY,
+        [name] TEXT
+    );
 
 .. _python_api_creating_tables:
 
@@ -603,7 +683,7 @@ The first argument to ``update()`` is the primary key. This can be a single valu
 
     >>> db["compound_dogs"].update((5, 3), {"name": "Updated"})
 
-The second argument is a dictonary of columns that should be updated, along with their new values.
+The second argument is a dictionary of columns that should be updated, along with their new values.
 
 You can cause any missing columns to be added automatically using ``alter=True``::
 
@@ -632,7 +712,7 @@ You can delete all records in a table that match a specific WHERE statement usin
 
     >>> db = sqlite_utils.Database("dogs.db")
     >>> # Delete every dog with age less than 3
-    >>> db["dogs"].delete_where("age < ?", [3]):
+    >>> db["dogs"].delete_where("age < ?", [3])
 
 Calling ``table.delete_where()`` with no other arguments will delete every row in the table.
 
@@ -647,7 +727,7 @@ For example, given the dogs database you could upsert the record for Cleo like s
 
 .. code-block:: python
 
-    db["dogs"].upsert([{
+    db["dogs"].upsert({
         "id": 1,
         "name": "Cleo",
         "twitter": "cleopaws",
@@ -665,6 +745,53 @@ An ``upsert_all()`` method is also available, which behaves like ``insert_all()`
 
 .. note::
     ``.upsert()`` and ``.upsert_all()`` in sqlite-utils 1.x worked like ``.insert(..., replace=True)`` and ``.insert_all(..., replace=True)`` do in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
+
+.. _python_api_convert:
+
+Converting data in columns
+==========================
+
+The ``table.convert(...)`` method can be used to apply a conversion function to the values in a column, either to update that column or to populate new columns. It is the Python library equivalent of the :ref:`sqlite-utils convert <cli_convert>` command.
+
+This feature works by registering a custom SQLite function that applies a Python transformation, then running a SQL query equivalent to ``UPDATE table SET column = convert_value(column);``
+
+To transform a specific column to uppercase, you would use the following:
+
+.. code-block:: python
+
+    db["dogs"].convert("name", lambda value: value.upper())
+
+You can pass a list of columns, in which case the transformation will be applied to each one:
+
+.. code-block:: python
+
+    db["dogs"].convert(["name", "twitter"], lambda value: value.upper())
+
+To save the output to of the transformation to a different column, use the ``output=`` parameter:
+
+.. code-block:: python
+
+    db["dogs"].convert("name", lambda value: value.upper(), output="name_upper")
+
+This will add the new column, if it does not already exist. You can pass ``output_type=int`` or some other type to control the type of the new column - otherwise it will default to text.
+
+If you want to drop the original column after saving the results in a separate output column, pass ``drop=True``.
+
+You can create multiple new columns from a single input column by passing ``multi=True`` and a conversion function that returns a Python dictionary. This example creates new ``upper`` and ``lower`` columns populated from the single ``title`` column:
+
+.. code-block:: python
+
+    table.convert(
+        "title", lambda v: {"upper": v.upper(), "lower": v.lower()}, multi=True
+    )
+
+The ``.convert()`` method accepts optional ``where=`` and ``where_args=`` parameters which can be used to apply the conversion to a subset of rows specified by a where clause. Here's how to apply the conversion only to rows with an ``id`` that is higher than 20:
+
+.. code-block:: python
+
+    table.convert("title", lambda v: v.upper(), where="id > :id", where_args={"id": 20})
+
+These behave the same as the corresponding parameters to the :ref:`.rows_where() <python_api_rows>` method, so you can use ``?`` placeholders and a list of values instead of ``:named`` placeholders with a dictionary.
 
 .. _python_api_lookup_tables:
 
@@ -835,7 +962,7 @@ The ``table.analyze_column(column, common_limit=10, value_truncate=None)`` metho
     The name of the column
 
 ``total_rows``
-    The total number of rows in the table`
+    The total number of rows in the table
 
 ``num_null``
     The number of rows for which this column is null
@@ -969,7 +1096,7 @@ Here's an example of this mechanism in action:
     ])
     db["books"].add_foreign_key("author_id", "authors", "id")
 
-The ``table.add_foreign_key(column, other_table, other_column)`` method takes the name of the column, the table that is being referenced and the key column within that other table. If you ommit the ``other_column`` argument the primary key from that table will be used automatically. If you omit the ``other_table`` argument the table will be guessed based on some simple rules:
+The ``table.add_foreign_key(column, other_table, other_column)`` method takes the name of the column, the table that is being referenced and the key column within that other table. If you omit the ``other_column`` argument the primary key from that table will be used automatically. If you omit the ``other_table`` argument the table will be guessed based on some simple rules:
 
 - If the column is of format ``author_id``, look for tables called ``author`` or ``authors``
 - If the column does not end in ``_id``, try looking for a table with the exact name of the column or that name with an added ``s``
@@ -1050,12 +1177,20 @@ The ``table.transform()`` method can do all of these things, by implementing a m
 
 The ``.transform()`` method takes a number of parameters, all of which are optional.
 
+Altering column types
+---------------------
+
 To alter the type of a column, use the ``types=`` argument:
 
 .. code-block:: python
 
     # Convert the 'age' column to an integer, and 'weight' to a float
     table.transform(types={"age": int, "weight": float})
+
+See :ref:`python_api_add_column` for a list of available types.
+
+Renaming columns
+----------------
 
 The ``rename=`` parameter can rename columns:
 
@@ -1064,6 +1199,9 @@ The ``rename=`` parameter can rename columns:
     # Rename 'age' to 'initial_age':
     table.transform(rename={"age": "initial_age"})
 
+Dropping columns
+----------------
+
 To drop columns, pass them in the ``drop=`` set:
 
 .. code-block:: python
@@ -1071,12 +1209,18 @@ To drop columns, pass them in the ``drop=`` set:
     # Drop the 'age' column:
     table.transform(drop={"age"})
 
+Changing primary keys
+---------------------
+
 To change the primary key for a table, use ``pk=``. This can be passed a single column for a regular primary key, or a tuple of columns to create a compound primary key. Passing ``pk=None`` will remove the primary key and convert the table into a ``rowid`` table.
 
 .. code-block:: python
 
     # Make `user_id` the new primary key
     table.transform(pk="user_id")
+
+Changing not null status
+------------------------
 
 You can change the ``NOT NULL`` status of columns by using ``not_null=``. You can pass this a set of columns to make those columns ``NOT NULL``:
 
@@ -1095,6 +1239,9 @@ If you want to take existing ``NOT NULL`` columns and change them to allow null 
     # Make age allow NULL and switch weight to being NOT NULL:
     table.transform(not_null={"age": False, "weight": True})
 
+Altering column defaults
+------------------------
+
 The ``defaults=`` parameter can be used to set or change the defaults for different columns:
 
 .. code-block:: python
@@ -1105,12 +1252,18 @@ The ``defaults=`` parameter can be used to set or change the defaults for differ
     # Now remove the default from that column:
     table.transform(defaults={"age": None})
 
+Changing column order
+---------------------
+
 The ``column_order=`` parameter can be used to change the order of the columns. If you pass the names of a subset of the columns those will go first and columns you omitted will appear in their existing order after them.
 
 .. code-block:: python
 
     # Change column order
     table.transform(column_order=("name", "age", "id")
+
+Dropping foreign key constraints
+--------------------------------
 
 You can use ``.transform()`` to remove foreign key constraints from a table.
 
@@ -1443,12 +1596,22 @@ If you have loaded an existing table or view, you can use introspection to find 
     >>> db["PlantType"]
     <Table PlantType (id, value)>
 
+.. _python_api_introspection_exists:
+
+.exists()
+---------
+
 The ``.exists()`` method can be used to find out if a table exists or not::
 
     >>> db["PlantType"].exists()
     True
     >>> db["PlantType2"].exists()
     False
+
+.. _python_api_introspection_count:
+
+.count
+------
 
 The ``.count`` property shows the current number of rows (``select count(*) from table``)::
 
@@ -1457,25 +1620,60 @@ The ``.count`` property shows the current number of rows (``select count(*) from
     >>> db["Street_Tree_List"].count
     189144
 
-This property will take advantage of :ref:`python_api_cached_table_counts` if the ``use_counts_table`` property is set on the database. You can avoid that optimization entirely by calling ``table.execute_count()`` instead of accessing the property.
+This property will take advantage of :ref:`python_api_cached_table_counts` if the ``use_counts_table`` property is set on the database. You can avoid that optimization entirely by calling ``table.count_where()`` instead of accessing the property.
 
-The ``.columns`` property shows the columns in the table or view::
+.. _python_api_introspection_columns:
+
+.columns
+--------
+
+The ``.columns`` property shows the columns in the table or view. It returns a list of ``Column(cid, name, type, notnull, default_value, is_pk)`` named tuples.
+
+::
 
     >>> db["PlantType"].columns
     [Column(cid=0, name='id', type='INTEGER', notnull=0, default_value=None, is_pk=1),
      Column(cid=1, name='value', type='TEXT', notnull=0, default_value=None, is_pk=0)]
 
-The ``.columns_dict`` property returns a dictionary version of this with just the names and types::
+.. _python_api_introspection_columns_dict:
+
+.columns_dict
+-------------
+
+The ``.columns_dict`` property returns a dictionary version of the columns with just the names and Python types::
 
     >>> db["PlantType"].columns_dict
     {'id': <class 'int'>, 'value': <class 'str'>}
+
+.. _python_api_introspection_pks:
+
+.pks
+----
 
 The ``.pks`` property returns a list of strings naming the primary key columns for the table::
 
     >>> db["PlantType"].pks
     ['id']
 
-The ``.foreign_keys`` property shows if the table has any foreign key relationships. It is not available on views.
+If a table has no primary keys but is a `rowid table <https://www.sqlite.org/rowidtable.html>`__, this property will return ``['rowid']``.
+
+.. _python_api_introspection_use_rowid:
+
+.use_rowid
+----------
+
+Almost all SQLite tables have a ``rowid`` column, but a table with no explicitly defined primary keys must use that ``rowid`` as the primary key for identifying individual rows. The ``.use_rowid`` property checks to see if a table needs to use the ``rowid`` in this way - it returns ``True`` if the table has no explicitly defined primary keys and ``False`` otherwise.
+
+    >>> db["PlantType"].use_rowid
+    False
+
+
+.. _python_api_introspection_foreign_keys:
+
+.foreign_keys
+-------------
+
+The ``.foreign_keys`` property returns any foreign key relationships for the table, as a list of ``ForeignKey(table, column, other_table, other_column)`` named tuples. It is not available on views.
 
 ::
 
@@ -1486,6 +1684,11 @@ The ``.foreign_keys`` property shows if the table has any foreign key relationsh
      ForeignKey(table='Street_Tree_List', column='qSpecies', other_table='qSpecies', other_column='id'),
      ForeignKey(table='Street_Tree_List', column='qCaretaker', other_table='qCaretaker', other_column='id'),
      ForeignKey(table='Street_Tree_List', column='PlantType', other_table='PlantType', other_column='id')]
+
+.. _python_api_introspection_schema:
+
+.schema
+-------
 
 The ``.schema`` property outputs the table's schema as a SQL string::
 
@@ -1517,7 +1720,12 @@ The ``.schema`` property outputs the table's schema as a SQL string::
         FOREIGN KEY ("qCareAssistant") REFERENCES [qCareAssistant](id),
         FOREIGN KEY ("qLegalStatus") REFERENCES [qLegalStatus](id))
 
-The ``.indexes`` property shows you all indexes created for a table. It is not available on views.
+.. _python_api_introspection_indexes:
+
+.indexes
+--------
+
+The ``.indexes`` property returns all indexes created for a table, as a list of ``Index(seq, name, unique, origin, partial, columns)`` named tuples. It is not available on views.
 
 ::
 
@@ -1529,7 +1737,39 @@ The ``.indexes`` property shows you all indexes created for a table. It is not a
      Index(seq=4, name='"Street_Tree_List_qCaretaker"', unique=0, origin='c', partial=0, columns=['qCaretaker']),
      Index(seq=5, name='"Street_Tree_List_PlantType"', unique=0, origin='c', partial=0, columns=['PlantType'])]
 
-The ``.triggers`` property lists database triggers. It can be used on both database and table objects.
+.. _python_api_introspection_xindexes:
+
+.xindexes
+---------
+
+The ``.xindexes`` property returns more detailed information about the indexes on the table, using the SQLite `PRAGMA index_xinfo() <https://sqlite.org/pragma.html#pragma_index_xinfo>`__ mechanism. It returns a list of ``XIndex(name, columns)`` named tuples, where ``columns`` is a list of ``XIndexColumn(seqno, cid, name, desc, coll, key)`` named tuples.
+
+::
+
+    >>> db["ny_times_us_counties"].xindexes
+    [
+        XIndex(
+            name='idx_ny_times_us_counties_date',
+            columns=[
+                XIndexColumn(seqno=0, cid=0, name='date', desc=1, coll='BINARY', key=1),
+                XIndexColumn(seqno=1, cid=-1, name=None, desc=0, coll='BINARY', key=0)
+            ]
+        ),
+        XIndex(
+            name='idx_ny_times_us_counties_fips',
+            columns=[
+                XIndexColumn(seqno=0, cid=3, name='fips', desc=0, coll='BINARY', key=1),
+                XIndexColumn(seqno=1, cid=-1, name=None, desc=0, coll='BINARY', key=0)
+            ]
+        )
+    ]
+
+.. _python_api_introspection_triggers:
+
+.triggers
+---------
+
+The ``.triggers`` property lists database triggers. It can be used on both database and table objects. It returns a list of ``Trigger(name, table, sql)`` named tuples.
 
 ::
 
@@ -1539,6 +1779,11 @@ The ``.triggers`` property lists database triggers. It can be used on both datab
      Trigger(name='authors_au', table='authors', sql="CREATE TRIGGER [authors_au] AFTER UPDATE")]
     >>> db.triggers
     ... similar output to db["authors"].triggers
+
+.. _python_api_introspection_triggers_dict:
+
+.triggers_dict
+--------------
 
 The ``.triggers_dict`` property returns the triggers for that table as a dictionary mapping their names to their SQL definitions.
 
@@ -1558,6 +1803,11 @@ The same property exists on the database, and will return all triggers across al
      'authors_ad': 'CREATE TRIGGER [authors_ad] AFTER DELETE...',
      'authors_au': 'CREATE TRIGGER [authors_au] AFTER UPDATE'}
 
+.. _python_api_introspection_detect_fts:
+
+.detect_fts()
+-------------
+
 The ``detect_fts()`` method returns the associated SQLite FTS table name, if one exists for this table. If the table has not been configured for full-text search it returns ``None``.
 
 ::
@@ -1565,11 +1815,21 @@ The ``detect_fts()`` method returns the associated SQLite FTS table name, if one
     >>> db["authors"].detect_fts()
     "authors_fts"
 
+.. _python_api_introspection_virtual_table_using:
+
+.virtual_table_using
+--------------------
+
 The ``.virtual_table_using`` property reveals if a table is a virtual table. It returns ``None`` for regular tables and the upper case version of the type of virtual table otherwise. For example::
 
     >>> db["authors"].enable_fts(["name"])
     >>> db["authors_fts"].virtual_table_using
     "FTS5"
+
+.. _python_api_introspection_has_counts_triggers:
+
+.has_counts_triggers
+--------------------
 
 The ``.has_counts_triggers`` property shows if a table has been configured with triggers for updating a ``_counts`` table, as described in :ref:`python_api_cached_table_counts`.
 
@@ -1848,6 +2108,8 @@ If the ``_counts`` table ever becomes out-of-sync with the actual table counts y
 
     db.reset_counts()
 
+.. _python_api_create_index:
+
 Creating indexes
 ================
 
@@ -1863,6 +2125,17 @@ By default the index will be named ``idx_{table-name}_{columns}`` - if you want 
 
     db["dogs"].create_index(
         ["is_good_dog", "age"],
+        index_name="good_dogs_by_age"
+    )
+
+To create an index in descending order for a column, wrap the column name in ``db.DescIndex()`` like this:
+
+.. code-block:: python
+
+    from sqlite_utils.db import DescIndex
+
+    db["dogs"].create_index(
+        ["is_good_dog", DescIndex("age")],
         index_name="good_dogs_by_age"
     )
 
@@ -2050,12 +2323,24 @@ If you want to deliberately replace the registered function with a new implement
     def reverse_string(s):
         return s[::-1]
 
+Exceptions that occur inside a user-defined function default to returning the following error::
+
+    Unexpected error: user-defined function raised exception
+
+You can cause ``sqlite3`` to return more useful errors, including the traceback from the custom function, by executing the following before your custom functions are executed:
+
+.. code-block:: python
+
+    from sqlite_utils.utils import sqlite3
+
+    sqlite3.enable_callback_tracebacks(True)
+
 .. _python_api_quote:
 
 Quoting strings for use in SQL
 ==============================
 
-In almost all cases you should pass values to your SQL queries using the optional ``parameters`` argument to ``db.execute()``, as described in :ref:`python_api_execute`.
+In almost all cases you should pass values to your SQL queries using the optional ``parameters`` argument to ``db.query()``, as described in :ref:`python_api_parameters`.
 
 If that option isn't relevant to your use-case you can to quote a string for use with SQLite using the ``db.quote()`` method, like so:
 

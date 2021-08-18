@@ -21,6 +21,13 @@ def test_upsert_all(fresh_db):
     assert table.last_pk is None
 
 
+def test_upsert_all_single_column(fresh_db):
+    table = fresh_db["table"]
+    table.upsert_all([{"name": "Cleo"}], pk="name")
+    assert [{"name": "Cleo"}] == list(table.rows)
+    assert table.pks == ["name"]
+
+
 def test_upsert_error_if_no_pk(fresh_db):
     table = fresh_db["table"]
     with pytest.raises(PrimaryKeyRequired):
@@ -47,7 +54,7 @@ def test_upsert_compound_primary_key(fresh_db):
         ],
         pk=("species", "id"),
     )
-    assert None == table.last_pk
+    assert table.last_pk is None
     table.upsert({"species": "dog", "id": 1, "age": 5}, pk=("species", "id"))
     assert ("dog", 1) == table.last_pk
     assert [

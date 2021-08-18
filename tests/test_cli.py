@@ -1,6 +1,7 @@
 from sqlite_utils import cli, Database
 from sqlite_utils.db import Index, ForeignKey
 from click.testing import CliRunner
+from unittest import mock
 import json
 import os
 import pytest
@@ -22,6 +23,22 @@ def db_path(tmpdir):
     db = sqlite3.connect(path)
     db.executescript(CREATE_TABLES)
     return path
+
+
+@pytest.mark.parametrize(
+    "options",
+    (
+        ["-h"],
+        ["--help"],
+        ["insert", "-h"],
+        ["insert", "--help"],
+    ),
+)
+def test_help(options):
+    result = CliRunner().invoke(cli.cli, options)
+    assert result.exit_code == 0
+    assert result.output.startswith("Usage: ")
+    assert "-h, --help" in result.output
 
 
 def test_tables(db_path):
@@ -208,6 +225,17 @@ def test_create_index(db_path):
     )
 
 
+def test_create_index_desc(db_path):
+    db = Database(db_path)
+    assert [] == db["Gosh"].indexes
+    result = CliRunner().invoke(cli.cli, ["create-index", db_path, "Gosh", "--", "-c1"])
+    assert result.exit_code == 0
+    assert (
+        db.execute("select sql from sqlite_master where type='index'").fetchone()[0]
+        == "CREATE INDEX [idx_Gosh_c1]\n    ON [Gosh] ([c1] desc)"
+    )
+
+
 @pytest.mark.parametrize(
     "col_name,col_type,expected_schema",
     (
@@ -354,6 +382,21 @@ def test_add_column_foreign_key(db_path):
     assert "table 'bobcats' does not exist" in str(result.exception)
 
 
+def test_suggest_alter_if_column_missing(db_path):
+    db = Database(db_path)
+    db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "authors", "-"],
+        input='{"id": 2, "name": "Barry", "age": 43}',
+    )
+    assert result.exit_code != 0
+    assert result.output.strip() == (
+        "Error: table authors has no column named age\n\n"
+        "Try using --alter to add additional columns"
+    )
+
+
 def test_index_foreign_keys(db_path):
     test_add_column_foreign_key(db_path)
     db = Database(db_path)
@@ -367,7 +410,7 @@ def test_index_foreign_keys(db_path):
 
 def test_enable_fts(db_path):
     db = Database(db_path)
-    assert None == db["Gosh"].detect_fts()
+    assert db["Gosh"].detect_fts() is None
     result = CliRunner().invoke(
         cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"]
     )
@@ -377,7 +420,7 @@ def test_enable_fts(db_path):
     # Table names with restricted chars are handled correctly.
     # colons and dots are restricted characters for table names.
     db["http://example.com"].create({"c1": str, "c2": str, "c3": str})
-    assert None == db["http://example.com"].detect_fts()
+    assert db["http://example.com"].detect_fts() is None
     result = CliRunner().invoke(
         cli.cli,
         [
@@ -476,6 +519,13 @@ def test_vacuum(db_path):
     assert 0 == result.exit_code
 
 
+def test_dump(db_path):
+    result = CliRunner().invoke(cli.cli, ["dump", db_path])
+    assert result.exit_code == 0
+    assert result.output.startswith("BEGIN TRANSACTION;")
+    assert result.output.strip().endswith("COMMIT;")
+
+
 @pytest.mark.parametrize("tables", ([], ["Gosh"], ["Gosh2"]))
 def test_optimize(db_path, tables):
     db = Database(db_path)
@@ -563,8 +613,8 @@ def test_insert_simple(tmpdir):
     open(json_path, "w").write(json.dumps({"name": "Cleo", "age": 4}))
     result = CliRunner().invoke(cli.cli, ["insert", db_path, "dogs", json_path])
     assert 0 == result.exit_code
-    assert [{"age": 4, "name": "Cleo"}] == Database(db_path).execute_returning_dicts(
-        "select * from dogs"
+    assert [{"age": 4, "name": "Cleo"}] == list(
+        Database(db_path).query("select * from dogs")
     )
     db = Database(db_path)
     assert ["dogs"] == db.table_names()
@@ -579,8 +629,8 @@ def test_insert_from_stdin(tmpdir):
         input=json.dumps({"name": "Cleo", "age": 4}),
     )
     assert 0 == result.exit_code
-    assert [{"age": 4, "name": "Cleo"}] == Database(db_path).execute_returning_dicts(
-        "select * from dogs"
+    assert [{"age": 4, "name": "Cleo"}] == list(
+        Database(db_path).query("select * from dogs")
     )
 
 
@@ -598,6 +648,34 @@ def test_insert_invalid_json_error(tmpdir):
     )
 
 
+def test_insert_json_flatten(tmpdir):
+    db_path = str(tmpdir / "flat.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "items", "-", "--flatten"],
+        input=json.dumps({"nested": {"data": 4}}),
+    )
+    assert result.exit_code == 0
+    assert list(Database(db_path).query("select * from items")) == [{"nested_data": 4}]
+
+
+def test_insert_json_flatten_nl(tmpdir):
+    db_path = str(tmpdir / "flat.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "items", "-", "--flatten", "--nl"],
+        input="\n".join(
+            json.dumps(item)
+            for item in [{"nested": {"data": 4}}, {"nested": {"other": 3}}]
+        ),
+    )
+    assert result.exit_code == 0
+    assert list(Database(db_path).query("select * from items")) == [
+        {"nested_data": 4, "nested_other": None},
+        {"nested_data": None, "nested_other": 3},
+    ]
+
+
 def test_insert_with_primary_key(db_path, tmpdir):
     json_path = str(tmpdir / "dog.json")
     open(json_path, "w").write(json.dumps({"id": 1, "name": "Cleo", "age": 4}))
@@ -605,9 +683,9 @@ def test_insert_with_primary_key(db_path, tmpdir):
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
     )
     assert 0 == result.exit_code
-    assert [{"id": 1, "age": 4, "name": "Cleo"}] == Database(
-        db_path
-    ).execute_returning_dicts("select * from dogs")
+    assert [{"id": 1, "age": 4, "name": "Cleo"}] == list(
+        Database(db_path).query("select * from dogs")
+    )
     db = Database(db_path)
     assert ["id"] == db["dogs"].pks
 
@@ -621,7 +699,7 @@ def test_insert_multiple_with_primary_key(db_path, tmpdir):
     )
     assert 0 == result.exit_code
     db = Database(db_path)
-    assert dogs == db.execute_returning_dicts("select * from dogs order by id")
+    assert dogs == list(db.query("select * from dogs order by id"))
     assert ["id"] == db["dogs"].pks
 
 
@@ -637,7 +715,7 @@ def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
     )
     assert 0 == result.exit_code
     db = Database(db_path)
-    assert dogs == db.execute_returning_dicts("select * from dogs order by breed, id")
+    assert dogs == list(db.query("select * from dogs order by breed, id"))
     assert {"breed", "id"} == set(db["dogs"].pks)
     assert (
         "CREATE TABLE [dogs] (\n"
@@ -682,7 +760,7 @@ def test_insert_binary_base64(db_path):
     )
     assert 0 == result.exit_code, result.output
     db = Database(db_path)
-    actual = db.execute_returning_dicts("select content from files")
+    actual = list(db.query("select content from files"))
     assert actual == [{"content": b"hello"}]
 
 
@@ -697,7 +775,7 @@ def test_insert_newline_delimited(db_path):
     assert [
         {"foo": "bar", "n": 1},
         {"foo": "baz", "n": 2},
-    ] == db.execute_returning_dicts("select foo, n from from_json_nl")
+    ] == list(db.query("select foo, n from from_json_nl"))
 
 
 def test_insert_ignore(db_path, tmpdir):
@@ -716,9 +794,7 @@ def test_insert_ignore(db_path, tmpdir):
     )
     assert 0 == result.exit_code, result.output
     # ... but it should actually have no effect
-    assert [{"id": 1, "name": "Cleo"}] == db.execute_returning_dicts(
-        "select * from dogs"
-    )
+    assert [{"id": 1, "name": "Cleo"}] == list(db.query("select * from dogs"))
 
 
 @pytest.mark.parametrize(
@@ -781,8 +857,9 @@ def test_insert_replace(db_path, tmpdir):
     )
     assert 0 == result.exit_code, result.output
     assert 21 == db["dogs"].count
-    assert insert_replace_dogs == db.execute_returning_dicts(
-        "select * from dogs where id in (1, 2, 21) order by id"
+    assert (
+        list(db.query("select * from dogs where id in (1, 2, 21) order by id"))
+        == insert_replace_dogs
     )
 
 
@@ -797,7 +874,7 @@ def test_insert_truncate(db_path):
     assert [
         {"foo": "bar", "n": 1},
         {"foo": "baz", "n": 2},
-    ] == db.execute_returning_dicts("select foo, n from from_json_nl")
+    ] == list(db.query("select foo, n from from_json_nl"))
     # Truncate and insert new rows
     result = CliRunner().invoke(
         cli.cli,
@@ -816,7 +893,7 @@ def test_insert_truncate(db_path):
     assert [
         {"foo": "bam", "n": 3},
         {"foo": "bat", "n": 4},
-    ] == db.execute_returning_dicts("select foo, n from from_json_nl")
+    ] == list(db.query("select foo, n from from_json_nl"))
 
 
 def test_insert_alter(db_path, tmpdir):
@@ -847,7 +924,7 @@ def test_insert_alter(db_path, tmpdir):
         {"foo": "bar", "n": 1, "baz": None},
         {"foo": "baz", "n": 2, "baz": None},
         {"foo": "bar", "baz": 5, "n": None},
-    ] == db.execute_returning_dicts("select foo, n, baz from from_json_nl")
+    ] == list(db.query("select foo, n, baz from from_json_nl"))
 
 
 @pytest.mark.parametrize(
@@ -917,7 +994,23 @@ def test_query_json(db_path, sql, args, expected):
     assert expected == result.output.strip()
 
 
-LOREM_IPSUM_COMPRESSED = b"x\x9c\xed\xd1\xcdq\x03!\x0c\x05\xe0\xbb\xabP\x01\x1eW\x91\xdc|M\x01\n\xc8\x8ef\xf83H\x1e\x97\x1f\x91M\x8e\xe9\xe0\xdd\x96\x05\x84\xf4\xbek\x9fRI\xc7\xf2J\xb9\x97>i\xa9\x11W\xb13\xa5\xde\x96$\x13\xf3I\x9cu\xe8J\xda\xee$EcsI\x8e\x0b$\xea\xab\xf6L&u\xc4emI\xb3foFnT\xf83\xca\x93\xd8QZ\xa8\xf2\xbd1q\xd1\x87\xf3\x85>\x8c\xa4i\x8d\xdaTu\x7f<c\xc9\xf5L\x0f\xd7E\xad/\x9b\x9eI^2\x93\x1a\x9b\xf6F^\n\xd7\xd4\x8f\xca\xfb\x90.\xdd/\xfd\x94\xd4\x11\x87I8\x1a\xaf\xd1S?\x06\x88\xa7\xecBo\xbb$\xbb\t\xe9\xf4\xe8\xe4\x98U\x1bM\x19S\xbe\xa4e\x991x\xfcx\xf6\xe2#\x9e\x93h'&%YK(i)\x7f\t\xc5@N7\xbf+\x1b\xb5\xdd\x10\r\x9e\xb1\xf0y\xa1\xf7W\x92a\xe2;\xc6\xc8\xa0\xa7\xc4\x92\xe2\\\xf2\xa1\x99m\xdf\x88)\xc6\xec\x9a\xa5\xed\x14wR\xf1h\xf22x\xcfM\xfdv\xd3\xa4LY\x96\xcc\xbd[{\xd9m\xf0\x0eH#\x8e\xf5\x9b\xab\xd7\xcb\xe9t\x05\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\xfb\x8f\xef\x1b\x9b\x06\x83}"
+LOREM_IPSUM_COMPRESSED = (
+    b"x\x9c\xed\xd1\xcdq\x03!\x0c\x05\xe0\xbb\xabP\x01\x1eW\x91\xdc|M\x01\n\xc8\x8e"
+    b"f\xf83H\x1e\x97\x1f\x91M\x8e\xe9\xe0\xdd\x96\x05\x84\xf4\xbek\x9fRI\xc7\xf2J"
+    b"\xb9\x97>i\xa9\x11W\xb13\xa5\xde\x96$\x13\xf3I\x9cu\xe8J\xda\xee$EcsI\x8e\x0b"
+    b"$\xea\xab\xf6L&u\xc4emI\xb3foFnT\xf83\xca\x93\xd8QZ\xa8\xf2\xbd1q\xd1\x87\xf3"
+    b"\x85>\x8c\xa4i\x8d\xdaTu\x7f<c\xc9\xf5L\x0f\xd7E\xad/\x9b\x9eI^2\x93\x1a\x9b"
+    b"\xf6F^\n\xd7\xd4\x8f\xca\xfb\x90.\xdd/\xfd\x94\xd4\x11\x87I8\x1a\xaf\xd1S?\x06"
+    b"\x88\xa7\xecBo\xbb$\xbb\t\xe9\xf4\xe8\xe4\x98U\x1bM\x19S\xbe\xa4e\x991x\xfc"
+    b"x\xf6\xe2#\x9e\x93h'&%YK(i)\x7f\t\xc5@N7\xbf+\x1b\xb5\xdd\x10\r\x9e\xb1\xf0"
+    b"y\xa1\xf7W\x92a\xe2;\xc6\xc8\xa0\xa7\xc4\x92\xe2\\\xf2\xa1\x99m\xdf\x88)\xc6"
+    b"\xec\x9a\xa5\xed\x14wR\xf1h\xf22x\xcfM\xfdv\xd3\xa4LY\x96\xcc\xbd[{\xd9m\xf0"
+    b"\x0eH#\x8e\xf5\x9b\xab\xd7\xcb\xe9t\x05\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03"
+    b"\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03"
+    b"\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03"
+    b"\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\x03"
+    b"\x1f\xf8\xc0\x07>\xf0\x81\x0f|\xe0\xfb\x8f\xef\x1b\x9b\x06\x83}"
+)
 
 
 def test_query_json_binary(db_path):
@@ -939,7 +1032,18 @@ def test_query_json_binary(db_path):
             "sz": 16984,
             "data": {
                 "$base64": True,
-                "encoded": "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I/K+5Au3S/9lNQRh0k4Gq/RUz8GiKfsQm+7JLsJ6fTo5JhVG00ZU76kZZkxePx49uIjnpNoJyYlWUsoaSl/CcVATje/Kxu13RANnrHweaH3V5Jh4jvGyKCnxJLiXPKhmW3fiCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9",
+                "encoded": (
+                    (
+                        "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH"
+                        "8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+"
+                        "DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I"
+                        "/K+5Au3S/9lNQRh0k4Gq/RUz8GiKfsQm+7JLsJ6fTo5JhVG00ZU76kZZkxePx49uI"
+                        "jnpNoJyYlWUsoaSl/CcVATje/Kxu13RANnrHweaH3V5Jh4jvGyKCnxJLiXPKhmW3f"
+                        "iCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8"
+                        "IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984A"
+                        "Mf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9"
+                    )
+                ),
             },
         }
     ]
@@ -1023,7 +1127,7 @@ def test_query_load_extension(use_spatialite_shortcut):
     # Without --load-extension:
     result = CliRunner().invoke(cli.cli, [":memory:", "select spatialite_version()"])
     assert result.exit_code == 1
-    assert "no such function: spatialite_version" in repr(result)
+    assert "no such function: spatialite_version" in result.output
     # With --load-extension:
     if use_spatialite_shortcut:
         load_extension = "spatialite"
@@ -1108,17 +1212,32 @@ def test_upsert(db_path, tmpdir):
         {"id": 1, "age": 5},
         {"id": 2, "age": 5},
     ]
-    open(json_path, "w").write(json.dumps(insert_dogs))
+    open(json_path, "w").write(json.dumps(upsert_dogs))
     result = CliRunner().invoke(
         cli.cli,
         ["upsert", db_path, "dogs", json_path, "--pk", "id"],
         catch_exceptions=False,
     )
     assert 0 == result.exit_code, result.output
-    assert [
-        {"id": 1, "name": "Cleo", "age": 4},
-        {"id": 2, "name": "Nixie", "age": 4},
-    ] == db.execute_returning_dicts("select * from dogs order by id")
+    assert list(db.query("select * from dogs order by id")) == [
+        {"id": 1, "name": "Cleo", "age": 5},
+        {"id": 2, "name": "Nixie", "age": 5},
+    ]
+
+
+def test_upsert_flatten(tmpdir):
+    db_path = str(tmpdir / "flat.db")
+    db = Database(db_path)
+    db["upsert_me"].insert({"id": 1, "name": "Example"}, pk="id")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "upsert_me", "-", "--flatten", "--pk", "id", "--alter"],
+        input=json.dumps({"id": 1, "nested": {"two": 2}}),
+    )
+    assert result.exit_code == 0
+    assert list(db.query("select * from upsert_me")) == [
+        {"id": 1, "name": "Example", "nested_two": 2}
+    ]
 
 
 def test_upsert_alter(db_path, tmpdir):
@@ -1137,7 +1256,11 @@ def test_upsert_alter(db_path, tmpdir):
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id"]
     )
     assert 1 == result.exit_code
-    assert "no such column: age" == str(result.exception)
+    assert (
+        "Error: no such column: age\n\n"
+        "sql = UPDATE [dogs] SET [age] = ? WHERE [id] = ?\n"
+        "parameters = [5, 1]"
+    ) == result.output.strip()
     # Should succeed with --alter
     result = CliRunner().invoke(
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id", "--alter"]
@@ -1145,7 +1268,7 @@ def test_upsert_alter(db_path, tmpdir):
     assert 0 == result.exit_code
     assert [
         {"id": 1, "name": "Cleo", "age": 5},
-    ] == db.execute_returning_dicts("select * from dogs order by id")
+    ] == list(db.query("select * from dogs order by id"))
 
 
 @pytest.mark.parametrize(
@@ -1499,7 +1622,7 @@ def test_query_update(db_path, args, expected):
         cli.cli, [db_path, "update dogs set age = 5 where name = 'Cleo'"] + args
     )
     assert expected == result.output.strip()
-    assert db.execute_returning_dicts("select * from dogs") == [
+    assert list(db.query("select * from dogs")) == [
         {"id": 1, "age": 5, "name": "Cleo"},
     ]
 
@@ -1547,47 +1670,112 @@ def test_add_foreign_keys(db_path):
     [
         (
             [],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["--type", "age", "text"],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] TEXT NOT NULL DEFAULT '1',\n   [name] TEXT\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [age] TEXT NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["--drop", "age"],
-            'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n)',
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["--rename", "age", "age2", "--rename", "id", "pk"],
-            "CREATE TABLE \"dogs\" (\n   [pk] INTEGER PRIMARY KEY,\n   [age2] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [pk] INTEGER PRIMARY KEY,\n"
+                "   [age2] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["--not-null", "name"],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT NOT NULL\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT NOT NULL\n"
+                ")"
+            ),
         ),
         (
             ["--not-null-false", "age"],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER DEFAULT '1',\n   [name] TEXT\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [age] INTEGER DEFAULT '1',\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["--pk", "name"],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT PRIMARY KEY\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER,\n"
+                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT PRIMARY KEY\n"
+                ")"
+            ),
         ),
         (
             ["--pk-none"],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER,\n"
+                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["--default", "name", "Turnip"],
-            "CREATE TABLE \"dogs\" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [name] TEXT DEFAULT 'Turnip'\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [name] TEXT DEFAULT 'Turnip'\n"
+                ")"
+            ),
         ),
         (
             ["--default-none", "age"],
-            'CREATE TABLE "dogs" (\n   [id] INTEGER PRIMARY KEY,\n   [age] INTEGER NOT NULL,\n   [name] TEXT\n)',
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [age] INTEGER NOT NULL,\n"
+                "   [name] TEXT\n"
+                ")"
+            ),
         ),
         (
             ["-o", "name", "--column-order", "age", "-o", "id"],
-            "CREATE TABLE \"dogs\" (\n   [name] TEXT,\n   [age] INTEGER NOT NULL DEFAULT '1',\n   [id] INTEGER PRIMARY KEY\n)",
+            (
+                'CREATE TABLE "dogs" (\n'
+                "   [name] TEXT,\n"
+                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
+                "   [id] INTEGER PRIMARY KEY\n"
+                ")"
+            ),
         ),
     ],
 )
@@ -1636,9 +1824,13 @@ def test_transform_drop_foreign_key(db_path):
     print(result.output)
     assert result.exit_code == 0
     schema = db["places"].schema
-    assert (
-        schema
-        == 'CREATE TABLE "places" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [country] INTEGER,\n   [city] INTEGER REFERENCES [city]([id])\n)'
+    assert schema == (
+        'CREATE TABLE "places" (\n'
+        "   [id] INTEGER PRIMARY KEY,\n"
+        "   [name] TEXT,\n"
+        "   [country] INTEGER,\n"
+        "   [city] INTEGER REFERENCES [city]([id])\n"
+        ")"
     )
 
 
@@ -1652,22 +1844,48 @@ _common_other_schema = (
     [
         (
             [],
-            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [species_id] INTEGER,\n   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n)',
+            (
+                'CREATE TABLE "trees" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [address] TEXT,\n"
+                "   [species_id] INTEGER,\n"
+                "   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n"
+                ")"
+            ),
             _common_other_schema,
         ),
         (
             ["--table", "custom_table"],
-            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [custom_table_id] INTEGER,\n   FOREIGN KEY([custom_table_id]) REFERENCES [custom_table]([id])\n)',
+            (
+                'CREATE TABLE "trees" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [address] TEXT,\n"
+                "   [custom_table_id] INTEGER,\n"
+                "   FOREIGN KEY([custom_table_id]) REFERENCES [custom_table]([id])\n"
+                ")"
+            ),
             "CREATE TABLE [custom_table] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)",
         ),
         (
             ["--fk-column", "custom_fk"],
-            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [custom_fk] INTEGER,\n   FOREIGN KEY([custom_fk]) REFERENCES [species]([id])\n)',
+            (
+                'CREATE TABLE "trees" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [address] TEXT,\n"
+                "   [custom_fk] INTEGER,\n"
+                "   FOREIGN KEY([custom_fk]) REFERENCES [species]([id])\n"
+                ")"
+            ),
             _common_other_schema,
         ),
         (
             ["--rename", "name", "name2"],
-            'CREATE TABLE "trees" (\n   [id] INTEGER PRIMARY KEY,\n   [address] TEXT,\n   [species_id] INTEGER,\n   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n)',
+            'CREATE TABLE "trees" (\n'
+            "   [id] INTEGER PRIMARY KEY,\n"
+            "   [address] TEXT,\n"
+            "   [species_id] INTEGER,\n"
+            "   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n"
+            ")",
             "CREATE TABLE [species] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)",
         ),
     ],
@@ -1776,7 +1994,87 @@ def test_search(tmpdir, fts, extra_arg, expected):
     assert result.output.replace("\r", "") == expected
 
 
-_TRIGGERS_EXPECTED = '[{"name": "blah", "table": "articles", "sql": "CREATE TRIGGER blah AFTER INSERT ON articles\\nBEGIN\\n    UPDATE counter SET count = count + 1;\\nEND"}]\n'
+def test_indexes(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    db.conn.executescript(
+        """
+        create table Gosh (c1 text, c2 text, c3 text);
+        create index Gosh_idx on Gosh(c2, c3 desc);
+    """
+    )
+    result = CliRunner().invoke(
+        cli.cli,
+        ["indexes", str(db_path)],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output) == [
+        {
+            "table": "Gosh",
+            "index_name": "Gosh_idx",
+            "seqno": 0,
+            "cid": 1,
+            "name": "c2",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1,
+        },
+        {
+            "table": "Gosh",
+            "index_name": "Gosh_idx",
+            "seqno": 1,
+            "cid": 2,
+            "name": "c3",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1,
+        },
+    ]
+    result2 = CliRunner().invoke(
+        cli.cli,
+        ["indexes", str(db_path), "--aux"],
+        catch_exceptions=False,
+    )
+    assert result2.exit_code == 0
+    assert json.loads(result2.output) == [
+        {
+            "table": "Gosh",
+            "index_name": "Gosh_idx",
+            "seqno": 0,
+            "cid": 1,
+            "name": "c2",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1,
+        },
+        {
+            "table": "Gosh",
+            "index_name": "Gosh_idx",
+            "seqno": 1,
+            "cid": 2,
+            "name": "c3",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1,
+        },
+        {
+            "table": "Gosh",
+            "index_name": "Gosh_idx",
+            "seqno": 2,
+            "cid": -1,
+            "name": None,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0,
+        },
+    ]
+
+
+_TRIGGERS_EXPECTED = (
+    '[{"name": "blah", "table": "articles", "sql": "CREATE TRIGGER blah '
+    'AFTER INSERT ON articles\\nBEGIN\\n    UPDATE counter SET count = count + 1;\\nEND"}]\n'
+)
 
 
 @pytest.mark.parametrize(
@@ -1807,6 +2105,60 @@ def test_triggers(tmpdir, extra_args, expected):
     result = CliRunner().invoke(
         cli.cli,
         args,
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    assert result.output == expected
+
+
+@pytest.mark.parametrize(
+    "options,expected",
+    (
+        (
+            [],
+            (
+                "CREATE TABLE [dogs] (\n"
+                "   [id] INTEGER,\n"
+                "   [name] TEXT\n"
+                ");\n"
+                "CREATE TABLE [chickens] (\n"
+                "   [id] INTEGER,\n"
+                "   [name] TEXT,\n"
+                "   [breed] TEXT\n"
+                ");\n"
+                "CREATE INDEX [idx_chickens_breed]\n"
+                "    ON [chickens] ([breed]);\n"
+            ),
+        ),
+        (
+            ["dogs"],
+            ("CREATE TABLE [dogs] (\n" "   [id] INTEGER,\n" "   [name] TEXT\n" ")\n"),
+        ),
+        (
+            ["chickens", "dogs"],
+            (
+                "CREATE TABLE [chickens] (\n"
+                "   [id] INTEGER,\n"
+                "   [name] TEXT,\n"
+                "   [breed] TEXT\n"
+                ")\n"
+                "CREATE TABLE [dogs] (\n"
+                "   [id] INTEGER,\n"
+                "   [name] TEXT\n"
+                ")\n"
+            ),
+        ),
+    ),
+)
+def test_schema(tmpdir, options, expected):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    db["dogs"].create({"id": int, "name": str})
+    db["chickens"].create({"id": int, "name": str, "breed": str})
+    db["chickens"].create_index(["breed"])
+    result = CliRunner().invoke(
+        cli.cli,
+        ["schema", db_path] + options,
         catch_exceptions=False,
     )
     assert result.exit_code == 0
@@ -1889,3 +2241,85 @@ def test_attach(tmpdir):
         {"id": 1, "text": "foo"},
         {"id": 1, "text": "bar"},
     ]
+
+
+def test_csv_insert_bom(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    bom_csv_path = str(tmpdir / "bom.csv")
+    with open(bom_csv_path, "wb") as fp:
+        fp.write(b"\xef\xbb\xbfname,age\nCleo,5")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "broken", bom_csv_path, "--encoding", "utf-8", "--csv"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    result2 = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "fixed", bom_csv_path, "--csv"],
+        catch_exceptions=False,
+    )
+    assert result2.exit_code == 0
+    db = Database(db_path)
+    tables = db.execute("select name, sql from sqlite_master").fetchall()
+    assert tables == [
+        ("broken", "CREATE TABLE [broken] (\n   [\ufeffname] TEXT,\n   [age] TEXT\n)"),
+        ("fixed", "CREATE TABLE [fixed] (\n   [name] TEXT,\n   [age] TEXT\n)"),
+    ]
+
+
+@pytest.mark.parametrize("option_or_env_var", (None, "-d", "--detect-types"))
+def test_insert_detect_types(tmpdir, option_or_env_var):
+    db_path = str(tmpdir / "test.db")
+    data = "name,age,weight\nCleo,6,45.5\nDori,1,3.5"
+    extra = []
+    if option_or_env_var:
+        extra = [option_or_env_var]
+
+    def _test():
+        result = CliRunner().invoke(
+            cli.cli,
+            ["insert", db_path, "creatures", "-", "--csv"] + extra,
+            catch_exceptions=False,
+            input=data,
+        )
+        assert result.exit_code == 0
+        db = Database(db_path)
+        assert list(db["creatures"].rows) == [
+            {"name": "Cleo", "age": 6, "weight": 45.5},
+            {"name": "Dori", "age": 1, "weight": 3.5},
+        ]
+
+    if option_or_env_var is None:
+        # Use environemnt variable instead of option
+        with mock.patch.dict(os.environ, {"SQLITE_UTILS_DETECT_TYPES": "1"}):
+            _test()
+    else:
+        _test()
+
+
+@pytest.mark.parametrize(
+    "input,expected",
+    (
+        ({"foo": {"bar": 1}}, {"foo_bar": 1}),
+        ({"foo": {"bar": [1, 2, {"baz": 3}]}}, {"foo_bar": [1, 2, {"baz": 3}]}),
+        ({"foo": {"bar": 1, "baz": {"three": 3}}}, {"foo_bar": 1, "foo_baz_three": 3}),
+    ),
+)
+def test_flatten_helper(input, expected):
+    assert dict(cli._flatten(input)) == expected
+
+
+def test_integer_overflow_error(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "items", "-"],
+        input=json.dumps({"bignumber": 34223049823094832094802398430298048240}),
+    )
+    assert result.exit_code == 1
+    assert result.output == (
+        "Error: Python int too large to convert to SQLite INTEGER\n\n"
+        "sql = INSERT INTO [items] ([bignumber]) VALUES (?);\n"
+        "parameters = [34223049823094832094802398430298048240]\n"
+    )

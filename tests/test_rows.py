@@ -1,4 +1,3 @@
-from sqlite_utils.db import Index, View
 import pytest
 
 
@@ -13,6 +12,7 @@ def test_rows(existing_db):
     [
         ("name = ?", ["Pancakes"], {2}),
         ("age > ?", [3], {1}),
+        ("age > :age", {"age": 3}, {1}),
         ("name is not null", [], {1, 2}),
         ("is_good = ?", [True], {1, 2}),
     ],

@@ -1,12 +1,14 @@
 import base64
 import click
-from click_default_group import DefaultGroup
+from click_default_group import DefaultGroup  # type: ignore
 from datetime import datetime
 import hashlib
 import pathlib
 import sqlite_utils
-from sqlite_utils.db import AlterError
+from sqlite_utils.db import AlterError, BadMultiValues, DescIndex
+from sqlite_utils import recipes
 import textwrap
+import inspect
 import io
 import itertools
 import json
@@ -14,7 +16,18 @@ import os
 import sys
 import csv as csv_std
 import tabulate
-from .utils import file_progress, find_spatialite, sqlite3, decode_base64_values
+from .utils import (
+    file_progress,
+    find_spatialite,
+    sqlite3,
+    decode_base64_values,
+    progressbar,
+    rows_from_file,
+    Format,
+    TypeTracker,
+)
+
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "BLOB")
 
@@ -31,7 +44,7 @@ It's often worth trying: --encoding=latin-1
 """.strip()
 
 
-# Increase CSV field size limit to maximim possible
+# Increase CSV field size limit to maximum possible
 # https://stackoverflow.com/a/15063941
 field_size_limit = sys.maxsize
 
@@ -89,7 +102,12 @@ def load_extension_option(fn):
     )(fn)
 
 
-@click.group(cls=DefaultGroup, default="query", default_if_no_args=True)
+@click.group(
+    cls=DefaultGroup,
+    default="query",
+    default_if_no_args=True,
+    context_settings=CONTEXT_SETTINGS,
+)
 @click.version_option()
 def cli():
     "Commands for interacting with a SQLite database"
@@ -251,17 +269,6 @@ def views(
     type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
-def vacuum(path):
-    """Run VACUUM against the database"""
-    sqlite_utils.Database(path).vacuum()
-
-
-@cli.command()
-@click.argument(
-    "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
-    required=True,
-)
 @click.argument("tables", nargs=-1)
 @click.option("--no-vacuum", help="Don't run VACUUM", default=False, is_flag=True)
 @load_extension_option
@@ -306,6 +313,21 @@ def rebuild_fts(path, tables, load_extension):
 def vacuum(path):
     """Run VACUUM against the database"""
     sqlite_utils.Database(path).vacuum()
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@load_extension_option
+def dump(path, load_extension):
+    """Output a SQL dump of the schema and full contents of the database"""
+    db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
+    for line in db.conn.iterdump():
+        click.echo(line)
 
 
 @cli.command(name="add-column")
@@ -450,11 +472,21 @@ def index_foreign_keys(path, load_extension):
 )
 @load_extension_option
 def create_index(path, table, column, name, unique, if_not_exists, load_extension):
-    "Add an index to the specified table covering the specified columns"
+    """
+    Add an index to the specified table covering the specified columns.
+    Use "sqlite-utils create-index mydb -- -column" to specify descending
+    order for a column.
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
+    # Treat -prefix as descending for columns
+    columns = []
+    for col in column:
+        if col.startswith("-"):
+            col = DescIndex(col[1:])
+        columns.append(col)
     db[table].create_index(
-        column, index_name=name, unique=unique, if_not_exists=if_not_exists
+        columns, index_name=name, unique=unique, if_not_exists=if_not_exists
     )
 
 
@@ -611,6 +643,7 @@ def insert_upsert_options(fn):
                 "--pk", help="Columns to use as the primary key, e.g. id", multiple=True
             ),
             click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
+            click.option("--flatten", is_flag=True, help="Flatten nested JSON objects"),
             click.option("-c", "--csv", is_flag=True, help="Expect CSV"),
             click.option("--tsv", is_flag=True, help="Expect TSV"),
             click.option("--delimiter", help="Delimiter to use for CSV files"),
@@ -644,6 +677,13 @@ def insert_upsert_options(fn):
                 "--encoding",
                 help="Character encoding for input, defaults to utf-8",
             ),
+            click.option(
+                "-d",
+                "--detect-types",
+                is_flag=True,
+                envvar="SQLITE_UTILS_DETECT_TYPES",
+                help="Detect types for columns in CSV/TSV data",
+            ),
             load_extension_option,
             click.option("--silent", is_flag=True, help="Do not show progress bar"),
         )
@@ -658,6 +698,7 @@ def insert_upsert_implementation(
     json_file,
     pk,
     nl,
+    flatten,
     csv,
     tsv,
     delimiter,
@@ -673,6 +714,7 @@ def insert_upsert_implementation(
     not_null=None,
     default=None,
     encoding=None,
+    detect_types=None,
     load_extension=None,
     silent=False,
 ):
@@ -682,13 +724,16 @@ def insert_upsert_implementation(
         csv = True
     if (nl + csv + tsv) >= 2:
         raise click.ClickException("Use just one of --nl, --csv or --tsv")
+    if (csv or tsv) and flatten:
+        raise click.ClickException("--flatten cannot be used with --csv or --tsv")
     if encoding and not (csv or tsv):
         raise click.ClickException("--encoding must be used with --csv or --tsv")
-    encoding = encoding or "utf-8"
-    buffered = io.BufferedReader(json_file, buffer_size=4096)
-    decoded = io.TextIOWrapper(buffered, encoding=encoding)
     if pk and len(pk) == 1:
         pk = pk[0]
+    encoding = encoding or "utf-8-sig"
+    buffered = io.BufferedReader(json_file, buffer_size=4096)
+    decoded = io.TextIOWrapper(buffered, encoding=encoding)
+    tracker = None
     if csv or tsv:
         if sniff:
             # Read first 2048 bytes and use that to detect
@@ -710,6 +755,9 @@ def insert_upsert_implementation(
             else:
                 headers = first_row
             docs = (dict(zip(headers, row)) for row in reader)
+            if detect_types:
+                tracker = TypeTracker()
+                docs = tracker.wrap(docs)
     else:
         try:
             if nl:
@@ -722,6 +770,8 @@ def insert_upsert_implementation(
             raise click.ClickException(
                 "Invalid JSON - use --csv for CSV or --tsv for TSV files"
             )
+        if flatten:
+            docs = (dict(_flatten(doc)) for doc in docs)
 
     extra_kwargs = {"ignore": ignore, "replace": replace, "truncate": truncate}
     if not_null:
@@ -732,9 +782,52 @@ def insert_upsert_implementation(
         extra_kwargs["upsert"] = upsert
     # Apply {"$base64": true, ...} decoding, if needed
     docs = (decode_base64_values(doc) for doc in docs)
-    db[table].insert_all(
-        docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
-    )
+    try:
+        db[table].insert_all(
+            docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
+        )
+    except Exception as e:
+        if (
+            isinstance(e, sqlite3.OperationalError)
+            and e.args
+            and "has no column named" in e.args[0]
+        ):
+            raise click.ClickException(
+                "{}\n\nTry using --alter to add additional columns".format(e.args[0])
+            )
+        # If we can find sql= and parameters= arguments, show those
+        variables = _find_variables(e.__traceback__, ["sql", "parameters"])
+        if "sql" in variables and "parameters" in variables:
+            raise click.ClickException(
+                "{}\n\nsql = {}\nparameters = {}".format(
+                    str(e), variables["sql"], variables["parameters"]
+                )
+            )
+        else:
+            raise
+    if tracker is not None:
+        db[table].transform(types=tracker.types)
+
+
+def _flatten(d):
+    for key, value in d.items():
+        if isinstance(value, dict):
+            for key2, value2 in _flatten(value):
+                yield key + "_" + key2, value2
+        else:
+            yield key, value
+
+
+def _find_variables(tb, vars):
+    to_find = list(vars)
+    found = {}
+    for var in to_find:
+        if var in tb.tb_frame.f_locals:
+            vars.remove(var)
+            found[var] = tb.tb_frame.f_locals[var]
+    if vars and tb.tb_next:
+        found.update(_find_variables(tb.tb_next, vars))
+    return found
 
 
 @cli.command()
@@ -760,6 +853,7 @@ def insert(
     json_file,
     pk,
     nl,
+    flatten,
     csv,
     tsv,
     delimiter,
@@ -769,6 +863,7 @@ def insert(
     batch_size,
     alter,
     encoding,
+    detect_types,
     load_extension,
     silent,
     ignore,
@@ -790,6 +885,7 @@ def insert(
             json_file,
             pk,
             nl,
+            flatten,
             csv,
             tsv,
             delimiter,
@@ -803,6 +899,7 @@ def insert(
             replace=replace,
             truncate=truncate,
             encoding=encoding,
+            detect_types=detect_types,
             load_extension=load_extension,
             silent=silent,
             not_null=not_null,
@@ -820,6 +917,7 @@ def upsert(
     json_file,
     pk,
     nl,
+    flatten,
     csv,
     tsv,
     batch_size,
@@ -831,6 +929,7 @@ def upsert(
     not_null,
     default,
     encoding,
+    detect_types,
     load_extension,
     silent,
 ):
@@ -846,6 +945,7 @@ def upsert(
             json_file,
             pk,
             nl,
+            flatten,
             csv,
             tsv,
             delimiter,
@@ -905,7 +1005,17 @@ def upsert(
 def create_table(
     path, table, columns, pk, not_null, default, fk, ignore, replace, load_extension
 ):
-    "Add an index to the specified table covering the specified columns"
+    """
+    Add a table with the specified columns. Columns should be specified using
+    name, type pairs, for example:
+
+    \b
+    sqlite-utils create-table my.db people \\
+        id integer \\
+        name text \\
+        height float \\
+        photo blob --pk id
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     if len(columns) % 2 == 1:
@@ -1060,8 +1170,168 @@ def query(
         db.attach(alias, attach_path)
     _load_extensions(db, load_extension)
     db.register_fts4_bm25()
+
+    _execute_query(
+        db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
+    )
+
+
+@cli.command()
+@click.argument(
+    "paths",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=True),
+    required=False,
+    nargs=-1,
+)
+@click.argument("sql")
+@click.option(
+    "--attach",
+    type=(str, click.Path(file_okay=True, dir_okay=False, allow_dash=False)),
+    multiple=True,
+    help="Additional databases to attach - specify alias and filepath",
+)
+@output_options
+@click.option("-r", "--raw", is_flag=True, help="Raw output, first column of first row")
+@click.option(
+    "-p",
+    "--param",
+    multiple=True,
+    type=(str, str),
+    help="Named :parameters for SQL query",
+)
+@click.option(
+    "--encoding",
+    help="Character encoding for CSV input, defaults to utf-8",
+)
+@click.option(
+    "-n",
+    "--no-detect-types",
+    is_flag=True,
+    help="Treat all CSV/TSV columns as TEXT",
+)
+@click.option("--schema", is_flag=True, help="Show SQL schema for in-memory database")
+@click.option("--dump", is_flag=True, help="Dump SQL for in-memory database")
+@click.option(
+    "--save",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    help="Save in-memory database to this file",
+)
+@load_extension_option
+def memory(
+    paths,
+    sql,
+    attach,
+    nl,
+    arrays,
+    csv,
+    tsv,
+    no_headers,
+    table,
+    fmt,
+    json_cols,
+    raw,
+    param,
+    encoding,
+    no_detect_types,
+    schema,
+    dump,
+    save,
+    load_extension,
+):
+    """Execute SQL query against an in-memory database, optionally populated by imported data
+
+    To import data from CSV, TSV or JSON files pass them on the command-line:
+
+    \b
+        sqlite-utils memory one.csv two.json \\
+            "select * from one join two on one.two_id = two.id"
+
+    For data piped into the tool from standard input, use "-" or "stdin":
+
+    \b
+        cat animals.csv | sqlite-utils memory - \\
+            "select * from stdin where species = 'dog'"
+
+    The format of the data will be automatically detected. You can specify the format
+    explicitly using :json, :csv, :tsv or :nl (for newline-delimited JSON) - for example:
+
+    \b
+        cat animals.csv | sqlite-utils memory stdin:csv places.dat:nl \\
+            "select * from stdin where place_id in (select id from places)"
+
+    Use --schema to view the SQL schema of any imported files:
+
+    \b
+        sqlite-utils memory animals.csv --schema
+    """
+    db = sqlite_utils.Database(memory=True)
+    # If --dump or --save used but no paths detected, assume SQL query is a path:
+    if (dump or save or schema) and not paths:
+        paths = [sql]
+        sql = None
+    for i, path in enumerate(paths):
+        # Path may have a :format suffix
+        if ":" in path and path.rsplit(":", 1)[-1].upper() in Format.__members__:
+            path, suffix = path.rsplit(":", 1)
+            format = Format[suffix.upper()]
+        else:
+            format = None
+        if path in ("-", "stdin"):
+            csv_fp = sys.stdin.buffer
+            csv_table = "stdin"
+        else:
+            csv_path = pathlib.Path(path)
+            csv_table = csv_path.stem
+            csv_fp = csv_path.open("rb")
+        rows, format_used = rows_from_file(csv_fp, format=format, encoding=encoding)
+        tracker = None
+        if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
+            tracker = TypeTracker()
+            rows = tracker.wrap(rows)
+        db[csv_table].insert_all(rows, alter=True)
+        if tracker is not None:
+            db[csv_table].transform(types=tracker.types)
+        # Add convenient t / t1 / t2 views
+        view_names = ["t{}".format(i + 1)]
+        if i == 0:
+            view_names.append("t")
+        for view_name in view_names:
+            if not db[view_name].exists():
+                db.create_view(view_name, "select * from [{}]".format(csv_table))
+
+    if dump:
+        for line in db.conn.iterdump():
+            click.echo(line)
+        return
+
+    if schema:
+        click.echo(db.schema)
+        return
+
+    if save:
+        db2 = sqlite_utils.Database(save)
+        for line in db.conn.iterdump():
+            db2.execute(line)
+        return
+
+    for alias, attach_path in attach:
+        db.attach(alias, attach_path)
+    _load_extensions(db, load_extension)
+    db.register_fts4_bm25()
+
+    _execute_query(
+        db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
+    )
+
+
+def _execute_query(
+    db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
+):
     with db.conn:
-        cursor = db.execute(sql, dict(param))
+        try:
+            cursor = db.execute(sql, dict(param))
+        except sqlite3.OperationalError as e:
+            raise click.ClickException(str(e))
         if cursor.description is None:
             # This was an update/insert
             headers = ["rows_affected"]
@@ -1266,12 +1536,99 @@ def triggers(
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
+@click.argument("tables", nargs=-1)
+@click.option("--aux", is_flag=True, help="Include auxiliary columns")
+@output_options
+@load_extension_option
+@click.pass_context
+def indexes(
+    ctx,
+    path,
+    tables,
+    aux,
+    nl,
+    arrays,
+    csv,
+    tsv,
+    no_headers,
+    table,
+    fmt,
+    json_cols,
+    load_extension,
+):
+    "Show indexes for this database"
+    sql = """
+    select
+      sqlite_master.name as "table",
+      indexes.name as index_name,
+      xinfo.*
+    from sqlite_master
+      join pragma_index_list(sqlite_master.name) indexes
+      join pragma_index_xinfo(index_name) xinfo
+    where
+      sqlite_master.type = 'table'
+    """
+    if tables:
+        quote = sqlite_utils.Database(memory=True).quote
+        sql += " and sqlite_master.name in ({})".format(
+            ", ".join(quote(table) for table in tables)
+        )
+    if not aux:
+        sql += " and xinfo.key = 1"
+    ctx.invoke(
+        query,
+        path=path,
+        sql=sql,
+        nl=nl,
+        arrays=arrays,
+        csv=csv,
+        tsv=tsv,
+        no_headers=no_headers,
+        table=table,
+        fmt=fmt,
+        json_cols=json_cols,
+        load_extension=load_extension,
+    )
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("tables", nargs=-1, required=False)
+@load_extension_option
+def schema(
+    path,
+    tables,
+    load_extension,
+):
+    "Show full schema for this database or for specified tables"
+    db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
+    if tables:
+        for table in tables:
+            click.echo(db[table].schema)
+    else:
+        click.echo(db.schema)
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
 @click.argument("table")
 @click.option(
     "--type",
-    type=(str, str),
+    type=(
+        str,
+        click.Choice(["INTEGER", "TEXT", "FLOAT", "BLOB"], case_sensitive=False),
+    ),
     multiple=True,
-    help="Change column type to X",
+    help="Change column type to INTEGER, TEXT, FLOAT or BLOB",
 )
 @click.option("--drop", type=str, multiple=True, help="Drop this column")
 @click.option(
@@ -1432,9 +1789,20 @@ def extract(
 @click.option("--replace", is_flag=True, help="Replace files with matching primary key")
 @click.option("--upsert", is_flag=True, help="Upsert files with matching primary key")
 @click.option("--name", type=str, help="File name to use")
+@click.option("-s", "--silent", is_flag=True, help="Don't show a progress bar")
 @load_extension_option
 def insert_files(
-    path, table, file_or_dir, column, pk, alter, replace, upsert, name, load_extension
+    path,
+    table,
+    file_or_dir,
+    column,
+    pk,
+    alter,
+    replace,
+    upsert,
+    name,
+    silent,
+    load_extension,
 ):
     """
     Insert one or more files using BLOB columns in the specified table
@@ -1471,7 +1839,7 @@ def insert_files(
     # Load all paths so we can show a progress bar
     paths_and_relative_paths = list(yield_paths_and_relative_paths())
 
-    with click.progressbar(paths_and_relative_paths) as bar:
+    with progressbar(paths_and_relative_paths, silent=silent) as bar:
 
         def to_insert():
             for path, relative_path in bar:
@@ -1591,6 +1959,159 @@ def analyze_tables(
             + "\n"
         )
         click.echo(details)
+
+
+def _generate_convert_help():
+    help = textwrap.dedent(
+        """
+    Convert columns using Python code you supply. For example:
+
+    \b
+    $ sqlite-utils convert my.db mytable mycolumn \\
+        '"\\n".join(textwrap.wrap(value, 10))' \\
+        --import=textwrap
+
+    "value" is a variable with the column value to be converted.
+
+    The following common operations are available as recipe functions:
+    """
+    ).strip()
+    recipe_names = [
+        n for n in dir(recipes) if not n.startswith("_") and n not in ("json", "parser")
+    ]
+    for name in recipe_names:
+        fn = getattr(recipes, name)
+        help += "\n\nr.{}{}\n\n  {}".format(
+            name, str(inspect.signature(fn)), fn.__doc__
+        )
+    help += "\n\n"
+    help += textwrap.dedent(
+        """
+    You can use these recipes like so:
+
+    \b
+    $ sqlite-utils convert my.db mytable mycolumn \\
+        'r.jsonsplit(value, delimiter=":")'
+    """
+    ).strip()
+    return help
+
+
+@cli.command(help=_generate_convert_help())
+@click.argument(
+    "db_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table", type=str)
+@click.argument("columns", type=str, nargs=-1, required=True)
+@click.argument("code", type=str)
+@click.option(
+    "--import", "imports", type=str, multiple=True, help="Python modules to import"
+)
+@click.option(
+    "--dry-run", is_flag=True, help="Show results of running this against first 10 rows"
+)
+@click.option(
+    "--multi", is_flag=True, help="Populate columns for keys in returned dictionary"
+)
+@click.option("--where", help="Optional where clause")
+@click.option(
+    "-p",
+    "--param",
+    multiple=True,
+    type=(str, str),
+    help="Named :parameters for where clause",
+)
+@click.option("--output", help="Optional separate column to populate with the output")
+@click.option(
+    "--output-type",
+    help="Column type to use for the output column",
+    default="text",
+    type=click.Choice(["integer", "float", "blob", "text"]),
+)
+@click.option("--drop", is_flag=True, help="Drop original column afterwards")
+@click.option("-s", "--silent", is_flag=True, help="Don't show a progress bar")
+def convert(
+    db_path,
+    table,
+    columns,
+    code,
+    imports,
+    dry_run,
+    multi,
+    where,
+    param,
+    output,
+    output_type,
+    drop,
+    silent,
+):
+    sqlite3.enable_callback_tracebacks(True)
+    db = sqlite_utils.Database(db_path)
+    if output is not None and len(columns) > 1:
+        raise click.ClickException("Cannot use --output with more than one column")
+    if multi and len(columns) > 1:
+        raise click.ClickException("Cannot use --multi with more than one column")
+    if drop and not (output or multi):
+        raise click.ClickException("--drop can only be used with --output or --multi")
+    # If single line and no 'return', add the return
+    if "\n" not in code and not code.strip().startswith("return "):
+        code = "return {}".format(code)
+    where_args = dict(param) if param else []
+    # Compile the code into a function body called fn(value)
+    new_code = ["def fn(value):"]
+    for line in code.split("\n"):
+        new_code.append("    {}".format(line))
+    code_o = compile("\n".join(new_code), "<string>", "exec")
+    locals = {}
+    globals = {"r": recipes, "recipes": recipes}
+    for import_ in imports:
+        globals[import_] = __import__(import_)
+    exec(code_o, globals, locals)
+    fn = locals["fn"]
+    if dry_run:
+        # Pull first 20 values for first column and preview them
+        db.conn.create_function("preview_transform", 1, lambda v: fn(v) if v else v)
+        sql = """
+            select
+                [{column}] as value,
+                preview_transform([{column}]) as preview
+            from [{table}]{where} limit 10
+        """.format(
+            column=columns[0],
+            table=table,
+            where=" where {}".format(where) if where is not None else "",
+        )
+        for row in db.conn.execute(sql, where_args).fetchall():
+            click.echo(str(row[0]))
+            click.echo(" --- becomes:")
+            click.echo(str(row[1]))
+            click.echo()
+        count = db[table].count_where(
+            where=where,
+            where_args=where_args,
+        )
+        click.echo("Would affect {} row{}".format(count, "" if count == 1 else "s"))
+    else:
+        try:
+            db[table].convert(
+                columns,
+                fn,
+                where=where,
+                where_args=where_args,
+                output=output,
+                output_type=output_type,
+                drop=drop,
+                multi=multi,
+                show_progress=not silent,
+            )
+        except BadMultiValues as e:
+            raise click.ClickException(
+                "When using --multi code must return a Python dictionary - returned: {}".format(
+                    repr(e.values)
+                )
+            )
 
 
 def _render_common(title, values):

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import io
 import os
 
-VERSION = "3.6"
+VERSION = "3.15.1"
 
 
 def get_long_description():
@@ -22,11 +22,19 @@ setup(
     version=VERSION,
     license="Apache License, Version 2.0",
     packages=find_packages(exclude=["tests", "tests.*"]),
-    install_requires=["sqlite-fts4", "click", "click-default-group", "tabulate"],
+    install_requires=[
+        "sqlite-fts4",
+        "click",
+        "click-default-group",
+        "tabulate",
+        "dateutils",
+    ],
     setup_requires=["pytest-runner"],
     extras_require={
         "test": ["pytest", "black", "hypothesis"],
-        "docs": ["sphinx_rtd_theme", "sphinx-autobuild"],
+        "docs": ["sphinx_rtd_theme", "sphinx-autobuild", "codespell"],
+        "mypy": ["mypy", "types-click", "types-tabulate", "types-python-dateutil"],
+        "flake8": ["flake8"],
     },
     entry_points="""
         [console_scripts]

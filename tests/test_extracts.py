@@ -1,4 +1,4 @@
-from sqlite_utils.db import Index, ForeignKey
+from sqlite_utils.db import Index
 import pytest
 
 

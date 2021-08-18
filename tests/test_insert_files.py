@@ -2,9 +2,11 @@ from sqlite_utils import cli, Database
 from click.testing import CliRunner
 import os
 import pathlib
+import pytest
 
 
-def test_insert_files():
+@pytest.mark.parametrize("silent", (False, True))
+def test_insert_files(silent):
     runner = CliRunner()
     with runner.isolated_filesystem():
         tmpdir = pathlib.Path(".")
@@ -34,7 +36,10 @@ def test_insert_files():
             cols += ["-c", "{}:{}".format(coltype, coltype)]
         result = runner.invoke(
             cli.cli,
-            ["insert-files", db_path, "files", str(tmpdir)] + cols + ["--pk", "path"],
+            ["insert-files", db_path, "files", str(tmpdir)]
+            + cols
+            + ["--pk", "path"]
+            + (["--silent"] if silent else []),
             catch_exceptions=False,
         )
         assert result.exit_code == 0, result.stdout

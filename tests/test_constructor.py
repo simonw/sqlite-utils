@@ -1,5 +1,4 @@
 from sqlite_utils import Database
-import pytest
 
 
 def test_recursive_triggers():
