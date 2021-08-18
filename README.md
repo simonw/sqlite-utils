@@ -69,7 +69,7 @@ Or for data in a CSV file:
 
 `sqlite-utils memory` lets you import CSV or JSON data into an in-memory database and run SQL queries against it in a single command:
 
-    $ cat dogs.csv | sqlite-utils memory - "select name, age from dogs"
+    $ cat dogs.csv | sqlite-utils memory - "select name, age from stdin"
 
 See the [full CLI documentation](https://sqlite-utils.datasette.io/en/stable/cli.html) for comprehensive coverage of many more commands.
 
