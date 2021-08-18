@@ -2,6 +2,18 @@
  Changelog
 ===========
 
+.. _v3_16:
+
+3.16 (2021-08-18)
+-----------------
+
+- Type signatures added to  more methods, including ``table.resolve_foreign_keys()``, ``db.create_table_sql()``, ``db.create_table()`` and ``table.create()``. (:issue:`314`)
+- New ``db.quote_fts(value)`` method, see :ref:`python_api_quote_fts` - thanks, Mark Neumann. (:issue:`246`)
+- ``table.search()`` now accepts an optional ``quote=True`` parameter. (:issue:`296`)
+- CLI command ``sqlite-utils search`` now accepts a ``--quote`` option. (:issue:`296`)
+- Fixed bug where ``--no-headers`` and ``--tsv`` options to :ref:`sqlite-utils insert <cli_insert_csv_tsv>` could not be used together. (:issue:`295`)
+- Various small improvements to :ref:`reference` documentation.
+
 .. _v3_15.1:
 
 3.15.1 (2021-08-10)
