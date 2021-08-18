@@ -2205,25 +2205,27 @@ def test_long_csv_column_value(tmpdir):
 
 
 @pytest.mark.parametrize(
-    "args",
+    "args,tsv",
     (
-        ["--csv", "--no-headers"],
-        ["--no-headers"],
+        (["--csv", "--no-headers"], False),
+        (["--no-headers"], False),
+        (["--tsv", "--no-headers"], True),
     ),
 )
-def test_csv_import_no_headers(tmpdir, args):
+def test_import_no_headers(tmpdir, args, tsv):
     db_path = str(tmpdir / "test.db")
     csv_path = str(tmpdir / "test.csv")
     csv_file = open(csv_path, "w")
-    csv_file.write("Cleo,Dog,5\n")
-    csv_file.write("Tracy,Spider,7\n")
+    sep = "\t" if tsv else ","
+    csv_file.write("Cleo{sep}Dog{sep}5\n".format(sep=sep))
+    csv_file.write("Tracy{sep}Spider{sep}7\n".format(sep=sep))
     csv_file.close()
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "creatures", csv_path] + args,
         catch_exceptions=False,
     )
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
     db = Database(db_path)
     schema = db["creatures"].schema
     assert schema == (

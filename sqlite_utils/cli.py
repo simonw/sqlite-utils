@@ -720,7 +720,7 @@ def insert_upsert_implementation(
 ):
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
-    if delimiter or quotechar or sniff or no_headers:
+    if (delimiter or quotechar or sniff or no_headers) and not tsv:
         csv = True
     if (nl + csv + tsv) >= 2:
         raise click.ClickException("Use just one of --nl, --csv or --tsv")
