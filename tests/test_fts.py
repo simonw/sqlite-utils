@@ -502,6 +502,7 @@ def test_search_sql(kwargs, fts, expected):
     sql = db["books"].search_sql(**kwargs)
     assert sql == expected
 
+
 def test_quote_fts_query(fresh_db):
 
     table = fresh_db["searchable"]
