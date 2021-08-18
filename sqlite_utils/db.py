@@ -38,6 +38,8 @@ import uuid
 
 SQLITE_MAX_VARS = 999
 
+_quote_fts_re = re.compile(r'\s+|(".*?")')
+
 _virtual_table_using_re = re.compile(
     r"""
 ^ # Start of string
@@ -430,6 +432,25 @@ class Database:
             "SELECT quote(:value)",
             {"value": value},
         ).fetchone()[0]
+
+    def quote_fts(self, query: str) -> str:
+        "Escape special characters in a SQLite full-text search query"
+        # NOTE: This is not a query validator for FTS. Sqlite has
+        # a well defined query syntax here:
+        # https://www2.sqlite.org/fts5.html#full_text_query_syntax
+        # but this function just aggressively quotes strings
+        # to ensure that they are valid. In particular, passing
+        # queries which make use of the query syntax will be incorrect,
+        # e.g 'NEAR(one, two, 3)'.
+
+        # If query has unbalanced ", add one at end
+        if query.count('"') % 2:
+            query += '"'
+        bits = _quote_fts_re.split(query)
+        bits = [b for b in bits if b and b != '""']
+        return " ".join(
+            '"{}"'.format(bit) if not bit.startswith('"') else bit for bit in bits
+        )
 
     def table_names(self, fts4: bool = False, fts5: bool = False) -> List[str]:
         "A list of string table names in this database."
