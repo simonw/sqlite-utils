@@ -147,6 +147,15 @@ XIndexColumn = namedtuple(
 Trigger = namedtuple("Trigger", ("name", "table", "sql"))
 
 
+ForeignKeysType = Union[
+    Iterable[str],
+    Iterable[ForeignKey],
+    Iterable[Tuple[str, str]],
+    Iterable[Tuple[str, str, str]],
+    Iterable[Tuple[str, str, str, str]],
+]
+
+
 class Default:
     pass
 
@@ -572,18 +581,22 @@ class Database:
     ) -> List[dict]:
         return list(self.query(sql, params))
 
-    def resolve_foreign_keys(self, name, foreign_keys):
-        # foreign_keys may be a list of strcolumn names, a list of ForeignKey tuples,
+    def resolve_foreign_keys(
+        self, name: str, foreign_keys: ForeignKeysType
+    ) -> List[ForeignKey]:
+        # foreign_keys may be a list of column names, a list of ForeignKey tuples,
         # a list of tuple-pairs or a list of tuple-triples. We want to turn
         # it into a list of ForeignKey tuples
+        table = cast(Table, self[name])
         if all(isinstance(fk, ForeignKey) for fk in foreign_keys):
-            return foreign_keys
+            return cast(List[ForeignKey], foreign_keys)
         if all(isinstance(fk, str) for fk in foreign_keys):
             # It's a list of columns
             fks = []
             for column in foreign_keys:
-                other_table = self[name].guess_foreign_table(column)
-                other_column = self[name].guess_foreign_column(other_table)
+                column = cast(str, column)
+                other_table = table.guess_foreign_table(column)
+                other_column = table.guess_foreign_column(other_table)
                 fks.append(ForeignKey(name, column, other_table, other_column))
             return fks
         assert all(
@@ -596,6 +609,7 @@ class Database:
                 3,
             ), "foreign_keys= should be a list of tuple pairs or triples"
             if len(tuple_or_list) == 3:
+                tuple_or_list = cast(Tuple[str, str, str], tuple_or_list)
                 fks.append(
                     ForeignKey(
                         name, tuple_or_list[0], tuple_or_list[1], tuple_or_list[2]
@@ -608,7 +622,7 @@ class Database:
                         name,
                         tuple_or_list[0],
                         tuple_or_list[1],
-                        self[name].guess_foreign_column(tuple_or_list[1]),
+                        table.guess_foreign_column(tuple_or_list[1]),
                     )
                 )
         return fks
@@ -618,12 +632,12 @@ class Database:
         name: str,
         columns: Dict[str, Any],
         pk: Optional[Any] = None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        hash_id=None,
-        extracts=None,
+        foreign_keys: Optional[ForeignKeysType] = None,
+        column_order: Optional[List[str]] = None,
+        not_null: Iterable[str] = None,
+        defaults: Optional[Dict[str, Any]] = None,
+        hash_id: Optional[Any] = None,
+        extracts: Optional[Union[Dict[str, str], List[str]]] = None,
     ) -> str:
         "Returns the SQL ``CREATE TABLE`` statement for creating the specified table."
         foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
@@ -656,9 +670,11 @@ class Database:
         validate_column_names(columns.keys())
         column_items = list(columns.items())
         if column_order is not None:
-            column_items.sort(
-                key=lambda p: column_order.index(p[0]) if p[0] in column_order else 999
-            )
+
+            def sort_key(p):
+                return column_order.index(p[0]) if p[0] in column_order else 999
+
+            column_items.sort(key=sort_key)
         if hash_id:
             column_items.insert(0, (hash_id, str))
             pk = hash_id
@@ -725,12 +741,12 @@ class Database:
         name: str,
         columns: Dict[str, Any],
         pk: Optional[Any] = None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        hash_id=None,
-        extracts=None,
+        foreign_keys: Optional[ForeignKeysType] = None,
+        column_order: Optional[List[str]] = None,
+        not_null: Iterable[str] = None,
+        defaults: Optional[Dict[str, Any]] = None,
+        hash_id: Optional[Any] = None,
+        extracts: Optional[Union[Dict[str, str], List[str]]] = None,
     ) -> "Table":
         """
         Create a table with the specified name and the specified ``{column_name: type}`` columns.
@@ -1021,19 +1037,19 @@ class Table(Queryable):
         self,
         db: Database,
         name: str,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        batch_size=100,
-        hash_id=None,
-        alter=False,
-        ignore=False,
-        replace=False,
-        extracts=None,
-        conversions=None,
-        columns=None,
+        pk: Optional[Any] = None,
+        foreign_keys: Optional[ForeignKeysType] = None,
+        column_order: Optional[List[str]] = None,
+        not_null: Iterable[str] = None,
+        defaults: Optional[Dict[str, Any]] = None,
+        batch_size: int = 100,
+        hash_id: Optional[Any] = None,
+        alter: bool = False,
+        ignore: bool = False,
+        replace: bool = False,
+        extracts: Optional[Union[Dict[str, str], List[str]]] = None,
+        conversions: Optional[dict] = None,
+        columns: Optional[Union[Dict[str, Any]]] = None,
     ):
         super().__init__(db, name)
         self._defaults = dict(
@@ -1202,14 +1218,14 @@ class Table(Queryable):
 
     def create(
         self,
-        columns,
-        pk=None,
-        foreign_keys=None,
-        column_order=None,
-        not_null=None,
-        defaults=None,
-        hash_id=None,
-        extracts=None,
+        columns: Dict[str, Any],
+        pk: Optional[Any] = None,
+        foreign_keys: Optional[ForeignKeysType] = None,
+        column_order: Optional[List[str]] = None,
+        not_null: Iterable[str] = None,
+        defaults: Optional[Dict[str, Any]] = None,
+        hash_id: Optional[Any] = None,
+        extracts: Optional[Union[Dict[str, str], List[str]]] = None,
     ) -> "Table":
         """
         Create a table with the specified columns.
@@ -2914,7 +2930,9 @@ def _hash(record):
     ).hexdigest()
 
 
-def resolve_extracts(extracts):
+def resolve_extracts(
+    extracts: Optional[Union[Dict[str, str], List[str], Tuple[str]]]
+) -> dict:
     if extracts is None:
         extracts = {}
     if isinstance(extracts, (list, tuple)):
