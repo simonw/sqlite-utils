@@ -1,7 +1,7 @@
 .. _reference:
 
 ===============
- API Reference
+ API reference
 ===============
 
 .. contents:: :local:
