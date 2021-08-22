@@ -220,3 +220,24 @@ def test_memory_no_detect_types(option):
         {"id": "1", "name": "Cleo", "weight": "45.5"},
         {"id": "2", "name": "Bants", "weight": "3.5"},
     ]
+
+
+def test_memory_analyze():
+    result = CliRunner().invoke(
+        cli.cli,
+        ["memory", "-", "--analyze"],
+        input="id,name\n1,Cleo\n2,Bants",
+    )
+    assert result.exit_code == 0
+    assert result.output == (
+        "stdin.id: (1/2)\n\n"
+        "  Total rows: 2\n"
+        "  Null rows: 0\n"
+        "  Blank rows: 0\n\n"
+        "  Distinct values: 2\n\n"
+        "stdin.name: (2/2)\n\n"
+        "  Total rows: 2\n"
+        "  Null rows: 0\n"
+        "  Blank rows: 0\n\n"
+        "  Distinct values: 2\n\n"
+    )

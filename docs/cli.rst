@@ -328,10 +328,10 @@ The CSV data that was piped into the script is available in the ``stdin`` table,
 
 .. _cli_memory_schema_dump_save:
 
-\-\-schema, \-\-dump and \-\-save
----------------------------------
+\-\-schema, \-\-analyze, \-\-dump and \-\-save
+----------------------------------------------
 
-To see the schema that will be created for a file or multiple files, use ``--schema``::
+To see the in-memory datbase schema that would be used for a file or for multiple files, use ``--schema``::
 
     % sqlite-utils memory dogs.csv --schema
     CREATE TABLE [dogs] (
@@ -341,6 +341,33 @@ To see the schema that will be created for a file or multiple files, use ``--sch
     );
     CREATE VIEW t1 AS select * from [dogs];
     CREATE VIEW t AS select * from [dogs];
+
+You can run the equivalent of the :ref:`analyze-tables <cli_analyze_tables>` command using ``--analyze``::
+
+    % sqlite-utils memory dogs.csv --analyze
+    dogs.id: (1/3)
+
+      Total rows: 2
+      Null rows: 0
+      Blank rows: 0
+
+      Distinct values: 2
+
+    dogs.name: (2/3)
+
+      Total rows: 2
+      Null rows: 0
+      Blank rows: 0
+
+      Distinct values: 2
+
+    dogs.age: (3/3)
+
+      Total rows: 2
+      Null rows: 0
+      Blank rows: 0
+
+      Distinct values: 2
 
 You can output SQL that will both create the tables and insert the full data used to populate the in-memory database using ``--dump``::
 

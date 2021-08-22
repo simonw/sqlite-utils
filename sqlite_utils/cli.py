@@ -1216,6 +1216,11 @@ def query(
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
     help="Save in-memory database to this file",
 )
+@click.option(
+    "--analyze",
+    is_flag=True,
+    help="Analyze resulting tables and output results",
+)
 @load_extension_option
 def memory(
     paths,
@@ -1236,6 +1241,7 @@ def memory(
     schema,
     dump,
     save,
+    analyze,
     load_extension,
 ):
     """Execute SQL query against an in-memory database, optionally populated by imported data
@@ -1265,8 +1271,8 @@ def memory(
         sqlite-utils memory animals.csv --schema
     """
     db = sqlite_utils.Database(memory=True)
-    # If --dump or --save used but no paths detected, assume SQL query is a path:
-    if (dump or save or schema) and not paths:
+    # If --dump or --save or --analyze used but no paths detected, assume SQL query is a path:
+    if (dump or save or schema or analyze) and not paths:
         paths = [sql]
         sql = None
     for i, path in enumerate(paths):
@@ -1298,6 +1304,10 @@ def memory(
         for view_name in view_names:
             if not db[view_name].exists():
                 db.create_view(view_name, "select * from [{}]".format(csv_table))
+
+    if analyze:
+        _analyze(db, tables=None, columns=None, save=False)
+        return
 
     if dump:
         for line in db.conn.iterdump():
@@ -1922,6 +1932,10 @@ def analyze_tables(
     "Analyze the columns in one or more tables"
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
+    _analyze(db, tables, columns, save)
+
+
+def _analyze(db, tables, columns, save):
     if not tables:
         tables = db.table_names()
     todo = []
