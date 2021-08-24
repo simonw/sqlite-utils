@@ -3,6 +3,7 @@ from click.testing import CliRunner
 import os
 import pathlib
 import pytest
+import sys
 
 
 @pytest.mark.parametrize("silent", (False, True))
@@ -130,6 +131,10 @@ def test_insert_files_stdin(use_text, encoding, input, expected):
         assert {"path": "stdin-name", key: expected}.items() <= row.items()
 
 
+@pytest.mark.skipif(
+    sys.platform.startswith("win"),
+    reason="Windows has a different way of handling default encodings",
+)
 def test_insert_files_bad_text_encoding_error():
     runner = CliRunner()
     with runner.isolated_filesystem():
