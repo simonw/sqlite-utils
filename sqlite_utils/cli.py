@@ -1811,6 +1811,11 @@ def extract(
 @click.option("--replace", is_flag=True, help="Replace files with matching primary key")
 @click.option("--upsert", is_flag=True, help="Upsert files with matching primary key")
 @click.option("--name", type=str, help="File name to use")
+@click.option("--text", is_flag=True, help="Store file content as TEXT, not BLOB")
+@click.option(
+    "--encoding",
+    help="Character encoding for input, defaults to utf-8",
+)
 @click.option("-s", "--silent", is_flag=True, help="Don't show a progress bar")
 @load_extension_option
 def insert_files(
@@ -1823,6 +1828,8 @@ def insert_files(
     replace,
     upsert,
     name,
+    text,
+    encoding,
     silent,
     load_extension,
 ):
@@ -1842,7 +1849,10 @@ def insert_files(
         --pk name
     """
     if not column:
-        column = ["path:path", "content:content", "size:size"]
+        if text:
+            column = ["path:path", "content_text:content_text", "size:size"]
+        else:
+            column = ["path:path", "content:content", "size:size"]
         if not pk:
             pk = "path"
 
@@ -1866,7 +1876,16 @@ def insert_files(
         def to_insert():
             for path, relative_path in bar:
                 row = {}
-                lookups = FILE_COLUMNS
+                # content_text is special case as it considers 'encoding'
+
+                def _content_text(p):
+                    resolved = p.resolve()
+                    try:
+                        return resolved.read_text(encoding=encoding)
+                    except UnicodeDecodeError as e:
+                        raise UnicodeDecodeErrorForPath(e, resolved)
+
+                lookups = dict(FILE_COLUMNS, content_text=_content_text)
                 if path == "-":
                     stdin_data = sys.stdin.buffer.read()
                     # We only support a subset of columns for this case
@@ -1874,6 +1893,9 @@ def insert_files(
                         "name": lambda p: name or "-",
                         "path": lambda p: name or "-",
                         "content": lambda p: stdin_data,
+                        "content_text": lambda p: stdin_data.decode(
+                            encoding or "utf-8"
+                        ),
                         "sha256": lambda p: hashlib.sha256(stdin_data).hexdigest(),
                         "md5": lambda p: hashlib.md5(stdin_data).hexdigest(),
                         "size": lambda p: len(stdin_data),
@@ -1899,9 +1921,16 @@ def insert_files(
 
         db = sqlite_utils.Database(path)
         _load_extensions(db, load_extension)
-        with db.conn:
-            db[table].insert_all(
-                to_insert(), pk=pk, alter=alter, replace=replace, upsert=upsert
+        try:
+            with db.conn:
+                db[table].insert_all(
+                    to_insert(), pk=pk, alter=alter, replace=replace, upsert=upsert
+                )
+        except UnicodeDecodeErrorForPath as e:
+            raise click.ClickException(
+                UNICODE_ERROR.format(
+                    "Could not read file '{}' as text\n\n{}".format(e.path, e.exception)
+                )
             )
 
 
@@ -2147,6 +2176,12 @@ def _render_common(title, values):
     for value, count in values:
         lines.append("    {}: {}".format(count, value))
     return "\n".join(lines)
+
+
+class UnicodeDecodeErrorForPath(Exception):
+    def __init__(self, exception, path):
+        self.exception = exception
+        self.path = path
 
 
 FILE_COLUMNS = {

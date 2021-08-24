@@ -331,7 +331,7 @@ The CSV data that was piped into the script is available in the ``stdin`` table,
 \-\-schema, \-\-analyze, \-\-dump and \-\-save
 ----------------------------------------------
 
-To see the in-memory datbase schema that would be used for a file or for multiple files, use ``--schema``::
+To see the in-memory database schema that would be used for a file or for multiple files, use ``--schema``::
 
     % sqlite-utils memory dogs.csv --schema
     CREATE TABLE [dogs] (
@@ -909,12 +909,10 @@ The command will fail if you reference columns that do not exist on the table. T
 
 .. _cli_insert_files:
 
-Inserting binary data from files
-================================
+Inserting data from files
+=========================
 
-SQLite ``BLOB`` columns can be used to store binary content. It can be useful to insert the contents of files into a SQLite table.
-
-The ``insert-files`` command can be used to insert the content of files, along with their metadata.
+The ``insert-files`` command can be used to insert the content of files, along with their metadata, into a SQLite table.
 
 Here's an example that inserts all of the GIF files in the current directory into a ``gifs.db`` database, placing the file contents in an ``images`` table::
 
@@ -932,6 +930,8 @@ By default this command will create a table with the following schema::
         [size] INTEGER
     );
 
+Content will be treated as binary by default and stored in a ``BLOB`` column. You can use the ``--text`` option to store that content in a ``TEXT`` column instead.
+
 You can customize the schema using one or more ``-c`` options. For a table schema that includes just the path, MD5 hash and last modification time of the file, you would use this::
 
     $ sqlite-utils insert-files gifs.db images *.gif -c path -c md5 -c mtime --pk=path
@@ -943,6 +943,8 @@ This will result in the following schema::
         [md5] TEXT,
         [mtime] FLOAT
     );
+
+Note that there's no ``content`` column here at all - if you specify custom columns using ``-c`` you need to include ``-c content`` to create that column.
 
 You can change the name of one of these columns using a ``-c colname:coldef`` parameter. To rename the ``mtime`` column to ``last_modified`` you would use this::
 
@@ -967,6 +969,8 @@ The full list of column definitions you can use is as follows:
     The permission bits of the file, as an integer - you may want to convert this to octal
 ``content``
     The binary file contents, which will be stored as a BLOB
+``content_text``
+    The text file contents, which will be stored as TEXT
 ``mtime``
     The modification time of the file, as floating point seconds since the Unix epoch
 ``ctime``
@@ -988,7 +992,7 @@ You can insert data piped from standard input like this::
 
 The ``-`` argument indicates data should be read from standard input. The string passed using the ``--name`` option will be used for the file name and path values.
 
-When inserting data from standard input only the following column definitions are supported: ``name``, ``path``, ``content``, ``sha256``, ``md5`` and ``size``.
+When inserting data from standard input only the following column definitions are supported: ``name``, ``path``, ``content``, ``content_text``, ``sha256``, ``md5`` and ``size``.
 
 .. _cli_convert:
 

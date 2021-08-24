@@ -3,6 +3,7 @@ from click.testing import CliRunner
 import os
 import pathlib
 import pytest
+import sys
 
 
 @pytest.mark.parametrize("silent", (False, True))
@@ -23,6 +24,7 @@ def test_insert_files(silent):
             "md5",
             "mode",
             "content",
+            "content_text",
             "mtime",
             "ctime",
             "mtime_int",
@@ -52,6 +54,7 @@ def test_insert_files(silent):
         )
         assert {
             "content": b"This is file one",
+            "content_text": "This is file one",
             "md5": "556dfb57fce9ca301f914e2273adf354",
             "name": "one.txt",
             "path": "one.txt",
@@ -60,6 +63,7 @@ def test_insert_files(silent):
         }.items() <= one.items()
         assert {
             "content": b"Two is shorter",
+            "content_text": "Two is shorter",
             "md5": "f86f067b083af1911043eb215e74ac70",
             "name": "two.txt",
             "path": "two.txt",
@@ -68,6 +72,7 @@ def test_insert_files(silent):
         }.items() <= two.items()
         assert {
             "content": b"Three is nested",
+            "content_text": "Three is nested",
             "md5": "12580f341781f5a5b589164d3cd39523",
             "name": "three.txt",
             "path": os.path.join("nested", "three.txt"),
@@ -84,24 +89,65 @@ def test_insert_files(silent):
             "mtime_iso": str,
             "mode": int,
             "fullpath": str,
+            "content": bytes,
+            "content_text": str,
         }
         for colname, expected_type in expected_types.items():
             for row in (one, two, three):
                 assert isinstance(row[colname], expected_type)
 
 
-def test_insert_files_stdin():
+@pytest.mark.parametrize(
+    "use_text,encoding,input,expected",
+    (
+        (False, None, "hello world", b"hello world"),
+        (True, None, "hello world", "hello world"),
+        (False, None, b"S\xe3o Paulo", b"S\xe3o Paulo"),
+        (True, "latin-1", b"S\xe3o Paulo", "S\xe3o Paulo"),
+    ),
+)
+def test_insert_files_stdin(use_text, encoding, input, expected):
     runner = CliRunner()
     with runner.isolated_filesystem():
         tmpdir = pathlib.Path(".")
         db_path = str(tmpdir / "files.db")
+        args = ["insert-files", db_path, "files", "-", "--name", "stdin-name"]
+        if use_text:
+            args += ["--text"]
+        if encoding is not None:
+            args += ["--encoding", encoding]
         result = runner.invoke(
             cli.cli,
-            ["insert-files", db_path, "files", "-", "--name", "stdin-name"],
+            args,
             catch_exceptions=False,
-            input="hello world",
+            input=input,
         )
         assert result.exit_code == 0, result.stdout
         db = Database(db_path)
         row = list(db["files"].rows)[0]
-        assert {"path": "stdin-name", "content": b"hello world", "size": 11} == row
+        key = "content"
+        if use_text:
+            key = "content_text"
+        assert {"path": "stdin-name", key: expected}.items() <= row.items()
+
+
+@pytest.mark.skipif(
+    sys.platform.startswith("win"),
+    reason="Windows has a different way of handling default encodings",
+)
+def test_insert_files_bad_text_encoding_error():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        tmpdir = pathlib.Path(".")
+        latin = tmpdir / "latin.txt"
+        latin.write_bytes(b"S\xe3o Paulo")
+        db_path = str(tmpdir / "files.db")
+        result = runner.invoke(
+            cli.cli,
+            ["insert-files", db_path, "files", str(latin), "--text"],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 1, result.output
+        assert result.output.strip().startswith(
+            "Error: Could not read file '{}' as text".format(str(latin.resolve()))
+        )
