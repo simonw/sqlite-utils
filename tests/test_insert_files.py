@@ -142,7 +142,7 @@ def test_insert_files_bad_text_encoding_error():
             ["insert-files", db_path, "files", str(latin), "--text"],
             catch_exceptions=False,
         )
-        assert result.exit_code == 1
+        assert result.exit_code == 1, result.output
         assert result.output.strip().startswith(
             "Error: Could not read file '{}' as text".format(str(latin.resolve()))
         )
