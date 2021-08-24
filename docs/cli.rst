@@ -331,7 +331,7 @@ The CSV data that was piped into the script is available in the ``stdin`` table,
 \-\-schema, \-\-analyze, \-\-dump and \-\-save
 ----------------------------------------------
 
-To see the in-memory datbase schema that would be used for a file or for multiple files, use ``--schema``::
+To see the in-memory database schema that would be used for a file or for multiple files, use ``--schema``::
 
     % sqlite-utils memory dogs.csv --schema
     CREATE TABLE [dogs] (
