@@ -1877,6 +1877,7 @@ def insert_files(
             for path, relative_path in bar:
                 row = {}
                 # content_text is special case as it considers 'encoding'
+
                 def _content_text(p):
                     resolved = p.resolve()
                     try:
