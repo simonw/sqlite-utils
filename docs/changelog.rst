@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+.. _v3_17:
+
+3.17 (2021-08-24)
+-----------------
+
+- The :ref:`sqlite-utils memory <cli_memory>` command has a new ``--analyze`` option, which runs the equivalent of the :ref:`analyze-tables <cli_analyze_tables>` command directly against the in-memory database created from the incoming CSV or JSON data. (:issue:`320`)
+- :ref:`sqlite-utils insert-files <cli_insert_files>` now has the ability to insert file contents in to ``TEXT`` columns in addition to the default ``BLOB``. Pass the ``--text`` option or use ``content_text`` as a column specifier. (:issue:`319`)
+
 .. _v3_16:
 
 3.16 (2021-08-18)
