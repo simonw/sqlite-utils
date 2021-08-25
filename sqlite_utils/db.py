@@ -167,6 +167,7 @@ COLUMN_TYPE_MAPPING = {
     int: "INTEGER",
     bool: "INTEGER",
     str: "TEXT",
+    dict: "TEXT",
     bytes.__class__: "BLOB",
     bytes: "BLOB",
     memoryview: "BLOB",
@@ -185,6 +186,7 @@ COLUMN_TYPE_MAPPING = {
     "integer": "INTEGER",
     "float": "FLOAT",
     "blob": "BLOB",
+    
 }
 # If numpy is available, add more types
 if np:
