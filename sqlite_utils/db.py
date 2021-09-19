@@ -2092,10 +2092,11 @@ class Table(Queryable):
         lookup=None,
         m2m_table=None,
         alter=False,
+        our_id = None
     ):
         if isinstance(other_table, str):
             other_table = self.db.table(other_table, pk=pk)
-        our_id = self.last_pk
+        our_id = our_id or self.last_pk
         if lookup is not None:
             assert record_or_iterable is None, "Provide lookup= or record, not both"
         else:
