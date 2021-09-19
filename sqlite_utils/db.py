@@ -144,6 +144,10 @@ class InvalidColumns(Exception):
     pass
 
 
+class ExpandError(Exception):
+    pass
+
+
 _COUNTS_TABLE_CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS [{}](
    [table] TEXT PRIMARY KEY,
@@ -1168,6 +1172,9 @@ class Table(Queryable):
                 for new_row in expanded:
                     new_pk = self.db[table].insert(new_row, pk="id", replace=True).last_pk
                     self.update(row_pk, {fk_column: new_pk})
+            else:
+                raise ExpandError("expanded value needs to be list or dict")
+
         # Can drop the original column now
         self.transform(drop=[column])
         # And add that foreign key
