@@ -1164,6 +1164,10 @@ class Table(Queryable):
             if isinstance(expanded, dict):
                 new_pk = self.db[table].insert(expanded, pk="id", replace=True).last_pk
                 self.update(row_pk, {fk_column: new_pk})
+            elif isinstance(expanded, list):
+                for new_row in expanded:
+                    new_pk = self.db[table].insert(new_row, pk="id", replace=True).last_pk
+                    self.update(row_pk, {fk_column: new_pk})
         # Can drop the original column now
         self.transform(drop=[column])
         # And add that foreign key
