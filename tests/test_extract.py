@@ -193,3 +193,52 @@ def test_extract_expand(fresh_db):
             table="trees", column="species_id", other_table="species", other_column="id"
         )
     ]
+
+
+def test_extract_expand_m21(fresh_db):
+    fresh_db["trees"].insert(
+        {"id": 1, "names": '["Palm", "Arecaceae"]'},
+        pk="id",
+    )
+    assert fresh_db.table_names() == ["trees"]
+    fresh_db["trees"].extract_expand(
+        "names", expand=json.loads, table="names", pk="id"
+    )
+    assert set(fresh_db.table_names()) == {"trees", "names"}
+    assert list(fresh_db["trees"].rows) == [
+        {"id": 1},
+    ]
+    assert list(fresh_db["names"].rows) == [
+        {"id": 1, "trees_id": 1, "value": "Palm"},
+        {"id": 2, "trees_id": 1, "value": "Arecaceae"},
+    ]
+    assert fresh_db["names"].foreign_keys == [
+        ForeignKey(
+            table="names", column="trees_id", other_table="trees", other_column="id"
+        )
+    ]
+
+
+def test_extract_expand_m2m(fresh_db):
+    fresh_db["trees"].insert(
+        {"id": 1, "tags": '[{"id": 1, "name": "warm-climate"}, {"id": 2, "name": "green-leaves"}]'},
+        pk="id",
+    )
+    assert fresh_db.table_names() == ["trees"]
+    fresh_db["trees"].extract_expand(
+        "tags", expand=json.loads, table="tags", pk="id"
+    )
+    assert set(fresh_db.table_names()) == {"trees", "tags", "tags_trees"}
+    assert list(fresh_db["trees"].rows) == [{"id": 1}]
+    assert list(fresh_db["tags"].rows) == [
+        {"id": 1, "name": "warm-climate"},
+        {"id": 2, "name": "green-leaves"},
+    ]
+    assert list(fresh_db["tags_trees"].rows) == [
+        {"trees_id": 1, "tags_id": 1},
+        {"trees_id": 1, "tags_id": 2},
+    ]
+    assert fresh_db["tags_trees"].foreign_keys == [
+        ForeignKey(table="tags_trees", column="trees_id", other_table="trees", other_column="id"),
+        ForeignKey(table="tags_trees", column="tags_id", other_table="tags", other_column="id")
+    ]

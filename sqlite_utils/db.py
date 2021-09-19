@@ -1160,6 +1160,8 @@ class Table(Queryable):
     ):
         "Use expand function to transform values in column and extract them into a new table"
         table = table or column
+        # Track whether we are creating a many-to-many or many-to-one relation
+        m2m, m21 = (False, False)
         fk_column = fk_column or "{}_id".format(table)
         self.add_column(fk_column, fk_column_type)
         for row_pk, row in self.pks_and_rows_where():
@@ -1169,16 +1171,37 @@ class Table(Queryable):
                 new_pk = self.db[table].insert(expanded, pk="id", replace=True).last_pk
                 self.update(row_pk, {fk_column: new_pk})
             elif isinstance(expanded, list):
-                for new_row in expanded:
-                    new_pk = self.db[table].insert(new_row, pk="id", replace=True).last_pk
-                    self.update(row_pk, {fk_column: new_pk})
+                if not len(expanded):
+                    continue
+                elif isinstance(expanded[0], dict):
+                    m2m = True
+                    self.m2m(table, expanded, pk="id", our_id=row_pk, alter=True)
+                else:
+                    m21 = True
+                    pk_column = "{}_id".format(self.name)
+                    new_rows = [
+                        {
+                            "id": index,
+                            pk_column: row_pk,
+                            "value": value,
+                        }
+                        for index, value in enumerate(expanded, start=1)
+                    ]
+                    self.db[table].insert_all(
+                        new_rows,
+                        pk=('id', pk_column),
+                        foreign_keys=[(pk_column, self.name)],
+                        replace=True)
             else:
                 raise ExpandError("expanded value needs to be list or dict")
 
-        # Can drop the original column now
-        self.transform(drop=[column])
-        # And add that foreign key
-        self.add_foreign_key(fk_column, table, "id")
+        if m21 or m2m:
+            self.transform(drop=[column, fk_column])
+        else:
+            # Can drop the original column now
+            self.transform(drop=[column])
+            # And add that foreign key
+            self.add_foreign_key(fk_column, table, "id")
         return self
 
     def create_index(self, columns, index_name=None, unique=False, if_not_exists=False):
