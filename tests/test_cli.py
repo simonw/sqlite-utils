@@ -994,6 +994,13 @@ def test_query_json(db_path, sql, args, expected):
     assert expected == result.output.strip()
 
 
+def test_query_json_empty(db_path):
+    result = CliRunner().invoke(
+        cli.cli, [db_path, "select * from sqlite_master where 0"]
+    )
+    assert result.output.strip() == "[]"
+
+
 LOREM_IPSUM_COMPRESSED = (
     b"x\x9c\xed\xd1\xcdq\x03!\x0c\x05\xe0\xbb\xabP\x01\x1eW\x91\xdc|M\x01\n\xc8\x8e"
     b"f\xf83H\x1e\x97\x1f\x91M\x8e\xe9\xe0\xdd\x96\x05\x84\xf4\xbek\x9fRI\xc7\xf2J"
@@ -2098,7 +2105,11 @@ _TRIGGERS_EXPECTED = (
 
 @pytest.mark.parametrize(
     "extra_args,expected",
-    [([], _TRIGGERS_EXPECTED), (["articles"], _TRIGGERS_EXPECTED), (["counter"], "")],
+    [
+        ([], _TRIGGERS_EXPECTED),
+        (["articles"], _TRIGGERS_EXPECTED),
+        (["counter"], "[]\n"),
+    ],
 )
 def test_triggers(tmpdir, extra_args, expected):
     db_path = str(tmpdir / "test.db")

@@ -2225,6 +2225,9 @@ def output_rows(iterator, headers, nl, arrays, json_cols):
         )
         yield line
         first = False
+    if first:
+        # We didn't output any rows, so yield the empty list
+        yield "[]"
 
 
 def maybe_json(value):
