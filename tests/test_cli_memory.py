@@ -241,3 +241,27 @@ def test_memory_analyze():
         "  Blank rows: 0\n\n"
         "  Distinct values: 2\n\n"
     )
+
+
+def test_memory_two_files_with_same_stem(tmpdir):
+    (tmpdir / "one").mkdir()
+    (tmpdir / "two").mkdir()
+    one = tmpdir / "one" / "data.csv"
+    two = tmpdir / "two" / "data.csv"
+    one.write_text("id,name\n1,Cleo\n2,Bants", encoding="utf-8")
+    two.write_text("id,name\n3,Blue\n4,Lila", encoding="utf-8")
+    result = CliRunner().invoke(cli.cli, ["memory", str(one), str(two), "", "--schema"])
+    assert result.exit_code == 0
+    assert result.output == (
+        'CREATE TABLE "data" (\n'
+        "   [id] INTEGER,\n"
+        "   [name] TEXT\n"
+        ");\n"
+        "CREATE VIEW t1 AS select * from [data];\n"
+        "CREATE VIEW t AS select * from [data];\n"
+        'CREATE TABLE "data_2" (\n'
+        "   [id] INTEGER,\n"
+        "   [name] TEXT\n"
+        ");\n"
+        "CREATE VIEW t2 AS select * from [data_2];\n"
+    )

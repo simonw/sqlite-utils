@@ -281,6 +281,10 @@ The in-memory tables will be named after the files without their extensions. The
 
     $ sqlite-utils memory example.csv "select * from t"
 
+If two files have the same name they will be assigned a numeric suffix::
+
+    $ sqlite-utils memory foo/data.csv bar/data.csv "select * from data_2"
+
 To read from standard input, use either ``-`` or ``stdin`` as the filename - then use ``stdin`` or ``t`` or ``t1`` as the table name::
 
     $ cat example.csv | sqlite-utils memory - "select * from stdin"

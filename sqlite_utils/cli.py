@@ -1275,6 +1275,7 @@ def memory(
     if (dump or save or schema or analyze) and not paths:
         paths = [sql]
         sql = None
+    stem_counts = {}
     for i, path in enumerate(paths):
         # Path may have a :format suffix
         if ":" in path and path.rsplit(":", 1)[-1].upper() in Format.__members__:
@@ -1287,7 +1288,12 @@ def memory(
             csv_table = "stdin"
         else:
             csv_path = pathlib.Path(path)
-            csv_table = csv_path.stem
+            stem = csv_path.stem
+            if stem_counts.get(stem):
+                csv_table = "{}_{}".format(stem, stem_counts[stem])
+            else:
+                csv_table = stem
+            stem_counts[stem] = stem_counts.get(stem, 1) + 1
             csv_fp = csv_path.open("rb")
         rows, format_used = rows_from_file(csv_fp, format=format, encoding=encoding)
         tracker = None
