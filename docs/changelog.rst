@@ -2,6 +2,14 @@
  Changelog
 ===========
 
+.. _v3_17.1:
+
+3.17.1 (2021-09-22)
+-------------------
+
+- :ref:`sqlite-utils memory <cli_memory>` now works if files passed to it share the same file name. (:issue:`325`)
+- :ref:`sqlite-utils query <cli_query>` now returns ``[]`` in JSON mode if no rows are returned. (:issue:`328`)
+
 .. _v3_17:
 
 3.17 (2021-08-24)
