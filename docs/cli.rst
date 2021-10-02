@@ -1554,7 +1554,7 @@ By default it shows the most relevant matches first. You can specify a different
     # Sort by created in descending order
     $ sqlite-utils search mydb.db documents searchterm -o 'created desc'
 
-SQLite `advanced search syntax <https://www.sqlite.org/fts5.html#full_text_query_syntax>`__ is enabled by default. To run a search with automatic quoting use the ``--quote`` option.
+SQLite `advanced search syntax <https://www.sqlite.org/fts5.html#full_text_query_syntax>`__ is enabled by default. To run a search with automatic quoting applied to the terms to avoid them being potentially interpreted as advanced search syntax use the ``--quote`` option.
 
 You can specify a subset of columns to be returned using the ``-c`` option one or more times::
 
