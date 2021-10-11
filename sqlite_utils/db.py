@@ -1172,6 +1172,7 @@ class Table(Queryable):
                 self.update(row_pk, {fk_column: new_pk})
             elif isinstance(expanded, list):
                 if not len(expanded):
+                    m21 = True
                     continue
                 elif isinstance(expanded[0], dict):
                     m2m = True
