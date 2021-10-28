@@ -278,3 +278,7 @@ def progressbar(*args, **kwargs):
     else:
         with click.progressbar(*args, **kwargs) as bar:
             yield bar
+
+
+def pyarrow_tuple_as_py(pyarrow_tuple):
+    return tuple(map(lambda f: f.as_py(), pyarrow_tuple))

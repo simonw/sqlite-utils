@@ -28,6 +28,7 @@ setup(
         "click-default-group",
         "tabulate",
         "dateutils",
+        "pyarrow"
     ],
     setup_requires=["pytest-runner"],
     extras_require={

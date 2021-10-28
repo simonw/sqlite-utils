@@ -16,6 +16,7 @@ import os
 import sys
 import csv as csv_std
 import tabulate
+import pyarrow.parquet as pq
 from .utils import (
     file_progress,
     find_spatialite,
@@ -25,6 +26,7 @@ from .utils import (
     rows_from_file,
     Format,
     TypeTracker,
+    pyarrow_tuple_as_py
 )
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -646,6 +648,7 @@ def insert_upsert_options(fn):
             click.option("--flatten", is_flag=True, help="Flatten nested JSON objects"),
             click.option("-c", "--csv", is_flag=True, help="Expect CSV"),
             click.option("--tsv", is_flag=True, help="Expect TSV"),
+            click.option("--parquet", is_flag=True, help="Expect Parquet"),
             click.option("--delimiter", help="Delimiter to use for CSV files"),
             click.option("--quotechar", help="Quote character to use for CSV/TSV"),
             click.option(
@@ -682,7 +685,7 @@ def insert_upsert_options(fn):
                 "--detect-types",
                 is_flag=True,
                 envvar="SQLITE_UTILS_DETECT_TYPES",
-                help="Detect types for columns in CSV/TSV data",
+                help="Detect types for columns in CSV/TSV. For Parquet, types are detected automatically",
             ),
             load_extension_option,
             click.option("--silent", is_flag=True, help="Do not show progress bar"),
@@ -701,6 +704,7 @@ def insert_upsert_implementation(
     flatten,
     csv,
     tsv,
+    parquet,
     delimiter,
     quotechar,
     sniff,
@@ -722,10 +726,10 @@ def insert_upsert_implementation(
     _load_extensions(db, load_extension)
     if (delimiter or quotechar or sniff or no_headers) and not tsv:
         csv = True
-    if (nl + csv + tsv) >= 2:
-        raise click.ClickException("Use just one of --nl, --csv or --tsv")
-    if (csv or tsv) and flatten:
-        raise click.ClickException("--flatten cannot be used with --csv or --tsv")
+    if (nl + csv + tsv + parquet) >= 2:
+        raise click.ClickException("Use just one of --nl, --csv, --tsv or --parquet")
+    if (csv or tsv or parquet) and flatten:
+        raise click.ClickException("--flatten cannot be used with --csv, --tsv or --parquet")
     if encoding and not (csv or tsv):
         raise click.ClickException("--encoding must be used with --csv or --tsv")
     if pk and len(pk) == 1:
@@ -758,6 +762,28 @@ def insert_upsert_implementation(
             if detect_types:
                 tracker = TypeTracker()
                 docs = tracker.wrap(docs)
+    elif parquet:
+        """
+        If path points to a file then we assume this file should go into the table.
+        It's often the case though were larger tables/dataframes are split into smaller
+        parquet files. In this case, if path points to a directory we read all the files in the directory and insert them.
+        The end-result should be the same as if multiple calls (with a single input file) were made.
+        """
+        if pathlib.Path(json_file.name).is_file():
+            # Maybe use buffered reader, or set buffer_size ?
+            pq_file = pq.ParquetFile(json_file)
+            columns = pq_file.schema.names
+            parquet_table = pq_file.read() # can pass columns=[...]
+            #TODO: should probably read in batches: see parquet_table.to_batches()
+            #TODO: the below: pyarrow_tuple_as_py(r) probably slows down things too much.
+            docs = (dict(zip(columns, pyarrow_tuple_as_py(r))) for r in zip(*parquet_table.columns))
+        elif pathlib.Path(json_file.name).is_dir():
+            for f in pathlib.Path(json_file.name).iterdir():
+                raise NotImplementedError("Parquet directories are not supported yet")
+        else:
+            # Shouldn't happen
+            pass
+
     else:
         try:
             if nl:
@@ -768,7 +794,7 @@ def insert_upsert_implementation(
                     docs = [docs]
         except json.decoder.JSONDecodeError:
             raise click.ClickException(
-                "Invalid JSON - use --csv for CSV or --tsv for TSV files"
+                "Invalid JSON - use --csv for CSV, --tsv for TSV or --parquet for Parquet files"
             )
         if flatten:
             docs = (dict(_flatten(doc)) for doc in docs)
@@ -782,6 +808,7 @@ def insert_upsert_implementation(
         extra_kwargs["upsert"] = upsert
     # Apply {"$base64": true, ...} decoding, if needed
     docs = (decode_base64_values(doc) for doc in docs)
+
     try:
         db[table].insert_all(
             docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
@@ -856,6 +883,7 @@ def insert(
     flatten,
     csv,
     tsv,
+    parquet,
     delimiter,
     quotechar,
     sniff,
@@ -876,7 +904,7 @@ def insert(
     Insert records from JSON file into a table, creating the table if it
     does not already exist.
 
-    Input should be a JSON array of objects, unless --nl or --csv is used.
+    Input should be a JSON array of objects, unless --nl, --csv or --parquet is used.
     """
     try:
         insert_upsert_implementation(
@@ -888,6 +916,7 @@ def insert(
             flatten,
             csv,
             tsv,
+            parquet,
             delimiter,
             quotechar,
             sniff,

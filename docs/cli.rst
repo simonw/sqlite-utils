@@ -665,6 +665,17 @@ The ``most_common`` and ``least_common`` columns will contain nested JSON arrays
 
 .. _cli_inserting_data:
 
+Inserting Parquet data
+======================
+
+Parquet is a columnar storage format, frequently used in the Hadoop/Spark ecosystem as well as cloud providers.
+Parquet files can be inserted via the ``--parquet`` flag.
+Here's an example::
+
+    $ sqlite-utils insert --parquet data.db data ./data.parquet
+
+Parquet files, along with the data store data types too, thus making the ``--detect-types`` flag redundant, as data types are inferred automatically (using PyArrow)
+
 Inserting JSON data
 ===================
 

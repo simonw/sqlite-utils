@@ -7,6 +7,8 @@ import os
 import pytest
 from sqlite_utils.utils import sqlite3, find_spatialite
 import textwrap
+from pyarrow import Table
+from pyarrow.parquet import ParquetWriter
 
 from .utils import collapse_whitespace
 
@@ -823,22 +825,45 @@ def test_insert_csv_tsv(content, options, db_path, tmpdir):
 
 
 @pytest.mark.parametrize(
+    "content,options",
+    [
+        ({"foo": [1, 11], "bar": [2, 22], "baz": ["cat,dog", "animal"]}, ["--parquet"])
+    ],
+)
+def test_insert_parquet(content, options, db_path, tmpdir):
+    db = Database(db_path)
+    file_path = str(tmpdir / "insert.parquet")
+    arrow_table = Table.from_pydict(content)
+    ParquetWriter(file_path, arrow_table.schema).write_table(arrow_table)
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "data", file_path] + options,
+        catch_exceptions=False,
+    )
+    assert 0 == result.exit_code
+    assert [{"foo": 1, "bar": 2, "baz": "cat,dog"},
+            {"foo": 11, "bar": 22, "baz": "animal"}] == list(db["data"].rows)
+
+
+@pytest.mark.parametrize(
     "options",
     (
         ["--tsv", "--nl"],
         ["--tsv", "--csv"],
         ["--csv", "--nl"],
         ["--csv", "--nl", "--tsv"],
+        ["--csv", "--nl", "--parquet"],
+        ["--csv", "--parquet"],
     ),
 )
-def test_only_allow_one_of_nl_tsv_csv(options, db_path, tmpdir):
+def test_only_allow_one_of_nl_tsv_csv_parquet(options, db_path, tmpdir):
     file_path = str(tmpdir / "insert.csv-tsv")
     open(file_path, "w").write("foo")
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "data", file_path] + options
     )
     assert 0 != result.exit_code
-    assert "Error: Use just one of --nl, --csv or --tsv" == result.output.strip()
+    assert "Error: Use just one of --nl, --csv, --tsv or --parquet" == result.output.strip()
 
 
 def test_insert_replace(db_path, tmpdir):
