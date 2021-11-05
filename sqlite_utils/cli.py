@@ -1136,6 +1136,7 @@ def drop_view(path, view, ignore, load_extension):
     "--attach",
     type=(str, click.Path(file_okay=True, dir_okay=False, allow_dash=False)),
     multiple=True,
+    default=(),
     help="Additional databases to attach - specify alias and filepath",
 )
 @output_options
@@ -1145,6 +1146,7 @@ def drop_view(path, view, ignore, load_extension):
     "--param",
     multiple=True,
     type=(str, str),
+    default=(),
     help="Named :parameters for SQL query",
 )
 @load_extension_option
