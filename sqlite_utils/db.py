@@ -2694,7 +2694,7 @@ class Table(Queryable):
         set up a unique constraint on the ``name`` column to guarantee it will not
         contain duplicate rows.
 
-        It well then inserts a new row with the ``name`` set to ``Palm`` and return the
+        It will then insert a new row with the ``name`` set to ``Palm`` and return the
         new integer primary key value.
 
         See :ref:`python_api_lookup_tables` for more details.
