@@ -1190,6 +1190,7 @@ def query(
     multiple=True,
     help="Additional databases to attach - specify alias and filepath",
 )
+@click.option("--flatten", is_flag=True, help="Flatten nested JSON objects")
 @output_options
 @click.option("-r", "--raw", is_flag=True, help="Raw output, first column of first row")
 @click.option(
@@ -1226,6 +1227,7 @@ def memory(
     paths,
     sql,
     attach,
+    flatten,
     nl,
     arrays,
     csv,
@@ -1300,6 +1302,8 @@ def memory(
         if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
             tracker = TypeTracker()
             rows = tracker.wrap(rows)
+        if flatten:
+            rows = (dict(_flatten(row)) for row in rows)
         db[csv_table].insert_all(rows, alter=True)
         if tracker is not None:
             db[csv_table].transform(types=tracker.types)

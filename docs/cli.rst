@@ -758,7 +758,7 @@ This also means you pipe ``sqlite-utils`` together to easily create a new SQLite
 Flattening nested JSON objects
 ------------------------------
 
-``sqlite-utils insert`` expects incoming data to consist of an array of JSON objects, where the top-level keys of each object will become columns in the created database table.
+``sqlite-utils insert`` and ``sqlite-utils memory`` both expect incoming JSON data to consist of an array of JSON objects, where the top-level keys of each object will become columns in the created database table.
 
 If your data is nested you can use the ``--flatten`` option to create columns that are derived from the nested data.
 

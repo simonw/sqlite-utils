@@ -222,6 +222,30 @@ def test_memory_no_detect_types(option):
     ]
 
 
+def test_memory_flatten():
+    result = CliRunner().invoke(
+        cli.cli,
+        ["memory", "-", "select * from stdin", "--flatten"],
+        input=json.dumps(
+            {
+                "httpRequest": {
+                    "latency": "0.112114537s",
+                    "requestMethod": "GET",
+                },
+                "insertId": "6111722f000b5b4c4d4071e2",
+            }
+        ),
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output.strip()) == [
+        {
+            "httpRequest_latency": "0.112114537s",
+            "httpRequest_requestMethod": "GET",
+            "insertId": "6111722f000b5b4c4d4071e2",
+        }
+    ]
+
+
 def test_memory_analyze():
     result = CliRunner().invoke(
         cli.cli,
