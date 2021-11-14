@@ -2141,7 +2141,9 @@ You can create an index on a table using the ``.create_index(columns)`` method. 
 
     db["dogs"].create_index(["is_good_dog"])
 
-By default the index will be named ``idx_{table-name}_{columns}`` - if you want to customize the name of the created index you can pass the ``index_name`` parameter:
+By default the index will be named ``idx_{table-name}_{columns}``. If you pass ``find_unique_name=True`` and the automatically derived name already exists, an available name will be found by incrementing a suffix number, for example ``idx_items_title_2``.
+
+You can customize the name of the created index by passing the ``index_name`` parameter:
 
 .. code-block:: python
 

@@ -4,6 +4,7 @@ from sqlite_utils.db import (
     DescIndex,
     AlterError,
     NoObviousTable,
+    OperationalError,
     ForeignKey,
     Table,
     View,
@@ -750,6 +751,22 @@ def test_create_index_desc(fresh_db):
     assert sql == (
         "CREATE INDEX [idx_dogs_age_name]\n" "    ON [dogs] ([age] desc, [name])"
     )
+
+
+def test_create_index_find_unique_name():
+    db = Database(memory=True)
+    table = db["t"]
+    table.insert({"id": 1})
+    table.create_index(["id"])
+    # Without find_unique_name should error
+    with pytest.raises(OperationalError, match="index idx_t_id already exists"):
+        table.create_index(["id"])
+    # With find_unique_name=True it should work
+    table.create_index(["id"], find_unique_name=True)
+    table.create_index(["id"], find_unique_name=True)
+    # Should have three now
+    index_names = {idx.name for idx in table.indexes}
+    assert index_names == {"idx_t_id", "idx_t_id_2", "idx_t_id_3"}
 
 
 @pytest.mark.parametrize(

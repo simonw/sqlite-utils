@@ -899,7 +899,7 @@ class Database:
             }
             for fk in table.foreign_keys:
                 if fk.column not in existing_indexes:
-                    table.create_index([fk.column])
+                    table.create_index([fk.column], find_unique_name=True)
 
     def vacuum(self):
         "Run a SQLite ``VACUUM`` against the database."
@@ -1521,6 +1521,7 @@ class Table(Queryable):
         index_name: Optional[str] = None,
         unique: bool = False,
         if_not_exists: bool = False,
+        find_unique_name: bool = False,
     ):
         """
         Create an index on this table.
@@ -1530,6 +1531,8 @@ class Table(Queryable):
         - ``index_name`` - the name to use for the new index. Defaults to the column names joined on ``_``.
         - ``unique`` - should the index be marked as unique, forcing unique values?
         - ``if_not_exists`` - only create the index if one with that name does not already exist.
+        - ``find_unique_name`` - if ``index_name`` is not provided and the automatically derived name
+          already exists, keep incrementing a suffix number to find an available name.
 
         See :ref:`python_api_create_index`.
         """
@@ -1544,23 +1547,45 @@ class Table(Queryable):
             else:
                 fmt = "[{}]"
             columns_sql.append(fmt.format(column))
-        sql = (
-            textwrap.dedent(
-                """
-            CREATE {unique}INDEX {if_not_exists}[{index_name}]
-                ON [{table_name}] ({columns});
-        """
+
+        suffix = None
+        while True:
+            sql = (
+                textwrap.dedent(
+                    """
+                CREATE {unique}INDEX {if_not_exists}[{index_name}]
+                    ON [{table_name}] ({columns});
+            """
+                )
+                .strip()
+                .format(
+                    index_name="{}_{}".format(index_name, suffix)
+                    if suffix
+                    else index_name,
+                    table_name=self.name,
+                    columns=", ".join(columns_sql),
+                    unique="UNIQUE " if unique else "",
+                    if_not_exists="IF NOT EXISTS " if if_not_exists else "",
+                )
             )
-            .strip()
-            .format(
-                index_name=index_name,
-                table_name=self.name,
-                columns=", ".join(columns_sql),
-                unique="UNIQUE " if unique else "",
-                if_not_exists="IF NOT EXISTS " if if_not_exists else "",
-            )
-        )
-        self.db.execute(sql)
+            try:
+                self.db.execute(sql)
+                break
+            except OperationalError as e:
+                # find_unique_name=True - try again if 'index ... already exists'
+                arg = e.args[0]
+                if (
+                    find_unique_name
+                    and arg.startswith("index ")
+                    and arg.endswith(" already exists")
+                ):
+                    if suffix is None:
+                        suffix = 2
+                    else:
+                        suffix += 1
+                    continue
+                else:
+                    raise e
         return self
 
     def add_column(
