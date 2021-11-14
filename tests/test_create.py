@@ -475,6 +475,18 @@ def test_index_foreign_keys(fresh_db):
     assert [["breed_id"]] == [i.columns for i in fresh_db["dogs"].indexes]
 
 
+def test_index_foreign_keys_if_index_name_is_already_used(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/335
+    test_add_foreign_key_guess_table(fresh_db)
+    # Add index with a name that will conflict with index_foreign_keys()
+    fresh_db["dogs"].create_index(["name"], index_name="idx_dogs_breed_id")
+    fresh_db.index_foreign_keys()
+    assert {(idx.name, tuple(idx.columns)) for idx in fresh_db["dogs"].indexes} == {
+        ("idx_dogs_breed_id_2", ("breed_id",)),
+        ("idx_dogs_breed_id", ("name",)),
+    }
+
+
 @pytest.mark.parametrize(
     "extra_data,expected_new_columns",
     [
@@ -753,9 +765,8 @@ def test_create_index_desc(fresh_db):
     )
 
 
-def test_create_index_find_unique_name():
-    db = Database(memory=True)
-    table = db["t"]
+def test_create_index_find_unique_name(fresh_db):
+    table = fresh_db["t"]
     table.insert({"id": 1})
     table.create_index(["id"])
     # Without find_unique_name should error
