@@ -69,5 +69,6 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
     ],
-    zip_safe=False,  #  For mypy and py.typed
+    # Needed to bundle py.typed so mypy can see it:
+    zip_safe=False,
 )
