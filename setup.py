@@ -28,7 +28,7 @@ setup(
         "click",
         "click-default-group",
         "tabulate",
-        "dateutils",
+        "python-dateutil",
     ],
     setup_requires=["pytest-runner"],
     extras_require={
