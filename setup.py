@@ -22,6 +22,7 @@ setup(
     version=VERSION,
     license="Apache License, Version 2.0",
     packages=find_packages(exclude=["tests", "tests.*"]),
+    package_data={"sqlite_utils": ["py.typed"]},
     install_requires=[
         "sqlite-fts4",
         "click",
@@ -46,7 +47,6 @@ setup(
         [console_scripts]
         sqlite-utils=sqlite_utils.cli:cli
     """,
-    tests_require=["sqlite-utils[test]"],
     url="https://github.com/simonw/sqlite-utils",
     project_urls={
         "Documentation": "https://sqlite-utils.datasette.io/en/stable/",
@@ -69,4 +69,5 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
     ],
+    zip_safe=False,  #  For mypy and py.typed
 )
