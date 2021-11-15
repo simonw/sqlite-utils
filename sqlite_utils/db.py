@@ -639,7 +639,7 @@ class Database:
         column_order: Optional[List[str]] = None,
         not_null: Iterable[str] = None,
         defaults: Optional[Dict[str, Any]] = None,
-        hash_id: Optional[Any] = None,
+        hash_id: Optional[str] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
     ) -> str:
         "Returns the SQL ``CREATE TABLE`` statement for creating the specified table."
@@ -748,7 +748,7 @@ class Database:
         column_order: Optional[List[str]] = None,
         not_null: Iterable[str] = None,
         defaults: Optional[Dict[str, Any]] = None,
-        hash_id: Optional[Any] = None,
+        hash_id: Optional[str] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
     ) -> "Table":
         """
@@ -1046,7 +1046,7 @@ class Table(Queryable):
         not_null: Iterable[str] = None,
         defaults: Optional[Dict[str, Any]] = None,
         batch_size: int = 100,
-        hash_id: Optional[Any] = None,
+        hash_id: Optional[str] = None,
         alter: bool = False,
         ignore: bool = False,
         replace: bool = False,
@@ -1227,7 +1227,7 @@ class Table(Queryable):
         column_order: Optional[List[str]] = None,
         not_null: Iterable[str] = None,
         defaults: Optional[Dict[str, Any]] = None,
-        hash_id: Optional[Any] = None,
+        hash_id: Optional[str] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
     ) -> "Table":
         """
