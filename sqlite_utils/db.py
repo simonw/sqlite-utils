@@ -168,6 +168,8 @@ COLUMN_TYPE_MAPPING = {
     bool: "INTEGER",
     str: "TEXT",
     dict: "TEXT",
+    tuple: "TEXT",
+    list: "TEXT",
     bytes.__class__: "BLOB",
     bytes: "BLOB",
     memoryview: "BLOB",

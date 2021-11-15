@@ -1040,3 +1040,30 @@ def test_create_with_nested_bytes(fresh_db):
 )
 def test_quote(fresh_db, input, expected):
     assert fresh_db.quote(input) == expected
+
+
+@pytest.mark.parametrize(
+    "columns,expected_sql_middle",
+    (
+        (
+            {"id": int},
+            "[id] INTEGER",
+        ),
+        (
+            {"col": dict},
+            "[col] TEXT",
+        ),
+        (
+            {"col": tuple},
+            "[col] TEXT",
+        ),
+        (
+            {"col": list},
+            "[col] TEXT",
+        ),
+    ),
+)
+def test_create_table_sql(fresh_db, columns, expected_sql_middle):
+    sql = fresh_db.create_table_sql("t", columns)
+    middle = sql.split("(")[1].split(")")[0].strip()
+    assert middle == expected_sql_middle
