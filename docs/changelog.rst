@@ -2,6 +2,20 @@
  Changelog
 ===========
 
+.. _v3_18:
+
+3.18 (2021-11-14)
+-----------------
+
+- The ``table.lookup()`` method now has an optional second argument which can be used to populate columns only the first time the record is created, see :ref:`python_api_lookup_tables`. (:issue:`339`)
+- ``sqlite-utils memory`` now has a ``--flatten`` option for :ref:`flattening nested JSON objects <cli_inserting_data_flatten>` into separate columns, consistent with ``sqlite-utils insert``. (:issue:`332`)
+- ``table.create_index(..., find_unique_name=True)`` parameter, which finds an available name for the created index even if the default name has already been taken. This means that ``index-foreign-keys`` will work even if one of the indexes it tries to create clashes with an existing index name. (:issue:`335`)
+- Added ``py.typed`` to the module, so `mypy <http://mypy-lang.org/>`__ should now correctly pick up the type annotations. Thanks, Andreas Longo. (:issue:`331`)
+- Now depends on ``python-dateutil`` instead of depending on ``dateutils``. Thanks, Denys Pavlov. (:issue:`324`)
+- ``table.create()`` (see :ref:`python_api_explicit_create`) now handles ``dict``, ``list`` and ``tuple`` types, mapping them to ``TEXT`` columns in SQLite so that they can be stored encoded as JSON. (:issue:`338`)
+- Inserted data with square braces in the column names (for example a CSV file containing a ``item[price]``) column now have the braces converted to underscores: ``item_price_``. Previously such columns would be rejected with an error. (:issue:`329`)
+- Now also tested against Python 3.10. (`#330 <https://github.com/simonw/sqlite-utils/pull/330>`__)
+
 .. _v3_17.1:
 
 3.17.1 (2021-09-22)
