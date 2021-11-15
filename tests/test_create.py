@@ -144,6 +144,7 @@ def test_create_table_with_not_null(fresh_db):
             [{"name": "memoryview", "type": "BLOB"}],
         ),
         ({"uuid": uuid.uuid4()}, [{"name": "uuid", "type": "TEXT"}]),
+        ({"foo[bar]": 1}, [{"name": "foo_bar_", "type": "INTEGER"}]),
     ),
 )
 def test_create_table_from_example(fresh_db, example, expected_columns):
@@ -523,13 +524,6 @@ def test_insert_row_alter_table(
     ] + expected_new_columns == [
         {"name": col.name, "type": col.type} for col in table.columns
     ]
-
-
-def test_insert_row_alter_table_invalid_column_characters(fresh_db):
-    table = fresh_db["table"]
-    table.insert({"foo": "bar"}).last_pk
-    with pytest.raises(AssertionError):
-        table.insert({"foo": "baz", "new_col[abc]": 1.2}, alter=True)
 
 
 def test_add_missing_columns_case_insensitive(fresh_db):

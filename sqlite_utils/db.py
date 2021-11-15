@@ -2571,6 +2571,8 @@ class Table(Queryable):
         all_columns = []
         first = True
         num_records_processed = 0
+        # Fix up any records with square braces in the column names
+        records = fix_square_braces(records)
         # We can only handle a max of 999 variables in a SQL insert, so
         # we need to adjust the batch_size down if we have too many cols
         records = iter(records)
@@ -2618,7 +2620,6 @@ class Table(Queryable):
                         column for column in record if column not in all_columns
                     ]
 
-            validate_column_names(all_columns)
             first = False
 
             self.insert_chunk(
@@ -2986,3 +2987,14 @@ def validate_column_names(columns):
         assert (
             "[" not in column and "]" not in column
         ), "'[' and ']' cannot be used in column names"
+
+
+def fix_square_braces(records: Iterable[Dict[str, Any]]):
+    for record in records:
+        if any("[" in key or "]" in key for key in record.keys()):
+            yield {
+                key.replace("[", "_").replace("]", "_"): value
+                for key, value in record.items()
+            }
+        else:
+            yield record
