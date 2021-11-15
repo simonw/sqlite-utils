@@ -2713,7 +2713,11 @@ class Table(Queryable):
                 self.add_column(col_name, col_type)
         return self
 
-    def lookup(self, column_values: Dict[str, Any]):
+    def lookup(
+        self,
+        lookup_values: Dict[str, Any],
+        extra_values: Optional[Dict[str, Any]] = None,
+    ):
         """
         Create or populate a lookup table with the specified values.
 
@@ -2725,28 +2729,36 @@ class Table(Queryable):
         It will then insert a new row with the ``name`` set to ``Palm`` and return the
         new integer primary key value.
 
+        An optional second argument can be provided with more ``name: value`` pairs to
+        be included only if the record is being created for the first time. These will
+        be ignored on subsequent lookup calls for records that already exist.
+
         See :ref:`python_api_lookup_tables` for more details.
         """
-        # lookups is a dictionary - all columns will be used for a unique index
-        assert isinstance(column_values, dict)
+        assert isinstance(lookup_values, dict)
+        if extra_values is not None:
+            assert isinstance(extra_values, dict)
+        combined_values = dict(lookup_values)
+        if extra_values is not None:
+            combined_values.update(extra_values)
         if self.exists():
-            self.add_missing_columns([column_values])
+            self.add_missing_columns([combined_values])
             unique_column_sets = [set(i.columns) for i in self.indexes]
-            if set(column_values.keys()) not in unique_column_sets:
-                self.create_index(column_values.keys(), unique=True)
-            wheres = ["[{}] = ?".format(column) for column in column_values]
+            if set(lookup_values.keys()) not in unique_column_sets:
+                self.create_index(lookup_values.keys(), unique=True)
+            wheres = ["[{}] = ?".format(column) for column in lookup_values]
             rows = list(
                 self.rows_where(
-                    " and ".join(wheres), [value for _, value in column_values.items()]
+                    " and ".join(wheres), [value for _, value in lookup_values.items()]
                 )
             )
             try:
                 return rows[0]["id"]
             except IndexError:
-                return self.insert(column_values, pk="id").last_pk
+                return self.insert(combined_values, pk="id").last_pk
         else:
-            pk = self.insert(column_values, pk="id").last_pk
-            self.create_index(column_values.keys(), unique=True)
+            pk = self.insert(combined_values, pk="id").last_pk
+            self.create_index(lookup_values.keys(), unique=True)
             return pk
 
     def m2m(

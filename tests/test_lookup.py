@@ -66,3 +66,23 @@ def test_lookup_fails_if_constraint_cannot_be_added(fresh_db):
     # This will fail because the name column is not unique
     with pytest.raises(Exception, match="UNIQUE constraint failed"):
         species.lookup({"name": "Palm"})
+
+
+def test_lookup_with_extra_values(fresh_db):
+    species = fresh_db["species"]
+    id = species.lookup({"name": "Palm", "type": "Tree"}, {"first_seen": "2020-01-01"})
+    assert species.get(id) == {
+        "id": 1,
+        "name": "Palm",
+        "type": "Tree",
+        "first_seen": "2020-01-01",
+    }
+    # A subsequent lookup() should ignore the second dictionary
+    id2 = species.lookup({"name": "Palm", "type": "Tree"}, {"first_seen": "2021-02-02"})
+    assert id2 == id
+    assert species.get(id2) == {
+        "id": 1,
+        "name": "Palm",
+        "type": "Tree",
+        "first_seen": "2020-01-01",
+    }

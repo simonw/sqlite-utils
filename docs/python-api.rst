@@ -824,6 +824,16 @@ If you pass in a dictionary with multiple values, both values will be used to in
         })
     })
 
+The ``.lookup()`` method has an optional second argument which can be used to populate other columns in the table but only if the row does not exist yet. These columns will not be included in the unique index.
+
+To create a species record with a note on when it was first seen, you can use this:
+
+.. code-block:: python
+
+    db["Species"].lookup({"name": "Palm"}, {"first_seen": "2021-03-04"})
+
+The first time this is called the record will be created for ``name="Palm"``. Any subsequent calls with that name will ignore the second argument, even if it includes different values.
+
 .. _python_api_extracts:
 
 Populating lookup tables automatically during insert/upsert
