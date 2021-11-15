@@ -186,7 +186,6 @@ COLUMN_TYPE_MAPPING = {
     "integer": "INTEGER",
     "float": "FLOAT",
     "blob": "BLOB",
-    
 }
 # If numpy is available, add more types
 if np:
