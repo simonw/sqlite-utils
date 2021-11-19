@@ -2,6 +2,9 @@ name: Test
 
 on: [push]
 
+env:
+  FORCE_COLOR: 1
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
@@ -31,7 +34,7 @@ jobs:
       run: pip install numpy
     - name: Run tests
       run: |
-        pytest
+        pytest -v
     - name: run mypy
       run: mypy sqlite_utils tests
     - name: run flake8
