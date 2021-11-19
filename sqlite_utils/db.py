@@ -2556,7 +2556,7 @@ class Table(Queryable):
         ignore = self.value_or_default("ignore", ignore)
         replace = self.value_or_default("replace", replace)
         extracts = self.value_or_default("extracts", extracts)
-        conversions = self.value_or_default("conversions", conversions)
+        conversions = self.value_or_default("conversions", conversions) or {}
         columns = self.value_or_default("columns", columns)
 
         if upsert and (not pk and not hash_id):
@@ -2718,6 +2718,14 @@ class Table(Queryable):
         self,
         lookup_values: Dict[str, Any],
         extra_values: Optional[Dict[str, Any]] = None,
+        pk: Optional[str] = "id",
+        foreign_keys: Optional[ForeignKeysType] = None,
+        column_order: Optional[List[str]] = None,
+        not_null: Optional[Set[str]] = None,
+        defaults: Optional[Dict[str, Any]] = None,
+        extracts: Optional[Union[Dict[str, str], List[str]]] = None,
+        conversions: Optional[Dict[str, str]] = None,
+        columns: Optional[Dict[str, Any]] = None,
     ):
         """
         Create or populate a lookup table with the specified values.
@@ -2735,6 +2743,8 @@ class Table(Queryable):
         be ignored on subsequent lookup calls for records that already exist.
 
         See :ref:`python_api_lookup_tables` for more details.
+
+        All other keyword arguments are passed through to ``.insert()``.
         """
         assert isinstance(lookup_values, dict)
         if extra_values is not None:
@@ -2754,11 +2764,31 @@ class Table(Queryable):
                 )
             )
             try:
-                return rows[0]["id"]
+                return rows[0][pk]
             except IndexError:
-                return self.insert(combined_values, pk="id").last_pk
+                return self.insert(
+                    combined_values,
+                    pk=pk,
+                    foreign_keys=foreign_keys,
+                    column_order=column_order,
+                    not_null=not_null,
+                    defaults=defaults,
+                    extracts=extracts,
+                    conversions=conversions,
+                    columns=columns,
+                ).last_pk
         else:
-            pk = self.insert(combined_values, pk="id").last_pk
+            pk = self.insert(
+                combined_values,
+                pk=pk,
+                foreign_keys=foreign_keys,
+                column_order=column_order,
+                not_null=not_null,
+                defaults=defaults,
+                extracts=extracts,
+                conversions=conversions,
+                columns=columns,
+            ).last_pk
             self.create_index(lookup_values.keys(), unique=True)
             return pk
 

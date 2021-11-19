@@ -834,6 +834,17 @@ To create a species record with a note on when it was first seen, you can use th
 
 The first time this is called the record will be created for ``name="Palm"``. Any subsequent calls with that name will ignore the second argument, even if it includes different values.
 
+``.lookup()`` also accepts keyword arguments, which are passed through to the :ref:`insert() method <python_api_creating_tables>` and can be used to influence the shape of the created table. Supported parameters are:
+
+- ``pk`` - which defaults to ``id``
+- ``foreign_keys``
+- ``column_order``
+- ``not_null``
+- ``defaults``
+- ``extracts``
+- ``conversions``
+- ``columns``
+
 .. _python_api_extracts:
 
 Populating lookup tables automatically during insert/upsert

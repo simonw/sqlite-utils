@@ -86,3 +86,68 @@ def test_lookup_with_extra_values(fresh_db):
         "type": "Tree",
         "first_seen": "2020-01-01",
     }
+
+
+def test_lookup_with_extra_insert_parameters(fresh_db):
+    other_table = fresh_db["other_table"]
+    other_table.insert({"id": 1, "name": "Name"}, pk="id")
+    species = fresh_db["species"]
+    id = species.lookup(
+        {"name": "Palm", "type": "Tree"},
+        {
+            "first_seen": "2020-01-01",
+            "make_not_null": 1,
+            "fk_to_other": 1,
+            "default_is_dog": "cat",
+            "extract_this": "This is extracted",
+            "convert_to_upper": "upper",
+            "make_this_integer": "2",
+            "this_at_front": 1,
+        },
+        pk="renamed_id",
+        foreign_keys=(("fk_to_other", "other_table", "id"),),
+        column_order=("this_at_front",),
+        not_null={"make_not_null"},
+        defaults={"default_is_dog": "dog"},
+        extracts=["extract_this"],
+        conversions={"convert_to_upper": "upper(?)"},
+        columns={"make_this_integer": int},
+    )
+    assert species.schema == (
+        "CREATE TABLE [species] (\n"
+        "   [renamed_id] INTEGER PRIMARY KEY,\n"
+        "   [this_at_front] INTEGER,\n"
+        "   [name] TEXT,\n"
+        "   [type] TEXT,\n"
+        "   [first_seen] TEXT,\n"
+        "   [make_not_null] INTEGER NOT NULL,\n"
+        "   [fk_to_other] INTEGER REFERENCES [other_table]([id]),\n"
+        "   [default_is_dog] TEXT DEFAULT 'dog',\n"
+        "   [extract_this] INTEGER REFERENCES [extract_this]([id]),\n"
+        "   [convert_to_upper] TEXT,\n"
+        "   [make_this_integer] INTEGER\n"
+        ")"
+    )
+    assert species.get(id) == {
+        "renamed_id": id,
+        "this_at_front": 1,
+        "name": "Palm",
+        "type": "Tree",
+        "first_seen": "2020-01-01",
+        "make_not_null": 1,
+        "fk_to_other": 1,
+        "default_is_dog": "cat",
+        "extract_this": 1,
+        "convert_to_upper": "UPPER",
+        "make_this_integer": 2,
+    }
+    assert species.indexes == [
+        Index(
+            seq=0,
+            name="idx_species_name_type",
+            unique=1,
+            origin="c",
+            partial=0,
+            columns=["name", "type"],
+        )
+    ]
