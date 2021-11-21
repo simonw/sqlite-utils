@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v3_19:
+
+3.19 (2021-11-20)
+-----------------
+
+- The :ref:`table.lookup() method <python_api_lookup_tables>` now accepts keyword arguments that match those on the underlying ``table.insert()`` method: ``foreign_keys=``, ``column_order=``, ``not_null=``, ``defaults=``, ``extracts=``, ``conversions=`` and ``columns=``. You can also now pass ``pk=`` to specify a different column name to use for the primary key. (:issue:`342`)
+
 .. _v3_18:
 
 3.18 (2021-11-14)
