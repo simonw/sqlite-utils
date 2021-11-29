@@ -252,15 +252,33 @@ def test_has_counts_triggers(fresh_db):
         ),
     ],
 )
-def test_virtual_table_using(sql, expected_name, expected_using):
-    db = Database(memory=True)
-    db.execute(sql)
-    assert db[expected_name].virtual_table_using == expected_using
+def test_virtual_table_using(fresh_db, sql, expected_name, expected_using):
+    fresh_db.execute(sql)
+    assert fresh_db[expected_name].virtual_table_using == expected_using
 
 
-def test_use_rowid():
-    db = Database(memory=True)
-    db["rowid_table"].insert({"name": "Cleo"})
-    db["regular_table"].insert({"id": 1, "name": "Cleo"}, pk="id")
-    assert db["rowid_table"].use_rowid
-    assert not db["regular_table"].use_rowid
+def test_use_rowid(fresh_db):
+    fresh_db["rowid_table"].insert({"name": "Cleo"})
+    fresh_db["regular_table"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    assert fresh_db["rowid_table"].use_rowid
+    assert not fresh_db["regular_table"].use_rowid
+
+
+@pytest.mark.skipif(
+    not Database(memory=True).supports_strict,
+    reason="Needs SQLite version that supports strict",
+)
+@pytest.mark.parametrize(
+    "create_table,expected_strict",
+    (
+        ("create table t (id integer) strict", True),
+        ("create table t (id integer) STRICT", True),
+        ("create table t (id integer primary key) StriCt, WITHOUT ROWID", True),
+        ("create table t (id integer primary key) WITHOUT ROWID", False),
+        ("create table t (id integer)", False),
+    ),
+)
+def test_table_strict(fresh_db, create_table, expected_strict):
+    fresh_db.execute(create_table)
+    table = fresh_db["t"]
+    assert table.strict == expected_strict

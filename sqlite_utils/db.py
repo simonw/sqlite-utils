@@ -18,6 +18,7 @@ import json
 import os
 import pathlib
 import re
+import secrets
 from sqlite_fts4 import rank_bm25  # type: ignore
 import sys
 import textwrap
@@ -520,6 +521,19 @@ class Database:
                 sql += ";"
             sqls.append(sql)
         return "\n".join(sqls)
+
+    @property
+    def supports_strict(self):
+        try:
+            table_name = "t{}".format(secrets.token_hex(16))
+            with self.conn:
+                self.conn.execute(
+                    "create table {} (name text) strict".format(table_name)
+                )
+                self.conn.execute("drop table {}".format(table_name))
+            return True
+        except Exception as e:
+            return False
 
     @property
     def journal_mode(self) -> str:
@@ -1218,6 +1232,13 @@ class Table(Queryable):
     def triggers_dict(self) -> Dict[str, str]:
         "``{trigger_name: sql}`` dictionary of triggers defined on this table."
         return {trigger.name: trigger.sql for trigger in self.triggers}
+
+    @property
+    def strict(self) -> bool:
+        "Is this a STRICT table?"
+        table_suffix = self.schema.split(")")[-1].strip().upper()
+        table_options = [bit.strip() for bit in table_suffix.split(",")]
+        return "STRICT" in table_options
 
     def create(
         self,

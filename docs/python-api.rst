@@ -1609,8 +1609,8 @@ A more useful example: if you are working with `SpatiaLite <https://www.gaia-gis
 
 .. _python_api_introspection:
 
-Introspection
-=============
+Introspecting tables and views
+==============================
 
 If you have loaded an existing table or view, you can use introspection to find out more about it::
 
@@ -1740,6 +1740,18 @@ The ``.schema`` property outputs the table's schema as a SQL string::
         FOREIGN KEY ("qSiteInfo") REFERENCES [qSiteInfo](id),
         FOREIGN KEY ("qCareAssistant") REFERENCES [qCareAssistant](id),
         FOREIGN KEY ("qLegalStatus") REFERENCES [qLegalStatus](id))
+
+.. _python_api_introspection_strict:
+
+.strict
+-------
+
+The ``.strict`` property identifies if the table is a `SQLite STRICT table <https://www.sqlite.org/stricttables.html>`__.
+
+::
+
+    >>> db["ny_times_us_counties"].strict
+    False
 
 .. _python_api_introspection_indexes:
 
