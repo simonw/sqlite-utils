@@ -532,7 +532,7 @@ class Database:
                 )
                 self.conn.execute("drop table {}".format(table_name))
             return True
-        except Exception as e:
+        except:
             return False
 
     @property
