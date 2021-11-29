@@ -5,7 +5,7 @@ import enum
 import io
 import json
 import os
-from sqlite3.dump import _iterdump as iterdump  # type: ignore
+from sqlite3.dump import _iterdump as iterdump   # type: ignore # noqa: F401
 from typing import cast, BinaryIO, Iterable, Optional, Tuple, Type
 
 import click
