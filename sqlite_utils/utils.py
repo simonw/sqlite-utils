@@ -5,6 +5,7 @@ import enum
 import io
 import json
 import os
+from sqlite3.dump import _iterdump as iterdump
 from typing import cast, BinaryIO, Iterable, Optional, Tuple, Type
 
 import click

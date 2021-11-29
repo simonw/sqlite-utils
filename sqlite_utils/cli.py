@@ -19,6 +19,7 @@ import tabulate
 from .utils import (
     file_progress,
     find_spatialite,
+    iterdump,
     sqlite3,
     decode_base64_values,
     progressbar,
@@ -326,7 +327,7 @@ def dump(path, load_extension):
     """Output a SQL dump of the schema and full contents of the database"""
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
-    for line in db.conn.iterdump():
+    for line in iterdump(db.conn):
         click.echo(line)
 
 
@@ -1320,7 +1321,7 @@ def memory(
         return
 
     if dump:
-        for line in db.conn.iterdump():
+        for line in iterdump(db.conn):
             click.echo(line)
         return
 
@@ -1330,7 +1331,7 @@ def memory(
 
     if save:
         db2 = sqlite_utils.Database(save)
-        for line in db.conn.iterdump():
+        for line in iterdump(db.conn):
             db2.execute(line)
         return
 
