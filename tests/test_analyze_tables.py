@@ -1,5 +1,6 @@
 from sqlite_utils.db import Database, ColumnDetails
 from sqlite_utils import cli
+from sqlite_utils.utils import iterdump
 from click.testing import CliRunner
 import pytest
 import sqlite3
@@ -79,7 +80,7 @@ def test_analyze_column(db_to_analyze, column, expected):
 def db_to_analyze_path(db_to_analyze, tmpdir):
     path = str(tmpdir / "test.db")
     db = sqlite3.connect(path)
-    db.executescript("\n".join(db_to_analyze.conn.iterdump()))
+    db.executescript("\n".join(iterdump(db_to_analyze.conn)))
     return path
 
 
