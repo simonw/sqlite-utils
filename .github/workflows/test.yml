@@ -37,7 +37,7 @@ jobs:
     - name: Optionally install numpy
       if: matrix.numpy == 1
       run: pip install numpy
-    - name: Optionall install pysqlite3 with SQLite 3.37
+    - name: Optionally install pysqlite3 with SQLite 3.37
       if: matrix.pysqlite3_sqlite_3_37 == 1
       run: |-
         cd /tmp
@@ -45,7 +45,7 @@ jobs:
         cd sqlite-3.37
         wget 'https://www.sqlite.org/2021/sqlite-amalgamation-3370000.zip'
         unzip sqlite-amalgamation-3370000.zip
-        git clone https://github.com/coleifer/pysqlite3/
+        git clone https://github.com/coleifer/pysqlite3
         cp sqlite-amalgamation-3370000/sqlite3.[ch] pysqlite3
         cd pysqlite3
         pip install wheel
