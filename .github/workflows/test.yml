@@ -15,7 +15,9 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         include:
         - os: ubuntu-latest
-          pysqlite3_sqlite_3_37: true
+          python-version: "3.10"
+          numpy: 0
+          pysqlite3_sqlite_3_37: 1
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -36,7 +38,7 @@ jobs:
       if: matrix.numpy == 1
       run: pip install numpy
     - name: Optionall install pysqlite3 with SQLite 3.37
-      if: matrix.pysqlite3_sqlite_3_37
+      if: matrix.pysqlite3_sqlite_3_37 == 1
       run: |-
         cd /tmp
         mkdir sqlite-3.37
@@ -46,6 +48,7 @@ jobs:
         git clone https://github.com/coleifer/pysqlite3/
         cp sqlite-amalgamation-3370000/sqlite3.[ch] pysqlite3
         cd pysqlite3
+        pip install wheel
         python setup.py build_static build bdist_wheel
         pip install /tmp/sqlite-3.37/pysqlite3/dist/*.whl
     - name: Run tests
