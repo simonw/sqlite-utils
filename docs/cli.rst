@@ -1288,12 +1288,13 @@ This would produce the following schema:
         [TreeAddress] TEXT,
         [species_id] INTEGER,
         FOREIGN KEY(species_id) REFERENCES species(id)
-    )
-
+    );
     CREATE TABLE [species] (
         [id] INTEGER PRIMARY KEY,
         [species] TEXT
-    )
+    );
+    CREATE UNIQUE INDEX [idx_species_species]
+        ON [species] ([species]);
 
 The command takes the following options:
 
