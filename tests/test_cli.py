@@ -556,8 +556,7 @@ def test_optimize(db_path, tables):
     assert 0 == result.exit_code
 
 
-@pytest.mark.parametrize("tables", ([], ["fts4_table"], ["fts5_table"]))
-def test_rebuild_fts(db_path, tables):
+def test_rebuild_fts_fixes_docsize_error(db_path):
     db = Database(db_path, recursive_triggers=False)
     records = [
         {
@@ -568,43 +567,22 @@ def test_rebuild_fts(db_path, tables):
         for i in range(10000)
     ]
     with db.conn:
-        db["fts4_table"].insert_all(records, pk="c1")
         db["fts5_table"].insert_all(records, pk="c1")
-        db["fts4_table"].enable_fts(
-            ["c1", "c2", "c3"], fts_version="FTS4", create_triggers=True
-        )
         db["fts5_table"].enable_fts(
             ["c1", "c2", "c3"], fts_version="FTS5", create_triggers=True
         )
     # Search should work
-    assert list(db["fts4_table"].search("verb1"))
     assert list(db["fts5_table"].search("verb1"))
-    # Deleting _fts_segments to break FTS4
-    with db.conn:
-        db["fts4_table_fts_segments"].delete_where()
-    # Now this should error:
-    with pytest.raises(sqlite3.DatabaseError):
-        list(db["fts4_table"].search("verb1"))
     # Replicate docsize error from this issue for FTS5
     # https://github.com/simonw/sqlite-utils/issues/149
     assert db["fts5_table_fts_docsize"].count == 10000
     db["fts5_table"].insert_all(records, replace=True)
     assert db["fts5_table"].count == 10000
     assert db["fts5_table_fts_docsize"].count == 20000
-    # Running rebuild-fts should fix both issues
-    print(["rebuild-fts", db_path] + tables)
-    result = CliRunner().invoke(cli.cli, ["rebuild-fts", db_path] + tables)
+    # Running rebuild-fts should fix this
+    result = CliRunner().invoke(cli.cli, ["rebuild-fts", db_path, "fts5_table"])
     assert 0 == result.exit_code
-    fixed_tables = tables or ["fts4_table", "fts5_table"]
-    if "fts4_table" in fixed_tables:
-        assert list(db["fts4_table"].search("verb1"))
-    else:
-        with pytest.raises(sqlite3.DatabaseError):
-            list(db["fts4_table"].search("verb1"))
-    if "fts5_table" in fixed_tables:
-        assert db["fts5_table_fts_docsize"].count == 10000
-    else:
-        assert db["fts5_table_fts_docsize"].count == 20000
+    assert db["fts5_table_fts_docsize"].count == 10000
 
 
 def test_insert_simple(tmpdir):
