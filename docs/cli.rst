@@ -1029,17 +1029,24 @@ This supports nested imports as well, for example to use `ElementTree <https://d
         'xml.etree.ElementTree.fromstring(value).attrib["title"]' \
         --import=xml.etree.ElementTree
 
-Use a CODE value of `-` to read from standard input:
+Your code will be automatically wrapped in a function, but you can also define a function called `convert(value)` which will be called, if available::
+
+    $ sqlite-utils convert content.db articles headline '
+    def convert(value):
+        return value.upper()'
+
+Use a ``CODE`` value of ``-`` to read from standard input::
 
     $ cat mycode.py | sqlite-utils convert content.db articles headline -
 
-Where `mycode.py` contains a fragment of Python code that looks like this:
+Where ``mycode.py`` contains a fragment of Python code that looks like this:
 
-```python
-return value.upper()
-```
+.. code-block:: python
 
-The transformation will be applied to every row in the specified table. You can limit that to just rows that match a ``WHERE`` clause using ``--where``::
+    def convert(value):
+        return value.upper()
+
+The conversion will be applied to every row in the specified table. You can limit that to just rows that match a ``WHERE`` clause using ``--where``::
 
     $ sqlite-utils convert content.db articles headline 'value.upper()' \
         --where "headline like '%cat%'"

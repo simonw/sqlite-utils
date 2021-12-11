@@ -17,6 +17,7 @@ import sys
 import csv as csv_std
 import tabulate
 from .utils import (
+    _compile_code,
     file_progress,
     find_spatialite,
     sqlite3,
@@ -2125,21 +2126,16 @@ def convert(
     if code == "-":
         # Read code from standard input
         code = sys.stdin.read()
-    # If single line and no 'return', add the return
-    if "\n" not in code and not code.strip().startswith("return "):
-        code = "return {}".format(code)
     where_args = dict(param) if param else []
     # Compile the code into a function body called fn(value)
-    new_code = ["def fn(value):"]
-    for line in code.split("\n"):
-        new_code.append("    {}".format(line))
-    code_o = compile("\n".join(new_code), "<string>", "exec")
-    locals = {}
-    globals = {"r": recipes, "recipes": recipes}
-    for import_ in imports:
-        globals[import_.split(".")[0]] = __import__(import_)
-    exec(code_o, globals, locals)
-    fn = locals["fn"]
+    try:
+        fn = _compile_code(code, imports)
+    except SyntaxError as e:
+        raise click.ClickException(
+            "Syntax error in code:\n\n{}\n\n{}".format(
+                textwrap.indent(e.text.strip(), "    "), e.msg
+            )
+        )
     if dry_run:
         # Pull first 20 values for first column and preview them
         db.conn.create_function("preview_transform", 1, lambda v: fn(v) if v else v)

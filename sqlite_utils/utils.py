@@ -5,6 +5,7 @@ import enum
 import io
 import json
 import os
+from . import recipes
 from typing import cast, BinaryIO, Iterable, Optional, Tuple, Type
 
 import click
@@ -278,3 +279,30 @@ def progressbar(*args, **kwargs):
     else:
         with click.progressbar(*args, **kwargs) as bar:
             yield bar
+
+
+def _compile_code(code, imports):
+    locals = {}
+    globals = {"r": recipes, "recipes": recipes}
+    # If user defined a convert() function, return that
+    try:
+        exec(code, globals, locals)
+        return locals["convert"]
+    except (SyntaxError, NameError, KeyError, TypeError):
+        pass
+
+    # Try compiling their code as a function instead
+
+    # If single line and no 'return', add the return
+    if "\n" not in code and not code.strip().startswith("return "):
+        code = "return {}".format(code)
+
+    new_code = ["def fn(value):"]
+    for line in code.split("\n"):
+        new_code.append("    {}".format(line))
+    code_o = compile("\n".join(new_code), "<string>", "exec")
+
+    for import_ in imports:
+        globals[import_.split(".")[0]] = __import__(import_)
+    exec(code_o, globals, locals)
+    return locals["fn"]

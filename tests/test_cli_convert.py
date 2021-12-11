@@ -35,39 +35,52 @@ def fresh_db_and_path(tmpdir):
         "return value.replace('October', 'Spooktober')",
         # Return is optional:
         "value.replace('October', 'Spooktober')",
+        # Multiple lines are supported:
+        "v = value.replace('October', 'Spooktober')\nreturn v",
+        # Can also define a convert() function
+        "def convert(value): return value.replace('October', 'Spooktober')",
+        # ... with imports
+        "import re\n\ndef convert(value): return value.replace('October', 'Spooktober')",
     ],
 )
-def test_convert_single_line(test_db_and_path, code):
-    db, db_path = test_db_and_path
-    result = CliRunner().invoke(cli.cli, ["convert", db_path, "example", "dt", code])
-    assert 0 == result.exit_code, result.output
-    assert [
-        {"id": 1, "dt": "5th Spooktober 2019 12:04"},
-        {"id": 2, "dt": "6th Spooktober 2019 00:05:06"},
-        {"id": 3, "dt": ""},
-        {"id": 4, "dt": None},
-    ] == list(db["example"].rows)
-
-
-def test_convert_multiple_lines(test_db_and_path):
-    db, db_path = test_db_and_path
+def test_convert_code(fresh_db_and_path, code):
+    db, db_path = fresh_db_and_path
+    db["t"].insert({"text": "October"})
     result = CliRunner().invoke(
-        cli.cli,
-        [
-            "convert",
-            db_path,
-            "example",
-            "dt",
-            "v = value.replace('October', 'Spooktober')\nreturn v.upper()",
-        ],
+        cli.cli, ["convert", db_path, "t", "text", code], catch_exceptions=False
     )
     assert 0 == result.exit_code, result.output
-    assert [
-        {"id": 1, "dt": "5TH SPOOKTOBER 2019 12:04"},
-        {"id": 2, "dt": "6TH SPOOKTOBER 2019 00:05:06"},
-        {"id": 3, "dt": ""},
-        {"id": 4, "dt": None},
-    ] == list(db["example"].rows)
+    value = list(db["t"].rows)[0]["text"]
+    assert value == "Spooktober"
+
+
+@pytest.mark.parametrize(
+    "bad_code,expected_error",
+    [
+        (
+            "def foo(value)",
+            """Error: Syntax error in code:
+
+    return def foo(value)
+
+invalid syntax""",
+        ),
+        (
+            "$",
+            """Error: Syntax error in code:
+
+    return $
+
+invalid syntax""",
+        ),
+    ],
+)
+def test_convert_code_errors(fresh_db_and_path, bad_code, expected_error):
+    db, db_path = fresh_db_and_path
+    db["t"].insert({"text": "October"})
+    result = CliRunner().invoke(cli.cli, ["convert", db_path, "t", "text", bad_code])
+    assert 1 == result.exit_code
+    assert result.output.strip() == expected_error.strip()
 
 
 def test_convert_import(test_db_and_path):
