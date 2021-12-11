@@ -93,6 +93,27 @@ def test_convert_import(test_db_and_path):
     ] == list(db["example"].rows)
 
 
+def test_convert_import_nested(fresh_db_and_path):
+    db, db_path = fresh_db_and_path
+    db["example"].insert({"xml": '<item name="Cleo" />'})
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "convert",
+            db_path,
+            "example",
+            "xml",
+            'xml.etree.ElementTree.fromstring(value).attrib["name"]',
+            "--import",
+            "xml.etree.ElementTree",
+        ],
+    )
+    assert 0 == result.exit_code, result.output
+    assert [
+        {"xml": "Cleo"},
+    ] == list(db["example"].rows)
+
+
 def test_convert_dryrun(test_db_and_path):
     db, db_path = test_db_and_path
     result = CliRunner().invoke(

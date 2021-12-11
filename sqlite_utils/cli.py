@@ -2137,7 +2137,7 @@ def convert(
     locals = {}
     globals = {"r": recipes, "recipes": recipes}
     for import_ in imports:
-        globals[import_] = __import__(import_)
+        globals[import_.split(".")[0]] = __import__(import_)
     exec(code_o, globals, locals)
     fn = locals["fn"]
     if dry_run:

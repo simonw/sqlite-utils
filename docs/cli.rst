@@ -1023,6 +1023,12 @@ You can specify Python modules that should be imported and made available to you
         '"\n".join(textwrap.wrap(value, 100))' \
         --import=textwrap
 
+This supports nested imports as well, for example to use `ElementTree <https://docs.python.org/3/library/xml.etree.elementtree.html>`__::
+
+    $ sqlite-utils convert content.db articles content \
+        'xml.etree.ElementTree.fromstring(value).attrib["title"]' \
+        --import=xml.etree.ElementTree
+
 Use a CODE value of `-` to read from standard input:
 
     $ cat mycode.py | sqlite-utils convert content.db articles headline -
