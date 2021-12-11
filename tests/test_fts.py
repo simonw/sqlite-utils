@@ -254,13 +254,12 @@ def test_disable_fts(fresh_db, create_triggers):
     assert ["searchable"] == fresh_db.table_names()
 
 
-@pytest.mark.parametrize("table_to_fix", ["searchable", "searchable_fts"])
-def test_rebuild_fts(fresh_db, table_to_fix):
+def test_rebuild_fts(fresh_db):
     table = fresh_db["searchable"]
     table.insert(search_records[0])
     table.enable_fts(["text", "country"])
     # Run a search
-    rows = list(table.search("tanuki"))
+    rows = list(table.search("are"))
     assert len(rows) == 1
     assert {
         "rowid": 1,
@@ -268,21 +267,14 @@ def test_rebuild_fts(fresh_db, table_to_fix):
         "country": "Japan",
         "not_searchable": "foo",
     }.items() <= rows[0].items()
-    # Delete from searchable_fts_data
-    fresh_db["searchable_fts_data"].delete_where()
-    # This should have broken the index
-    with pytest.raises(sqlite3.DatabaseError):
-        list(table.search("tanuki"))
+    # Insert another record
+    table.insert(search_records[1])
+    # This should NOT show up in a searchs
+    assert len(list(table.search("are"))) == 1
     # Running rebuild_fts() should fix it
-    fresh_db[table_to_fix].rebuild_fts()
-    rows2 = list(table.search("tanuki"))
-    assert len(rows2) == 1
-    assert {
-        "rowid": 1,
-        "text": "tanuki are running tricksters",
-        "country": "Japan",
-        "not_searchable": "foo",
-    }.items() <= rows2[0].items()
+    table.rebuild_fts()
+    rows2 = list(table.search("are"))
+    assert len(rows2) == 2
 
 
 @pytest.mark.parametrize("invalid_table", ["does_not_exist", "not_searchable"])
