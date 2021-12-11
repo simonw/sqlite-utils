@@ -2038,6 +2038,8 @@ def _generate_convert_help():
 
     "value" is a variable with the column value to be converted.
 
+    Use "-" for CODE to read Python code from standard input.
+
     The following common operations are available as recipe functions:
     """
     ).strip()
@@ -2120,6 +2122,9 @@ def convert(
         raise click.ClickException("Cannot use --multi with more than one column")
     if drop and not (output or multi):
         raise click.ClickException("--drop can only be used with --output or --multi")
+    if code == "-":
+        # Read code from standard input
+        code = sys.stdin.read()
     # If single line and no 'return', add the return
     if "\n" not in code and not code.strip().startswith("return "):
         code = "return {}".format(code)

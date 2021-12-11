@@ -515,3 +515,36 @@ def test_convert_where_multi(fresh_db_and_path):
         {"id": 1, "name": "Cleo", "upper": None},
         {"id": 2, "name": "Bants", "upper": "BANTS"},
     ]
+
+
+def test_convert_code_standard_input(fresh_db_and_path):
+    db, db_path = fresh_db_and_path
+    db["names"].insert_all([{"id": 1, "name": "Cleo"}], pk="id")
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "convert",
+            db_path,
+            "names",
+            "name",
+            "-",
+        ],
+        input="value.upper()",
+    )
+    assert 0 == result.exit_code, result.output
+    assert list(db["names"].rows) == [
+        {"id": 1, "name": "CLEO"},
+    ]
+
+
+def test_convert_hyphen_workaround(fresh_db_and_path):
+    db, db_path = fresh_db_and_path
+    db["names"].insert_all([{"id": 1, "name": "Cleo"}], pk="id")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["convert", db_path, "names", "name", '"-"'],
+    )
+    assert 0 == result.exit_code, result.output
+    assert list(db["names"].rows) == [
+        {"id": 1, "name": "-"},
+    ]

@@ -1023,6 +1023,16 @@ You can specify Python modules that should be imported and made available to you
         '"\n".join(textwrap.wrap(value, 100))' \
         --import=textwrap
 
+Use a CODE value of `-` to read from standard input:
+
+    $ cat mycode.py | sqlite-utils convert content.db articles headline -
+
+Where `mycode.py` contains a fragment of Python code that looks like this:
+
+```python
+return value.upper()
+```
+
 The transformation will be applied to every row in the specified table. You can limit that to just rows that match a ``WHERE`` clause using ``--where``::
 
     $ sqlite-utils convert content.db articles headline 'value.upper()' \
