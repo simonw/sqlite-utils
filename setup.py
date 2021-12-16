@@ -30,7 +30,6 @@ setup(
         "tabulate",
         "python-dateutil",
     ],
-    setup_requires=["pytest-runner"],
     extras_require={
         "test": ["pytest", "black", "hypothesis"],
         "docs": ["sphinx_rtd_theme", "sphinx-autobuild", "codespell"],
