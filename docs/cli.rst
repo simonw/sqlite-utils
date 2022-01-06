@@ -876,6 +876,15 @@ If your file does not include this row, you can use the ``--no-headers`` option 
 
 If you do this, the table will be created with column names called ``untitled_1`` and ``untitled_2`` and so on. You can then rename them using the ``sqlite-utils transform ... --rename`` command, see :ref:`cli_transform_table`.
 
+.. _cli_insert_lines:
+
+Inserting newline-delimited data
+================================
+
+If you have an unstructured file you can insert its contents into a table with a single ``line`` column containing each line from the file using ``--lines``. This can be useful if you intend to further analyze those lines using SQL string functions or :ref:`sqlite-utils convert <cli_convert>`::
+
+    $ sqlite-utils insert logs.db loglines logfile.log --lines
+
 .. _cli_insert_replace:
 
 Insert-replacing data

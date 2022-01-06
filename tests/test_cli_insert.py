@@ -322,3 +322,18 @@ def test_insert_alter(db_path, tmpdir):
         {"foo": "baz", "n": 2, "baz": None},
         {"foo": "bar", "baz": 5, "n": None},
     ] == list(db.query("select foo, n, baz from from_json_nl"))
+
+
+def test_insert_lines(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "from_lines", "-", "--lines"],
+        input='First line\nSecond line\n{"foo": "baz"}',
+    )
+    assert 0 == result.exit_code, result.output
+    db = Database(db_path)
+    assert [
+        {"line": "First line"},
+        {"line": "Second line"},
+        {"line": '{"foo": "baz"}'},
+    ] == list(db.query("select line from from_lines"))
