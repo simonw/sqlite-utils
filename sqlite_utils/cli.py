@@ -785,6 +785,8 @@ def insert_upsert_implementation(
                 docs = tracker.wrap(docs)
     elif lines:
         docs = ({"line": line.strip()} for line in decoded)
+    elif all:
+        docs = ({"all": decoded.read()},)
     elif convert:
         fn = _compile_code(convert, imports)
         docs = (fn(line) for line in decoded)

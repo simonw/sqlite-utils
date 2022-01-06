@@ -337,3 +337,16 @@ def test_insert_lines(db_path):
         {"line": "Second line"},
         {"line": '{"foo": "baz"}'},
     ] == list(db.query("select line from from_lines"))
+
+
+def test_insert_all(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "from_all", "-", "--all"],
+        input='First line\nSecond line\n{"foo": "baz"}',
+    )
+    assert 0 == result.exit_code, result.output
+    db = Database(db_path)
+    assert [{"all": 'First line\nSecond line\n{"foo": "baz"}'}] == list(
+        db.query("select [all] from from_all")
+    )
