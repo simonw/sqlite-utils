@@ -1,5 +1,11 @@
 from sqlite_utils import Database
+from sqlite_utils.utils import sqlite3
 import pytest
+
+CREATE_TABLES = """
+create table Gosh (c1 text, c2 text, c3 text);
+create table Gosh2 (c1 text, c2 text, c3 text);
+"""
 
 
 @pytest.fixture
@@ -19,3 +25,11 @@ def existing_db():
     """
     )
     return database
+
+
+@pytest.fixture
+def db_path(tmpdir):
+    path = str(tmpdir / "test.db")
+    db = sqlite3.connect(path)
+    db.executescript(CREATE_TABLES)
+    return path
