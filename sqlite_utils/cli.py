@@ -1045,6 +1045,7 @@ def upsert(
             not_null=not_null,
             default=default,
             encoding=encoding,
+            detect_types=detect_types,
             load_extension=load_extension,
             silent=silent,
         )

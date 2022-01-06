@@ -1974,6 +1974,24 @@ def test_insert_detect_types(tmpdir, option_or_env_var):
         _test()
 
 
+@pytest.mark.parametrize("option", ("-d", "--detect-types"))
+def test_upsert_detect_types(tmpdir, option):
+    db_path = str(tmpdir / "test.db")
+    data = "id,name,age,weight\n1,Cleo,6,45.5\n2,Dori,1,3.5"
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "creatures", "-", "--csv", "--pk", "id"] + [option],
+        catch_exceptions=False,
+        input=data,
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    assert list(db["creatures"].rows) == [
+        {"id": 1, "name": "Cleo", "age": 6, "weight": 45.5},
+        {"id": 2, "name": "Dori", "age": 1, "weight": 3.5},
+    ]
+
+
 @pytest.mark.parametrize(
     "input,expected",
     (
