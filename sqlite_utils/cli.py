@@ -783,6 +783,8 @@ def insert_upsert_implementation(
             if detect_types:
                 tracker = TypeTracker()
                 docs = tracker.wrap(docs)
+    elif lines:
+        docs = ({"line": line.strip()} for line in decoded)
     elif convert:
         fn = _compile_code(convert, imports)
         docs = (fn(line) for line in decoded)
