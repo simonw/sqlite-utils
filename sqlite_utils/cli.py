@@ -657,7 +657,9 @@ def insert_upsert_options(fn):
                 help="Treat each line as a single value called 'line'",
             ),
             click.option(
-                "--all", is_flag=True, help="Treat input as a single value called 'all'"
+                "--text",
+                is_flag=True,
+                help="Treat input as a single value called 'text'",
             ),
             click.option("--convert", help="Python code to convert each item"),
             click.option(
@@ -723,7 +725,7 @@ def insert_upsert_implementation(
     csv,
     tsv,
     lines,
-    all,
+    text,
     convert,
     imports,
     delimiter,
@@ -785,11 +787,8 @@ def insert_upsert_implementation(
                 docs = tracker.wrap(docs)
     elif lines:
         docs = ({"line": line.strip()} for line in decoded)
-    elif all:
-        docs = ({"all": decoded.read()},)
-    elif convert:
-        fn = _compile_code(convert, imports)
-        docs = (fn(line) for line in decoded)
+    elif text:
+        docs = ({"text": decoded.read()},)
     else:
         try:
             if nl:
@@ -805,6 +804,20 @@ def insert_upsert_implementation(
         if flatten:
             docs = (dict(_flatten(doc)) for doc in docs)
 
+    if convert:
+        variable = "row"
+        if lines:
+            variable = "line"
+        elif text:
+            variable = "text"
+        fn = _compile_code(convert, imports, variable=variable)
+        if lines:
+            docs = (fn(doc["line"]) for doc in docs)
+        elif text:
+            docs = (fn(doc["text"]) for doc in docs)
+        else:
+            docs = (fn(doc) for doc in docs)
+
     extra_kwargs = {"ignore": ignore, "replace": replace, "truncate": truncate}
     if not_null:
         extra_kwargs["not_null"] = set(not_null)
@@ -812,8 +825,10 @@ def insert_upsert_implementation(
         extra_kwargs["defaults"] = dict(default)
     if upsert:
         extra_kwargs["upsert"] = upsert
+
     # Apply {"$base64": true, ...} decoding, if needed
     docs = (decode_base64_values(doc) for doc in docs)
+
     try:
         db[table].insert_all(
             docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
@@ -889,7 +904,7 @@ def insert(
     csv,
     tsv,
     lines,
-    all,
+    text,
     convert,
     imports,
     delimiter,
@@ -918,7 +933,7 @@ def insert(
     - Use --nl for newline-delimited JSON objects
     - Use --csv or --tsv for comma-separated or tab-separated input
     - Use --lines to write each incoming line to a column called "line"
-    - Use --all to write the entire input to a column called "all"
+    - Use --text to write the entire input to a column called "text"
 
     You can also use --convert to pass a fragment of Python code that will
     be used to convert each input.
@@ -927,7 +942,7 @@ def insert(
     imported row, and can return a modified row.
 
     If you are using --lines your code will be passed a "line" variable,
-    and for --all an "all" variable.
+    and for --text an "text" variable.
     """
     try:
         insert_upsert_implementation(
@@ -940,7 +955,7 @@ def insert(
             csv,
             tsv,
             lines,
-            all,
+            text,
             convert,
             imports,
             delimiter,
@@ -976,7 +991,7 @@ def upsert(
     csv,
     tsv,
     lines,
-    all,
+    text,
     convert,
     imports,
     batch_size,
@@ -1008,7 +1023,7 @@ def upsert(
             csv,
             tsv,
             lines,
-            all,
+            text,
             convert,
             imports,
             delimiter,

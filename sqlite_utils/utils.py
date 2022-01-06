@@ -281,14 +281,14 @@ def progressbar(*args, **kwargs):
             yield bar
 
 
-def _compile_code(code, imports):
+def _compile_code(code, imports, variable="value"):
     locals = {}
     globals = {"r": recipes, "recipes": recipes}
     # If user defined a convert() function, return that
     try:
         exec(code, globals, locals)
         return locals["convert"]
-    except (SyntaxError, NameError, KeyError, TypeError):
+    except (AttributeError, SyntaxError, NameError, KeyError, TypeError):
         pass
 
     # Try compiling their code as a function instead
@@ -297,7 +297,7 @@ def _compile_code(code, imports):
     if "\n" not in code and not code.strip().startswith("return "):
         code = "return {}".format(code)
 
-    new_code = ["def fn(value):"]
+    new_code = ["def fn({}):".format(variable)]
     for line in code.split("\n"):
         new_code.append("    {}".format(line))
     code_o = compile("\n".join(new_code), "<string>", "exec")
