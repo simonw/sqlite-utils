@@ -2,6 +2,20 @@
  Changelog
 ===========
 
+.. _v3_20:
+
+3.20 (2022-01-05)
+-----------------
+
+- ``sqlite-utils insert ... --lines`` to insert the lines from a file into a table with a single ``line`` column, see :ref:`cli_insert_unstructured`.
+- ``sqlite-utils insert ... --text`` to insert the contents of the file into a table with a single ``text`` column and a single row.
+- ``sqlite-utils insert ... --convert`` allows a Python function to be provided that will be used to convert each row that is being inserted into the database. See :ref:`cli_insert_convert`, including details on special behavior when combined with ``--lines`` and ``--text``. (:issue:`356`)
+- ``sqlite-utils convert`` now accepts a code value of ``-`` to read code from standard input. (:issue:`353`)
+- ``sqlite-utils convert`` also now accepts code that defines a named ``convert(value)`` function, see :ref:`cli_convert`.
+- ``db.supports_strict`` property showing if the database connection supports `SQLite strict tables <https://www.sqlite.org/stricttables.html>`__.
+- ``table.strict`` property (see :ref:`python_api_introspection_strict`) indicating if the table uses strict mode. (:issue:`344`)
+- Fixed bug where ``sqlite-utils upsert ... --detect-types`` ignored the ``--detect-types`` option. (:issue:`362`)
+
 .. _v3_19:
 
 3.19 (2021-11-20)
