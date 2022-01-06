@@ -948,10 +948,10 @@ With ``--lines``, instead of being passed a ``row`` dictionary your function wil
 You could convert it into structured data like so::
 
     $ sqlite-utils insert logs.db loglines access.log --convert '
-    type, ip, _, verb, path, _, status, _ = line.split()
+    type, source, _, verb, path, _, status, _ = line.split()
     return {
         "type": type,
-        "ip": ip,
+        "source": source,
         "verb": verb,
         "path": path,
         "status": status,
@@ -960,7 +960,7 @@ You could convert it into structured data like so::
 The resulting table would look like this:
 
 ======  ===============  ======  ============================  ========
-type    ip               verb    path                            status
+type    source           verb    path                            status
 ======  ===============  ======  ============================  ========
 INFO:   127.0.0.1:60581  GET     /                                  200
 INFO:   127.0.0.1:60581  GET     /foo/-/static/app.css?cead5a       200
