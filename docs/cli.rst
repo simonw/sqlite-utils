@@ -905,6 +905,95 @@ The schema here will be:
        [text] TEXT
     );
 
+.. _cli_insert_convert:
+
+Applying conversions while inserting data
+=========================================
+
+The ``--convert`` option can be used to apply a Python conversion function to imported data before it is inserted into the database. It works in a similar way to :ref:`sqlite-utils convert <cli_convert>`.
+
+Your Python function will be passed a dictionary called ``row`` for each item that is being imported. You can modify that dictionary and return it - or return a fresh dictionary - to change the data that will be inserted.
+
+Given a JSON file called ``dogs.json`` containing this:
+
+.. code-block:: json
+
+    [
+        {"id": 1, "name": "Cleo"},
+        {"id": 2, "name": "Pancakes"}
+    ]
+
+The following command will insert that data and add an ``is_good`` column set to ``1`` for each dog::
+
+    $ sqlite-utils insert dogs.db dogs dogs.json --convert '
+    row["is_good"] = 1
+    return row'
+
+The ``--convert`` option also works with the ``--csv``, ``--tsv`` and ``--nl`` insert options.
+
+As with ``sqlite-utils convert`` you can use ``--import`` to import additional Python modules, see :ref:`cli_convert_import` for details.
+
+.. _cli_insert_convert_lines:
+
+\-\-convert with \-\-lines
+--------------------------
+
+Things work slightly differently when combined with the ``--lines`` or ``--text`` options.
+
+With ``--lines``, instead of being passed a ``row`` dictionary your function will be passed a ``line`` string representing each line of the input. Given a file called ``access.log`` containing the following::
+
+    INFO:     127.0.0.1:60581 - GET / HTTP/1.1 200 OK
+    INFO:     127.0.0.1:60581 - GET /foo/-/static/app.css?cead5a HTTP/1.1 200 OK
+
+You could convert it into structured data like so::
+
+    $ sqlite-utils insert logs.db loglines access.log --convert '
+    type, ip, _, verb, path, _, status, _ = line.split()
+    return {
+        "type": type,
+        "ip": ip,
+        "verb": verb,
+        "path": path,
+        "status": status,
+    }' --lines
+
+The resulting table would look like this:
+
+======  ===============  ======  ============================  ========
+type    ip               verb    path                            status
+======  ===============  ======  ============================  ========
+INFO:   127.0.0.1:60581  GET     /                                  200
+INFO:   127.0.0.1:60581  GET     /foo/-/static/app.css?cead5a       200
+======  ===============  ======  ============================  ========
+
+.. _cli_insert_convert_text:
+
+\-\-convert with \-\-text
+-------------------------
+
+With ``--text`` the entire input to the command will be made available to the function as a variable called ``text``.
+
+The function can return a single dictionary which will be inserted as a single row, or it can return a list or iterator of dictionaries, each of which will be inserted.
+
+Here's how to use ``--convert`` and ``--text`` to insert one record per word in the input::
+
+    $ echo 'A bunch of words' | sqlite-utils insert words.db words - \
+        --text --convert '({"word": w} for w in text.split())'
+
+The result looks like this::
+
+    $ sqlite-utils dump words.db
+    BEGIN TRANSACTION;
+    CREATE TABLE [words] (
+       [word] TEXT
+    );
+    INSERT INTO "words" VALUES('A');
+    INSERT INTO "words" VALUES('bunch');
+    INSERT INTO "words" VALUES('of');
+    INSERT INTO "words" VALUES('words');
+    COMMIT;
+
+
 .. _cli_insert_replace:
 
 Insert-replacing data
@@ -1046,18 +1135,6 @@ The code you provide will be compiled into a function that takes ``value`` as a 
     value = str(value)
     return value.upper()'
 
-You can specify Python modules that should be imported and made available to your code using one or more ``--import`` options. This example uses the ``textwrap`` module to wrap the ``content`` column at 100 characters::
-
-    $ sqlite-utils convert content.db articles content \
-        '"\n".join(textwrap.wrap(value, 100))' \
-        --import=textwrap
-
-This supports nested imports as well, for example to use `ElementTree <https://docs.python.org/3/library/xml.etree.elementtree.html>`__::
-
-    $ sqlite-utils convert content.db articles content \
-        'xml.etree.ElementTree.fromstring(value).attrib["title"]' \
-        --import=xml.etree.ElementTree
-
 Your code will be automatically wrapped in a function, but you can also define a function called ``convert(value)`` which will be called, if available::
 
     $ sqlite-utils convert content.db articles headline '
@@ -1087,6 +1164,23 @@ You can include named parameters in your where clause and populate them using on
         --param like '%cat%'
 
 The ``--dry-run`` option will output a preview of the conversion against the first ten rows, without modifying the database.
+
+.. _cli_convert_import:
+
+Importing additional modules
+----------------------------
+
+You can specify Python modules that should be imported and made available to your code using one or more ``--import`` options. This example uses the ``textwrap`` module to wrap the ``content`` column at 100 characters::
+
+    $ sqlite-utils convert content.db articles content \
+        '"\n".join(textwrap.wrap(value, 100))' \
+        --import=textwrap
+
+This supports nested imports as well, for example to use `ElementTree <https://docs.python.org/3/library/xml.etree.elementtree.html>`__::
+
+    $ sqlite-utils convert content.db articles content \
+        'xml.etree.ElementTree.fromstring(value).attrib["title"]' \
+        --import=xml.etree.ElementTree
 
 .. _cli_convert_recipes:
 

@@ -396,6 +396,26 @@ def test_insert_convert_text(db_path):
     assert rows == [{"text": "THIS IS TEXT\nWILL BE UPPER NOW"}]
 
 
+def test_insert_convert_text_returning_iterator(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            db_path,
+            "text",
+            "-",
+            "--text",
+            "--convert",
+            '({"word": w} for w in text.split())',
+        ],
+        input="A bunch of words",
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    rows = list(db.query("select [word] from [text]"))
+    assert rows == [{"word": "A"}, {"word": "bunch"}, {"word": "of"}, {"word": "words"}]
+
+
 def test_insert_convert_lines(db_path):
     result = CliRunner().invoke(
         cli.cli,

@@ -814,7 +814,16 @@ def insert_upsert_implementation(
         if lines:
             docs = (fn(doc["line"]) for doc in docs)
         elif text:
-            docs = (fn(doc["text"]) for doc in docs)
+            # Special case: this is allowed to be an iterable
+            text_value = list(docs)[0]["text"]
+            fn_return = fn(text_value)
+            if isinstance(fn_return, dict):
+                docs = [fn_return]
+            else:
+                try:
+                    docs = iter(fn_return)
+                except TypeError:
+                    raise click.ClickException("--convert must return dict or iterator")
         else:
             docs = (fn(doc) for doc in docs)
 
