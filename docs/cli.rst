@@ -1029,7 +1029,7 @@ This supports nested imports as well, for example to use `ElementTree <https://d
         'xml.etree.ElementTree.fromstring(value).attrib["title"]' \
         --import=xml.etree.ElementTree
 
-Your code will be automatically wrapped in a function, but you can also define a function called `convert(value)` which will be called, if available::
+Your code will be automatically wrapped in a function, but you can also define a function called ``convert(value)`` which will be called, if available::
 
     $ sqlite-utils convert content.db articles headline '
     def convert(value):

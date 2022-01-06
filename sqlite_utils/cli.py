@@ -639,14 +639,34 @@ def insert_upsert_options(fn):
                 required=True,
             ),
             click.argument("table"),
-            click.argument("json_file", type=click.File("rb"), required=True),
+            click.argument("file", type=click.File("rb"), required=True),
             click.option(
                 "--pk", help="Columns to use as the primary key, e.g. id", multiple=True
             ),
+            click.option(
+                "--flatten",
+                is_flag=True,
+                help='Flatten nested JSON objects, so {"a": {"b": 1}} becomes {"a_b": 1}',
+            ),
             click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
-            click.option("--flatten", is_flag=True, help="Flatten nested JSON objects"),
-            click.option("-c", "--csv", is_flag=True, help="Expect CSV"),
-            click.option("--tsv", is_flag=True, help="Expect TSV"),
+            click.option("-c", "--csv", is_flag=True, help="Expect CSV input"),
+            click.option("--tsv", is_flag=True, help="Expect TSV input"),
+            click.option(
+                "--lines",
+                is_flag=True,
+                help="Treat each line as a single value called 'line'",
+            ),
+            click.option(
+                "--all", is_flag=True, help="Treat input as a single value called 'all'"
+            ),
+            click.option("--convert", help="Python code to convert each item"),
+            click.option(
+                "--import",
+                "imports",
+                type=str,
+                multiple=True,
+                help="Python modules to import",
+            ),
             click.option("--delimiter", help="Delimiter to use for CSV files"),
             click.option("--quotechar", help="Quote character to use for CSV/TSV"),
             click.option(
@@ -696,12 +716,16 @@ def insert_upsert_options(fn):
 def insert_upsert_implementation(
     path,
     table,
-    json_file,
+    file,
     pk,
-    nl,
     flatten,
+    nl,
     csv,
     tsv,
+    lines,
+    all,
+    convert,
+    imports,
     delimiter,
     quotechar,
     sniff,
@@ -732,7 +756,7 @@ def insert_upsert_implementation(
     if pk and len(pk) == 1:
         pk = pk[0]
     encoding = encoding or "utf-8-sig"
-    buffered = io.BufferedReader(json_file, buffer_size=4096)
+    buffered = io.BufferedReader(file, buffer_size=4096)
     decoded = io.TextIOWrapper(buffered, encoding=encoding)
     tracker = None
     if csv or tsv:
@@ -759,6 +783,9 @@ def insert_upsert_implementation(
             if detect_types:
                 tracker = TypeTracker()
                 docs = tracker.wrap(docs)
+    elif convert:
+        fn = _compile_code(convert, imports)
+        docs = (fn(line) for line in decoded)
     else:
         try:
             if nl:
@@ -851,12 +878,16 @@ def _find_variables(tb, vars):
 def insert(
     path,
     table,
-    json_file,
+    file,
     pk,
-    nl,
     flatten,
+    nl,
     csv,
     tsv,
+    lines,
+    all,
+    convert,
+    imports,
     delimiter,
     quotechar,
     sniff,
@@ -874,21 +905,40 @@ def insert(
     default,
 ):
     """
-    Insert records from JSON file into a table, creating the table if it
+    Insert records from FILE into a table, creating the table if it
     does not already exist.
 
-    Input should be a JSON array of objects, unless --nl or --csv is used.
+    By default the input is expected to be a JSON array of objects. Or:
+
+    \b
+    - Use --nl for newline-delimited JSON objects
+    - Use --csv or --tsv for comma-separated or tab-separated input
+    - Use --lines to write each incoming line to a column called "line"
+    - Use --all to write the entire input to a column called "all"
+
+    You can also use --convert to pass a fragment of Python code that will
+    be used to convert each input.
+
+    Your Python code will be passed a "row" variable representing the
+    imported row, and can return a modified row.
+
+    If you are using --lines your code will be passed a "line" variable,
+    and for --all an "all" variable.
     """
     try:
         insert_upsert_implementation(
             path,
             table,
-            json_file,
+            file,
             pk,
-            nl,
             flatten,
+            nl,
             csv,
             tsv,
+            lines,
+            all,
+            convert,
+            imports,
             delimiter,
             quotechar,
             sniff,
@@ -915,12 +965,16 @@ def insert(
 def upsert(
     path,
     table,
-    json_file,
+    file,
     pk,
-    nl,
     flatten,
+    nl,
     csv,
     tsv,
+    lines,
+    all,
+    convert,
+    imports,
     batch_size,
     delimiter,
     quotechar,
@@ -943,12 +997,16 @@ def upsert(
         insert_upsert_implementation(
             path,
             table,
-            json_file,
+            file,
             pk,
-            nl,
             flatten,
+            nl,
             csv,
             tsv,
+            lines,
+            all,
+            convert,
+            imports,
             delimiter,
             quotechar,
             sniff,
@@ -1191,7 +1249,11 @@ def query(
     multiple=True,
     help="Additional databases to attach - specify alias and filepath",
 )
-@click.option("--flatten", is_flag=True, help="Flatten nested JSON objects")
+@click.option(
+    "--flatten",
+    is_flag=True,
+    help='Flatten nested JSON objects, so {"foo": {"bar": 1}} becomes {"foo_bar": 1}',
+)
 @output_options
 @click.option("-r", "--raw", is_flag=True, help="Raw output, first column of first row")
 @click.option(
