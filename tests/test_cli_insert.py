@@ -339,14 +339,78 @@ def test_insert_lines(db_path):
     ] == list(db.query("select line from from_lines"))
 
 
-def test_insert_all(db_path):
+def test_insert_text(db_path):
     result = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "from_all", "-", "--all"],
+        ["insert", db_path, "from_text", "-", "--text"],
         input='First line\nSecond line\n{"foo": "baz"}',
     )
     assert 0 == result.exit_code, result.output
     db = Database(db_path)
-    assert [{"all": 'First line\nSecond line\n{"foo": "baz"}'}] == list(
-        db.query("select [all] from from_all")
+    assert [{"text": 'First line\nSecond line\n{"foo": "baz"}'}] == list(
+        db.query("select text from from_text")
     )
+
+
+@pytest.mark.parametrize(
+    "options,input",
+    (
+        ([], '[{"id": "1", "name": "Bob"}, {"id": "2", "name": "Cat"}]'),
+        (["--csv"], "id,name\n1,Bob\n2,Cat"),
+        (["--nl"], '{"id": "1", "name": "Bob"}\n{"id": "2", "name": "Cat"}'),
+    ),
+)
+def test_insert_convert_json_csv_jsonnl(db_path, options, input):
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "rows", "-", "--convert", '{**row, **{"extra": 1}}']
+        + options,
+        input=input,
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    rows = list(db.query("select id, name, extra from rows"))
+    assert rows == [
+        {"id": "1", "name": "Bob", "extra": 1},
+        {"id": "2", "name": "Cat", "extra": 1},
+    ]
+
+
+def test_insert_convert_text(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            db_path,
+            "text",
+            "-",
+            "--text",
+            "--convert",
+            '{"text": text.upper()}',
+        ],
+        input="This is text\nwill be upper now",
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    rows = list(db.query("select [text] from [text]"))
+    assert rows == [{"text": "THIS IS TEXT\nWILL BE UPPER NOW"}]
+
+
+def test_insert_convert_lines(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            db_path,
+            "all",
+            "-",
+            "--lines",
+            "--convert",
+            '{"line": line.upper()}',
+        ],
+        input="This is text\nwill be upper now",
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    rows = list(db.query("select [line] from [all]"))
+    assert rows == [{"line": "THIS IS TEXT"}, {"line": "WILL BE UPPER NOW"}]

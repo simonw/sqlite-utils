@@ -878,8 +878,8 @@ If you do this, the table will be created with column names called ``untitled_1`
 
 .. _cli_insert_unstructured:
 
-Inserting unstructured data with \-\-lines and \-\-all
-======================================================
+Inserting unstructured data with \-\-lines and \-\-text
+=======================================================
 
 If you have an unstructured file you can insert its contents into a table with a single ``line`` column containing each line from the file using ``--lines``. This can be useful if you intend to further analyze those lines using SQL string functions or :ref:`sqlite-utils convert <cli_convert>`::
 
@@ -893,16 +893,16 @@ This will produce the following schema:
        [line] TEXT
     );
 
-You can also insert the entire contents of the file into a single column called ``all`` using ``--all``::
+You can also insert the entire contents of the file into a single column called ``text`` using ``--text``::
 
-    $ sqlite-utils insert content.db content file.txt --all
+    $ sqlite-utils insert content.db content file.txt --text
 
 The schema here will be:
 
 .. code-block:: sql
 
     CREATE TABLE [content] (
-       [all] TEXT
+       [text] TEXT
     );
 
 .. _cli_insert_replace:
