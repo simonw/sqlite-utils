@@ -1,4 +1,5 @@
 from .utils import (
+    chunks,
     sqlite3,
     OperationalError,
     suggest_column_types,
@@ -2993,12 +2994,6 @@ class View(Queryable):
         raise NotImplementedError(
             "enable_fts() is supported on tables but not on views"
         )
-
-
-def chunks(sequence, size):
-    iterator = iter(sequence)
-    for item in iterator:
-        yield itertools.chain([item], itertools.islice(iterator, size - 1))
 
 
 def jsonify_if_needed(value):

@@ -25,3 +25,18 @@ def test_decode_base64_values(input, expected, should_be_is):
 def test_find_spatialite():
     spatialite = utils.find_spatialite()
     assert spatialite is None or isinstance(spatialite, str)
+
+
+@pytest.mark.parametrize(
+    "size,expected",
+    (
+        (1, [["a"], ["b"], ["c"], ["d"]]),
+        (2, [["a", "b"], ["c", "d"]]),
+        (3, [["a", "b", "c"], ["d"]]),
+        (4, [["a", "b", "c", "d"]]),
+    ),
+)
+def test_chunks(size, expected):
+    input = ["a", "b", "c", "d"]
+    chunks = list(map(list, utils.chunks(input, size)))
+    assert chunks == expected

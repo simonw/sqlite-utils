@@ -3,6 +3,7 @@ import contextlib
 import csv
 import enum
 import io
+import itertools
 import json
 import os
 from . import recipes
@@ -306,3 +307,9 @@ def _compile_code(code, imports, variable="value"):
         globals[import_.split(".")[0]] = __import__(import_)
     exec(code_o, globals, locals)
     return locals["fn"]
+
+
+def chunks(sequence, size):
+    iterator = iter(sequence)
+    for item in iterator:
+        yield itertools.chain([item], itertools.islice(iterator, size - 1))
