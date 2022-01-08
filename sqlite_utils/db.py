@@ -923,6 +923,13 @@ class Database:
         "Run a SQLite ``VACUUM`` against the database."
         self.execute("VACUUM;")
 
+    def analyze(self, name=None):
+        "Run ``ANALYZE`` against the entire database or a named table or index."
+        sql = "ANALYZE"
+        if name is not None:
+            sql += " [{}]".format(name)
+        self.execute(sql)
+
 
 class Queryable:
     def exists(self) -> bool:
@@ -2901,6 +2908,10 @@ class Table(Queryable):
                 replace=True,
             )
         return self
+
+    def analyze(self):
+        "Run ANALYZE against this table"
+        self.db.analyze(self.name)
 
     def analyze_column(
         self, column: str, common_limit: int = 10, value_truncate=None, total_rows=None
