@@ -699,6 +699,19 @@ The ``most_common`` and ``least_common`` columns will contain nested JSON arrays
         ["Condarco", 4288]
     ]
 
+.. _cli_create_database:
+
+Creating an empty database
+==========================
+
+You can create a new empty database file using the ``create-database`` command::
+
+    $ sqlite-utils create-database empty.db
+
+To enable :ref:`cli_wal` on the newly created database add the ``--enable-wal`` option::
+
+    $ sqlite-utils create-database empty.db --enable-wal
+
 .. _cli_inserting_data:
 
 Inserting JSON data

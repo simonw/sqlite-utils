@@ -2039,3 +2039,21 @@ def test_python_dash_m():
     )
     assert result.returncode == 0
     assert b"Commands for interacting with a SQLite database" in result.stdout
+
+
+@pytest.mark.parametrize("enable_wal", (False, True))
+def test_create_database(tmpdir, enable_wal):
+    db_path = tmpdir / "test.db"
+    assert not db_path.exists()
+    args = ["create-database", str(db_path)]
+    if enable_wal:
+        args.append("--enable-wal")
+    result = CliRunner().invoke(cli.cli, args)
+    assert result.exit_code == 0, result.output
+    assert db_path.exists()
+    assert db_path.read_binary()[:16] == b"SQLite format 3\x00"
+    db = Database(str(db_path))
+    if enable_wal:
+        assert db.journal_mode == "wal"
+    else:
+        assert db.journal_mode == "delete"
