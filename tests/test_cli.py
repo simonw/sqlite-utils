@@ -2024,7 +2024,7 @@ def test_integer_overflow_error(tmpdir):
 def test_python_dash_m():
     "Tool can be run using python -m sqlite_utils"
     result = subprocess.run(
-        [sys.executable, "-m", "sqlite_utils", "--help"], capture_output=True
+        [sys.executable, "-m", "sqlite_utils", "--help"], stdout=subprocess.PIPE
     )
     assert result.returncode == 0
     assert b"Commands for interacting with a SQLite database" in result.stdout
