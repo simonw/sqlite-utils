@@ -81,7 +81,6 @@ def output_options(fn):
                 help="Table format - one of {}".format(
                     ", ".join(tabulate.tabulate_formats)
                 ),
-                default="simple",
             ),
             click.option(
                 "--json-cols",
@@ -192,8 +191,8 @@ def tables(
                 row.append(db[name].schema)
             yield row
 
-    if table:
-        print(tabulate.tabulate(_iter(), headers=headers, tablefmt=fmt))
+    if table or fmt:
+        print(tabulate.tabulate(_iter(), headers=headers, tablefmt=fmt or "simple"))
     elif csv or tsv:
         writer = csv_std.writer(sys.stdout, dialect="excel-tab" if tsv else "excel")
         if not no_headers:
@@ -1456,8 +1455,12 @@ def _execute_query(
                 sys.stdout.buffer.write(data)
             else:
                 sys.stdout.write(str(data))
-        elif table:
-            print(tabulate.tabulate(list(cursor), headers=headers, tablefmt=fmt))
+        elif fmt or table:
+            print(
+                tabulate.tabulate(
+                    list(cursor), headers=headers, tablefmt=fmt or "simple"
+                )
+            )
         elif csv or tsv:
             writer = csv_std.writer(sys.stdout, dialect="excel-tab" if tsv else "excel")
             if not no_headers:

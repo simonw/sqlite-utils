@@ -114,10 +114,10 @@ def test_tables_schema(db_path):
 
 
 @pytest.mark.parametrize(
-    "fmt,expected",
+    "options,expected",
     [
         (
-            "simple",
+            ["--fmt", "simple"],
             (
                 "c1     c2     c3\n"
                 "-----  -----  ----------\n"
@@ -128,7 +128,18 @@ def test_tables_schema(db_path):
             ),
         ),
         (
-            "rst",
+            ["-t"],
+            (
+                "c1     c2     c3\n"
+                "-----  -----  ----------\n"
+                "verb0  noun0  adjective0\n"
+                "verb1  noun1  adjective1\n"
+                "verb2  noun2  adjective2\n"
+                "verb3  noun3  adjective3"
+            ),
+        ),
+        (
+            ["--fmt", "rst"],
             (
                 "=====  =====  ==========\n"
                 "c1     c2     c3\n"
@@ -142,7 +153,7 @@ def test_tables_schema(db_path):
         ),
     ],
 )
-def test_output_table(db_path, fmt, expected):
+def test_output_table(db_path, options, expected):
     db = Database(db_path)
     with db.conn:
         db["rows"].insert_all(
@@ -155,7 +166,7 @@ def test_output_table(db_path, fmt, expected):
                 for i in range(4)
             ]
         )
-    result = CliRunner().invoke(cli.cli, ["rows", db_path, "rows", "-t", "--fmt", fmt])
+    result = CliRunner().invoke(cli.cli, ["rows", db_path, "rows"] + options)
     assert 0 == result.exit_code
     assert expected == result.output.strip()
 

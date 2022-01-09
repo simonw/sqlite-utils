@@ -168,7 +168,7 @@ You can use the ``--table`` option (or ``-t`` shortcut) to output query results 
 
 You can use the ``--fmt`` option to specify different table formats, for example ``rst`` for reStructuredText::
 
-    $ sqlite-utils dogs.db "select * from dogs" --table --fmt rst
+    $ sqlite-utils dogs.db "select * from dogs" --fmt rst
     ====  =====  ========
       id    age  name
     ====  =====  ========
@@ -182,7 +182,6 @@ Available ``--fmt`` options are:
     import tabulate
     cog.out("\n" + "\n".join('- ``{}``'.format(t) for t in tabulate.tabulate_formats) + "\n\n")
 .. ]]]
-
 - ``fancy_grid``
 - ``fancy_outline``
 - ``github``
@@ -207,7 +206,6 @@ Available ``--fmt`` options are:
 - ``tsv``
 - ``unsafehtml``
 - ``youtrack``
-
 .. [[[end]]]
 
 This list can also be found by running ``sqlite-utils query --help``.
@@ -289,7 +287,7 @@ It takes all of the same output formatting options as :ref:`sqlite-utils query <
     $ sqlite-utils memory 'select sqlite_version()' --csv             
     sqlite_version()
     3.35.5
-    $ sqlite-utils memory 'select sqlite_version()' --table --fmt grid
+    $ sqlite-utils memory 'select sqlite_version()' --fmt grid
     +--------------------+
     | sqlite_version()   |
     +====================+
