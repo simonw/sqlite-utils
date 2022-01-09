@@ -31,7 +31,7 @@ setup(
         "python-dateutil",
     ],
     extras_require={
-        "test": ["pytest", "black", "hypothesis"],
+        "test": ["pytest", "black", "hypothesis", "cogapp"],
         "docs": ["sphinx_rtd_theme", "sphinx-autobuild", "codespell"],
         "mypy": [
             "mypy",

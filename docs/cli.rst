@@ -176,7 +176,41 @@ You can use the ``--fmt`` option to specify different table formats, for example
        2      2  Pancakes
     ====  =====  ========
 
-For a full list of table format options, run ``sqlite-utils query --help``.
+Available ``--fmt`` options are:
+
+.. [[[cog
+    import tabulate
+    cog.out("\n" + "\n".join('- ``{}``'.format(t) for t in tabulate.tabulate_formats) + "\n\n")
+.. ]]]
+
+- ``fancy_grid``
+- ``fancy_outline``
+- ``github``
+- ``grid``
+- ``html``
+- ``jira``
+- ``latex``
+- ``latex_booktabs``
+- ``latex_longtable``
+- ``latex_raw``
+- ``mediawiki``
+- ``moinmoin``
+- ``orgtbl``
+- ``pipe``
+- ``plain``
+- ``presto``
+- ``pretty``
+- ``psql``
+- ``rst``
+- ``simple``
+- ``textile``
+- ``tsv``
+- ``unsafehtml``
+- ``youtrack``
+
+.. [[[end]]]
+
+This list can also be found by running ``sqlite-utils query --help``.
 
 .. _cli_query_raw:
 

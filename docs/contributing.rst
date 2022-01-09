@@ -44,6 +44,10 @@ Then run ``make livehtml`` from the ``docs/`` directory to start a server on por
     cd docs
     make livehtml
 
+The `cog <https://github.com/nedbat/cog>`__ tool is used to maintain portions of the documentation. You can run it like so::
+
+    cog -r docs/*.rst
+
 .. _contributing_linting:
 
 Linting and formatting
