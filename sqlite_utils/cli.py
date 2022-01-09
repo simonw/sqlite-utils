@@ -824,7 +824,7 @@ def insert_upsert_implementation(
                 except TypeError:
                     raise click.ClickException("--convert must return dict or iterator")
         else:
-            docs = (fn(doc) for doc in docs)
+            docs = (fn(doc) or doc for doc in docs)
 
     extra_kwargs = {"ignore": ignore, "replace": replace, "truncate": truncate}
     if not_null:
@@ -2225,11 +2225,7 @@ def convert(
     try:
         fn = _compile_code(code, imports)
     except SyntaxError as e:
-        raise click.ClickException(
-            "Syntax error in code:\n\n{}\n\n{}".format(
-                textwrap.indent(e.text.strip(), "    "), e.msg
-            )
-        )
+        raise click.ClickException(str(e))
     if dry_run:
         # Pull first 20 values for first column and preview them
         db.conn.create_function("preview_transform", 1, lambda v: fn(v) if v else v)

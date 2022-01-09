@@ -55,32 +55,20 @@ def test_convert_code(fresh_db_and_path, code):
 
 
 @pytest.mark.parametrize(
-    "bad_code,expected_error",
-    [
-        (
-            "def foo(value)",
-            """Error: Syntax error in code:
-
-    return def foo(value)
-
-invalid syntax""",
-        ),
-        (
-            "$",
-            """Error: Syntax error in code:
-
-    return $
-
-invalid syntax""",
-        ),
-    ],
+    "bad_code",
+    (
+        "def foo(value)",
+        "$",
+    ),
 )
-def test_convert_code_errors(fresh_db_and_path, bad_code, expected_error):
+def test_convert_code_errors(fresh_db_and_path, bad_code):
     db, db_path = fresh_db_and_path
     db["t"].insert({"text": "October"})
-    result = CliRunner().invoke(cli.cli, ["convert", db_path, "t", "text", bad_code])
+    result = CliRunner().invoke(
+        cli.cli, ["convert", db_path, "t", "text", bad_code], catch_exceptions=False
+    )
     assert 1 == result.exit_code
-    assert result.output.strip() == expected_error.strip()
+    assert result.output == "Error: Could not compile code\n"
 
 
 def test_convert_import(test_db_and_path):

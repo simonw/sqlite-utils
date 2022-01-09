@@ -434,3 +434,22 @@ def test_insert_convert_lines(db_path):
     db = Database(db_path)
     rows = list(db.query("select [line] from [all]"))
     assert rows == [{"line": "THIS IS TEXT"}, {"line": "WILL BE UPPER NOW"}]
+
+
+def test_insert_convert_row_modifying_in_place(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            db_path,
+            "rows",
+            "-",
+            "--convert",
+            'row["is_chicken"] = True',
+        ],
+        input='{"name": "Azi"}',
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    rows = list(db.query("select name, is_chicken from rows"))
+    assert rows == [{"name": "Azi", "is_chicken": 1}]

@@ -293,15 +293,25 @@ def _compile_code(code, imports, variable="value"):
         pass
 
     # Try compiling their code as a function instead
-
-    # If single line and no 'return', add the return
+    body_variants = [code]
+    # If single line and no 'return', try adding the return
     if "\n" not in code and not code.strip().startswith("return "):
-        code = "return {}".format(code)
+        body_variants.insert(0, "return {}".format(code))
 
-    new_code = ["def fn({}):".format(variable)]
-    for line in code.split("\n"):
-        new_code.append("    {}".format(line))
-    code_o = compile("\n".join(new_code), "<string>", "exec")
+    code_o = None
+    for variant in body_variants:
+        new_code = ["def fn({}):".format(variable)]
+        for line in variant.split("\n"):
+            new_code.append("    {}".format(line))
+        try:
+            code_o = compile("\n".join(new_code), "<string>", "exec")
+            break
+        except SyntaxError:
+            # Try another variant, e.g. for 'return row["column"] = 1'
+            continue
+
+    if code_o is None:
+        raise SyntaxError("Could not compile code")
 
     for import_ in imports:
         globals[import_.split(".")[0]] = __import__(import_)

@@ -959,9 +959,7 @@ Given a JSON file called ``dogs.json`` containing this:
 
 The following command will insert that data and add an ``is_good`` column set to ``1`` for each dog::
 
-    $ sqlite-utils insert dogs.db dogs dogs.json --convert '
-    row["is_good"] = 1
-    return row'
+    $ sqlite-utils insert dogs.db dogs dogs.json --convert 'row["is_good"] = 1`
 
 The ``--convert`` option also works with the ``--csv``, ``--tsv`` and ``--nl`` insert options.
 
