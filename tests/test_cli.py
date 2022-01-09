@@ -1,6 +1,8 @@
 from sqlite_utils import cli, Database
 from sqlite_utils.db import Index, ForeignKey
 from click.testing import CliRunner
+import subprocess
+import sys
 from unittest import mock
 import json
 import os
@@ -2017,3 +2019,12 @@ def test_integer_overflow_error(tmpdir):
         "sql = INSERT INTO [items] ([bignumber]) VALUES (?);\n"
         "parameters = [34223049823094832094802398430298048240]\n"
     )
+
+
+def test_python_dash_m():
+    "Tool can be run using python -m sqlite_utils"
+    result = subprocess.run(
+        [sys.executable, "-m", "sqlite_utils", "--help"], capture_output=True
+    )
+    assert result.returncode == 0
+    assert b"Commands for interacting with a SQLite database" in result.stdout
