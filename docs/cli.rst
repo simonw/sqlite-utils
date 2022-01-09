@@ -1143,7 +1143,7 @@ The full list of column definitions you can use is as follows:
     The integer size of the file in bytes
 ``stem``
     The filename without the extension - for ``file.txt.gz`` this would be ``file.txt``
-``extension``
+``suffix``
     The file extension - for ``file.txt.gz`` this would be ``.gz``
 
 You can insert data piped from standard input like this::
