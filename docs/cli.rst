@@ -182,6 +182,7 @@ Available ``--fmt`` options are:
     import tabulate
     cog.out("\n" + "\n".join('- ``{}``'.format(t) for t in tabulate.tabulate_formats) + "\n\n")
 .. ]]]
+
 - ``fancy_grid``
 - ``fancy_outline``
 - ``github``
@@ -206,6 +207,7 @@ Available ``--fmt`` options are:
 - ``tsv``
 - ``unsafehtml``
 - ``youtrack``
+
 .. [[[end]]]
 
 This list can also be found by running ``sqlite-utils query --help``.
