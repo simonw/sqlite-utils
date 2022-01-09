@@ -1061,7 +1061,7 @@ def upsert(
 @click.option(
     "--enable-wal", is_flag=True, help="Enable WAL mode on the created database"
 )
-def create_table(path, enable_wal):
+def create_database(path, enable_wal):
     "Create a new empty database file."
     db = sqlite_utils.Database(path)
     if enable_wal:
