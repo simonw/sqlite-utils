@@ -2300,6 +2300,8 @@ FILE_COLUMNS = {
     "mtime_iso": lambda p: datetime.utcfromtimestamp(p.stat().st_mtime).isoformat(),
     "ctime_iso": lambda p: datetime.utcfromtimestamp(p.stat().st_ctime).isoformat(),
     "size": lambda p: p.stat().st_size,
+    "stem": lambda p: p.stem,
+    "suffix": lambda p: p.suffix,
 }
 
 

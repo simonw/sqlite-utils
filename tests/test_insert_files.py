@@ -15,7 +15,7 @@ def test_insert_files(silent):
         (tmpdir / "one.txt").write_text("This is file one", "utf-8")
         (tmpdir / "two.txt").write_text("Two is shorter", "utf-8")
         (tmpdir / "nested").mkdir()
-        (tmpdir / "nested" / "three.txt").write_text("Three is nested", "utf-8")
+        (tmpdir / "nested" / "three.zz.txt").write_text("Three is nested", "utf-8")
         coltypes = (
             "name",
             "path",
@@ -32,6 +32,8 @@ def test_insert_files(silent):
             "mtime_iso",
             "ctime_iso",
             "size",
+            "suffix",
+            "stem",
         )
         cols = []
         for coltype in coltypes:
@@ -50,7 +52,7 @@ def test_insert_files(silent):
         one, two, three = (
             rows_by_path["one.txt"],
             rows_by_path["two.txt"],
-            rows_by_path[os.path.join("nested", "three.txt")],
+            rows_by_path[os.path.join("nested", "three.zz.txt")],
         )
         assert {
             "content": b"This is file one",
@@ -60,6 +62,8 @@ def test_insert_files(silent):
             "path": "one.txt",
             "sha256": "e34138f26b5f7368f298b4e736fea0aad87ddec69fbd04dc183b20f4d844bad5",
             "size": 16,
+            "stem": "one",
+            "suffix": ".txt",
         }.items() <= one.items()
         assert {
             "content": b"Two is shorter",
@@ -69,15 +73,19 @@ def test_insert_files(silent):
             "path": "two.txt",
             "sha256": "9368988ed16d4a2da0af9db9b686d385b942cb3ffd4e013f43aed2ec041183d9",
             "size": 14,
+            "stem": "two",
+            "suffix": ".txt",
         }.items() <= two.items()
         assert {
             "content": b"Three is nested",
             "content_text": "Three is nested",
             "md5": "12580f341781f5a5b589164d3cd39523",
-            "name": "three.txt",
-            "path": os.path.join("nested", "three.txt"),
+            "name": "three.zz.txt",
+            "path": os.path.join("nested", "three.zz.txt"),
             "sha256": "6dd45aaaaa6b9f96af19363a92c8fca5d34791d3c35c44eb19468a6a862cc8cd",
             "size": 15,
+            "stem": "three.zz",
+            "suffix": ".txt",
         }.items() <= three.items()
         # Assert the other int/str/float columns exist and are of the right types
         expected_types = {
@@ -91,6 +99,8 @@ def test_insert_files(silent):
             "fullpath": str,
             "content": bytes,
             "content_text": str,
+            "stem": str,
+            "suffix": str,
         }
         for colname, expected_type in expected_types.items():
             for row in (one, two, three):
