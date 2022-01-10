@@ -774,6 +774,14 @@ def test_create_index_find_unique_name(fresh_db):
     assert index_names == {"idx_t_id", "idx_t_id_2", "idx_t_id_3"}
 
 
+def test_create_index_analyze(fresh_db):
+    dogs = fresh_db["dogs"]
+    assert "sqlite_stat1" not in fresh_db.table_names()
+    dogs.insert({"name": "Cleo", "twitter": "cleopaws"})
+    dogs.create_index(["name"], analyze=True)
+    assert "sqlite_stat1" in fresh_db.table_names()
+
+
 @pytest.mark.parametrize(
     "data_structure",
     (

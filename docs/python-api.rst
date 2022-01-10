@@ -2204,6 +2204,8 @@ You can create a unique index by passing ``unique=True``:
 
 Use ``if_not_exists=True`` to do nothing if an index with that name already exists.
 
+Pass ``analyze=True`` to run ``ANALYZE`` against the new index after creating it.
+
 .. _python_api_analyze:
 
 Optimizing index usage with ANALYZE
