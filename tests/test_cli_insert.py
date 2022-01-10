@@ -463,9 +463,6 @@ def test_insert_streaming_batch_size_1(db_path):
     # Streaming with --batch-size 1 should commit on each record
     # Can't use CliRunner().invoke() here bacuse we need to
     # run assertions in between writing to process stdin
-    # First, create the DB with WAL mode enabled
-    CliRunner().invoke(cli.cli, ["create-database", db_path, "--enable-wal"])
-    # Now start streaming rows to insert --nl
     proc = subprocess.Popen(
         [
             sys.executable,
