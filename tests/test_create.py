@@ -780,6 +780,9 @@ def test_create_index_analyze(fresh_db):
     dogs.insert({"name": "Cleo", "twitter": "cleopaws"})
     dogs.create_index(["name"], analyze=True)
     assert "sqlite_stat1" in fresh_db.table_names()
+    assert list(fresh_db["sqlite_stat1"].rows) == [
+        {"tbl": "dogs", "idx": "idx_dogs_name", "stat": "1 1"}
+    ]
 
 
 @pytest.mark.parametrize(
