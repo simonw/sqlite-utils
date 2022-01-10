@@ -481,13 +481,22 @@ def test_insert_streaming_batch_size_1(db_path):
     )
     proc.stdin.write(b'{"name": "Azi"}\n')
     proc.stdin.flush()
-    # Without this delay the data wasn't yet visible
-    time.sleep(0.4)
-    assert list(Database(db_path)["rows"].rows) == [{"name": "Azi"}]
+
+    def try_until(expected):
+        tries = 0
+        while True:
+            rows = list(Database(db_path)["rows"].rows)
+            if rows == expected:
+                return
+            tries += 1
+            if tries > 10:
+                assert False, "Expected {}, got {}".format(expected, rows)
+            time.sleep(tries * 0.1)
+
+    try_until([{"name": "Azi"}])
     proc.stdin.write(b'{"name": "Suna"}\n')
     proc.stdin.flush()
-    time.sleep(0.4)
-    assert list(Database(db_path)["rows"].rows) == [{"name": "Azi"}, {"name": "Suna"}]
+    try_until([{"name": "Azi"}, {"name": "Suna"}])
     proc.stdin.close()
     proc.wait()
     assert proc.returncode == 0
