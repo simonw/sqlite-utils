@@ -165,7 +165,7 @@ def test_insert_newline_delimited(db_path):
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "from_json_nl", "-", "--nl"],
-        input='{"foo": "bar", "n": 1}\n{"foo": "baz", "n": 2}',
+        input='{"foo": "bar", "n": 1}\n\n{"foo": "baz", "n": 2}',
     )
     assert 0 == result.exit_code, result.output
     db = Database(db_path)

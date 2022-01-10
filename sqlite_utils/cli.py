@@ -791,7 +791,7 @@ def insert_upsert_implementation(
     else:
         try:
             if nl:
-                docs = (json.loads(line) for line in decoded)
+                docs = (json.loads(line) for line in decoded if line.strip())
             else:
                 docs = json.load(decoded)
                 if isinstance(docs, dict):
