@@ -482,11 +482,11 @@ def test_insert_streaming_batch_size_1(db_path):
     proc.stdin.write(b'{"name": "Azi"}\n')
     proc.stdin.flush()
     # Without this delay the data wasn't yet visible
-    time.sleep(0.2)
+    time.sleep(0.4)
     assert list(Database(db_path)["rows"].rows) == [{"name": "Azi"}]
     proc.stdin.write(b'{"name": "Suna"}\n')
     proc.stdin.flush()
-    time.sleep(0.2)
+    time.sleep(0.4)
     assert list(Database(db_path)["rows"].rows) == [{"name": "Azi"}, {"name": "Suna"}]
     proc.stdin.close()
     proc.wait()
