@@ -757,13 +757,20 @@ def insert_upsert_implementation(
     if pk and len(pk) == 1:
         pk = pk[0]
     encoding = encoding or "utf-8-sig"
-    buffered = io.BufferedReader(file, buffer_size=4096)
-    decoded = io.TextIOWrapper(buffered, encoding=encoding)
+
+    # The --sniff option needs us to buffer the file to peek ahead
+    sniff_buffer = None
+    if sniff:
+        sniff_buffer = io.BufferedReader(file, buffer_size=4096)
+        decoded = io.TextIOWrapper(sniff_buffer, encoding=encoding)
+    else:
+        decoded = io.TextIOWrapper(file, encoding=encoding)
+
     tracker = None
     if csv or tsv:
         if sniff:
             # Read first 2048 bytes and use that to detect
-            first_bytes = buffered.peek(2048)
+            first_bytes = sniff_buffer.peek(2048)
             dialect = csv_std.Sniffer().sniff(first_bytes.decode(encoding, "ignore"))
         else:
             dialect = "excel-tab" if tsv else "excel"

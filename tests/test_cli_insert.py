@@ -2,6 +2,9 @@ from sqlite_utils import cli, Database
 from click.testing import CliRunner
 import json
 import pytest
+import subprocess
+import sys
+import time
 
 
 def test_insert_simple(tmpdir):
@@ -453,3 +456,41 @@ def test_insert_convert_row_modifying_in_place(db_path):
     db = Database(db_path)
     rows = list(db.query("select name, is_chicken from rows"))
     assert rows == [{"name": "Azi", "is_chicken": 1}]
+
+
+def test_insert_streaming_batch_size_1(db_path):
+    # https://github.com/simonw/sqlite-utils/issues/364
+    # Streaming with --batch-size 1 should commit on each record
+    # Can't use CliRunner().invoke() here bacuse we need to
+    # run assertions in between writing to process stdin
+    # First, create the DB with WAL mode enabled
+    CliRunner().invoke(cli.cli, ["create-database", db_path, "--enable-wal"])
+    # Now start streaming rows to insert --nl
+    proc = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "sqlite_utils",
+            "insert",
+            db_path,
+            "rows",
+            "-",
+            "--nl",
+            "--batch-size",
+            "1",
+        ],
+        stdin=subprocess.PIPE,
+        stdout=sys.stdout,
+    )
+    proc.stdin.write(b'{"name": "Azi"}\n')
+    proc.stdin.flush()
+    # Without this delay the data wasn't yet visible
+    time.sleep(0.2)
+    assert list(Database(db_path)["rows"].rows) == [{"name": "Azi"}]
+    proc.stdin.write(b'{"name": "Suna"}\n')
+    proc.stdin.flush()
+    time.sleep(0.2)
+    assert list(Database(db_path)["rows"].rows) == [{"name": "Azi"}, {"name": "Suna"}]
+    proc.stdin.close()
+    proc.wait()
+    assert proc.returncode == 0
