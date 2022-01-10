@@ -629,6 +629,53 @@ def reset_counts(path, load_extension):
     db.reset_counts()
 
 
+def import_options(fn):
+    for decorator in reversed(
+        (
+            click.option(
+                "--flatten",
+                is_flag=True,
+                help='Flatten nested JSON objects, so {"a": {"b": 1}} becomes {"a_b": 1}',
+            ),
+            click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
+            click.option("-c", "--csv", is_flag=True, help="Expect CSV input"),
+            click.option("--tsv", is_flag=True, help="Expect TSV input"),
+            click.option(
+                "--lines",
+                is_flag=True,
+                help="Treat each line as a single value called 'line'",
+            ),
+            click.option(
+                "--text",
+                is_flag=True,
+                help="Treat input as a single value called 'text'",
+            ),
+            click.option("--convert", help="Python code to convert each item"),
+            click.option(
+                "--import",
+                "imports",
+                type=str,
+                multiple=True,
+                help="Python modules to import",
+            ),
+            click.option("--delimiter", help="Delimiter to use for CSV files"),
+            click.option("--quotechar", help="Quote character to use for CSV/TSV"),
+            click.option(
+                "--sniff", is_flag=True, help="Detect delimiter and quote character"
+            ),
+            click.option(
+                "--no-headers", is_flag=True, help="CSV file has no header row"
+            ),
+            click.option(
+                "--encoding",
+                help="Character encoding for input, defaults to utf-8",
+            ),
+        )
+    ):
+        fn = decorator(fn)
+    return fn
+
+
 def insert_upsert_options(fn):
     for decorator in reversed(
         (
@@ -743,6 +790,7 @@ def insert_upsert_implementation(
     detect_types=None,
     load_extension=None,
     silent=False,
+    bulk_sql=None,
 ):
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
@@ -843,6 +891,12 @@ def insert_upsert_implementation(
 
     # Apply {"$base64": true, ...} decoding, if needed
     docs = (decode_base64_values(doc) for doc in docs)
+
+    # For bulk_sql= we use cursor.executemany() instead
+    if bulk_sql:
+        with db.conn:
+            db.conn.cursor().executemany(bulk_sql, docs)
+        return
 
     try:
         db[table].insert_all(
@@ -1057,6 +1111,71 @@ def upsert(
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("sql")
+@click.argument("file", type=click.File("rb"), required=True)
+@import_options
+@load_extension_option
+def bulk(
+    path,
+    file,
+    sql,
+    flatten,
+    nl,
+    csv,
+    tsv,
+    lines,
+    text,
+    convert,
+    imports,
+    delimiter,
+    quotechar,
+    sniff,
+    no_headers,
+    encoding,
+    load_extension,
+):
+    """
+    Execute parameterized SQL against the provided list of documents.
+    """
+    try:
+        insert_upsert_implementation(
+            path=path,
+            table=None,
+            file=file,
+            pk=None,
+            flatten=flatten,
+            nl=nl,
+            csv=csv,
+            tsv=tsv,
+            lines=lines,
+            text=text,
+            convert=convert,
+            imports=imports,
+            delimiter=delimiter,
+            quotechar=quotechar,
+            sniff=sniff,
+            no_headers=no_headers,
+            batch_size=1,
+            alter=False,
+            upsert=False,
+            not_null=set(),
+            default={},
+            encoding=encoding,
+            detect_types=False,
+            load_extension=load_extension,
+            silent=False,
+            bulk_sql=sql,
+        )
+    except (sqlite3.OperationalError, sqlite3.IntegrityError) as e:
+        raise click.ClickException(str(e))
 
 
 @cli.command(name="create-database")
