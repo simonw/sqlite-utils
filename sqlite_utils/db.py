@@ -1554,6 +1554,7 @@ class Table(Queryable):
         unique: bool = False,
         if_not_exists: bool = False,
         find_unique_name: bool = False,
+        analyze: bool = False,
     ):
         """
         Create an index on this table.
@@ -1565,6 +1566,7 @@ class Table(Queryable):
         - ``if_not_exists`` - only create the index if one with that name does not already exist.
         - ``find_unique_name`` - if ``index_name`` is not provided and the automatically derived name
           already exists, keep incrementing a suffix number to find an available name.
+        - ``analyze`` - run ``ANALYZE`` against this index after creating it.
 
         See :ref:`python_api_create_index`.
         """
@@ -1581,7 +1583,11 @@ class Table(Queryable):
             columns_sql.append(fmt.format(column))
 
         suffix = None
+        created_index_name = None
         while True:
+            created_index_name = (
+                "{}_{}".format(index_name, suffix) if suffix else index_name
+            )
             sql = (
                 textwrap.dedent(
                     """
@@ -1591,9 +1597,7 @@ class Table(Queryable):
                 )
                 .strip()
                 .format(
-                    index_name="{}_{}".format(index_name, suffix)
-                    if suffix
-                    else index_name,
+                    index_name=created_index_name,
                     table_name=self.name,
                     columns=", ".join(columns_sql),
                     unique="UNIQUE " if unique else "",
@@ -1618,6 +1622,8 @@ class Table(Queryable):
                     continue
                 else:
                     raise e
+        if analyze:
+            self.db.analyze(created_index_name)
         return self
 
     def add_column(
