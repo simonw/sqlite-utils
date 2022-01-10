@@ -2204,6 +2204,33 @@ You can create a unique index by passing ``unique=True``:
 
 Use ``if_not_exists=True`` to do nothing if an index with that name already exists.
 
+.. _python_api_analyze:
+
+Optimizing index usage with ANALYZE
+===================================
+
+The `SQLite ANALYZE command <https://www.sqlite.org/lang_analyze.html>`__ can be used to build a table of statistics which the query planner can then use to make better decisions about which indexes to use for a given query.
+
+You should run ``ANALYZE`` if your database is large and you do not think your indexes are being efficiently used.
+
+To run ``ANALYZE`` against every index in a database, use this:
+
+.. code-block:: python
+
+    db.analyze()
+
+To run it just against a specific named index, pass the name of the index to that method:
+
+.. code-block:: python
+
+    db.analyze("idx_countries_country_name")
+
+To run against all indexes attached to a specific table, you can either pass the table name to ``db.analyze(...)`` or you can call the method directly on the table, like this:
+
+.. code-block:: python
+
+    db["dogs"].analyze()
+
 .. _python_api_vacuum:
 
 Vacuum
