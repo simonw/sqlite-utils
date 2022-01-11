@@ -1028,6 +1028,23 @@ def test_insert_all_single_column(fresh_db):
     assert table.pks == ["name"]
 
 
+@pytest.mark.parametrize("method_name", ("insert_all", "upsert_all"))
+def test_insert_all_analyze(fresh_db, method_name):
+    table = fresh_db["table"]
+    table.insert_all([{"id": 1, "name": "Cleo"}], pk="id")
+    assert "sqlite_stat1" not in fresh_db.table_names()
+    table.create_index(["name"], analyze=True)
+    assert list(fresh_db["sqlite_stat1"].rows) == [
+        {"tbl": "table", "idx": "idx_table_name", "stat": "1 1"}
+    ]
+    method = getattr(table, method_name)
+    method([{"id": 2, "name": "Suna"}], pk="id", analyze=True)
+    assert "sqlite_stat1" in fresh_db.table_names()
+    assert list(fresh_db["sqlite_stat1"].rows) == [
+        {"tbl": "table", "idx": "idx_table_name", "stat": "2 1"}
+    ]
+
+
 def test_create_with_a_null_column(fresh_db):
     record = {"name": "Name", "description": None}
     fresh_db["t"].insert(record)

@@ -638,8 +638,9 @@ The function can accept an iterator or generator of rows and will commit them ac
 
 You can skip inserting any records that have a primary key that already exists using ``ignore=True``. This works with both ``.insert({...}, ignore=True)`` and ``.insert_all([...], ignore=True)``.
 
-You can delete all the existing rows in the table before inserting the new
-records using ``truncate=True``. This is useful if you want to replace the data in the table.
+You can delete all the existing rows in the table before inserting the new records using ``truncate=True``. This is useful if you want to replace the data in the table.
+
+Pass ``analyze=True`` to run ``ANALYZE`` against the table after inserting the new records.
 
 .. _python_api_insert_replace:
 
