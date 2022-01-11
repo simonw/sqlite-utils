@@ -449,6 +449,8 @@ You can use the ``-c`` option to specify a subset of columns to return::
     [{"age": 4, "name": "Cleo"},
      {"age": 2, "name": "Pancakes"}]
 
+Use ``--limit N`` to only return the first ``N`` rows. Use ``--offset N`` to return rows starting from the specified offset.
+
 .. _cli_tables:
 
 Listing tables

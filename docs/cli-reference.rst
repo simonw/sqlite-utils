@@ -585,6 +585,8 @@ See :ref:`cli_rows`.
 
     Options:
       -c, --column TEXT      Columns to return
+      --limit INTEGER        Number of rows to return - defaults to everything
+      --offset INTEGER       SQL offset to use
       --nl                   Output newline-delimited JSON
       --arrays               Output rows as arrays instead of objects
       --csv                  Output CSV

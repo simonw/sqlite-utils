@@ -851,6 +851,14 @@ def test_query_memory_does_not_create_file(tmpdir):
             ["--nl", "-c", "age", "-c", "name"],
             '{"age": 4, "name": "Cleo"}\n{"age": 2, "name": "Pancakes"}',
         ),
+        (
+            ["-c", "name", "--limit", "1"],
+            '[{"name": "Cleo"}]',
+        ),
+        (
+            ["-c", "name", "--limit", "1", "--offset", "1"],
+            '[{"name": "Pancakes"}]',
+        ),
     ],
 )
 def test_rows(db_path, args, expected):

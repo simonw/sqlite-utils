@@ -1723,6 +1723,16 @@ def search(
 )
 @click.argument("dbtable")
 @click.option("-c", "--column", type=str, multiple=True, help="Columns to return")
+@click.option(
+    "--limit",
+    type=int,
+    help="Number of rows to return - defaults to everything",
+)
+@click.option(
+    "--offset",
+    type=int,
+    help="SQL offset to use",
+)
 @output_options
 @load_extension_option
 @click.pass_context
@@ -1731,6 +1741,8 @@ def rows(
     path,
     dbtable,
     column,
+    limit,
+    offset,
     nl,
     arrays,
     csv,
@@ -1745,10 +1757,15 @@ def rows(
     columns = "*"
     if column:
         columns = ", ".join("[{}]".format(c) for c in column)
+    sql = "select {} from [{}]".format(columns, dbtable)
+    if limit:
+        sql += " limit {}".format(limit)
+    if offset:
+        sql += " offset {}".format(offset)
     ctx.invoke(
         query,
         path=path,
-        sql="select {} from [{}]".format(columns, dbtable),
+        sql=sql,
         nl=nl,
         arrays=arrays,
         csv=csv,
