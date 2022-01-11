@@ -717,6 +717,8 @@ You can delete all records in a table that match a specific WHERE statement usin
 
 Calling ``table.delete_where()`` with no other arguments will delete every row in the table.
 
+Pass ``analyze=True`` to run ``ANALYZE`` against the table after deleting the rows.
+
 .. _python_api_upsert:
 
 Upserting data

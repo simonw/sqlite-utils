@@ -2119,15 +2119,28 @@ class Table(Queryable):
         return self
 
     def delete_where(
-        self, where: str = None, where_args: Optional[Union[Iterable, dict]] = None
+        self,
+        where: str = None,
+        where_args: Optional[Union[Iterable, dict]] = None,
+        analyze: bool = False,
     ) -> "Table":
-        "Delete rows matching specified where clause, or delete all rows in the table."
+        """
+        Delete rows matching the specified where clause, or delete all rows in the table.
+
+        - ``where`` - a SQL fragment to use as a ``WHERE`` clause, for example ``age > ?`` or ``age > :age``.
+        - ``where_args`` - a list of arguments (if using ``?``) or a dictionary (if using ``:age``).
+        - ``analyze`` - set to ``True`` to run ``ANALYZE`` after the rows have been deleted.
+
+        See :ref:`python_api_delete_where`.
+        """
         if not self.exists():
             return self
         sql = "delete from [{}]".format(self.name)
         if where is not None:
             sql += " where " + where
         self.db.execute(sql, where_args or [])
+        if analyze:
+            self.analyze()
         return self
 
     def update(

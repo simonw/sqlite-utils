@@ -30,3 +30,17 @@ def test_delete_where_all(fresh_db):
     assert 10 == table.count
     table.delete_where()
     assert 0 == table.count
+
+
+def test_delete_where_analyze(fresh_db):
+    table = fresh_db["table"]
+    table.insert_all(({"id": i, "i": i} for i in range(10)), pk="id")
+    table.create_index(["i"], analyze=True)
+    assert "sqlite_stat1" in fresh_db.table_names()
+    assert list(fresh_db["sqlite_stat1"].rows) == [
+        {"tbl": "table", "idx": "idx_table_i", "stat": "10 1"}
+    ]
+    table.delete_where("id > ?", [5], analyze=True)
+    assert list(fresh_db["sqlite_stat1"].rows) == [
+        {"tbl": "table", "idx": "idx_table_i", "stat": "6 1"}
+    ]
