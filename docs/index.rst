@@ -33,5 +33,6 @@ Contents
    cli
    python-api
    reference
+   cli-reference
    contributing
    changelog
