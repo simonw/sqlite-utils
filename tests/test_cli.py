@@ -224,6 +224,17 @@ def test_create_index(db_path):
     )
 
 
+def test_create_index_analyze(db_path):
+    db = Database(db_path)
+    assert "sqlite_stat1" not in db.table_names()
+    assert [] == db["Gosh"].indexes
+    result = CliRunner().invoke(
+        cli.cli, ["create-index", db_path, "Gosh", "c1", "--analyze"]
+    )
+    assert result.exit_code == 0
+    assert "sqlite_stat1" in db.table_names()
+
+
 def test_create_index_desc(db_path):
     db = Database(db_path)
     assert [] == db["Gosh"].indexes
@@ -887,6 +898,20 @@ def test_upsert(db_path, tmpdir):
         {"id": 1, "name": "Cleo", "age": 5},
         {"id": 2, "name": "Nixie", "age": 5},
     ]
+
+
+def test_upsert_analyze(db_path, tmpdir):
+    db = Database(db_path)
+    db["rows"].insert({"id": 1, "foo": "x", "n": 3}, pk="id")
+    db["rows"].create_index(["n"])
+    assert "sqlite_stat1" not in db.table_names()
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "rows", "-", "--nl", "--analyze", "--pk", "id"],
+        input='{"id": 2, "foo": "bar", "n": 1}',
+    )
+    assert 0 == result.exit_code, result.output
+    assert "sqlite_stat1" in db.table_names()
 
 
 def test_upsert_flatten(tmpdir):
