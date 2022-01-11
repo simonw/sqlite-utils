@@ -490,8 +490,15 @@ def index_foreign_keys(path, load_extension):
     default=False,
     is_flag=True,
 )
+@click.option(
+    "--analyze",
+    help="Run ANALYZE after creating the index",
+    is_flag=True,
+)
 @load_extension_option
-def create_index(path, table, column, name, unique, if_not_exists, load_extension):
+def create_index(
+    path, table, column, name, unique, if_not_exists, analyze, load_extension
+):
     """
     Add an index to the specified table covering the specified columns.
     Use "sqlite-utils create-index mydb -- -column" to specify descending
@@ -506,7 +513,11 @@ def create_index(path, table, column, name, unique, if_not_exists, load_extensio
             col = DescIndex(col[1:])
         columns.append(col)
     db[table].create_index(
-        columns, index_name=name, unique=unique, if_not_exists=if_not_exists
+        columns,
+        index_name=name,
+        unique=unique,
+        if_not_exists=if_not_exists,
+        analyze=analyze,
     )
 
 
@@ -773,6 +784,11 @@ def insert_upsert_options(fn):
                 envvar="SQLITE_UTILS_DETECT_TYPES",
                 help="Detect types for columns in CSV/TSV data",
             ),
+            click.option(
+                "--analyze",
+                is_flag=True,
+                help="Run ANALYZE at the end of this operation",
+            ),
             load_extension_option,
             click.option("--silent", is_flag=True, help="Do not show progress bar"),
         )
@@ -808,6 +824,7 @@ def insert_upsert_implementation(
     default=None,
     encoding=None,
     detect_types=None,
+    analyze=False,
     load_extension=None,
     silent=False,
     bulk_sql=None,
@@ -901,7 +918,12 @@ def insert_upsert_implementation(
         else:
             docs = (fn(doc) or doc for doc in docs)
 
-    extra_kwargs = {"ignore": ignore, "replace": replace, "truncate": truncate}
+    extra_kwargs = {
+        "ignore": ignore,
+        "replace": replace,
+        "truncate": truncate,
+        "analyze": analyze,
+    }
     if not_null:
         extra_kwargs["not_null"] = set(not_null)
     if default:
@@ -1004,6 +1026,7 @@ def insert(
     alter,
     encoding,
     detect_types,
+    analyze,
     load_extension,
     silent,
     ignore,
@@ -1059,6 +1082,7 @@ def insert(
             truncate=truncate,
             encoding=encoding,
             detect_types=detect_types,
+            analyze=analyze,
             load_extension=load_extension,
             silent=silent,
             not_null=not_null,
@@ -1093,6 +1117,7 @@ def upsert(
     default,
     encoding,
     detect_types,
+    analyze,
     load_extension,
     silent,
 ):
@@ -1126,6 +1151,7 @@ def upsert(
             default=default,
             encoding=encoding,
             detect_types=detect_types,
+            analyze=analyze,
             load_extension=load_extension,
             silent=silent,
         )

@@ -327,6 +327,20 @@ def test_insert_alter(db_path, tmpdir):
     ] == list(db.query("select foo, n, baz from from_json_nl"))
 
 
+def test_insert_analyze(db_path):
+    db = Database(db_path)
+    db["rows"].insert({"foo": "x", "n": 3})
+    db["rows"].create_index(["n"])
+    assert "sqlite_stat1" not in db.table_names()
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "rows", "-", "--nl", "--analyze"],
+        input='{"foo": "bar", "n": 1}\n{"foo": "baz", "n": 2}',
+    )
+    assert 0 == result.exit_code, result.output
+    assert "sqlite_stat1" in db.table_names()
+
+
 def test_insert_lines(db_path):
     result = CliRunner().invoke(
         cli.cli,

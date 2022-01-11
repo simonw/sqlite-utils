@@ -761,6 +761,8 @@ You can delete all the existing rows in the table before inserting the new recor
 
     $ sqlite-utils insert dogs.db dogs dogs.json --truncate
 
+You can add the ``--analyze`` option to run ``ANALYZE`` against the table after the rows have been inserted.
+
 .. _cli_inserting_data_binary:
 
 Inserting binary data
@@ -1697,6 +1699,8 @@ This will create an index on that table on ``(col1, col2 desc, col3)``.
 
 If your column names are already prefixed with a hyphen you'll need to manually execute a ``CREATE INDEX`` SQL statement to add indexes to them rather than using this tool.
 
+Add the ``--analyze`` option to run ``ANALYZE`` against the index after it has been created.
+
 .. _cli_fts:
 
 Configuring full-text search
@@ -1816,6 +1820,8 @@ To run ``ANALYZE`` against every index in a database, use this::
 You can run it against specific tables, or against specific named indexes, by passing them as optional arguments::
 
     $ sqlite-utils analyze mydb.db mytable idx_mytable_name
+
+You can also run ``ANALYZE`` as part of another command using the ``--analyze`` option. This is supported by the ``create-index``, ``insert`` and ``upsert`` commands.
 
 .. _cli_vacuum:
 
