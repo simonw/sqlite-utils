@@ -14,7 +14,7 @@ Three new CLI commands: ``create-database``, ``analyze`` and ``bulk``.
 - New ``sqlite-utils create-database`` command for creating new empty database files. (:issue:`348`)
 - New Python methods for running ``ANALYZE`` against a database, table or index: ``db.analyze()`` and ``table.analyze()``, see :ref:`python_api_analyze`. (:issue:`366`)
 - New :ref:`sqlite-utils analyze command <cli_analyze>` for running ``ANALYZE`` using the CLI. (:issue:`379`)
-- The ``create-index``, ``insert`` and ``update`` commands now have a new ``--analyze`` option for running ``ANALYZE`` after the command has completed. (:issue:`379`)
+- The ``create-index``, ``insert`` and ``upsert`` commands now have a new ``--analyze`` option for running ``ANALYZE`` after the command has completed. (:issue:`379`)
 - New :ref:`sqlite-utils bulk command <cli_bulk>` which can import records in the same way as ``sqlite-utils insert`` (from JSON, CSV or TSV) and use them to bulk execute a parametrized SQL query. (:issue:`375`)
 - The CLI tool can now also be run using ``python -m sqlite_utils``. (:issue:`368`)
 - Using ``--fmt`` now implies ``--table``, so you don't need to pass both options. (:issue:`374`)
