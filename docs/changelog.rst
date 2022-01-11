@@ -2,6 +2,27 @@
  Changelog
 ===========
 
+.. _v3_21:
+
+3.21 (2022-01-10)
+-----------------
+
+CLI and Python library improvements to help run `ANALYZE <https://www.sqlite.org/lang_analyze.html>`__ after creating indexes or inserting rows, to gain better performance from the SQLite query planner when it runs against indexes.
+
+Three new CLI commands: ``create-database``, ``analyze`` and ``bulk``.
+
+- New ``sqlite-utils create-database`` command for creating new empty database files. (:issue:`348`)
+- New Python methods for running ``ANALYZE`` against a database, table or index: ``db.analyze()`` and ``table.analyze()``, see :ref:`python_api_analyze`. (:issue:`366`)
+- New :ref:`sqlite-utils analyze command <cli_analyze>` for running ``ANALYZE`` using the CLI. (:issue:`379`)
+- The ``create-index``, ``insert`` and ``update`` commands now have a new ``--analyze`` option for running ``ANALYZE`` after the command has completed. (:issue:`379`)
+- New :ref:`sqlite-utils bulk command <cli_bulk>` which can import records in the same way as ``sqlite-utils insert`` (from JSON, CSV or TSV) and use them to bulk execute a parametrized SQL query. (:issue:`375`)
+- The CLI tool can now also be run using ``python -m sqlite_utils``. (:issue:`368`)
+- Using ``--fmt`` now implies ``--table``, so you don't need to pass both options. (:issue:`374`)
+- The ``--convert`` function applied to rows can now modify the row in place. (:issue:`371`)
+- The :ref:`insert-files command <cli_insert_files>` supports two new columns: ``stem`` and ``suffix``. (:issue:`372`)
+- The ``--nl`` import option now ignores blank lines in the input. (:issue:`376`)
+- Fixed bug where streaming input to the ``insert`` command with ``--batch-size 1`` would appear to only commit after several rows had been ingested, due to unnecessary input buffering. (:issue:`364`)
+
 .. _v3_20:
 
 3.20 (2022-01-05)
