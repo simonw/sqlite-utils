@@ -1723,6 +1723,14 @@ def search(
 )
 @click.argument("dbtable")
 @click.option("-c", "--column", type=str, multiple=True, help="Columns to return")
+@click.option("--where", help="Optional where clause")
+@click.option(
+    "-p",
+    "--param",
+    multiple=True,
+    type=(str, str),
+    help="Named :parameters for where clause",
+)
 @click.option(
     "--limit",
     type=int,
@@ -1741,6 +1749,8 @@ def rows(
     path,
     dbtable,
     column,
+    where,
+    param,
     limit,
     offset,
     nl,
@@ -1758,6 +1768,8 @@ def rows(
     if column:
         columns = ", ".join("[{}]".format(c) for c in column)
     sql = "select {} from [{}]".format(columns, dbtable)
+    if where:
+        sql += " where " + where
     if limit:
         sql += " limit {}".format(limit)
     if offset:
@@ -1773,6 +1785,7 @@ def rows(
         no_headers=no_headers,
         table=table,
         fmt=fmt,
+        param=param,
         json_cols=json_cols,
         load_extension=load_extension,
     )

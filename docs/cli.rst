@@ -449,6 +449,16 @@ You can use the ``-c`` option to specify a subset of columns to return::
     [{"age": 4, "name": "Cleo"},
      {"age": 2, "name": "Pancakes"}]
 
+You can filter rows using a where clause with the ``--where`` option::
+
+    $ sqlite-utils rows dogs.db dogs -c name --where 'name = "Cleo"'
+    [{"name": "Cleo"}]
+
+Or pass named parameters using ``--where`` in combination with ``-p``::
+
+    $ sqlite-utils rows dogs.db dogs -c name --where 'name = :name' -p name Cleo
+    [{"name": "Cleo"}]
+
 Use ``--limit N`` to only return the first ``N`` rows. Use ``--offset N`` to return rows starting from the specified offset.
 
 .. _cli_tables:

@@ -584,24 +584,26 @@ See :ref:`cli_rows`.
       Output all rows in the specified table
 
     Options:
-      -c, --column TEXT      Columns to return
-      --limit INTEGER        Number of rows to return - defaults to everything
-      --offset INTEGER       SQL offset to use
-      --nl                   Output newline-delimited JSON
-      --arrays               Output rows as arrays instead of objects
-      --csv                  Output CSV
-      --tsv                  Output TSV
-      --no-headers           Omit CSV headers
-      -t, --table            Output as a table
-      --fmt TEXT             Table format - one of fancy_grid, fancy_outline,
-                             github, grid, html, jira, latex, latex_booktabs,
-                             latex_longtable, latex_raw, mediawiki, moinmoin,
-                             orgtbl, pipe, plain, presto, pretty, psql, rst, simple,
-                             textile, tsv, unsafehtml, youtrack
-      --json-cols            Detect JSON cols and output them as JSON, not escaped
-                             strings
-      --load-extension TEXT  SQLite extensions to load
-      -h, --help             Show this message and exit.
+      -c, --column TEXT           Columns to return
+      --where TEXT                Optional where clause
+      -p, --param <TEXT TEXT>...  Named :parameters for where clause
+      --limit INTEGER             Number of rows to return - defaults to everything
+      --offset INTEGER            SQL offset to use
+      --nl                        Output newline-delimited JSON
+      --arrays                    Output rows as arrays instead of objects
+      --csv                       Output CSV
+      --tsv                       Output TSV
+      --no-headers                Omit CSV headers
+      -t, --table                 Output as a table
+      --fmt TEXT                  Table format - one of fancy_grid, fancy_outline,
+                                  github, grid, html, jira, latex, latex_booktabs,
+                                  latex_longtable, latex_raw, mediawiki, moinmoin,
+                                  orgtbl, pipe, plain, presto, pretty, psql, rst,
+                                  simple, textile, tsv, unsafehtml, youtrack
+      --json-cols                 Detect JSON cols and output them as JSON, not
+                                  escaped strings
+      --load-extension TEXT       SQLite extensions to load
+      -h, --help                  Show this message and exit.
 
 
 triggers

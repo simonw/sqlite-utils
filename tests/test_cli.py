@@ -851,6 +851,7 @@ def test_query_memory_does_not_create_file(tmpdir):
             ["--nl", "-c", "age", "-c", "name"],
             '{"age": 4, "name": "Cleo"}\n{"age": 2, "name": "Pancakes"}',
         ),
+        # --limit and --offset
         (
             ["-c", "name", "--limit", "1"],
             '[{"name": "Cleo"}]',
@@ -858,6 +859,19 @@ def test_query_memory_does_not_create_file(tmpdir):
         (
             ["-c", "name", "--limit", "1", "--offset", "1"],
             '[{"name": "Pancakes"}]',
+        ),
+        # --where
+        (
+            ["-c", "name", "--where", "id = 1"],
+            '[{"name": "Cleo"}]',
+        ),
+        (
+            ["-c", "name", "--where", "id = :id", "-p", "id", "1"],
+            '[{"name": "Cleo"}]',
+        ),
+        (
+            ["-c", "name", "--where", "id = :id", "--param", "id", "1"],
+            '[{"name": "Cleo"}]',
         ),
     ],
 )
