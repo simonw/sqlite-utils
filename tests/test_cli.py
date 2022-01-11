@@ -2057,3 +2057,41 @@ def test_create_database(tmpdir, enable_wal):
         assert db.journal_mode == "wal"
     else:
         assert db.journal_mode == "delete"
+
+
+@pytest.mark.parametrize(
+    "options,expected",
+    (
+        (
+            [],
+            [
+                {"tbl": "two_indexes", "idx": "idx_two_indexes_species", "stat": "1 1"},
+                {"tbl": "two_indexes", "idx": "idx_two_indexes_name", "stat": "1 1"},
+                {"tbl": "one_index", "idx": "idx_one_index_name", "stat": "1 1"},
+            ],
+        ),
+        (
+            ["one_index"],
+            [
+                {"tbl": "one_index", "idx": "idx_one_index_name", "stat": "1 1"},
+            ],
+        ),
+        (
+            ["idx_two_indexes_name"],
+            [
+                {"tbl": "two_indexes", "idx": "idx_two_indexes_name", "stat": "1 1"},
+            ],
+        ),
+    ),
+)
+def test_analyze(tmpdir, options, expected):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    db["one_index"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    db["one_index"].create_index(["name"])
+    db["two_indexes"].insert({"id": 1, "name": "Cleo", "species": "dog"}, pk="id")
+    db["two_indexes"].create_index(["name"])
+    db["two_indexes"].create_index(["species"])
+    result = CliRunner().invoke(cli.cli, ["analyze", db_path] + options)
+    assert result.exit_code == 0
+    assert list(db["sqlite_stat1"].rows) == expected

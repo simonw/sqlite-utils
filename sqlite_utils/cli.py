@@ -310,6 +310,26 @@ def rebuild_fts(path, tables, load_extension):
     type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
+@click.argument("names", nargs=-1)
+def analyze(path, names):
+    """Run ANALYZE against the whole database, or against specific named indexes and tables"""
+    db = sqlite_utils.Database(path)
+    try:
+        if names:
+            for name in names:
+                db.analyze(name)
+        else:
+            db.analyze()
+    except sqlite3.OperationalError as e:
+        raise click.ClickException(e)
+
+
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
 def vacuum(path):
     """Run VACUUM against the database"""
     sqlite_utils.Database(path).vacuum()

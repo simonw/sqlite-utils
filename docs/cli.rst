@@ -1800,6 +1800,23 @@ If the ``_counts`` table ever becomes out-of-sync with the actual table counts y
 
     $ sqlite-utils reset-counts mydb.db
 
+.. _cli_analyze:
+
+Optimizing index usage with ANALYZE
+===================================
+
+The `SQLite ANALYZE command <https://www.sqlite.org/lang_analyze.html>`__ builds a table of statistics which the query planner can use to make better decisions about which indexes to use for a given query.
+
+You should run ``ANALYZE`` if your database is large and you do not think your indexes are being efficiently used.
+
+To run ``ANALYZE`` against every index in a database, use this::
+
+    $ sqlite-utils analyze mydb.db
+
+You can run it against specific tables, or against specific named indexes, by passing them as optional arguments::
+
+    $ sqlite-utils analyze mydb.db mytable idx_mytable_name
+
 .. _cli_vacuum:
 
 Vacuum
