@@ -2575,10 +2575,13 @@ class Table(Queryable):
         conversions=DEFAULT,
         columns=DEFAULT,
         upsert=False,
+        analyze=False,
     ) -> "Table":
         """
         Like ``.insert()`` but takes a list of records and ensures that the table
         that it creates (if table does not exist) has columns for ALL of that data.
+
+        Use ``analyze=True`` to run ``ANALYZE`` after the insert has completed.
         """
         pk = self.value_or_default("pk", pk)
         foreign_keys = self.value_or_default("foreign_keys", foreign_keys)
@@ -2671,6 +2674,9 @@ class Table(Queryable):
                 ignore,
             )
 
+        if analyze:
+            self.analyze()
+
         return self
 
     def upsert(
@@ -2721,6 +2727,7 @@ class Table(Queryable):
         extracts=DEFAULT,
         conversions=DEFAULT,
         columns=DEFAULT,
+        analyze=False,
     ) -> "Table":
         """
         Like ``.upsert()`` but can be applied to a list of records.
@@ -2739,6 +2746,7 @@ class Table(Queryable):
             conversions=conversions,
             columns=columns,
             upsert=True,
+            analyze=analyze,
         )
 
     def add_missing_columns(self, records: Iterable[Dict[str, Any]]) -> "Table":
