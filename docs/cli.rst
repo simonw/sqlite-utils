@@ -1078,6 +1078,36 @@ The command will fail if you reference columns that do not exist on the table. T
 .. note::
     ``upsert`` in sqlite-utils 1.x worked like ``insert ... --replace`` does in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
 
+
+.. _cli_bulk:
+
+Executing SQL in bulk
+=====================
+
+If you have a JSON, newline-delimited JSON, CSV or TSV file you can execute a bulk SQL query using each of the records in that file using the ``sqlite-utils bulk`` command.
+
+The command takes the database file, the SQL to be executed and the file containing records to be used when evaluating the SQL query.
+
+The SQL query should include ``:named`` parameters that match the keys in the records.
+
+For example, given a ``chickens.csv`` CSV file containing the following::
+
+    id,name
+    1,Blue
+    2,Snowy
+    3,Azi
+    4,Lila
+    5,Suna
+    6,Cardi
+
+You could insert those rows into a pre-created ``chickens`` table like so::
+
+    $ sqlite-utils bulk chickens.db \
+      'insert into chickens (id, name) values (:id, :name)' \
+      chickens.csv --csv
+
+This command takes the same options as the ``sqlite-utils insert`` command - so it defaults to expecting JSON but can accept other formats using ``--csv`` or ``--tsv`` or ``--nl`` or other options described above.
+
 .. _cli_insert_files:
 
 Inserting data from files
