@@ -2214,7 +2214,7 @@ Pass ``analyze=True`` to run ``ANALYZE`` against the new index after creating it
 Optimizing index usage with ANALYZE
 ===================================
 
-The `SQLite ANALYZE command <https://www.sqlite.org/lang_analyze.html>`__ can be used to build a table of statistics which the query planner can then use to make better decisions about which indexes to use for a given query.
+The `SQLite ANALYZE command <https://www.sqlite.org/lang_analyze.html>`__ builds a table of statistics which the query planner can use to make better decisions about which indexes to use for a given query.
 
 You should run ``ANALYZE`` if your database is large and you do not think your indexes are being efficiently used.
 
