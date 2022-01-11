@@ -11,6 +11,8 @@ CLI and Python library improvements to help run `ANALYZE <https://www.sqlite.org
 
 Three new CLI commands: ``create-database``, ``analyze`` and ``bulk``.
 
+More details and examples can be found in `the annotated release notes <https://simonwillison.net/2022/Jan/11/sqlite-utils/>`__.
+
 - New ``sqlite-utils create-database`` command for creating new empty database files. (:issue:`348`)
 - New Python methods for running ``ANALYZE`` against a database, table or index: ``db.analyze()`` and ``table.analyze()``, see :ref:`python_api_analyze`. (:issue:`366`)
 - New :ref:`sqlite-utils analyze command <cli_analyze>` for running ``ANALYZE`` using the CLI. (:issue:`379`)
