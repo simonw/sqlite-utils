@@ -2,6 +2,15 @@
  Changelog
 ===========
 
+.. _v3_22:
+
+3.22 (2022-01-11)
+-----------------
+
+- New :ref:`cli_reference` documentation page, listing the output of ``--help`` for every one of the CLI commands. (:issue:`383`)
+- ``sqlite-utils rows`` now has ``--limit`` and ``--offset`` options for paginating through data. (:issue:`381`)
+- ``sqlite-utils rows`` now has ``--where`` and ``-p`` options for filtering the table using a ``WHERE`` query, see :ref:`cli_rows`. (:issue:`382`)
+
 .. _v3_21:
 
 3.21 (2022-01-10)
