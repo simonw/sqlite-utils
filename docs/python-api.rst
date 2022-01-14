@@ -2352,7 +2352,7 @@ You can use it in code like this:
 .. code-block:: python
 
     from sqlite_utils import Database
-    from sqlite_utils.utils import find_spatialite
+    from sqlite_utils.gis import find_spatialite
 
     db = Database("mydb.db")
     spatialite = find_spatialite()

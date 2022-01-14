@@ -22,11 +22,6 @@ except ImportError:
 
     OperationalError = sqlite3.OperationalError
 
-SPATIALITE_PATHS = (
-    "/usr/lib/x86_64-linux-gnu/mod_spatialite.so",
-    "/usr/local/lib/mod_spatialite.dylib",
-)
-
 
 def suggest_column_types(records):
     all_column_types = {}
@@ -94,13 +89,6 @@ def decode_base64_values(doc):
     if not to_fix:
         return doc
     return dict(doc, **{k: base64.b64decode(doc[k]["encoded"]) for k in to_fix})
-
-
-def find_spatialite():
-    for path in SPATIALITE_PATHS:
-        if os.path.exists(path):
-            return path
-    return None
 
 
 class UpdateWrapper:
