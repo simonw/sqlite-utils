@@ -21,7 +21,7 @@ def init_spatialite(db: Database, path: str) -> None:
     # Initialize SpatiaLite if not yet initialized
     if "spatial_ref_sys" in db.table_names():
         return
-    db.conn.execute("select InitSpatialMetadata(1)")
+    db.execute("select InitSpatialMetadata(1)")
 
 
 def add_geometry_column(
@@ -33,7 +33,7 @@ def add_geometry_column(
     not_null: bool = False,
 ) -> None:
     "Add a geometry column to a table"
-    table.db.conn.execute(
+    table.db.execute(
         "SELECT AddGeometryColumn(?, ?, ?, ?, ?, ?);",
         [table.name, column_name, srid, geometry_type, coord_dimension, int(not_null)],
     )
@@ -41,4 +41,4 @@ def add_geometry_column(
 
 def create_spatial_index(table: Table, column_name: str = "geometry") -> None:
     "Create a spatial index for a table and column"
-    table.db.conn.execute("select CreateSpatialIndex(?, ?)", [table.name, column_name])
+    table.db.execute("select CreateSpatialIndex(?, ?)", [table.name, column_name])
