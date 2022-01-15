@@ -291,9 +291,9 @@ This method also accepts ``offset=`` and ``limit=`` arguments, for specifying an
 Counting rows
 -------------
 
-To count the number of rows that would be returned by a where filter, use ``.count_where(where, where_args)``:
+To count the number of rows that would be returned by a where filter, use ``.count_where(where, where_args)`` :
 
-    >>> db["dogs"].count_where("age > ?", [1]):
+    >>> db["dogs"].count_where("age > ?", [1])
     2
 
 .. _python_api_pks_and_rows_where:
@@ -1246,7 +1246,7 @@ To change the primary key for a table, use ``pk=``. This can be passed a single 
 Changing not null status
 ------------------------
 
-You can change the ``NOT NULL`` status of columns by using ``not_null=``. You can pass this a set of columns to make those columns ``NOT NULL``:
+You can change the ``NOT NULL`` status of columns by using ``not_null=``. You can pass this a set of columns to make those columns ``NOT NULL`` :
 
 .. code-block:: python
 
@@ -2340,26 +2340,6 @@ For example:
     #    [thumbnail] BLOB
     # )
 
-.. _find_spatialite:
-
-Finding SpatiaLite
-==================
-
-The ``find_spatialite()`` function searches for the `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ SQLite extension in some common places. It returns a string path to the location, or ``None`` if SpatiaLite was not found.
-
-You can use it in code like this:
-
-.. code-block:: python
-
-    from sqlite_utils import Database
-    from sqlite_utils.gis import find_spatialite
-
-    db = Database("mydb.db")
-    spatialite = find_spatialite()
-    if spatialite:
-        db.conn.enable_load_extension(True)
-        db.conn.load_extension(spatialite)
-
 .. _python_api_register_function:
 
 Registering custom SQL functions
@@ -2440,3 +2420,40 @@ If that option isn't relevant to your use-case you can to quote a string for use
     "'hello'"
     >>> db.quote("hello'this'has'quotes")
     "'hello''this''has''quotes'"
+
+Spatialite helpers
+==================
+
+`SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ is a geographic extension to SQLite (similar to PostgreSQL + PostGIS). Using requires finding, loading and initializing the extension, adding geometry columns to existing tables and optionally creating spatial indexes. The utilities here help streamline that setup.
+
+
+
+.. _init_spatialite:
+
+Initialize Spatialite
+-----------------------
+
+.. autofunction:: sqlite_utils.gis.init_spatialite
+
+
+.. _find_spatialite:
+
+Finding Spatialite
+-----------------
+
+.. autofunction:: sqlite_utils.gis.find_spatialite
+
+
+.. _add_geometry_column:
+
+Adding geometry columns
+-----------------------
+
+.. autofunction:: sqlite_utils.gis.add_geometry_column
+
+.. _create_spatial_index:
+
+Creating a spatial index
+------------------------
+
+.. autofunction:: sqlite_utils.gis.create_spatial_index
