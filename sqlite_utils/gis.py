@@ -30,11 +30,13 @@ def find_spatialite() -> str:
     return None
 
 
-def init_spatialite(db: Database, path: str) -> None:
+def init_spatialite(db: Database, path: str) -> bool:
     """
     The ``init_spatialite`` function will load and initalize the Spatialite extension.
     The ``path`` argument should be an absolute path to the compiled extension, which
     can be found using ``find_spatialite``.
+
+    Returns true if Spatialite was successfully initalized.
 
     .. code-block:: python
 
@@ -60,8 +62,10 @@ def init_spatialite(db: Database, path: str) -> None:
     db.conn.load_extension(path)
     # Initialize SpatiaLite if not yet initialized
     if "spatial_ref_sys" in db.table_names():
-        return
-    db.execute("select InitSpatialMetadata(1)")
+        return False
+    cursor = db.execute("select InitSpatialMetadata(1)")
+    result = cursor.fetchone()
+    return result and bool(result[0])
 
 
 def add_geometry_column(
@@ -71,7 +75,7 @@ def add_geometry_column(
     srid: int = 4326,
     coord_dimension: str = "XY",
     not_null: bool = False,
-) -> None:
+) -> bool:
     """
     In Spatialite, a geometry column can only be added to an existing table.
     To do so, use ``add_geometry_column``, passing in a :ref:`table <reference_db_table>`
@@ -80,6 +84,8 @@ def add_geometry_column(
     By default, this will add a nullable column called ``geometry`` using
     `SRID 4326 <https://spatialreference.org/ref/epsg/wgs-84/>`__. These can be customized using
     the ``column_name`` and ``srid`` arguments.
+
+    Returns True if the column was successfully added, False if not.
 
     .. code-block:: python
 
@@ -93,17 +99,23 @@ def add_geometry_column(
         add_geometry_column(db["locations"], "POINT")
 
     """
-    table.db.execute(
+    cursor = table.db.execute(
         "SELECT AddGeometryColumn(?, ?, ?, ?, ?, ?);",
         [table.name, column_name, srid, geometry_type, coord_dimension, int(not_null)],
     )
 
+    result = cursor.fetchone()
+    return result and bool(result[0])
 
-def create_spatial_index(table: Table, column_name: str = "geometry") -> None:
+
+def create_spatial_index(table: Table, column_name: str = "geometry") -> bool:
     """
     A spatial index allows for significantly faster bounding box queries.
     To create on, use ``create_spatial_index`` with a :ref:`table <reference_db_table>`
     and the name of an existing geometry column.
+
+    Returns True if the index was successfully created, False if not. Calling this
+    function if an index already exists is a no-op.
 
     .. code-block:: python
 
@@ -122,4 +134,11 @@ def create_spatial_index(table: Table, column_name: str = "geometry") -> None:
         # CREATE VIRTUAL TABLE "idx_locations_geometry" USING rtree(pkid, xmin, xmax, ymin, ymax)
 
     """
-    table.db.execute("select CreateSpatialIndex(?, ?)", [table.name, column_name])
+    if f"idx_{table.name}_{column_name}" in table.db.table_names():
+        return False
+
+    cursor = table.db.execute(
+        "select CreateSpatialIndex(?, ?)", [table.name, column_name]
+    )
+    result = cursor.fetchone()
+    return result and bool(result[0])

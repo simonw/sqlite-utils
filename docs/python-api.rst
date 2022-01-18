@@ -2431,7 +2431,7 @@ Spatialite helpers
 .. _init_spatialite:
 
 Initialize Spatialite
------------------------
+----------------------
 
 .. autofunction:: sqlite_utils.gis.init_spatialite
 
@@ -2439,7 +2439,7 @@ Initialize Spatialite
 .. _find_spatialite:
 
 Finding Spatialite
------------------
+------------------
 
 .. autofunction:: sqlite_utils.gis.find_spatialite
 
