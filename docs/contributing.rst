@@ -4,6 +4,15 @@
  Contributing
 ==============
 
+Development of ``sqlite-utils`` takes place in the `sqlite-utils GitHub repository <https://github.com/simonw/sqlite-utils>`__.
+
+All improvements to the software should start with an issue. Read `How I build a feature <https://simonwillison.net/2022/Jan/12/how-i-build-a-feature/>`__ for a detailed description of the recommended process for building bug fixes or enhancements.
+
+.. _contributing_checkout:
+
+Obtaining the code
+==================
+
 To work on this library locally, first checkout the code. Then create a new virtual environment::
 
     git clone git@github.com:simonw/sqlite-utils
