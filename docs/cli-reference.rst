@@ -356,7 +356,7 @@ See :ref:`cli_transform_table`.
       --pk-none                 Remove primary key (convert to rowid table)
       --default <TEXT TEXT>...  Set default value for this column
       --default-none TEXT       Remove default from this column
-      --drop-foreign-key TEXT   Drop this foreign key constraint
+      --drop-foreign-key TEXT   Drop foreign key constraint for this column
       --sql                     Output SQL without executing it
       --load-extension TEXT     SQLite extensions to load
       -h, --help                Show this message and exit.

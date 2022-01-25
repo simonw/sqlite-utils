@@ -1964,7 +1964,7 @@ def schema(
     "--drop-foreign-key",
     type=str,
     multiple=True,
-    help="Drop this foreign key constraint",
+    help="Drop foreign key constraint for this column",
 )
 @click.option("--sql", is_flag=True, help="Output SQL without executing it")
 @load_extension_option
