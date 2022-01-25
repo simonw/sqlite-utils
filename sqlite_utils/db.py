@@ -524,7 +524,8 @@ class Database:
         return "\n".join(sqls)
 
     @property
-    def supports_strict(self):
+    def supports_strict(self) -> bool:
+        "Does this database support STRICT mode?"
         try:
             table_name = "t{}".format(secrets.token_hex(16))
             with self.conn:
