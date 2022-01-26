@@ -1,7 +1,11 @@
+from itertools import count
 from click.testing import CliRunner
 from sqlite_utils import cli, Database
 import pathlib
 import pytest
+import subprocess
+import sys
+import time
 
 
 @pytest.fixture
@@ -38,6 +42,41 @@ def test_cli_bulk(test_db_and_path):
         {"id": 3, "name": "Three"},
         {"id": 4, "name": "Four"},
     ] == list(db["example"].rows)
+
+
+def test_cli_bulk_batch_size(test_db_and_path):
+    db, db_path = test_db_and_path
+    proc = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "sqlite_utils",
+            "bulk",
+            db_path,
+            "insert into example (id, name) values (:id, :name)",
+            "-",
+            "--nl",
+            "--batch-size",
+            "2",
+        ],
+        stdin=subprocess.PIPE,
+        stdout=sys.stdout,
+    )
+    # Writing one record should not commit
+    proc.stdin.write(b'{"id": 3, "name": "Three"}\n\n')
+    proc.stdin.flush()
+    time.sleep(1)
+    assert db["example"].count == 2
+
+    # Writing another should trigger a commit:
+    proc.stdin.write(b'{"id": 4, "name": "Four"}\n\n')
+    proc.stdin.flush()
+    time.sleep(1)
+    assert db["example"].count == 4
+
+    proc.stdin.close()
+    proc.wait()
+    assert proc.returncode == 0
 
 
 def test_cli_bulk_error(test_db_and_path):

@@ -18,6 +18,7 @@ import csv as csv_std
 import tabulate
 from .utils import (
     _compile_code,
+    chunks,
     file_progress,
     find_spatialite,
     sqlite3,
@@ -1013,8 +1014,13 @@ def insert_upsert_implementation(
 
     # For bulk_sql= we use cursor.executemany() instead
     if bulk_sql:
-        with db.conn:
-            db.conn.cursor().executemany(bulk_sql, docs)
+        if batch_size:
+            doc_chunks = chunks(docs, batch_size)
+        else:
+            doc_chunks = [docs]
+        for doc_chunk in doc_chunks:
+            with db.conn:
+                db.conn.cursor().executemany(bulk_sql, doc_chunk)
         return
 
     try:
@@ -1256,12 +1262,14 @@ def upsert(
 )
 @click.argument("sql")
 @click.argument("file", type=click.File("rb"), required=True)
+@click.option("--batch-size", type=int, default=100, help="Commit every X records")
 @import_options
 @load_extension_option
 def bulk(
     path,
-    file,
     sql,
+    file,
+    batch_size,
     flatten,
     nl,
     csv,
@@ -1309,7 +1317,7 @@ def bulk(
             sniff=sniff,
             no_headers=no_headers,
             encoding=encoding,
-            batch_size=1,
+            batch_size=batch_size,
             alter=False,
             upsert=False,
             not_null=set(),

@@ -1120,6 +1120,8 @@ You could insert those rows into a pre-created ``chickens`` table like so::
 
 This command takes the same options as the ``sqlite-utils insert`` command - so it defaults to expecting JSON but can accept other formats using ``--csv`` or ``--tsv`` or ``--nl`` or other options described above.
 
+By default all of the SQL queries will be executed in a single transaction. To commit every 20 records, use ``--batch-size 20``.
+
 .. _cli_insert_files:
 
 Inserting data from files
