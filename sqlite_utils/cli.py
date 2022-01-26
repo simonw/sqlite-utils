@@ -489,7 +489,7 @@ def add_foreign_key(
 def add_foreign_keys(path, foreign_key, load_extension):
     """
     Add multiple new foreign key constraints to a database
-    
+
     Example:
 
     \b

@@ -924,7 +924,6 @@ def test_upsert(db_path, tmpdir):
 
 def test_upsert_pk_required(db_path, tmpdir):
     json_path = str(tmpdir / "dogs.json")
-    db = Database(db_path)
     insert_dogs = [
         {"id": 1, "name": "Cleo", "age": 4},
         {"id": 2, "name": "Nixie", "age": 4},
