@@ -922,6 +922,23 @@ def test_upsert(db_path, tmpdir):
     ]
 
 
+def test_upsert_pk_required(db_path, tmpdir):
+    json_path = str(tmpdir / "dogs.json")
+    db = Database(db_path)
+    insert_dogs = [
+        {"id": 1, "name": "Cleo", "age": 4},
+        {"id": 2, "name": "Nixie", "age": 4},
+    ]
+    open(json_path, "w").write(json.dumps(insert_dogs))
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "dogs", json_path],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 2
+    assert "Error: Missing option '--pk'" in result.output
+
+
 def test_upsert_analyze(db_path, tmpdir):
     db = Database(db_path)
     db["rows"].insert({"id": 1, "foo": "x", "n": 3}, pk="id")

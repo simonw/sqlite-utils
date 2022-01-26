@@ -813,59 +813,65 @@ def import_options(fn):
     return fn
 
 
-def insert_upsert_options(fn):
-    for decorator in reversed(
-        (
-            click.argument(
-                "path",
-                type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
-                required=True,
-            ),
-            click.argument("table"),
-            click.argument("file", type=click.File("rb"), required=True),
-            click.option(
-                "--pk", help="Columns to use as the primary key, e.g. id", multiple=True
-            ),
-        )
-        + _import_options
-        + (
-            click.option(
-                "--batch-size", type=int, default=100, help="Commit every X records"
-            ),
-            click.option(
-                "--alter",
-                is_flag=True,
-                help="Alter existing table to add any missing columns",
-            ),
-            click.option(
-                "--not-null",
-                multiple=True,
-                help="Columns that should be created as NOT NULL",
-            ),
-            click.option(
-                "--default",
-                multiple=True,
-                type=(str, str),
-                help="Default value that should be set for a column",
-            ),
-            click.option(
-                "-d",
-                "--detect-types",
-                is_flag=True,
-                envvar="SQLITE_UTILS_DETECT_TYPES",
-                help="Detect types for columns in CSV/TSV data",
-            ),
-            click.option(
-                "--analyze",
-                is_flag=True,
-                help="Run ANALYZE at the end of this operation",
-            ),
-            load_extension_option,
-            click.option("--silent", is_flag=True, help="Do not show progress bar"),
-        )
-    ):
-        fn = decorator(fn)
-    return fn
+def insert_upsert_options(*, require_pk=False):
+    def inner(fn):
+        for decorator in reversed(
+            (
+                click.argument(
+                    "path",
+                    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+                    required=True,
+                ),
+                click.argument("table"),
+                click.argument("file", type=click.File("rb"), required=True),
+                click.option(
+                    "--pk",
+                    help="Columns to use as the primary key, e.g. id",
+                    multiple=True,
+                    required=require_pk,
+                ),
+            )
+            + _import_options
+            + (
+                click.option(
+                    "--batch-size", type=int, default=100, help="Commit every X records"
+                ),
+                click.option(
+                    "--alter",
+                    is_flag=True,
+                    help="Alter existing table to add any missing columns",
+                ),
+                click.option(
+                    "--not-null",
+                    multiple=True,
+                    help="Columns that should be created as NOT NULL",
+                ),
+                click.option(
+                    "--default",
+                    multiple=True,
+                    type=(str, str),
+                    help="Default value that should be set for a column",
+                ),
+                click.option(
+                    "-d",
+                    "--detect-types",
+                    is_flag=True,
+                    envvar="SQLITE_UTILS_DETECT_TYPES",
+                    help="Detect types for columns in CSV/TSV data",
+                ),
+                click.option(
+                    "--analyze",
+                    is_flag=True,
+                    help="Run ANALYZE at the end of this operation",
+                ),
+                load_extension_option,
+                click.option("--silent", is_flag=True, help="Do not show progress bar"),
+            )
+        ):
+            fn = decorator(fn)
+        return fn
+
+    return inner
 
 
 def insert_upsert_implementation(
@@ -1060,7 +1066,7 @@ def _find_variables(tb, vars):
 
 
 @cli.command()
-@insert_upsert_options
+@insert_upsert_options()
 @click.option(
     "--ignore", is_flag=True, default=False, help="Ignore records if pk already exists"
 )
@@ -1168,7 +1174,7 @@ def insert(
 
 
 @cli.command()
-@insert_upsert_options
+@insert_upsert_options(require_pk=True)
 def upsert(
     path,
     table,
@@ -1200,8 +1206,6 @@ def upsert(
     Upsert records based on their primary key. Works like 'insert' but if
     an incoming record has a primary key that matches an existing record
     the existing record will be updated.
-
-    The --pk option is required.
 
     Example:
 

@@ -253,8 +253,6 @@ See :ref:`cli_upsert`.
       incoming record has a primary key that matches an existing record the existing
       record will be updated.
 
-      The --pk option is required.
-
       Example:
 
           echo '[
@@ -264,6 +262,7 @@ See :ref:`cli_upsert`.
 
     Options:
       --pk TEXT                 Columns to use as the primary key, e.g. id
+                                [required]
       --flatten                 Flatten nested JSON objects, so {"a": {"b": 1}}
                                 becomes {"a_b": 1}
       --nl                      Expect newline-delimited JSON
