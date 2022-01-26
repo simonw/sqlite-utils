@@ -1,4 +1,3 @@
-from itertools import count
 from click.testing import CliRunner
 from sqlite_utils import cli, Database
 import pathlib
