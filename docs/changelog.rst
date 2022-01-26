@@ -2,6 +2,15 @@
  Changelog
 ===========
 
+.. _v3_22_1:
+
+3.22.1 (2022-01-25)
+-------------------
+
+- All commands now include example usage in their ``--help`` - see :ref:`cli_reference`. (:issue:`384`)
+- Python library documentation has a new :ref:`python_api_getting_started` section. (:issue:`387`)
+- Documentation now uses `Plausible analytics <https://plausible.io/>`__. (:issue:`389`)
+
 .. _v3_22:
 
 3.22 (2022-01-11)
