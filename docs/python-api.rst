@@ -6,6 +6,65 @@
 
 .. contents:: :local:
 
+.. _python_api_getting_started:
+
+Getting started
+===============
+
+Here's how to create a new SQLite database file containing a new ``chickens`` table, populated with four records:
+
+.. code-block:: python
+
+    from sqlite_utils import Database
+
+    db = Database("chickens.db")
+    db["chickens"].insert_all([{
+        "name": "Azi",
+        "color": "blue",
+    }, {
+        "name": "Lila",
+        "color": "blue",
+    }, {
+        "name": "Suna",
+        "color": "gold",
+    }, {
+        "name": "Cardi",
+        "color": "black",
+    }])
+
+You can loop through those rows like this:
+
+.. code-block:: python
+
+    for row in db["chickens"].rows:
+        print(row)
+
+Which outputs the following::
+
+    {'name': 'Azi', 'color': 'blue'}
+    {'name': 'Lila', 'color': 'blue'}
+    {'name': 'Suna', 'color': 'gold'}
+    {'name': 'Cardi', 'color': 'black'}
+
+To run a SQL query, use :ref:`db.query() <python_api_query>`:
+
+.. code-block:: python
+
+    for row in db.query("""
+        select color, count(*)
+        from chickens group by color
+        order by count(*) desc
+    """):
+        print(row)
+
+Which outputs::
+
+    {'color': 'blue', 'count(*)': 2}
+    {'color': 'gold', 'count(*)': 1}
+    {'color': 'black', 'count(*)': 1}
+
+.. _python_api_connect:
+
 Connecting to or creating a database
 ====================================
 
