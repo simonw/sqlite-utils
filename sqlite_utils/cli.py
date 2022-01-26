@@ -250,7 +250,13 @@ def views(
     schema,
     load_extension,
 ):
-    """List the views in the database"""
+    """List the views in the database
+
+    Example:
+
+    \b
+        sqlite-utils views trees.db
+    """
     tables.callback(
         path=path,
         fts4=False,
@@ -281,7 +287,13 @@ def views(
 @click.option("--no-vacuum", help="Don't run VACUUM", default=False, is_flag=True)
 @load_extension_option
 def optimize(path, tables, no_vacuum, load_extension):
-    """Optimize all full-text search tables and then run VACUUM - should shrink the database file"""
+    """Optimize all full-text search tables and then run VACUUM - should shrink the database file
+
+    Example:
+
+    \b
+        sqlite-utils optimize chickens.db
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     if not tables:
@@ -302,7 +314,13 @@ def optimize(path, tables, no_vacuum, load_extension):
 @click.argument("tables", nargs=-1)
 @load_extension_option
 def rebuild_fts(path, tables, load_extension):
-    """Rebuild all or specific full-text search tables"""
+    """Rebuild all or specific full-text search tables
+
+    Example:
+
+    \b
+        sqlite-utils rebuild-fts chickens.db chickens
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     if not tables:
@@ -320,7 +338,13 @@ def rebuild_fts(path, tables, load_extension):
 )
 @click.argument("names", nargs=-1)
 def analyze(path, names):
-    """Run ANALYZE against the whole database, or against specific named indexes and tables"""
+    """Run ANALYZE against the whole database, or against specific named indexes and tables
+
+    Example:
+
+    \b
+        sqlite-utils analyze chickens.db
+    """
     db = sqlite_utils.Database(path)
     try:
         if names:
@@ -339,7 +363,13 @@ def analyze(path, names):
     required=True,
 )
 def vacuum(path):
-    """Run VACUUM against the database"""
+    """Run VACUUM against the database
+
+    Example:
+
+    \b
+        sqlite-utils vacuum chickens.db
+    """
     sqlite_utils.Database(path).vacuum()
 
 
@@ -351,7 +381,13 @@ def vacuum(path):
 )
 @load_extension_option
 def dump(path, load_extension):
-    """Output a SQL dump of the schema and full contents of the database"""
+    """Output a SQL dump of the schema and full contents of the database
+
+    Example:
+
+    \b
+        sqlite-utils dump chickens.db
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     for line in db.conn.iterdump():
@@ -392,7 +428,13 @@ def dump(path, load_extension):
 def add_column(
     path, table, col_name, col_type, fk, fk_col, not_null_default, load_extension
 ):
-    "Add a column to the specified table"
+    """Add a column to the specified table
+
+    Example:
+
+    \b
+        sqlite-utils add-column chickens.db chickens weight float
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     db[table].add_column(
@@ -420,9 +462,11 @@ def add_foreign_key(
     path, table, column, other_table, other_column, ignore, load_extension
 ):
     """
-    Add a new foreign key constraint to an existing table. Example usage:
+    Add a new foreign key constraint to an existing table
 
-        $ sqlite-utils add-foreign-key my.db books author_id authors id
+    Example:
+
+        sqlite-utils add-foreign-key my.db books author_id authors id
 
     WARNING: Could corrupt your database! Back up your database file first.
     """
@@ -444,12 +488,14 @@ def add_foreign_key(
 @load_extension_option
 def add_foreign_keys(path, foreign_key, load_extension):
     """
-    Add multiple new foreign key constraints to a database. Example usage:
+    Add multiple new foreign key constraints to a database
+    
+    Example:
 
     \b
-    sqlite-utils add-foreign-keys my.db \\
-        books author_id authors id \\
-        authors country_id countries id
+        sqlite-utils add-foreign-keys my.db \\
+            books author_id authors id \\
+            authors country_id countries id
     """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
@@ -475,7 +521,12 @@ def add_foreign_keys(path, foreign_key, load_extension):
 @load_extension_option
 def index_foreign_keys(path, load_extension):
     """
-    Ensure every foreign key column has an index on it.
+    Ensure every foreign key column has an index on it
+
+    Example:
+
+    \b
+        sqlite-utils index-foreign-keys chickens.db
     """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
@@ -508,9 +559,17 @@ def create_index(
     path, table, column, name, unique, if_not_exists, analyze, load_extension
 ):
     """
-    Add an index to the specified table covering the specified columns.
-    Use "sqlite-utils create-index mydb -- -column" to specify descending
-    order for a column.
+    Add an index to the specified table for the specified columns
+
+    Example:
+
+    \b
+        sqlite-utils create-index chickens.db chickens name
+
+    To create an index in descending order:
+
+    \b
+        sqlite-utils create-index chickens.db chickens -- -name
     """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
@@ -550,7 +609,13 @@ def create_index(
 def enable_fts(
     path, table, column, fts4, fts5, tokenize, create_triggers, load_extension
 ):
-    "Enable full-text search for specific table and columns"
+    """Enable full-text search for specific table and columns"
+
+    Example:
+
+    \b
+        sqlite-utils enable-fts chickens.db chickens name
+    """
     fts_version = "FTS5"
     if fts4 and fts5:
         click.echo("Can only use one of --fts4 or --fts5", err=True)
@@ -578,7 +643,13 @@ def enable_fts(
 @click.argument("column", nargs=-1, required=True)
 @load_extension_option
 def populate_fts(path, table, column, load_extension):
-    "Re-populate full-text search for specific table and columns"
+    """Re-populate full-text search for specific table and columns
+
+    Example:
+
+    \b
+        sqlite-utils populate-fts chickens.db chickens name
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     db[table].populate_fts(column)
@@ -593,7 +664,13 @@ def populate_fts(path, table, column, load_extension):
 @click.argument("table")
 @load_extension_option
 def disable_fts(path, table, load_extension):
-    "Disable full-text search for specific table"
+    """Disable full-text search for specific table
+
+    Example:
+
+    \b
+        sqlite-utils disable-fts chickens.db chickens
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     db[table].disable_fts()
@@ -608,7 +685,13 @@ def disable_fts(path, table, load_extension):
 )
 @load_extension_option
 def enable_wal(path, load_extension):
-    "Enable WAL for database files"
+    """Enable WAL for database files
+
+    Example:
+
+    \b
+        sqlite-utils enable-wal chickens.db
+    """
     for path_ in path:
         db = sqlite_utils.Database(path_)
         _load_extensions(db, load_extension)
@@ -624,7 +707,13 @@ def enable_wal(path, load_extension):
 )
 @load_extension_option
 def disable_wal(path, load_extension):
-    "Disable WAL for database files"
+    """Disable WAL for database files
+
+    Example:
+
+    \b
+        sqlite-utils disable-wal chickens.db
+    """
     for path_ in path:
         db = sqlite_utils.Database(path_)
         _load_extensions(db, load_extension)
@@ -640,7 +729,13 @@ def disable_wal(path, load_extension):
 @click.argument("tables", nargs=-1)
 @load_extension_option
 def enable_counts(path, tables, load_extension):
-    "Configure triggers to update a _counts table with row counts"
+    """Configure triggers to update a _counts table with row counts
+
+    Example:
+
+    \b
+        sqlite-utils enable-counts chickens.db
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     if not tables:
@@ -662,7 +757,13 @@ def enable_counts(path, tables, load_extension):
 )
 @load_extension_option
 def reset_counts(path, load_extension):
-    "Reset calculated counts in the _counts table"
+    """Reset calculated counts in the _counts table
+
+    Example:
+
+    \b
+        sqlite-utils reset-counts chickens.db
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     db.reset_counts()
@@ -1228,7 +1329,13 @@ def bulk(
     "--enable-wal", is_flag=True, help="Enable WAL mode on the created database"
 )
 def create_database(path, enable_wal):
-    "Create a new empty database file."
+    """Create a new empty database file
+
+    Example:
+
+    \b
+        sqlite-utils create-database trees.db
+    """
     db = sqlite_utils.Database(path)
     if enable_wal:
         db.enable_wal()
@@ -1280,11 +1387,11 @@ def create_table(
     name, type pairs, for example:
 
     \b
-    sqlite-utils create-table my.db people \\
-        id integer \\
-        name text \\
-        height float \\
-        photo blob --pk id
+        sqlite-utils create-table my.db people \\
+            id integer \\
+            name text \\
+            height float \\
+            photo blob --pk id
     """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
@@ -1329,7 +1436,13 @@ def create_table(
 @click.option("--ignore", is_flag=True)
 @load_extension_option
 def drop_table(path, table, ignore, load_extension):
-    "Drop the specified table"
+    """Drop the specified table
+
+    Example:
+
+    \b
+        sqlite-utils drop-table chickens.db chickens
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     try:
@@ -1358,7 +1471,14 @@ def drop_table(path, table, ignore, load_extension):
 )
 @load_extension_option
 def create_view(path, view, select, ignore, replace, load_extension):
-    "Create a view for the provided SELECT query"
+    """Create a view for the provided SELECT query
+
+    Example:
+
+    \b
+        sqlite-utils create-view chickens.db heavy_chickens \\
+          'select * from chickens where weight > 3'
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     # Does view already exist?
@@ -1386,7 +1506,13 @@ def create_view(path, view, select, ignore, replace, load_extension):
 @click.option("--ignore", is_flag=True)
 @load_extension_option
 def drop_view(path, view, ignore, load_extension):
-    "Drop the specified view"
+    """Drop the specified view
+
+    Example:
+
+    \b
+        sqlite-utils drop-view chickens.db heavy_chickens
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     try:
@@ -1808,7 +1934,13 @@ def rows(
     json_cols,
     load_extension,
 ):
-    "Output all rows in the specified table"
+    """Output all rows in the specified table
+
+    Example:
+
+    \b
+        sqlite-utils rows trees.db Trees
+    """
     columns = "*"
     if column:
         columns = ", ".join("[{}]".format(c) for c in column)
@@ -1860,7 +1992,13 @@ def triggers(
     json_cols,
     load_extension,
 ):
-    "Show triggers configured in this database"
+    """Show triggers configured in this database
+
+    Example:
+
+    \b
+        sqlite-utils triggers trees.db
+    """
     sql = "select name, tbl_name as [table], sql from sqlite_master where type = 'trigger'"
     if tables:
         quote = sqlite_utils.Database(memory=True).quote
@@ -1909,7 +2047,13 @@ def indexes(
     json_cols,
     load_extension,
 ):
-    "Show indexes for this database"
+    """Show indexes for the whole database or specific tables
+
+    Example:
+
+    \b
+        sqlite-utils indexes trees.db Trees
+    """
     sql = """
     select
       sqlite_master.name as "table",

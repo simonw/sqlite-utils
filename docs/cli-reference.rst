@@ -605,6 +605,10 @@ See :ref:`cli_views`.
 
       List the views in the database
 
+      Example:
+
+          sqlite-utils views trees.db
+
     Options:
       --counts               Include row counts per view
       --nl                   Output newline-delimited JSON
@@ -636,6 +640,10 @@ See :ref:`cli_rows`.
     Usage: sqlite-utils rows [OPTIONS] PATH DBTABLE
 
       Output all rows in the specified table
+
+      Example:
+
+          sqlite-utils rows trees.db Trees
 
     Options:
       -c, --column TEXT           Columns to return
@@ -671,6 +679,10 @@ See :ref:`cli_triggers`.
 
       Show triggers configured in this database
 
+      Example:
+
+          sqlite-utils triggers trees.db
+
     Options:
       --nl                   Output newline-delimited JSON
       --arrays               Output rows as arrays instead of objects
@@ -698,7 +710,11 @@ See :ref:`cli_indexes`.
 
     Usage: sqlite-utils indexes [OPTIONS] PATH [TABLES]...
 
-      Show indexes for this database
+      Show indexes for the whole database or specific tables
+
+      Example:
+
+          sqlite-utils indexes trees.db Trees
 
     Options:
       --aux                  Include auxiliary columns
@@ -728,7 +744,11 @@ See :ref:`cli_create_database`.
 
     Usage: sqlite-utils create-database [OPTIONS] PATH
 
-      Create a new empty database file.
+      Create a new empty database file
+
+      Example:
+
+          sqlite-utils create-database trees.db
 
     Options:
       --enable-wal  Enable WAL mode on the created database
@@ -747,11 +767,11 @@ See :ref:`cli_create_table`.
       Add a table with the specified columns. Columns should be specified using
       name, type pairs, for example:
 
-      sqlite-utils create-table my.db people \
-          id integer \
-          name text \
-          height float \
-          photo blob --pk id
+          sqlite-utils create-table my.db people \
+              id integer \
+              name text \
+              height float \
+              photo blob --pk id
 
     Options:
       --pk TEXT                 Column to use as primary key
@@ -774,9 +794,15 @@ See :ref:`cli_create_index`.
 
     Usage: sqlite-utils create-index [OPTIONS] PATH TABLE COLUMN...
 
-      Add an index to the specified table covering the specified columns. Use
-      "sqlite-utils create-index mydb -- -column" to specify descending order for a
-      column.
+      Add an index to the specified table for the specified columns
+
+      Example:
+
+          sqlite-utils create-index chickens.db chickens name
+
+      To create an index in descending order:
+
+          sqlite-utils create-index chickens.db chickens -- -name
 
     Options:
       --name TEXT            Explicit name for the new index
@@ -796,7 +822,11 @@ See :ref:`cli_fts`.
 
     Usage: sqlite-utils enable-fts [OPTIONS] PATH TABLE COLUMN...
 
-      Enable full-text search for specific table and columns
+      Enable full-text search for specific table and columns"
+
+      Example:
+
+          sqlite-utils enable-fts chickens.db chickens name
 
     Options:
       --fts4                 Use FTS4
@@ -817,6 +847,10 @@ populate-fts
 
       Re-populate full-text search for specific table and columns
 
+      Example:
+
+          sqlite-utils populate-fts chickens.db chickens name
+
     Options:
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
@@ -831,6 +865,10 @@ rebuild-fts
 
       Rebuild all or specific full-text search tables
 
+      Example:
+
+          sqlite-utils rebuild-fts chickens.db chickens
+
     Options:
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
@@ -844,6 +882,10 @@ disable-fts
     Usage: sqlite-utils disable-fts [OPTIONS] PATH TABLE
 
       Disable full-text search for specific table
+
+      Example:
+
+          sqlite-utils disable-fts chickens.db chickens
 
     Options:
       --load-extension TEXT  SQLite extensions to load
@@ -861,6 +903,10 @@ See :ref:`cli_optimize`.
 
       Optimize all full-text search tables and then run VACUUM - should shrink the
       database file
+
+      Example:
+
+          sqlite-utils optimize chickens.db
 
     Options:
       --no-vacuum            Don't run VACUUM
@@ -880,6 +926,10 @@ See :ref:`cli_analyze`.
       Run ANALYZE against the whole database, or against specific named indexes and
       tables
 
+      Example:
+
+          sqlite-utils analyze chickens.db
+
     Options:
       -h, --help  Show this message and exit.
 
@@ -895,6 +945,10 @@ See :ref:`cli_vacuum`.
 
       Run VACUUM against the database
 
+      Example:
+
+          sqlite-utils vacuum chickens.db
+
     Options:
       -h, --help  Show this message and exit.
 
@@ -909,6 +963,10 @@ See :ref:`cli_dump`.
     Usage: sqlite-utils dump [OPTIONS] PATH
 
       Output a SQL dump of the schema and full contents of the database
+
+      Example:
+
+          sqlite-utils dump chickens.db
 
     Options:
       --load-extension TEXT  SQLite extensions to load
@@ -926,6 +984,10 @@ See :ref:`cli_add_column`.
                           [[integer|float|blob|text|INTEGER|FLOAT|BLOB|TEXT]]
 
       Add a column to the specified table
+
+      Example:
+
+          sqlite-utils add-column chickens.db chickens weight float
 
     Options:
       --fk TEXT                Table to reference as a foreign key
@@ -946,9 +1008,11 @@ See :ref:`cli_add_foreign_key`.
     Usage: sqlite-utils add-foreign-key [OPTIONS] PATH TABLE COLUMN [OTHER_TABLE]
                                [OTHER_COLUMN]
 
-      Add a new foreign key constraint to an existing table. Example usage:
+      Add a new foreign key constraint to an existing table
 
-          $ sqlite-utils add-foreign-key my.db books author_id authors id
+      Example:
+
+          sqlite-utils add-foreign-key my.db books author_id authors id
 
       WARNING: Could corrupt your database! Back up your database file first.
 
@@ -967,11 +1031,13 @@ See :ref:`cli_add_foreign_keys`.
 
     Usage: sqlite-utils add-foreign-keys [OPTIONS] PATH [FOREIGN_KEY]...
 
-      Add multiple new foreign key constraints to a database. Example usage:
+      Add multiple new foreign key constraints to a database
 
-      sqlite-utils add-foreign-keys my.db \
-          books author_id authors id \
-          authors country_id countries id
+      Example:
+
+          sqlite-utils add-foreign-keys my.db \
+              books author_id authors id \
+              authors country_id countries id
 
     Options:
       --load-extension TEXT  SQLite extensions to load
@@ -987,7 +1053,11 @@ See :ref:`cli_index_foreign_keys`.
 
     Usage: sqlite-utils index-foreign-keys [OPTIONS] PATH
 
-      Ensure every foreign key column has an index on it.
+      Ensure every foreign key column has an index on it
+
+      Example:
+
+          sqlite-utils index-foreign-keys chickens.db
 
     Options:
       --load-extension TEXT  SQLite extensions to load
@@ -1005,6 +1075,10 @@ See :ref:`cli_wal`.
 
       Enable WAL for database files
 
+      Example:
+
+          sqlite-utils enable-wal chickens.db
+
     Options:
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
@@ -1018,6 +1092,10 @@ disable-wal
     Usage: sqlite-utils disable-wal [OPTIONS] PATH...
 
       Disable WAL for database files
+
+      Example:
+
+          sqlite-utils disable-wal chickens.db
 
     Options:
       --load-extension TEXT  SQLite extensions to load
@@ -1035,6 +1113,10 @@ See :ref:`cli_enable_counts`.
 
       Configure triggers to update a _counts table with row counts
 
+      Example:
+
+          sqlite-utils enable-counts chickens.db
+
     Options:
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
@@ -1048,6 +1130,10 @@ reset-counts
     Usage: sqlite-utils reset-counts [OPTIONS] PATH
 
       Reset calculated counts in the _counts table
+
+      Example:
+
+          sqlite-utils reset-counts chickens.db
 
     Options:
       --load-extension TEXT  SQLite extensions to load
@@ -1064,6 +1150,10 @@ See :ref:`cli_drop_table`.
     Usage: sqlite-utils drop-table [OPTIONS] PATH TABLE
 
       Drop the specified table
+
+      Example:
+
+          sqlite-utils drop-table chickens.db chickens
 
     Options:
       --ignore
@@ -1082,6 +1172,11 @@ See :ref:`cli_create_view`.
 
       Create a view for the provided SELECT query
 
+      Example:
+
+          sqlite-utils create-view chickens.db heavy_chickens \
+            'select * from chickens where weight > 3'
+
     Options:
       --ignore               If view already exists, do nothing
       --replace              If view already exists, replace it
@@ -1099,6 +1194,10 @@ See :ref:`cli_drop_view`.
     Usage: sqlite-utils drop-view [OPTIONS] PATH VIEW
 
       Drop the specified view
+
+      Example:
+
+          sqlite-utils drop-view chickens.db heavy_chickens
 
     Options:
       --ignore
