@@ -85,6 +85,12 @@ See :ref:`cli_query`.
 
       Execute SQL query and return the results as JSON
 
+      Example:
+
+          sqlite-utils data.db \
+              "select * from chickens where age > :age" \
+              -p age 1
+
     Options:
       --attach <TEXT FILE>...     Additional databases to attach - specify alias and
                                   filepath
@@ -93,7 +99,7 @@ See :ref:`cli_query`.
       --csv                       Output CSV
       --tsv                       Output TSV
       --no-headers                Omit CSV headers
-      -t, --table                 Output as a table
+      -t, --table                 Output as a formatted table
       --fmt TEXT                  Table format - one of fancy_grid, fancy_outline,
                                   github, grid, html, jira, latex, latex_booktabs,
                                   latex_longtable, latex_raw, mediawiki, moinmoin,
@@ -150,7 +156,7 @@ See :ref:`cli_memory`.
       --csv                       Output CSV
       --tsv                       Output TSV
       --no-headers                Omit CSV headers
-      -t, --table                 Output as a table
+      -t, --table                 Output as a formatted table
       --fmt TEXT                  Table format - one of fancy_grid, fancy_outline,
                                   github, grid, html, jira, latex, latex_booktabs,
                                   latex_longtable, latex_raw, mediawiki, moinmoin,
@@ -183,7 +189,11 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`.
       Insert records from FILE into a table, creating the table if it does not
       already exist.
 
-      By default the input is expected to be a JSON array of objects. Or:
+      Example:
+
+          echo '{"name": "Lila"}' | sqlite-utils insert data.db chickens -
+
+      By default the input is expected to be a JSON object or array of objects.
 
       - Use --nl for newline-delimited JSON objects
       - Use --csv or --tsv for comma-separated or tab-separated input
@@ -243,6 +253,15 @@ See :ref:`cli_upsert`.
       incoming record has a primary key that matches an existing record the existing
       record will be updated.
 
+      The --pk option is required.
+
+      Example:
+
+          echo '[
+              {"id": 1, "name": "Lila"},
+              {"id": 2, "name": "Suna"}
+          ]' | sqlite-utils upsert data.db chickens - --pk id
+
     Options:
       --pk TEXT                 Columns to use as the primary key, e.g. id
       --flatten                 Flatten nested JSON objects, so {"a": {"b": 1}}
@@ -281,6 +300,15 @@ See :ref:`cli_bulk`.
 
       Execute parameterized SQL against the provided list of documents.
 
+      Example:
+
+          echo '[
+              {"id": 1, "name": "Lila2"},
+              {"id": 2, "name": "Suna2"}
+          ]' | sqlite-utils bulk data.db '
+              update chickens set name = :name where id = :id
+          ' -
+
     Options:
       --flatten              Flatten nested JSON objects, so {"a": {"b": 1}} becomes
                              {"a_b": 1}
@@ -311,6 +339,10 @@ See :ref:`cli_search`.
 
       Execute a full-text search against this table
 
+      Example:
+
+          sqlite-utils search data.db chickens lila
+
     Options:
       -o, --order TEXT       Order by ('column' or 'column desc')
       -c, --column TEXT      Columns to return
@@ -322,7 +354,7 @@ See :ref:`cli_search`.
       --csv                  Output CSV
       --tsv                  Output TSV
       --no-headers           Omit CSV headers
-      -t, --table            Output as a table
+      -t, --table            Output as a formatted table
       --fmt TEXT             Table format - one of fancy_grid, fancy_outline,
                              github, grid, html, jira, latex, latex_booktabs,
                              latex_longtable, latex_raw, mediawiki, moinmoin,
@@ -344,6 +376,12 @@ See :ref:`cli_transform_table`.
     Usage: sqlite-utils transform [OPTIONS] PATH TABLE
 
       Transform a table beyond the capabilities of ALTER TABLE
+
+      Example:
+
+          sqlite-utils transform mydb.db mytable \
+              --drop column1 \
+              --rename column2 column_renamed
 
     Options:
       --type <TEXT CHOICE>...   Change column type to INTEGER, TEXT, FLOAT or BLOB
@@ -373,6 +411,10 @@ See :ref:`cli_extract`.
 
       Extract one or more columns into a separate table
 
+      Example:
+
+          sqlite-utils extract trees.db Street_Trees species
+
     Options:
       --table TEXT             Name of the other table to extract columns to
       --fk-column TEXT         Name of the foreign key column to add to the table
@@ -392,6 +434,10 @@ See :ref:`cli_schema`.
 
       Show full schema for this database or for specified tables
 
+      Example:
+
+          sqlite-utils schema trees.db
+
     Options:
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
@@ -408,16 +454,16 @@ See :ref:`cli_insert_files`.
 
       Insert one or more files using BLOB columns in the specified table
 
-      Example usage:
+      Example:
 
-      sqlite-utils insert-files pics.db images *.gif \
-          -c name:name \
-          -c content:content \
-          -c content_hash:sha256 \
-          -c created:ctime_iso \
-          -c modified:mtime_iso \
-          -c size:size \
-          --pk name
+          sqlite-utils insert-files pics.db images *.gif \
+              -c name:name \
+              -c content:content \
+              -c content_hash:sha256 \
+              -c created:ctime_iso \
+              -c modified:mtime_iso \
+              -c size:size \
+              --pk name
 
     Options:
       -c, --column TEXT      Column definitions for the table
@@ -444,6 +490,10 @@ See :ref:`cli_analyze_tables`.
 
       Analyze the columns in one or more tables
 
+      Example:
+
+          sqlite-utils analyze-tables data.db trees
+
     Options:
       -c, --column TEXT      Specific columns to analyze
       --save                 Save results to _analyze_tables table
@@ -462,9 +512,9 @@ See :ref:`cli_convert`.
 
       Convert columns using Python code you supply. For example:
 
-      $ sqlite-utils convert my.db mytable mycolumn \
-          '"\n".join(textwrap.wrap(value, 10))' \
-          --import=textwrap
+          sqlite-utils convert my.db mytable mycolumn \
+              '"\n".join(textwrap.wrap(value, 10))' \
+              --import=textwrap
 
       "value" is a variable with the column value to be converted.
 
@@ -486,8 +536,8 @@ See :ref:`cli_convert`.
 
       You can use these recipes like so:
 
-      $ sqlite-utils convert my.db mytable mycolumn \
-          'r.jsonsplit(value, delimiter=":")'
+          sqlite-utils convert my.db mytable mycolumn \
+              'r.jsonsplit(value, delimiter=":")'
 
     Options:
       --import TEXT                   Python modules to import
@@ -517,6 +567,10 @@ See :ref:`cli_tables`.
 
       List the tables in the database
 
+      Example:
+
+          sqlite-utils tables trees.db
+
     Options:
       --fts4                 Just show FTS4 enabled tables
       --fts5                 Just show FTS5 enabled tables
@@ -526,7 +580,7 @@ See :ref:`cli_tables`.
       --csv                  Output CSV
       --tsv                  Output TSV
       --no-headers           Omit CSV headers
-      -t, --table            Output as a table
+      -t, --table            Output as a formatted table
       --fmt TEXT             Table format - one of fancy_grid, fancy_outline,
                              github, grid, html, jira, latex, latex_booktabs,
                              latex_longtable, latex_raw, mediawiki, moinmoin,
@@ -558,7 +612,7 @@ See :ref:`cli_views`.
       --csv                  Output CSV
       --tsv                  Output TSV
       --no-headers           Omit CSV headers
-      -t, --table            Output as a table
+      -t, --table            Output as a formatted table
       --fmt TEXT             Table format - one of fancy_grid, fancy_outline,
                              github, grid, html, jira, latex, latex_booktabs,
                              latex_longtable, latex_raw, mediawiki, moinmoin,
@@ -594,7 +648,7 @@ See :ref:`cli_rows`.
       --csv                       Output CSV
       --tsv                       Output TSV
       --no-headers                Omit CSV headers
-      -t, --table                 Output as a table
+      -t, --table                 Output as a formatted table
       --fmt TEXT                  Table format - one of fancy_grid, fancy_outline,
                                   github, grid, html, jira, latex, latex_booktabs,
                                   latex_longtable, latex_raw, mediawiki, moinmoin,
@@ -623,7 +677,7 @@ See :ref:`cli_triggers`.
       --csv                  Output CSV
       --tsv                  Output TSV
       --no-headers           Omit CSV headers
-      -t, --table            Output as a table
+      -t, --table            Output as a formatted table
       --fmt TEXT             Table format - one of fancy_grid, fancy_outline,
                              github, grid, html, jira, latex, latex_booktabs,
                              latex_longtable, latex_raw, mediawiki, moinmoin,
@@ -653,7 +707,7 @@ See :ref:`cli_indexes`.
       --csv                  Output CSV
       --tsv                  Output TSV
       --no-headers           Omit CSV headers
-      -t, --table            Output as a table
+      -t, --table            Output as a formatted table
       --fmt TEXT             Table format - one of fancy_grid, fancy_outline,
                              github, grid, html, jira, latex, latex_booktabs,
                              latex_longtable, latex_raw, mediawiki, moinmoin,

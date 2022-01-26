@@ -75,7 +75,9 @@ def output_options(fn):
             click.option("--csv", is_flag=True, help="Output CSV"),
             click.option("--tsv", is_flag=True, help="Output TSV"),
             click.option("--no-headers", is_flag=True, help="Omit CSV headers"),
-            click.option("-t", "--table", is_flag=True, help="Output as a table"),
+            click.option(
+                "-t", "--table", is_flag=True, help="Output as a formatted table"
+            ),
             click.option(
                 "--fmt",
                 help="Table format - one of {}".format(
@@ -161,7 +163,13 @@ def tables(
     load_extension,
     views=False,
 ):
-    """List the tables in the database"""
+    """List the tables in the database
+
+    Example:
+
+    \b
+        sqlite-utils tables trees.db
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     headers = ["view" if views else "table"]
@@ -1001,7 +1009,11 @@ def insert(
     Insert records from FILE into a table, creating the table if it
     does not already exist.
 
-    By default the input is expected to be a JSON array of objects. Or:
+    Example:
+
+        echo '{"name": "Lila"}' | sqlite-utils insert data.db chickens -
+
+    By default the input is expected to be a JSON object or array of objects.
 
     \b
     - Use --nl for newline-delimited JSON objects
@@ -1087,6 +1099,16 @@ def upsert(
     Upsert records based on their primary key. Works like 'insert' but if
     an incoming record has a primary key that matches an existing record
     the existing record will be updated.
+
+    The --pk option is required.
+
+    Example:
+
+    \b
+        echo '[
+            {"id": 1, "name": "Lila"},
+            {"id": 2, "name": "Suna"}
+        ]' | sqlite-utils upsert data.db chickens - --pk id
     """
     try:
         insert_upsert_implementation(
@@ -1152,6 +1174,16 @@ def bulk(
 ):
     """
     Execute parameterized SQL against the provided list of documents.
+
+    Example:
+
+    \b
+        echo '[
+            {"id": 1, "name": "Lila2"},
+            {"id": 2, "name": "Suna2"}
+        ]' | sqlite-utils bulk data.db '
+            update chickens set name = :name where id = :id
+        ' -
     """
     try:
         insert_upsert_implementation(
@@ -1402,7 +1434,15 @@ def query(
     param,
     load_extension,
 ):
-    "Execute SQL query and return the results as JSON"
+    """Execute SQL query and return the results as JSON
+
+    Example:
+
+    \b
+        sqlite-utils data.db \\
+            "select * from chickens where age > :age" \\
+            -p age 1
+    """
     db = sqlite_utils.Database(path)
     for alias, attach_path in attach:
         db.attach(alias, attach_path)
@@ -1665,7 +1705,12 @@ def search(
     json_cols,
     load_extension,
 ):
-    "Execute a full-text search against this table"
+    """Execute a full-text search against this table
+
+    Example:
+
+        sqlite-utils search data.db chickens lila
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     # Check table exists
@@ -1912,7 +1957,13 @@ def schema(
     tables,
     load_extension,
 ):
-    "Show full schema for this database or for specified tables"
+    """Show full schema for this database or for specified tables
+
+    Example:
+
+    \b
+        sqlite-utils schema trees.db
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     if tables:
@@ -1985,7 +2036,15 @@ def transform(
     sql,
     load_extension,
 ):
-    "Transform a table beyond the capabilities of ALTER TABLE"
+    """Transform a table beyond the capabilities of ALTER TABLE
+
+    Example:
+
+    \b
+        sqlite-utils transform mydb.db mytable \\
+            --drop column1 \\
+            --rename column2 column_renamed
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     types = {}
@@ -2060,7 +2119,13 @@ def extract(
     rename,
     load_extension,
 ):
-    "Extract one or more columns into a separate table"
+    """Extract one or more columns into a separate table
+
+    Example:
+
+    \b
+        sqlite-utils extract trees.db Street_Trees species
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     kwargs = dict(
@@ -2122,17 +2187,17 @@ def insert_files(
     """
     Insert one or more files using BLOB columns in the specified table
 
-    Example usage:
+    Example:
 
     \b
-    sqlite-utils insert-files pics.db images *.gif \\
-        -c name:name \\
-        -c content:content \\
-        -c content_hash:sha256 \\
-        -c created:ctime_iso \\
-        -c modified:mtime_iso \\
-        -c size:size \\
-        --pk name
+        sqlite-utils insert-files pics.db images *.gif \\
+            -c name:name \\
+            -c content:content \\
+            -c content_hash:sha256 \\
+            -c created:ctime_iso \\
+            -c modified:mtime_iso \\
+            -c size:size \\
+            --pk name
     """
     if not column:
         if text:
@@ -2244,7 +2309,13 @@ def analyze_tables(
     save,
     load_extension,
 ):
-    "Analyze the columns in one or more tables"
+    """Analyze the columns in one or more tables
+
+    Example:
+
+    \b
+        sqlite-utils analyze-tables data.db trees
+    """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     _analyze(db, tables, columns, save)
@@ -2308,9 +2379,9 @@ def _generate_convert_help():
     Convert columns using Python code you supply. For example:
 
     \b
-    $ sqlite-utils convert my.db mytable mycolumn \\
-        '"\\n".join(textwrap.wrap(value, 10))' \\
-        --import=textwrap
+        sqlite-utils convert my.db mytable mycolumn \\
+            '"\\n".join(textwrap.wrap(value, 10))' \\
+            --import=textwrap
 
     "value" is a variable with the column value to be converted.
 
@@ -2333,8 +2404,8 @@ def _generate_convert_help():
     You can use these recipes like so:
 
     \b
-    $ sqlite-utils convert my.db mytable mycolumn \\
-        'r.jsonsplit(value, delimiter=":")'
+        sqlite-utils convert my.db mytable mycolumn \\
+            'r.jsonsplit(value, delimiter=":")'
     """
     ).strip()
     return help
