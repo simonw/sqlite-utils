@@ -441,7 +441,7 @@ The easiest way to create a new table is to insert a record into it:
     from sqlite_utils import Database
     import sqlite3
 
-    db = Database(sqlite3.connect("/tmp/dogs.db"))
+    db = Database("dogs.db")
     dogs = db["dogs"]
     dogs.insert({
         "name": "Cleo",
