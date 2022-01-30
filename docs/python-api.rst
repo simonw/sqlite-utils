@@ -424,7 +424,6 @@ The ``db.schema`` property returns the full SQL schema for the database as a str
 
     >>> db = sqlite_utils.Database("dogs.db")
     >>> print(db.schema)
-    >>> print(db.schema)
     CREATE TABLE "dogs" (
         [id] INTEGER PRIMARY KEY,
         [name] TEXT
