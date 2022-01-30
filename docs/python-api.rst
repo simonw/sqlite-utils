@@ -206,7 +206,7 @@ Passing parameters
 
 Both ``db.query()`` and ``db.execute()`` accept an optional second argument for parameters to be passed to the SQL query.
 
-This can take the form of either a tuple/list or a dictionary, depending on the type of parameters used in the query. Values passed in this way will be correctly quoted and escaped, helping avoid XSS vulnerabilities.
+This can take the form of either a tuple/list or a dictionary, depending on the type of parameters used in the query. Values passed in this way will be correctly quoted and escaped, helping avoid SQL injection vulnerabilities.
 
 ``?`` parameters in the SQL query can be filled in using a list:
 
