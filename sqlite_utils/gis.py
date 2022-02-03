@@ -50,8 +50,6 @@ def init_spatialite(db: Database, path: str) -> bool:
 
     .. code-block:: python
 
-        .. code-block:: python
-
         from sqlite_utils.gis import init_spatialite
 
         db = Database("mydb.db")
