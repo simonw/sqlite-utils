@@ -705,7 +705,31 @@ Pass ``analyze=True`` to run ``ANALYZE`` against the table after inserting the n
 Insert-replacing data
 =====================
 
-If you want to insert a record or replace an existing record with the same primary key, using the ``replace=True`` argument to ``.insert()`` or ``.insert_all()``::
+If you try to insert data using a primary key that already exists, the ``.insert()`` or ``.insert_all()`` method will raise a ``sqlite3.IntegrityError`` exception.
+
+This example that catches that exception:
+
+.. code-block:: python
+
+    from sqlite_utils.utils import sqlite3
+
+    try:
+        db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    except sqlite3.IntegrityError:
+        print("Record already exists with that primary key")
+
+Importing from ``sqlite_utils.utils.sqlite3`` ensures your code continues to work even if you are using the ``pysqlite3`` library instead of the Python standard library ``sqlite3`` module.
+
+Use the ``ignore=True`` parameter to ignore this error:
+
+.. code-block:: python
+
+    # This fails silently if a record with id=1 already exists
+    db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id", ignore=True)
+
+To replace any existing records that have a matching primary key, use the ``replace=True`` parameter to ``.insert()`` or ``.insert_all()``:
+
+.. code-block:: python
 
     db["dogs"].insert_all([{
         "id": 1,
@@ -722,7 +746,7 @@ If you want to insert a record or replace an existing record with the same prima
     }], pk="id", replace=True)
 
 .. note::
-    Prior to sqlite-utils 2.x the ``.upsert()`` and ``.upsert_all()`` methods did this. See :ref:`python_api_upsert` for the new behaviour of those methods in 2.x.
+    Prior to sqlite-utils 2.0 the ``.upsert()`` and ``.upsert_all()`` methods worked the same way as ``.insert(replace=True)`` does today. See :ref:`python_api_upsert` for the new behaviour of those methods introduced in 2.0.
 
 .. _python_api_update:
 
