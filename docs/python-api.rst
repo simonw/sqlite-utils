@@ -2421,37 +2421,35 @@ If that option isn't relevant to your use-case you can to quote a string for use
     >>> db.quote("hello'this'has'quotes")
     "'hello''this''has''quotes'"
 
+.. _python_api_gis:
+
 Spatialite helpers
 ==================
 
 `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ is a geographic extension to SQLite (similar to PostgreSQL + PostGIS). Using requires finding, loading and initializing the extension, adding geometry columns to existing tables and optionally creating spatial indexes. The utilities here help streamline that setup.
 
-
-
-.. _init_spatialite:
+.. _python_api_gis_init_spatialite:
 
 Initialize Spatialite
-----------------------
+---------------------
 
 .. autofunction:: sqlite_utils.gis.init_spatialite
 
-
-.. _find_spatialite:
+.. _python_api_gis_find_spatialite:
 
 Finding Spatialite
 ------------------
 
 .. autofunction:: sqlite_utils.gis.find_spatialite
 
-
-.. _add_geometry_column:
+.. _python_api_gis_add_geometry_column:
 
 Adding geometry columns
 -----------------------
 
 .. autofunction:: sqlite_utils.gis.add_geometry_column
 
-.. _create_spatial_index:
+.. _python_api_gis_create_spatial_index:
 
 Creating a spatial index
 ------------------------
