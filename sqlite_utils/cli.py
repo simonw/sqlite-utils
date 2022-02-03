@@ -19,6 +19,7 @@ import tabulate
 from .utils import (
     _compile_code,
     file_progress,
+    find_spatialite,
     sqlite3,
     decode_base64_values,
     progressbar,
@@ -27,7 +28,6 @@ from .utils import (
     TypeTracker,
 )
 
-from .gis import find_spatialite
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 

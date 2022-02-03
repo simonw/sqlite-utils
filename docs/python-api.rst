@@ -2433,25 +2433,25 @@ Spatialite helpers
 Initialize Spatialite
 ---------------------
 
-.. autofunction:: sqlite_utils.gis.init_spatialite
+.. automethod:: sqlite_utils.db.Database.init_spatialite
 
 .. _python_api_gis_find_spatialite:
 
 Finding Spatialite
 ------------------
 
-.. autofunction:: sqlite_utils.gis.find_spatialite
+.. autofunction:: sqlite_utils.utils.find_spatialite
 
 .. _python_api_gis_add_geometry_column:
 
 Adding geometry columns
 -----------------------
 
-.. autofunction:: sqlite_utils.gis.add_geometry_column
+.. automethod:: sqlite_utils.db.Table.add_geometry_column
 
 .. _python_api_gis_create_spatial_index:
 
 Creating a spatial index
 ------------------------
 
-.. autofunction:: sqlite_utils.gis.create_spatial_index
+.. automethod:: sqlite_utils.db.Table.create_spatial_index
