@@ -291,7 +291,7 @@ This method also accepts ``offset=`` and ``limit=`` arguments, for specifying an
 Counting rows
 -------------
 
-To count the number of rows that would be returned by a where filter, use ``.count_where(where, where_args)`` :
+To count the number of rows that would be returned by a where filter, use ``.count_where(where, where_args)``:
 
     >>> db["dogs"].count_where("age > ?", [1])
     2
@@ -1246,7 +1246,7 @@ To change the primary key for a table, use ``pk=``. This can be passed a single 
 Changing not null status
 ------------------------
 
-You can change the ``NOT NULL`` status of columns by using ``not_null=``. You can pass this a set of columns to make those columns ``NOT NULL`` :
+You can change the ``NOT NULL`` status of columns by using ``not_null=``. You can pass this a set of columns to make those columns ``NOT NULL``:
 
 .. code-block:: python
 
