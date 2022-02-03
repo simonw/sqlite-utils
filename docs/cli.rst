@@ -1060,14 +1060,12 @@ The result looks like this::
 Insert-replacing data
 =====================
 
-Insert-replacing works exactly like inserting, with the exception that if your data has a primary key that matches an already existing record that record will be replaced with the new data.
+The ``--replace`` option to ``insert`` causes any existing records with the same primary key to be replaced entirely by the new records.
 
-After running the above ``dogs.json`` example, try running this::
+To replace a dog with in ID of 2 with a new record, run the following::
 
     $ echo '{"id": 2, "name": "Pancakes", "age": 3}' | \
         sqlite-utils insert dogs.db dogs - --pk=id --replace
-
-This will replace the record for id=2 (Pancakes) with a new record with an updated age.
 
 .. _cli_upsert:
 
@@ -1083,7 +1081,7 @@ For example::
     $ echo '{"id": 2, "age": 4}' | \
         sqlite-utils upsert dogs.db dogs - --pk=id
 
-This will update the dog with id=2 to have an age of 4, creating a new record (with a null name) if one does not exist. If a row DOES exist the name will be left as-is.
+This will update the dog with an ID of 2 to have an age of 4, creating a new record (with a null name) if one does not exist. If a row DOES exist the name will be left as-is.
 
 The command will fail if you reference columns that do not exist on the table. To automatically create missing columns, use the ``--alter`` option.
 
