@@ -1,5 +1,4 @@
 import os
-from .db import Database, Table
 
 SPATIALITE_PATHS = (
     "/usr/lib/x86_64-linux-gnu/mod_spatialite.so",
@@ -30,7 +29,7 @@ def find_spatialite() -> str:
     return None
 
 
-def init_spatialite(db: Database, path: str) -> bool:
+def init_spatialite(db, path: str) -> bool:
     """
     The ``init_spatialite`` function will load and initialize the Spatialite extension.
     The ``path`` argument should be an absolute path to the compiled extension, which
@@ -67,7 +66,7 @@ def init_spatialite(db: Database, path: str) -> bool:
 
 
 def add_geometry_column(
-    table: Table,
+    table,
     geometry_type: str,
     column_name: str = "geometry",
     srid: int = 4326,
@@ -106,7 +105,7 @@ def add_geometry_column(
     return result and bool(result[0])
 
 
-def create_spatial_index(table: Table, column_name: str = "geometry") -> bool:
+def create_spatial_index(table, column_name: str = "geometry") -> bool:
     """
     A spatial index allows for significantly faster bounding box queries.
     To create on, use ``create_spatial_index`` with a :ref:`table <reference_db_table>`

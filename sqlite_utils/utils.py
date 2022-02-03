@@ -22,6 +22,9 @@ except ImportError:
 
     OperationalError = sqlite3.OperationalError
 
+# backwards compatibility
+from .gis import find_spatialite
+
 
 def suggest_column_types(records):
     all_column_types = {}
