@@ -32,11 +32,11 @@ def find_spatialite() -> str:
 
 def init_spatialite(db: Database, path: str) -> bool:
     """
-    The ``init_spatialite`` function will load and initalize the Spatialite extension.
+    The ``init_spatialite`` function will load and initialize the Spatialite extension.
     The ``path`` argument should be an absolute path to the compiled extension, which
     can be found using ``find_spatialite``.
 
-    Returns true if Spatialite was successfully initalized.
+    Returns true if Spatialite was successfully initialized.
 
     .. code-block:: python
 
