@@ -472,6 +472,32 @@ def test_insert_convert_row_modifying_in_place(db_path):
     assert rows == [{"name": "Azi", "is_chicken": 1}]
 
 
+@pytest.mark.parametrize(
+    "options,expected_error",
+    (
+        (
+            ["--text", "--convert", "1"],
+            "Error: --convert must return dict or iterator\n",
+        ),
+        (["--convert", "1"], "Error: Rows must all be dictionaries, got: 1\n"),
+    ),
+)
+def test_insert_convert_error_messages(db_path, options, expected_error):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            db_path,
+            "rows",
+            "-",
+        ]
+        + options,
+        input='{"name": "Azi"}',
+    )
+    assert result.exit_code == 1
+    assert result.output == expected_error
+
+
 def test_insert_streaming_batch_size_1(db_path):
     # https://github.com/simonw/sqlite-utils/issues/364
     # Streaming with --batch-size 1 should commit on each record

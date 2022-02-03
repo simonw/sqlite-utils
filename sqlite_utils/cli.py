@@ -1009,6 +1009,9 @@ def insert_upsert_implementation(
     if upsert:
         extra_kwargs["upsert"] = upsert
 
+    # docs should all be dictionaries
+    docs = (verify_is_dict(doc) for doc in docs)
+
     # Apply {"$base64": true, ...} decoding, if needed
     docs = (decode_base64_values(doc) for doc in docs)
 
@@ -2758,6 +2761,14 @@ def json_binary(value):
         return {"$base64": True, "encoded": base64.b64encode(value).decode("latin-1")}
     else:
         raise TypeError
+
+
+def verify_is_dict(doc):
+    if not isinstance(doc, dict):
+        raise click.ClickException(
+            "Rows must all be dictionaries, got: {}".format(repr(doc)[:1000])
+        )
+    return doc
 
 
 def _load_extensions(db, load_extension):
