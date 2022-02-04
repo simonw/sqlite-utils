@@ -31,7 +31,8 @@ SPATIALITE_PATHS = (
 
 def find_spatialite() -> Optional[str]:
     """
-    The ``find_spatialite()`` function searches for the `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ SQLite extension in some common places. It returns a string path to the location, or ``None`` if SpatiaLite was not found.
+    The ``find_spatialite()`` function searches for the `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__
+    SQLite extension in some common places. It returns a string path to the location, or ``None`` if SpatiaLite was not found.
 
     You can use it in code like this:
 
