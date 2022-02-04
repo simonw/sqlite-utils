@@ -6,6 +6,7 @@ from .utils import (
     types_for_column_types,
     column_affinity,
     progressbar,
+    find_spatialite,
 )
 from collections import namedtuple
 from collections.abc import Mapping
@@ -930,13 +931,13 @@ class Database:
             sql += " [{}]".format(name)
         self.execute(sql)
 
-    def init_spatialite(self, path: str) -> bool:
+    def init_spatialite(self, path: str = None) -> bool:
         """
-        The ``init_spatialite`` method will load and initialize the Spatialite extension.
+        The ``init_spatialite`` method will load and initialize the SpatiaLite extension.
         The ``path`` argument should be an absolute path to the compiled extension, which
         can be found using ``find_spatialite``.
 
-        Returns true if Spatialite was successfully initialized.
+        Returns true if SpatiaLite was successfully initialized.
 
         .. code-block:: python
 
@@ -946,7 +947,7 @@ class Database:
             db = Database("mydb.db")
             db.init_spatialite(find_spatialite())
 
-        If you've installed Spatialite somewhere unexpected (for testing an alternate version, for example)
+        If you've installed SpatiaLite somewhere unexpected (for testing an alternate version, for example)
         you can pass in an absolute path:
 
         .. code-block:: python
@@ -958,6 +959,9 @@ class Database:
             db.init_spatialite("./local/mod_spatialite.dylib")
 
         """
+        if path is None:
+            path = find_spatialite()
+
         self.conn.enable_load_extension(True)
         self.conn.load_extension(path)
         # Initialize SpatiaLite if not yet initialized
@@ -3057,12 +3061,12 @@ class Table(Queryable):
         not_null: bool = False,
     ) -> bool:
         """
-        In Spatialite, a geometry column can only be added to an existing table.
+        In SpatiaLite, a geometry column can only be added to an existing table.
         To do so, use ``table.add_geometry_column``, passing in a geometry type.
 
-        By default, this will add a nullable column called ``geometry`` using
-        `SRID 4326 <https://spatialreference.org/ref/epsg/wgs-84/>`__. These can be customized using
-        the ``column_name`` and ``srid`` arguments.
+        By default, this will add a nullable column using
+        `SRID 4326 <https://spatialreference.org/ref/epsg/wgs-84/>`__. This can
+        be customized using the ``column_name``, ``srid`` and ``not_null`` arguments.
 
         Returns True if the column was successfully added, False if not.
 
@@ -3097,15 +3101,14 @@ class Table(Queryable):
     def create_spatial_index(self, column_name) -> bool:
         """
         A spatial index allows for significantly faster bounding box queries.
-        To create one, use ``create_spatial_index`` with a :ref:`table <reference_db_table>`
-        and the name of an existing geometry column.
+        To create one, use ``create_spatial_index`` with the name of an existing geometry column.
 
         Returns ``True`` if the index was successfully created, ``False`` if not. Calling this
         function if an index already exists is a no-op.
 
         .. code-block:: python
 
-            # assuming Spatialite is loaded, create the table, add the column
+            # assuming SpatiaLite is loaded, create the table, add the column
             table = db["locations"].create({"name": str})
             table.add_geometry_column("geometry", "POINT")
 

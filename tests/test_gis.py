@@ -3,22 +3,22 @@ from sqlite_utils.utils import find_spatialite
 from sqlite_utils.db import Database
 from sqlite_utils.utils import sqlite3
 
+pytestmark = [
+    pytest.mark.skipif(
+        not find_spatialite(), reason="Could not find SpatiaLite extension"
+    ),
+    pytest.mark.skipif(
+        not hasattr(sqlite3.Connection, "enable_load_extension"),
+        reason="sqlite3.Connection missing enable_load_extension",
+    ),
+]
 
-@pytest.mark.skipif(not find_spatialite(), reason="Could not find SpatiaLite extension")
-@pytest.mark.skipif(
-    not hasattr(sqlite3.Connection, "enable_load_extension"),
-    reason="sqlite3.Connection missing enable_load_extension",
-)
+
 def test_find_spatialite():
     spatialite = find_spatialite()
     assert spatialite is None or isinstance(spatialite, str)
 
 
-@pytest.mark.skipif(not find_spatialite(), reason="Could not find SpatiaLite extension")
-@pytest.mark.skipif(
-    not hasattr(sqlite3.Connection, "enable_load_extension"),
-    reason="sqlite3.Connection missing enable_load_extension",
-)
 def test_init_spatialite():
     db = Database(memory=True)
     spatialite = find_spatialite()
@@ -26,11 +26,6 @@ def test_init_spatialite():
     assert "spatial_ref_sys" in db.table_names()
 
 
-@pytest.mark.skipif(not find_spatialite(), reason="Could not find SpatiaLite extension")
-@pytest.mark.skipif(
-    not hasattr(sqlite3.Connection, "enable_load_extension"),
-    reason="sqlite3.Connection missing enable_load_extension",
-)
 def test_add_geometry_column():
     db = Database(memory=True)
     spatialite = find_spatialite()
@@ -55,11 +50,6 @@ def test_add_geometry_column():
     }
 
 
-@pytest.mark.skipif(not find_spatialite(), reason="Could not find SpatiaLite extension")
-@pytest.mark.skipif(
-    not hasattr(sqlite3.Connection, "enable_load_extension"),
-    reason="sqlite3.Connection missing enable_load_extension",
-)
 def test_create_spatial_index():
     db = Database(memory=True)
     spatialite = find_spatialite()
@@ -75,11 +65,6 @@ def test_create_spatial_index():
     assert "idx_locations_geometry" in db.table_names()
 
 
-@pytest.mark.skipif(not find_spatialite(), reason="Could not find SpatiaLite extension")
-@pytest.mark.skipif(
-    not hasattr(sqlite3.Connection, "enable_load_extension"),
-    reason="sqlite3.Connection missing enable_load_extension",
-)
 def test_double_create_spatial_index():
     db = Database(memory=True)
     spatialite = find_spatialite()
