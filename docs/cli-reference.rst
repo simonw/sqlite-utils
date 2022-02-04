@@ -56,6 +56,7 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         "convert": "cli_convert",
     }
     commands.sort(key = lambda command: go_first.index(command) if command in go_first else 999)
+    cog.out("\n")
     for command in commands:
         cog.out(command + "\n")
         cog.out(("=" * len(command)) + "\n\n")
@@ -74,6 +75,7 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         cog.out(textwrap.indent(output, '    '))
         cog.out("\n\n")
 .. ]]]
+
 query
 =====
 
