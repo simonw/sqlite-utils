@@ -32,6 +32,8 @@ jobs:
     - name: Optionally install numpy
       if: matrix.numpy == 1
       run: pip install numpy
+    - name: Install SpatiaLite
+      run: sudo apt-get install libsqlite3-mod-spatialite
     - name: Run tests
       run: |
         pytest -v
