@@ -6,6 +6,7 @@ from .utils import (
     types_for_column_types,
     column_affinity,
     progressbar,
+    find_spatialite,
 )
 from collections import namedtuple
 from collections.abc import Mapping
@@ -930,6 +931,46 @@ class Database:
         if name is not None:
             sql += " [{}]".format(name)
         self.execute(sql)
+
+    def init_spatialite(self, path: str = None) -> bool:
+        """
+        The ``init_spatialite`` method will load and initialize the SpatiaLite extension.
+        The ``path`` argument should be an absolute path to the compiled extension, which
+        can be found using ``find_spatialite``.
+
+        Returns true if SpatiaLite was successfully initialized.
+
+        .. code-block:: python
+
+            from sqlite_utils.db import Database
+            from sqlite_utils.utils import find_spatialite
+
+            db = Database("mydb.db")
+            db.init_spatialite(find_spatialite())
+
+        If you've installed SpatiaLite somewhere unexpected (for testing an alternate version, for example)
+        you can pass in an absolute path:
+
+        .. code-block:: python
+
+            from sqlite_utils.db import Database
+            from sqlite_utils.utils import find_spatialite
+
+            db = Database("mydb.db")
+            db.init_spatialite("./local/mod_spatialite.dylib")
+
+        """
+        if path is None:
+            path = find_spatialite()
+
+        self.conn.enable_load_extension(True)
+        self.conn.load_extension(path)
+        # Initialize SpatiaLite if not yet initialized
+        if "spatial_ref_sys" in self.table_names():
+            return False
+        cursor = self.execute("select InitSpatialMetadata(1)")
+        result = cursor.fetchone()
+        return result and bool(result[0])
 
 
 class Queryable:
@@ -3011,6 +3052,84 @@ class Table(Queryable):
             most_common,
             least_common,
         )
+
+    def add_geometry_column(
+        self,
+        column_name: str,
+        geometry_type: str,
+        srid: int = 4326,
+        coord_dimension: str = "XY",
+        not_null: bool = False,
+    ) -> bool:
+        """
+        In SpatiaLite, a geometry column can only be added to an existing table.
+        To do so, use ``table.add_geometry_column``, passing in a geometry type.
+
+        By default, this will add a nullable column using
+        `SRID 4326 <https://spatialreference.org/ref/epsg/wgs-84/>`__. This can
+        be customized using the ``column_name``, ``srid`` and ``not_null`` arguments.
+
+        Returns True if the column was successfully added, False if not.
+
+        .. code-block:: python
+
+            from sqlite_utils.db import Database
+            from sqlite_utils.utils import find_spatialite
+
+            db = Database("mydb.db")
+            db.init_spatialite(find_spatialite())
+
+            # the table must exist before adding a geometry column
+            table = db["locations"].create({"name": str})
+            table.add_geometry_column("geometry", "POINT")
+
+        """
+        cursor = self.db.execute(
+            "SELECT AddGeometryColumn(?, ?, ?, ?, ?, ?);",
+            [
+                self.name,
+                column_name,
+                srid,
+                geometry_type,
+                coord_dimension,
+                int(not_null),
+            ],
+        )
+
+        result = cursor.fetchone()
+        return result and bool(result[0])
+
+    def create_spatial_index(self, column_name) -> bool:
+        """
+        A spatial index allows for significantly faster bounding box queries.
+        To create one, use ``create_spatial_index`` with the name of an existing geometry column.
+
+        Returns ``True`` if the index was successfully created, ``False`` if not. Calling this
+        function if an index already exists is a no-op.
+
+        .. code-block:: python
+
+            # assuming SpatiaLite is loaded, create the table, add the column
+            table = db["locations"].create({"name": str})
+            table.add_geometry_column("geometry", "POINT")
+
+            # now we can index it
+            table.create_spatial_index("geometry")
+
+            # the spatial index is a virtual table, which we can inspect
+            print(db["idx_locations_geometry"].schema)
+            # outputs:
+            # CREATE VIRTUAL TABLE "idx_locations_geometry" USING rtree(pkid, xmin, xmax, ymin, ymax)
+
+        """
+        if f"idx_{self.name}_{column_name}" in self.db.table_names():
+            return False
+
+        cursor = self.db.execute(
+            "select CreateSpatialIndex(?, ?)", [self.name, column_name]
+        )
+        result = cursor.fetchone()
+        return result and bool(result[0])
 
 
 class View(Queryable):

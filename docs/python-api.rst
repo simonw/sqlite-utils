@@ -352,7 +352,7 @@ Counting rows
 
 To count the number of rows that would be returned by a where filter, use ``.count_where(where, where_args)``:
 
-    >>> db["dogs"].count_where("age > ?", [1]):
+    >>> db["dogs"].count_where("age > ?", [1])
     2
 
 .. _python_api_pks_and_rows_where:
@@ -2422,26 +2422,6 @@ For example:
     #    [thumbnail] BLOB
     # )
 
-.. _find_spatialite:
-
-Finding SpatiaLite
-==================
-
-The ``find_spatialite()`` function searches for the `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ SQLite extension in some common places. It returns a string path to the location, or ``None`` if SpatiaLite was not found.
-
-You can use it in code like this:
-
-.. code-block:: python
-
-    from sqlite_utils import Database
-    from sqlite_utils.utils import find_spatialite
-
-    db = Database("mydb.db")
-    spatialite = find_spatialite()
-    if spatialite:
-        db.conn.enable_load_extension(True)
-        db.conn.load_extension(spatialite)
-
 .. _python_api_register_function:
 
 Registering custom SQL functions
@@ -2522,3 +2502,38 @@ If that option isn't relevant to your use-case you can to quote a string for use
     "'hello'"
     >>> db.quote("hello'this'has'quotes")
     "'hello''this''has''quotes'"
+
+.. _python_api_gis:
+
+Spatialite helpers
+==================
+
+`SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ is a geographic extension to SQLite (similar to PostgreSQL + PostGIS). Using requires finding, loading and initializing the extension, adding geometry columns to existing tables and optionally creating spatial indexes. The utilities here help streamline that setup.
+
+.. _python_api_gis_init_spatialite:
+
+Initialize Spatialite
+---------------------
+
+.. automethod:: sqlite_utils.db.Database.init_spatialite
+
+.. _python_api_gis_find_spatialite:
+
+Finding Spatialite
+------------------
+
+.. autofunction:: sqlite_utils.utils.find_spatialite
+
+.. _python_api_gis_add_geometry_column:
+
+Adding geometry columns
+-----------------------
+
+.. automethod:: sqlite_utils.db.Table.add_geometry_column
+
+.. _python_api_gis_create_spatial_index:
+
+Creating a spatial index
+------------------------
+
+.. automethod:: sqlite_utils.db.Table.create_spatial_index

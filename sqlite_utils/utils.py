@@ -22,10 +22,38 @@ except ImportError:
 
     OperationalError = sqlite3.OperationalError
 
+
 SPATIALITE_PATHS = (
     "/usr/lib/x86_64-linux-gnu/mod_spatialite.so",
     "/usr/local/lib/mod_spatialite.dylib",
 )
+
+
+def find_spatialite() -> str:
+    """
+    The ``find_spatialite()`` function searches for the `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ SQLite extension in some common places. It returns a string path to the location, or ``None`` if SpatiaLite was not found.
+
+    You can use it in code like this:
+
+    .. code-block:: python
+
+        from sqlite_utils import Database
+        from sqlite_utils.utils import find_spatialite
+
+        db = Database("mydb.db")
+        spatialite = find_spatialite()
+        if spatialite:
+            db.conn.enable_load_extension(True)
+            db.conn.load_extension(spatialite)
+
+        # or use with db.init_spatialite like this
+        db.init_spatialite(find_spatialite())
+
+    """
+    for path in SPATIALITE_PATHS:
+        if os.path.exists(path):
+            return path
+    return None
 
 
 def suggest_column_types(records):
@@ -94,13 +122,6 @@ def decode_base64_values(doc):
     if not to_fix:
         return doc
     return dict(doc, **{k: base64.b64decode(doc[k]["encoded"]) for k in to_fix})
-
-
-def find_spatialite():
-    for path in SPATIALITE_PATHS:
-        if os.path.exists(path):
-            return path
-    return None
 
 
 class UpdateWrapper:
