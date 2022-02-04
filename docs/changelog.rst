@@ -2,6 +2,19 @@
  Changelog
 ===========
 
+.. _v3_23:
+
+3.23 (2022-02-03)
+-----------------
+
+This release introduces four new utility methods for working with `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__. Thanks, Chris Amico. (`#330 <https://github.com/simonw/sqlite-utils/pull/385>`__)
+
+- ``sqlite_utils.utils.find_spatialite()`` :ref:`finds the location of the SpatiaLite module <python_api_gis_find_spatialite>` on disk.
+- ``db.init_spatialite()`` :ref:`initializes SpatiaLite <python_api_gis_init_spatialite>` for the given database.
+- ``table.add_geometry_column(...)`` :ref:`adds a geometry column <python_api_gis_add_geometry_column>` to an existing table.
+- ``table.create_spatial_index(...)`` :ref:`creates a spatial index <python_api_gis_create_spatial_index>` for a column.
+- ``sqlite-utils batch`` now accepts a ``--batch-size`` option. (:issue:`392`)
+
 .. _v3_22_1:
 
 3.22.1 (2022-01-25)
