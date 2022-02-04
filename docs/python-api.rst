@@ -2512,14 +2512,14 @@ Spatialite helpers
 
 .. _python_api_gis_init_spatialite:
 
-Initialize Spatialite
+Initialize SpatiaLite
 ---------------------
 
 .. automethod:: sqlite_utils.db.Database.init_spatialite
 
 .. _python_api_gis_find_spatialite:
 
-Finding Spatialite
+Finding SpatiaLite
 ------------------
 
 .. autofunction:: sqlite_utils.utils.find_spatialite
