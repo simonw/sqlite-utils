@@ -2505,7 +2505,7 @@ If that option isn't relevant to your use-case you can to quote a string for use
 
 .. _python_api_gis:
 
-Spatialite helpers
+SpatiaLite helpers
 ==================
 
 `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ is a geographic extension to SQLite (similar to PostgreSQL + PostGIS). Using requires finding, loading and initializing the extension, adding geometry columns to existing tables and optionally creating spatial indexes. The utilities here help streamline that setup.
@@ -2516,6 +2516,7 @@ Initialize SpatiaLite
 ---------------------
 
 .. automethod:: sqlite_utils.db.Database.init_spatialite
+   :noindex:
 
 .. _python_api_gis_find_spatialite:
 
@@ -2530,6 +2531,7 @@ Adding geometry columns
 -----------------------
 
 .. automethod:: sqlite_utils.db.Table.add_geometry_column
+   :noindex:
 
 .. _python_api_gis_create_spatial_index:
 
@@ -2537,3 +2539,4 @@ Creating a spatial index
 ------------------------
 
 .. automethod:: sqlite_utils.db.Table.create_spatial_index
+   :noindex:
