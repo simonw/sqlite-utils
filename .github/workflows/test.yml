@@ -33,7 +33,7 @@ jobs:
       if: matrix.numpy == 1
       run: pip install numpy
     - name: Install SpatiaLite
-      if: matrix.os == "ubuntu-latest"
+      if: matrix.os == 'ubuntu-latest'
       run: sudo apt-get install libsqlite3-mod-spatialite
     - name: Run tests
       run: |
