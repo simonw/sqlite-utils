@@ -1089,3 +1089,28 @@ def test_create_table_sql(fresh_db, columns, expected_sql_middle):
     sql = fresh_db.create_table_sql("t", columns)
     middle = sql.split("(")[1].split(")")[0].strip()
     assert middle == expected_sql_middle
+
+
+def test_create(fresh_db):
+    fresh_db["t"].create(
+        {
+            "id": int,
+            "text": str,
+            "float": float,
+            "integer": int,
+            "bytes": bytes,
+        },
+        pk="id",
+        column_order=("id", "float"),
+        not_null=("float", "integer"),
+        defaults={"integer": 0},
+    )
+    assert fresh_db["t"].schema == (
+        "CREATE TABLE [t] (\n"
+        "   [id] INTEGER PRIMARY KEY,\n"
+        "   [float] FLOAT NOT NULL,\n"
+        "   [text] TEXT,\n"
+        "   [integer] INTEGER NOT NULL DEFAULT 0,\n"
+        "   [bytes] BLOB\n"
+        ")"
+    )
