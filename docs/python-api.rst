@@ -1672,28 +1672,21 @@ A more useful example: if you are working with `SpatiaLite <https://www.gaia-gis
     import sqlite3
     import sqlite_utils
     from shapely.geometry import shape
-    import requests
+    import httpx
 
-    # Open a database and load the SpatiaLite extension:
-    import sqlite3
+    db = sqlite_utils.Database("places.db")
+    # Initialize SpatiaLite
+    db.init_spatialite()
+    # Use sqlite-utils to create a places table
+    places = db["places"].create({"id": int, "name": str})
 
-    conn = sqlite3.connect("places.db")
-    conn.enable_load_extension(True)
-    conn.load_extension("/usr/local/lib/mod_spatialite.dylib")
-
-    # Use sqlite-utils to create a places table:
-    db = sqlite_utils.Database(conn)
-    places = db["places"].create({"id": int, "name": str,})
-
-    # Add a SpatiaLite 'geometry' column:
-    db.execute("select InitSpatialMetadata(1)")
-    db.execute(
-        "SELECT AddGeometryColumn('places', 'geometry', 4326, 'MULTIPOLYGON', 2);"
-    )
+    # Add a SpatiaLite 'geometry' column
+    places.add_geometry_column("geometry", "MULTIPOLYGON")
 
     # Fetch some GeoJSON from Who's On First:
-    geojson = requests.get(
-        "https://data.whosonfirst.org/404/227/475/404227475.geojson"
+    geojson = httpx.get(
+        "https://raw.githubusercontent.com/whosonfirst-data/"
+        "whosonfirst-data-admin-gb/master/data/404/227/475/404227475.geojson"
     ).json()
 
     # Convert to "Well Known Text" format using shapely
@@ -1704,6 +1697,8 @@ A more useful example: if you are working with `SpatiaLite <https://www.gaia-gis
         {"name": "Wales", "geometry": wkt},
         conversions={"geometry": "GeomFromText(?, 4326)"},
     )
+
+This example uses gographical data from [Who's On First](https://whosonfirst.org/) and depends on the [Shapely](https://shapely.readthedocs.io/en/stable/manual.html) and [HTTPX](https://www.python-httpx.org/) Python libraries.
 
 .. _python_api_introspection:
 
