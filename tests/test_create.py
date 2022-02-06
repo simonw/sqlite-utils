@@ -1114,3 +1114,12 @@ def test_create(fresh_db):
         "   [bytes] BLOB\n"
         ")"
     )
+
+
+def test_create_if_not_exists(fresh_db):
+    fresh_db["t"].create({"id": int})
+    # This should error
+    with pytest.raises(sqlite3.OperationalError):
+        fresh_db["t"].create({"id": int})
+    # This should not
+    fresh_db["t"].create({"id": int}, if_not_exists=True)

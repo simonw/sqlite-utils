@@ -522,7 +522,9 @@ This will create a table with the following schema:
 Explicitly creating a table
 ---------------------------
 
-You can directly create a new table without inserting any data into it using the ``.create()`` method::
+You can directly create a new table without inserting any data into it using the ``.create()`` method:
+
+.. code-block:: python
 
     db["cats"].create({
         "id": int,
@@ -533,6 +535,17 @@ You can directly create a new table without inserting any data into it using the
 The first argument here is a dictionary specifying the columns you would like to create. Each column is paired with a Python type indicating the type of column. See :ref:`python_api_add_column` for full details on how these types work.
 
 This method takes optional arguments ``pk=``, ``column_order=``, ``foreign_keys=``, ``not_null=set()`` and ``defaults=dict()`` - explained below.
+
+A ``sqlite_utils.utils.sqlite3.OperationalError`` will be raised if a table of that name already exists.
+
+To do nothing if the table already exists, add ``if_not_exists=True``:
+
+.. code-block:: python
+
+    db["cats"].create({
+        "id": int,
+        "name": str,
+    }, pk="id", if_not_exists=True)
 
 .. _python_api_compound_primary_keys:
 

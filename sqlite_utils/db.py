@@ -658,6 +658,7 @@ class Database:
         defaults: Optional[Dict[str, Any]] = None,
         hash_id: Optional[str] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
+        if_not_exists: bool = False,
     ) -> str:
         "Returns the SQL ``CREATE TABLE`` statement for creating the specified table."
         foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
@@ -748,11 +749,14 @@ class Database:
                 pks=", ".join(["[{}]".format(p) for p in pk])
             )
         columns_sql = ",\n".join(column_defs)
-        sql = """CREATE TABLE [{table}] (
+        sql = """CREATE TABLE {if_not_exists}[{table}] (
 {columns_sql}{extra_pk}
 );
         """.format(
-            table=name, columns_sql=columns_sql, extra_pk=extra_pk
+            if_not_exists="IF NOT EXISTS " if if_not_exists else "",
+            table=name,
+            columns_sql=columns_sql,
+            extra_pk=extra_pk,
         )
         return sql
 
@@ -767,6 +771,7 @@ class Database:
         defaults: Optional[Dict[str, Any]] = None,
         hash_id: Optional[str] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
+        if_not_exists: bool = False,
     ) -> "Table":
         """
         Create a table with the specified name and the specified ``{column_name: type}`` columns.
@@ -783,6 +788,7 @@ class Database:
             defaults=defaults,
             hash_id=hash_id,
             extracts=extracts,
+            if_not_exists=if_not_exists,
         )
         self.execute(sql)
         table = self.table(
@@ -1300,6 +1306,7 @@ class Table(Queryable):
         defaults: Optional[Dict[str, Any]] = None,
         hash_id: Optional[str] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
+        if_not_exists: bool = False,
     ) -> "Table":
         """
         Create a table with the specified columns.
@@ -1318,6 +1325,7 @@ class Table(Queryable):
                 defaults=defaults,
                 hash_id=hash_id,
                 extracts=extracts,
+                if_not_exists=if_not_exists,
             )
         return self
 
