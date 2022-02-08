@@ -1507,6 +1507,43 @@ If you want to see the SQL that will be executed to make the change without actu
     DROP TABLE [roadside_attractions];
     ALTER TABLE [roadside_attractions_new_4033a60276b9] RENAME TO [roadside_attractions];
 
+.. _cli_transform_table_add_primary_key_to_rowid:
+
+Adding a primary key to a rowid table
+-------------------------------------
+
+SQLite tables that are created without an explicit primary key are created as `rowid tables <https://www.sqlite.org/rowidtable.html>`__. They still have a numeric primary key which is available in the ``rowid`` column, but that column is not included in the output of ``select *``. Here's an example::
+
+    % echo '[{"name": "Azi"}, {"name": "Suna"}]' | \
+        sqlite-utils insert chickens.db chickens -
+    % sqlite-utils schema chickens.db
+    CREATE TABLE [chickens] (
+       [name] TEXT
+    );
+    % sqlite-utils chickens.db 'select * from chickens'
+    [{"name": "Azi"},
+     {"name": "Suna"}]
+    % sqlite-utils chickens.db 'select rowid, * from chickens'
+    [{"rowid": 1, "name": "Azi"},
+     {"rowid": 2, "name": "Suna"}]
+
+You can use ``sqlite-utils transform ... --pk id`` to add a primary key column called ``id`` to the table. The primary key will be created as an ``INTEGER PRIMARY KEY`` and the existing ``rowid`` values will be copied across to it. It will automatically increment as new rows are added to the table::
+
+    % sqlite-utils transform chickens.db chickens --pk id
+    % sqlite-utils schema chickens.db
+    CREATE TABLE "chickens" (
+       [id] INTEGER PRIMARY KEY,
+       [name] TEXT
+    );
+    % sqlite-utils chickens.db 'select * from chickens'
+    [{"id": 1, "name": "Azi"},
+     {"id": 2, "name": "Suna"}]
+    % echo '{"name": "Cardi"}' | sqlite-utils insert chickens.db chickens -
+    % sqlite-utils chickens.db 'select * from chickens'
+    [{"id": 1, "name": "Azi"},
+     {"id": 2, "name": "Suna"},
+     {"id": 3, "name": "Cardi"}]
+
 .. _cli_extract:
 
 Extracting columns into a separate table
