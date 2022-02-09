@@ -22,7 +22,9 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
     refs = {
         "query": "cli_query",
         "memory": "cli_memory",
-        "insert": ["cli_inserting_data", "cli_insert_csv_tsv"],
+        "insert": [
+            "cli_inserting_data", "cli_insert_csv_tsv", "cli_insert_unstructured", "cli_insert_convert"
+        ],
         "upsert": "cli_upsert",
         "tables": "cli_tables",
         "views": "cli_views",
@@ -182,7 +184,7 @@ See :ref:`cli_memory`.
 insert
 ======
 
-See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`.
+See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstructured`, :ref:`cli_insert_convert`.
 
 ::
 
@@ -221,6 +223,12 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`.
 
       If you are using --lines your code will be passed a "line" variable, and for
       --text a "text" variable.
+
+      When using --text your function can return an iterator of rows to insert. This
+      example inserts one record per word in the input:
+
+          echo 'A bunch of words' | sqlite-utils insert words.db words - \
+            --text --convert '({"word": w} for w in text.split())'
 
     Options:
       --pk TEXT                 Columns to use as the primary key, e.g. id

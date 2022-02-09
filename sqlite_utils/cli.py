@@ -1158,6 +1158,13 @@ def insert(
 
     If you are using --lines your code will be passed a "line" variable,
     and for --text a "text" variable.
+
+    When using --text your function can return an iterator of rows to
+    insert. This example inserts one record per word in the input:
+
+    \b
+        echo 'A bunch of words' | sqlite-utils insert words.db words - \\
+          --text --convert '({"word": w} for w in text.split())'
     """
     try:
         insert_upsert_implementation(
