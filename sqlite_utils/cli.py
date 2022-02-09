@@ -1157,7 +1157,7 @@ def insert(
           }'
 
     If you are using --lines your code will be passed a "line" variable,
-    and for --text an "text" variable.
+    and for --text a "text" variable.
     """
     try:
         insert_upsert_implementation(

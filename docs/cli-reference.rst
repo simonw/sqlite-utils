@@ -220,7 +220,7 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`.
             }'
 
       If you are using --lines your code will be passed a "line" variable, and for
-      --text an "text" variable.
+      --text a "text" variable.
 
     Options:
       --pk TEXT                 Columns to use as the primary key, e.g. id
