@@ -1144,6 +1144,18 @@ def insert(
     Your Python code will be passed a "row" variable representing the
     imported row, and can return a modified row.
 
+    This example uses just the name, latitude and longitude columns from
+    a CSV file, converting name to upper case and latitude and longitude
+    to floating point numbers:
+
+    \b
+        sqlite-utils insert plants.db plants plants.csv --csv --convert '
+          return {
+            "name": row["name"].upper(),
+            "latitude": float(row["latitude"]),
+            "longitude": float(row["longitude"]),
+          }'
+
     If you are using --lines your code will be passed a "line" variable,
     and for --text an "text" variable.
     """
