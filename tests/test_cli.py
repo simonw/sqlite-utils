@@ -792,34 +792,6 @@ def test_query_raw(db_path, content, is_binary):
         assert result.output == str(content)
 
 
-@pytest.mark.skipif(not find_spatialite(), reason="Could not find SpatiaLite extension")
-@pytest.mark.skipif(
-    not hasattr(sqlite3.Connection, "enable_load_extension"),
-    reason="sqlite3.Connection missing enable_load_extension",
-)
-@pytest.mark.parametrize("use_spatialite_shortcut", [True, False])
-def test_query_load_extension(use_spatialite_shortcut):
-    # Without --load-extension:
-    result = CliRunner().invoke(cli.cli, [":memory:", "select spatialite_version()"])
-    assert result.exit_code == 1
-    assert "no such function: spatialite_version" in result.output
-    # With --load-extension:
-    if use_spatialite_shortcut:
-        load_extension = "spatialite"
-    else:
-        load_extension = find_spatialite()
-    result = CliRunner().invoke(
-        cli.cli,
-        [
-            ":memory:",
-            "select spatialite_version()",
-            "--load-extension={}".format(load_extension),
-        ],
-    )
-    assert result.exit_code == 0, result.stdout
-    assert ["spatialite_version()"] == list(json.loads(result.output)[0].keys())
-
-
 def test_query_memory_does_not_create_file(tmpdir):
     owd = os.getcwd()
     try:
