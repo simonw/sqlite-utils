@@ -2810,7 +2810,7 @@ def create_spatial_index(db_path, table, column_name, load_extension):
         raise click.ClickException(
             "You must add a geometry column before creating a spatial index"
         )
-    
+
     db[table].create_spatial_index(column_name)
 
 

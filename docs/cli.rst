@@ -1988,13 +1988,26 @@ Since `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ is com
 SpatiaLite helpers
 ==================
 
-`SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/home>`_ adds geographic capability to SQLite (similar to how PostGIS builds on PostgreSQL).
+`SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/home>`_ adds geographic capability to SQLite (similar to how PostGIS builds on PostgreSQL). The `SpatiaLite cookbook <http://www.gaia-gis.it/gaia-sins/spatialite-cookbook-5/index.html>`_ is a good resource for learning what's possible with it.
 
-To add a geometry column to an existing table, use the `sqlite-utils add-geometry-column` command::
+You can convert an existing table to a geographic table by adding a geometry column, use the `sqlite-utils add-geometry-column` command::
 
     $ sqlite-utils add-geometry-column spatial.db locations geometry --type POLYGON --srid 4326
 
 The table (``locations`` in the example above) must already exist before adding a geometry column. Use ``sqlite-utils create-table`` first, then ``add-geometry-column``.
+
+Use the ``--type`` option to specify a geometry type. By default, ``add-geometry-column`` uses a generic ``GEOMETRY``, which will work with any type, though it may not be supported by some desktop GIS applications. 
+
+Eight (case-insensitive) types are allowed:
+
+ * POINT
+ * LINESTRING
+ * POLYGON
+ * MULTIPOINT
+ * MULTILINESTRING
+ * MULTIPOLYGON
+ * GEOMETRYCOLLECTION
+ * GEOMETRY
 
 Once you have a geometry column, you can speed up bounding box queries by adding a spatial index::
 

@@ -2,10 +2,9 @@ import json
 import pytest
 
 from click.testing import CliRunner
-from sqlite_utils.utils import find_spatialite
 from sqlite_utils.cli import cli
 from sqlite_utils.db import Database
-from sqlite_utils.utils import sqlite3
+from sqlite_utils.utils import find_spatialite, sqlite3
 
 pytestmark = [
     pytest.mark.skipif(
@@ -231,5 +230,7 @@ def test_cli_create_spatial_index(tmpdir):
     result = CliRunner().invoke(
         cli, ["create-spatial-index", str(db_path), table.name, "geometry"]
     )
+
+    assert 0 == result.exit_code
 
     assert "idx_locations_geometry" in db.table_names()

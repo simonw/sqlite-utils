@@ -7,7 +7,6 @@ from unittest import mock
 import json
 import os
 import pytest
-from sqlite_utils.utils import sqlite3, find_spatialite
 import textwrap
 
 from .utils import collapse_whitespace
