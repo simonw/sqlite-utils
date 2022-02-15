@@ -1379,13 +1379,13 @@ def create_database(path, enable_wal, init_spatialite, load_extension):
     if enable_wal:
         db.enable_wal()
 
-    # load spatialite from expected locations
-    if init_spatialite:
-        db.init_spatialite()
-
     # load spatialite or another extension from a custom location
     if load_extension:
         _load_extensions(db, load_extension)
+
+    # load spatialite from expected locations and initialize metadata
+    if init_spatialite:
+        db.init_spatialite()
 
     db.vacuum()
 
