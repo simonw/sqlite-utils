@@ -2714,13 +2714,7 @@ def convert(
             )
 
 
-@cli.command(
-    "add-geometry-column",
-    help="""Add a SpatiaLite geometry column to an existing table. Requires SpatiaLite extension.
-\n\n
-By default, this command will try to load the SpatiaLite extension from usual paths.
-To load it from a specific path, use --load-extension.""",
-)
+@cli.command("add-geometry-column")
 @click.argument(
     "db_path",
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
@@ -2775,6 +2769,10 @@ def add_geometry_column(
     not_null,
     load_extension,
 ):
+    """Add a SpatiaLite geometry column to an existing table. Requires SpatiaLite extension.
+    \n\n
+    By default, this command will try to load the SpatiaLite extension from usual paths.
+    To load it from a specific path, use --load-extension."""
     db = sqlite_utils.Database(db_path)
     if not db[table].exists():
         raise click.ClickException(
@@ -2792,14 +2790,7 @@ def add_geometry_column(
         click.echo(f"Added {geometry_type} column {column_name} to {table}")
 
 
-@cli.command(
-    "create-spatial-index",
-    help="""Create a spatial index on a SpatiaLite geometry column.
-The table and geometry column must already exist before trying to add a spatial index.
-\n\n
-By default, this command will try to load the SpatiaLite extension from usual paths.
-To load it from a specific path, use --load-extension.""",
-)
+@cli.command("create-spatial-index")
 @click.argument(
     "db_path",
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
@@ -2809,6 +2800,11 @@ To load it from a specific path, use --load-extension.""",
 @click.argument("column_name", type=str)
 @load_extension_option
 def create_spatial_index(db_path, table, column_name, load_extension):
+    """Create a spatial index on a SpatiaLite geometry column.
+    The table and geometry column must already exist before trying to add a spatial index.
+    \n\n
+    By default, this command will try to load the SpatiaLite extension from usual paths.
+    To load it from a specific path, use --load-extension."""
     db = sqlite_utils.Database(db_path)
     if not db[table].exists():
         raise click.ClickException(
