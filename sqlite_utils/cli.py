@@ -2746,10 +2746,24 @@ To load it from a specific path, use --load-extension.""",
         case_sensitive=False,
     ),
     default="GEOMETRY",
+    help="Specify a geometry type for this column.",
+    show_default=True,
 )
-@click.option("--srid", type=int, default=4326)
-@click.option("--dimensions", "coord_dimension", type=str, default="XY")
-@click.option("--not-null", "not_null", is_flag=True)
+@click.option(
+    "--srid",
+    type=int,
+    default=4326,
+    show_default=True,
+    help="Spatial Reference ID. See https://spatialreference.org for details on specific projections.",
+)
+@click.option(
+    "--dimensions",
+    "coord_dimension",
+    type=str,
+    default="XY",
+    help="Coordinate dimensions. Use XYZ for three-dimensional geometries.",
+)
+@click.option("--not-null", "not_null", is_flag=True, help="Add a NOT NULL constraint.")
 @load_extension_option
 def add_geometry_column(
     db_path,
