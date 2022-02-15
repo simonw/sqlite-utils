@@ -724,6 +724,14 @@ To enable :ref:`cli_wal` on the newly created database add the ``--enable-wal`` 
 
     $ sqlite-utils create-database empty.db --enable-wal
 
+To enable SpatiaLite metadata on a newly created database, add the ``--init-spatialite`` flag::
+
+    $ sqlite-utils create-database empty.db --init-spatialite
+
+That will look for SpatiaLite in a set of predictable locations. To load it from somewhere else, use the ``--load-extension`` option::
+
+    $ sqlite-utils create-database empty.db --init-spatialite --load-extension /path/to/spatialite.so
+
 .. _cli_inserting_data:
 
 Inserting JSON data
@@ -1975,3 +1983,21 @@ Since `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ is com
 
     $ sqlite-utils memory "select spatialite_version()" --load-extension=spatialite
     [{"spatialite_version()": "4.3.0a"}]
+
+
+SpatiaLite helpers
+==================
+
+`SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/home>`_ adds geographic capability to SQLite (similar to how PostGIS builds on PostgreSQL).
+
+To add a geometry column to an existing table, use the `sqlite-utils add-geometry-column` command::
+
+    $ sqlite-utils add-geometry-column spatial.db locations geometry --type POLYGON --srid 4326
+
+The table (``locations`` in the example above) must already exist before adding a geometry column. Use ``sqlite-utils create-table`` first, then ``add-geometry-column``.
+
+Once you have a geometry column, you can speed up bounding box queries by adding a spatial index::
+
+    $ sqlite-utils create-spatial-index spatial.db locations geometry
+
+See the `SpatiaLite Cookbook <http://www.gaia-gis.it/gaia-sins/spatialite-cookbook-5/cookbook_topics.03.html#topic_Wonderful_RTree_Spatial_Index>`_ for examples of how to use a spatial index.
