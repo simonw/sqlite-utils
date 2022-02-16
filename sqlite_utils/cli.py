@@ -1363,7 +1363,11 @@ def bulk(
 @click.option(
     "--enable-wal", is_flag=True, help="Enable WAL mode on the created database"
 )
-def create_database(path, enable_wal):
+@click.option(
+    "--init-spatialite", is_flag=True, help="Enable SpatiaLite on the created database"
+)
+@load_extension_option
+def create_database(path, enable_wal, init_spatialite, load_extension):
     """Create a new empty database file
 
     Example:
@@ -1374,6 +1378,15 @@ def create_database(path, enable_wal):
     db = sqlite_utils.Database(path)
     if enable_wal:
         db.enable_wal()
+
+    # load spatialite or another extension from a custom location
+    if load_extension:
+        _load_extensions(db, load_extension)
+
+    # load spatialite from expected locations and initialize metadata
+    if init_spatialite:
+        db.init_spatialite()
+
     db.vacuum()
 
 
@@ -2544,7 +2557,7 @@ def _analyze(db, tables, columns, save):
                     total=len(todo),
                     most_common_rendered=most_common_rendered,
                     least_common_rendered=least_common_rendered,
-                    **column_details._asdict()
+                    **column_details._asdict(),
                 )
             )
             + "\n"
@@ -2699,6 +2712,116 @@ def convert(
                     repr(e.values)
                 )
             )
+
+
+@cli.command("add-geometry-column")
+@click.argument(
+    "db_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table", type=str)
+@click.argument("column_name", type=str)
+@click.option(
+    "-t",
+    "--type",
+    "geometry_type",
+    type=click.Choice(
+        [
+            "POINT",
+            "LINESTRING",
+            "POLYGON",
+            "MULTIPOINT",
+            "MULTILINESTRING",
+            "MULTIPOLYGON",
+            "GEOMETRYCOLLECTION",
+            "GEOMETRY",
+        ],
+        case_sensitive=False,
+    ),
+    default="GEOMETRY",
+    help="Specify a geometry type for this column.",
+    show_default=True,
+)
+@click.option(
+    "--srid",
+    type=int,
+    default=4326,
+    show_default=True,
+    help="Spatial Reference ID. See https://spatialreference.org for details on specific projections.",
+)
+@click.option(
+    "--dimensions",
+    "coord_dimension",
+    type=str,
+    default="XY",
+    help="Coordinate dimensions. Use XYZ for three-dimensional geometries.",
+)
+@click.option("--not-null", "not_null", is_flag=True, help="Add a NOT NULL constraint.")
+@load_extension_option
+def add_geometry_column(
+    db_path,
+    table,
+    column_name,
+    geometry_type,
+    srid,
+    coord_dimension,
+    not_null,
+    load_extension,
+):
+    """Add a SpatiaLite geometry column to an existing table. Requires SpatiaLite extension.
+    \n\n
+    By default, this command will try to load the SpatiaLite extension from usual paths.
+    To load it from a specific path, use --load-extension."""
+    db = sqlite_utils.Database(db_path)
+    if not db[table].exists():
+        raise click.ClickException(
+            "You must create a table before adding a geometry column"
+        )
+
+    # load spatialite, one way or another
+    if load_extension:
+        _load_extensions(db, load_extension)
+    db.init_spatialite()
+
+    if db[table].add_geometry_column(
+        column_name, geometry_type, srid, coord_dimension, not_null
+    ):
+        click.echo(f"Added {geometry_type} column {column_name} to {table}")
+
+
+@cli.command("create-spatial-index")
+@click.argument(
+    "db_path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table", type=str)
+@click.argument("column_name", type=str)
+@load_extension_option
+def create_spatial_index(db_path, table, column_name, load_extension):
+    """Create a spatial index on a SpatiaLite geometry column.
+    The table and geometry column must already exist before trying to add a spatial index.
+    \n\n
+    By default, this command will try to load the SpatiaLite extension from usual paths.
+    To load it from a specific path, use --load-extension."""
+    db = sqlite_utils.Database(db_path)
+    if not db[table].exists():
+        raise click.ClickException(
+            "You must create a table and add a geometry column before creating a spatial index"
+        )
+
+    # load spatialite
+    if load_extension:
+        _load_extensions(db, load_extension)
+    db.init_spatialite()
+
+    if column_name not in db[table].columns_dict:
+        raise click.ClickException(
+            "You must add a geometry column before creating a spatial index"
+        )
+
+    db[table].create_spatial_index(column_name)
 
 
 def _render_common(title, values):

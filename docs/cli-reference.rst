@@ -772,8 +772,10 @@ See :ref:`cli_create_database`.
           sqlite-utils create-database trees.db
 
     Options:
-      --enable-wal  Enable WAL mode on the created database
-      -h, --help    Show this message and exit.
+      --enable-wal           Enable WAL mode on the created database
+      --init-spatialite      Enable SpatiaLite on the created database
+      --load-extension TEXT  SQLite extensions to load
+      -h, --help             Show this message and exit.
 
 
 create-table
@@ -1222,6 +1224,51 @@ See :ref:`cli_drop_view`.
 
     Options:
       --ignore
+      --load-extension TEXT  SQLite extensions to load
+      -h, --help             Show this message and exit.
+
+
+add-geometry-column
+===================
+
+::
+
+    Usage: sqlite-utils add-geometry-column [OPTIONS] DB_PATH TABLE COLUMN_NAME
+
+      Add a SpatiaLite geometry column to an existing table. Requires SpatiaLite
+      extension.
+
+      By default, this command will try to load the SpatiaLite extension from usual
+      paths. To load it from a specific path, use --load-extension.
+
+    Options:
+      -t, --type [POINT|LINESTRING|POLYGON|MULTIPOINT|MULTILINESTRING|MULTIPOLYGON|GEOMETRYCOLLECTION|GEOMETRY]
+                                      Specify a geometry type for this column.
+                                      [default: GEOMETRY]
+      --srid INTEGER                  Spatial Reference ID. See
+                                      https://spatialreference.org for details on
+                                      specific projections.  [default: 4326]
+      --dimensions TEXT               Coordinate dimensions. Use XYZ for three-
+                                      dimensional geometries.
+      --not-null                      Add a NOT NULL constraint.
+      --load-extension TEXT           SQLite extensions to load
+      -h, --help                      Show this message and exit.
+
+
+create-spatial-index
+====================
+
+::
+
+    Usage: sqlite-utils create-spatial-index [OPTIONS] DB_PATH TABLE COLUMN_NAME
+
+      Create a spatial index on a SpatiaLite geometry column. The table and geometry
+      column must already exist before trying to add a spatial index.
+
+      By default, this command will try to load the SpatiaLite extension from usual
+      paths. To load it from a specific path, use --load-extension.
+
+    Options:
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
