@@ -1989,7 +1989,7 @@ Since `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ is com
 SpatiaLite helpers
 ==================
 
-`SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/home>`_ adds geographic capability to SQLite (similar to how PostGIS builds on PostgreSQL). The `SpatiaLite cookbook <http://www.gaia-gis.it/gaia-sins/spatialite-cookbook-5/index.html>`_ is a good resource for learning what's possible with it.
+`SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/home>`_ adds geographic capability to SQLite (similar to how PostGIS builds on PostgreSQL). The `SpatiaLite cookbook <http://www.gaia-gis.it/gaia-sins/spatialite-cookbook-5/index.html>`__ is a good resource for learning what's possible with it.
 
 You can convert an existing table to a geographic table by adding a geometry column, use the ``sqlite-utils add-geometry-column`` command::
 
@@ -2019,4 +2019,4 @@ Once you have a geometry column, you can speed up bounding box queries by adding
 
     $ sqlite-utils create-spatial-index spatial.db locations geometry
 
-See the `SpatiaLite Cookbook <http://www.gaia-gis.it/gaia-sins/spatialite-cookbook-5/cookbook_topics.03.html#topic_Wonderful_RTree_Spatial_Index>`_ for examples of how to use a spatial index.
+See this `SpatiaLite Cookbook recipe <http://www.gaia-gis.it/gaia-sins/spatialite-cookbook-5/cookbook_topics.03.html#topic_Wonderful_RTree_Spatial_Index>`__ for examples of how to use a spatial index.
