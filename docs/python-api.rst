@@ -98,6 +98,12 @@ If you want to create an in-memory database, you can do so like this:
 
     db = Database(memory=True)
 
+You can also create a named in-memory database. Unlike regular memory databases these can be accessed by multiple threads, provided at least one reference to the database still exists. `del db` will clear the database from memory.
+
+.. code-block:: python
+
+    db = Database(memory_name="my_shared_database")
+
 Connections use ``PRAGMA recursive_triggers=on`` by default. If you don't want to use `recursive triggers <https://www.sqlite.org/pragma.html#pragma_recursive_triggers>`__ you can turn them off using:
 
 .. code-block:: python

@@ -278,6 +278,7 @@ class Database:
     - ``filename_or_conn`` - String path to a file, or a ``pathlib.Path`` object, or a
       ``sqlite3`` connection
     - ``memory`` - set to ``True`` to create an in-memory database
+    - ``memory_name`` - creates a named in-memory database that can be shared across multiple connections.
     - ``recreate`` - set to ``True`` to delete and recreate a file database (**dangerous**)
     - ``recursive_triggers`` - defaults to ``True``, which sets ``PRAGMA recursive_triggers=on;`` -
       set to ``False`` to avoid setting this pragma
@@ -294,15 +295,23 @@ class Database:
         self,
         filename_or_conn: Union[str, pathlib.Path, sqlite3.Connection] = None,
         memory: bool = False,
+        memory_name: str = None,
         recreate: bool = False,
         recursive_triggers: bool = True,
         tracer: Callable = None,
         use_counts_table: bool = False,
     ):
-        assert (filename_or_conn is not None and not memory) or (
-            filename_or_conn is None and memory
+        assert (filename_or_conn is not None and (not memory and not memory_name)) or (
+            filename_or_conn is None and (memory or memory_name)
         ), "Either specify a filename_or_conn or pass memory=True"
-        if memory or filename_or_conn == ":memory:":
+        if memory_name:
+            uri = "file:{}?mode=memory&cache=shared".format(memory_name)
+            self.conn = sqlite3.connect(
+                uri,
+                uri=True,
+                check_same_thread=False,
+            )
+        elif memory or filename_or_conn == ":memory:":
             self.conn = sqlite3.connect(":memory:")
         elif isinstance(filename_or_conn, (str, pathlib.Path)):
             if recreate and os.path.exists(filename_or_conn):
