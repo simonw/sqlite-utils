@@ -2,6 +2,21 @@
  Changelog
 ===========
 
+.. _v3_24:
+
+3.24 (2022-02-15)
+-----------------
+
+- SpatiaLite helpers for the ``sqlite-utils`` command-line tool - thanks, Chris Amico. (:issue:`398`)
+
+  - :ref:`sqlite-utils create-database <cli_create_database>` ``--init-spatialite`` option for initializing SpatiaLite on a newly created database.
+  - :ref:`sqlite-utils add-geometry-column <cli_spatialite>` command for adding geometry columns.
+  - :ref:`sqlite-utils create-spatial-index <cli_spatialite_indexes>` command for adding spatial indexes.
+
+- ``db[table].create(..., if_not_exists=True)`` option for :ref:`creating a table <python_api_explicit_create>` only if it does not already exist. (:issue:`397`)
+- ``Database(memory_name="my_shared_database")`` parameter for creating a :ref:`named in-memory database <python_api_connect>` that can be shared between multiple connections. (:issue:`405`)
+- Documentation now describes :ref:`how to add a primary key to a rowid table <cli_transform_table_add_primary_key_to_rowid>` using ``sqlite-utils transform``. (:issue:`403`)
+
 .. _v3_23:
 
 3.23 (2022-02-03)
