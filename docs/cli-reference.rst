@@ -56,6 +56,8 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         "insert-files": "cli_insert_files",
         "analyze-tables": "cli_analyze_tables",
         "convert": "cli_convert",
+        "add-geometry-column": "cli_spatialite",
+        "create-spatial-index": "cli_spatialite_indexes",
     }
     commands.sort(key = lambda command: go_first.index(command) if command in go_first else 999)
     cog.out("\n")
@@ -1231,6 +1233,8 @@ See :ref:`cli_drop_view`.
 add-geometry-column
 ===================
 
+See :ref:`cli_spatialite`.
+
 ::
 
     Usage: sqlite-utils add-geometry-column [OPTIONS] DB_PATH TABLE COLUMN_NAME
@@ -1257,6 +1261,8 @@ add-geometry-column
 
 create-spatial-index
 ====================
+
+See :ref:`cli_spatialite_indexes`.
 
 ::
 
