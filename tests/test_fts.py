@@ -269,7 +269,7 @@ def test_rebuild_fts(fresh_db):
     }.items() <= rows[0].items()
     # Insert another record
     table.insert(search_records[1])
-    # This should NOT show up in a searchs
+    # This should NOT show up in searches
     assert len(list(table.search("are"))) == 1
     # Running rebuild_fts() should fix it
     table.rebuild_fts()

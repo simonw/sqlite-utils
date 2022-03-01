@@ -1218,7 +1218,7 @@ def test_drop_table_error():
         )
         assert 1 == result.exit_code
         assert 'Error: Table "t2" does not exist' == result.output.strip()
-        # Using --ignore supresses that error
+        # Using --ignore suppresses that error
         result = runner.invoke(
             cli.cli,
             ["drop-table", "test.db", "t2", "--ignore"],
@@ -1259,7 +1259,7 @@ def test_drop_view_error():
         )
         assert 1 == result.exit_code
         assert 'Error: View "t2" does not exist' == result.output.strip()
-        # Using --ignore supresses that error
+        # Using --ignore suppresses that error
         result = runner.invoke(
             cli.cli,
             ["drop-view", "test.db", "t2", "--ignore"],
@@ -2014,7 +2014,7 @@ def test_insert_detect_types(tmpdir, option_or_env_var):
         ]
 
     if option_or_env_var is None:
-        # Use environemnt variable instead of option
+        # Use environment variable instead of option
         with mock.patch.dict(os.environ, {"SQLITE_UTILS_DETECT_TYPES": "1"}):
             _test()
     else:
