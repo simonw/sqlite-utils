@@ -2,6 +2,16 @@
  Changelog
 ===========
 
+.. _v3_25:
+
+3.25 (2022-03-01)
+-----------------
+
+- New ``hash_id_columns=`` parameter for creating a primary key that's a hash of the content of specific columns - see :ref:`python_api_hash` for details. (:issue:`343`)
+- New :ref:`db.sqlite_version <python_api_sqlite_version>` property, returning a tuple of integers representing the version of SQLite, for example ``(3, 38, 0)``.
+- Fixed a bug where :ref:`register_function(deterministic=True) <python_api_register_function>` caused errors on versions of SQLite prior to 3.8.3. (:issue:`408`)
+- New documented :ref:`hash_record(record, keys=...) <reference_utils_hash_record>` function.
+
 .. _v3_24:
 
 3.24 (2022-02-15)
