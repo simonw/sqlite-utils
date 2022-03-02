@@ -2597,7 +2597,7 @@ class Table(Queryable):
         not_null: Optional[Union[Set[str], Default]] = DEFAULT,
         defaults: Optional[Union[Dict[str, Any], Default]] = DEFAULT,
         hash_id: Optional[Union[str, Default]] = DEFAULT,
-        hash_id_columns: Optional[Iterable[str]] = DEFAULT,
+        hash_id_columns: Optional[Union[Iterable[str], Default]] = DEFAULT,
         alter: Optional[Union[bool, Default]] = DEFAULT,
         ignore: Optional[Union[bool, Default]] = DEFAULT,
         replace: Optional[Union[bool, Default]] = DEFAULT,
