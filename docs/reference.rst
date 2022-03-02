@@ -68,3 +68,13 @@ sqlite_utils.db.ColumnDetails
 -----------------------------
 
 .. autoclass:: sqlite_utils.db.ColumnDetails
+
+sqlite_utils.utils
+==================
+
+.. _reference_utils_hash_record:
+
+sqlite_utils.utils.hash_record
+------------------------------
+
+.. autofunction:: sqlite_utils.utils.hash_record

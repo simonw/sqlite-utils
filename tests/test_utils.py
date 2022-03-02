@@ -35,3 +35,17 @@ def test_chunks(size, expected):
     input = ["a", "b", "c", "d"]
     chunks = list(map(list, utils.chunks(input, size)))
     assert chunks == expected
+
+
+def test_hash_record():
+    expected = "d383e7c0ba88f5ffcdd09be660de164b3847401a"
+    assert utils.hash_record({"name": "Cleo", "twitter": "CleoPaws"}) == expected
+    assert (
+        utils.hash_record(
+            {"name": "Cleo", "twitter": "CleoPaws", "age": 7}, keys=("name", "twitter")
+        )
+        == expected
+    )
+    assert (
+        utils.hash_record({"name": "Cleo", "twitter": "CleoPaws", "age": 7}) != expected
+    )

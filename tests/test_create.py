@@ -9,7 +9,7 @@ from sqlite_utils.db import (
     Table,
     View,
 )
-from sqlite_utils.utils import sqlite3
+from sqlite_utils.utils import hash_record, sqlite3
 import collections
 import datetime
 import decimal
@@ -886,6 +886,32 @@ def test_insert_hash_id(fresh_db):
     ).last_pk
     assert "f501265970505d9825d8d9f590bfab3519fb20b1" == id2
     assert 1 == dogs.count
+
+
+@pytest.mark.parametrize("use_table_factory", [True, False])
+def test_insert_hash_id_columns(fresh_db, use_table_factory):
+    if use_table_factory:
+        dogs = fresh_db.table("dogs", hash_id_columns=("name", "twitter"))
+        insert_kwargs = {}
+    else:
+        dogs = fresh_db["dogs"]
+        insert_kwargs = dict(hash_id_columns=("name", "twitter"))
+
+    id = dogs.insert(
+        {"name": "Cleo", "twitter": "cleopaws", "age": 5},
+        **insert_kwargs,
+    ).last_pk
+    expected_hash = hash_record({"name": "Cleo", "twitter": "cleopaws"})
+    assert id == expected_hash
+    assert dogs.count == 1
+    # Insert replacing a second time should not create a new row
+    id2 = dogs.insert(
+        {"name": "Cleo", "twitter": "cleopaws", "age": 6},
+        **insert_kwargs,
+        replace=True,
+    ).last_pk
+    assert id2 == expected_hash
+    assert dogs.count == 1
 
 
 def test_vacuum(fresh_db):

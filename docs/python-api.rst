@@ -633,7 +633,7 @@ You can set default values for these methods by accessing the table through the 
     # Now you can call .insert() like so:
     table.insert({"id": 1, "name": "Tracy", "score": 5})
 
-The configuration options that can be specified in this way are ``pk``, ``foreign_keys``, ``column_order``, ``not_null``, ``defaults``, ``batch_size``, ``hash_id``, ``alter``, ``ignore``, ``replace``, ``extracts``, ``conversions``, ``columns``. These are all documented below.
+The configuration options that can be specified in this way are ``pk``, ``foreign_keys``, ``column_order``, ``not_null``, ``defaults``, ``batch_size``, ``hash_id``, ``hash_id_columns``, ``alter``, ``ignore``, ``replace``, ``extracts``, ``conversions``, ``columns``. These are all documented below.
 
 .. _python_api_defaults_not_null:
 
@@ -1593,6 +1593,17 @@ If you are going to use that ID straight away, you can access it using ``last_pk
         "twitter": "cleopaws"
     }, hash_id="id").last_pk
     # dog_id is now "f501265970505d9825d8d9f590bfab3519fb20b1"
+
+The hash will be created using all of the column values. To create a hash using a subset of the columns, pass the ``hash_id_columns=`` parameter::
+
+    db["dogs"].upsert(
+        {"name": "Cleo", "twitter": "cleopaws", "age": 7},
+        hash_id_columns=("name", "twitter")
+    )
+
+The `hash_id=` parameter is optional if you specify ``hash_id_columns=`` - it will default to putting the hash in a column called ``id``.
+
+You can manually calculate these hashes using the :ref:`hash_record(record, keys=...) <reference_utils_hash_record>` utility function.
 
 .. _python_api_create_view:
 

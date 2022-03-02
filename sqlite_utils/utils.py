@@ -2,12 +2,13 @@ import base64
 import contextlib
 import csv
 import enum
+import hashlib
 import io
 import itertools
 import json
 import os
 from . import recipes
-from typing import cast, BinaryIO, Iterable, Optional, Tuple, Type
+from typing import Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type
 
 import click
 
@@ -345,3 +346,31 @@ def chunks(sequence, size):
     iterator = iter(sequence)
     for item in iterator:
         yield itertools.chain([item], itertools.islice(iterator, size - 1))
+
+
+def hash_record(record: Dict, keys: Optional[Iterable[str]] = None):
+    """
+    ``record`` should be a Python dictionary. Returns a sha1 hash of the
+    keys and values in that record.
+
+    If ``keys=`` is provided, uses just those keys to generate the hash.
+
+    Example usage::
+
+        from sqlite_utils.utils import hash_record
+
+        hashed = hash_record({"name": "Cleo", "twitter": "CleoPaws"})
+        # Or with the keys= option:
+        hashed = hash_record(
+            {"name": "Cleo", "twitter": "CleoPaws", "age": 7},
+            keys=("name", "twitter")
+        )
+    """
+    to_hash = record
+    if keys is not None:
+        to_hash = {key: record[key] for key in keys}
+    return hashlib.sha1(
+        json.dumps(to_hash, separators=(",", ":"), sort_keys=True, default=repr).encode(
+            "utf8"
+        )
+    ).hexdigest()

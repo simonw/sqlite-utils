@@ -45,6 +45,30 @@ def test_upsert_with_hash_id(fresh_db):
     assert "a5e744d0164540d33b1d7ea616c28f2fa97e754a" == table.last_pk
 
 
+@pytest.mark.parametrize("hash_id", (None, "custom_id"))
+def test_upsert_with_hash_id_columns(fresh_db, hash_id):
+    table = fresh_db["table"]
+    table.upsert({"a": 1, "b": 2, "c": 3}, hash_id=hash_id, hash_id_columns=("a", "b"))
+    assert list(table.rows) == [
+        {
+            hash_id or "id": "4acc71e0547112eb432f0a36fb1924c4a738cb49",
+            "a": 1,
+            "b": 2,
+            "c": 3,
+        }
+    ]
+    assert table.last_pk == "4acc71e0547112eb432f0a36fb1924c4a738cb49"
+    table.upsert({"a": 1, "b": 2, "c": 4}, hash_id=hash_id, hash_id_columns=("a", "b"))
+    assert list(table.rows) == [
+        {
+            hash_id or "id": "4acc71e0547112eb432f0a36fb1924c4a738cb49",
+            "a": 1,
+            "b": 2,
+            "c": 4,
+        }
+    ]
+
+
 def test_upsert_compound_primary_key(fresh_db):
     table = fresh_db["table"]
     table.upsert_all(

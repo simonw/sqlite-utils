@@ -1,5 +1,6 @@
 from .utils import (
     chunks,
+    hash_record,
     sqlite3,
     OperationalError,
     suggest_column_types,
@@ -13,7 +14,6 @@ from collections.abc import Mapping
 import contextlib
 import datetime
 import decimal
-import hashlib
 import inspect
 import itertools
 import json
@@ -663,13 +663,16 @@ class Database:
         pk: Optional[Any] = None,
         foreign_keys: Optional[ForeignKeysType] = None,
         column_order: Optional[List[str]] = None,
-        not_null: Iterable[str] = None,
+        not_null: Optional[Iterable[str]] = None,
         defaults: Optional[Dict[str, Any]] = None,
         hash_id: Optional[str] = None,
+        hash_id_columns: Optional[Iterable[str]] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
     ) -> str:
         "Returns the SQL ``CREATE TABLE`` statement for creating the specified table."
+        if hash_id_columns and (hash_id is None):
+            hash_id = "id"
         foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
         foreign_keys_by_column = {fk.column: fk for fk in foreign_keys}
         # any extracts will be treated as integer columns with a foreign key
@@ -779,6 +782,7 @@ class Database:
         not_null: Iterable[str] = None,
         defaults: Optional[Dict[str, Any]] = None,
         hash_id: Optional[str] = None,
+        hash_id_columns: Optional[Iterable[str]] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
     ) -> "Table":
@@ -796,6 +800,7 @@ class Database:
             not_null=not_null,
             defaults=defaults,
             hash_id=hash_id,
+            hash_id_columns=hash_id_columns,
             extracts=extracts,
             if_not_exists=if_not_exists,
         )
@@ -808,6 +813,7 @@ class Database:
             not_null=not_null,
             defaults=defaults,
             hash_id=hash_id,
+            hash_id_columns=hash_id_columns,
         )
         return cast(Table, table)
 
@@ -1126,12 +1132,13 @@ class Table(Queryable):
         defaults: Optional[Dict[str, Any]] = None,
         batch_size: int = 100,
         hash_id: Optional[str] = None,
+        hash_id_columns: Optional[Iterable[str]] = None,
         alter: bool = False,
         ignore: bool = False,
         replace: bool = False,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         conversions: Optional[dict] = None,
-        columns: Optional[Union[Dict[str, Any]]] = None,
+        columns: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(db, name)
         self._defaults = dict(
@@ -1142,6 +1149,7 @@ class Table(Queryable):
             defaults=defaults,
             batch_size=batch_size,
             hash_id=hash_id,
+            hash_id_columns=hash_id_columns,
             alter=alter,
             ignore=ignore,
             replace=replace,
@@ -1314,6 +1322,7 @@ class Table(Queryable):
         not_null: Iterable[str] = None,
         defaults: Optional[Dict[str, Any]] = None,
         hash_id: Optional[str] = None,
+        hash_id_columns: Optional[Iterable[str]] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
     ) -> "Table":
@@ -1333,6 +1342,7 @@ class Table(Queryable):
                 not_null=not_null,
                 defaults=defaults,
                 hash_id=hash_id,
+                hash_id_columns=hash_id_columns,
                 extracts=extracts,
                 if_not_exists=if_not_exists,
             )
@@ -2389,6 +2399,7 @@ class Table(Queryable):
         chunk,
         all_columns,
         hash_id,
+        hash_id_columns,
         upsert,
         pk,
         conversions,
@@ -2400,12 +2411,19 @@ class Table(Queryable):
         # .execute() method - but some of them may be replaced by
         # new primary keys if we are extracting any columns.
         values = []
+        if hash_id_columns and hash_id is None:
+            hash_id = "id"
         extracts = resolve_extracts(extracts)
         for record in chunk:
             record_values = []
             for key in all_columns:
                 value = jsonify_if_needed(
-                    record.get(key, None if key != hash_id else _hash(record))
+                    record.get(
+                        key,
+                        None
+                        if key != hash_id
+                        else hash_record(record, hash_id_columns),
+                    )
                 )
                 if key in extracts:
                     extract_table = extracts[key]
@@ -2486,6 +2504,7 @@ class Table(Queryable):
         chunk,
         all_columns,
         hash_id,
+        hash_id_columns,
         upsert,
         pk,
         conversions,
@@ -2498,6 +2517,7 @@ class Table(Queryable):
             chunk,
             all_columns,
             hash_id,
+            hash_id_columns,
             upsert,
             pk,
             conversions,
@@ -2527,6 +2547,7 @@ class Table(Queryable):
                             first_half,
                             all_columns,
                             hash_id,
+                            hash_id_columns,
                             upsert,
                             pk,
                             conversions,
@@ -2541,6 +2562,7 @@ class Table(Queryable):
                             second_half,
                             all_columns,
                             hash_id,
+                            hash_id_columns,
                             upsert,
                             pk,
                             conversions,
@@ -2575,6 +2597,7 @@ class Table(Queryable):
         not_null: Optional[Union[Set[str], Default]] = DEFAULT,
         defaults: Optional[Union[Dict[str, Any], Default]] = DEFAULT,
         hash_id: Optional[Union[str, Default]] = DEFAULT,
+        hash_id_columns: Optional[Iterable[str]] = DEFAULT,
         alter: Optional[Union[bool, Default]] = DEFAULT,
         ignore: Optional[Union[bool, Default]] = DEFAULT,
         replace: Optional[Union[bool, Default]] = DEFAULT,
@@ -2621,6 +2644,7 @@ class Table(Queryable):
             not_null=not_null,
             defaults=defaults,
             hash_id=hash_id,
+            hash_id_columns=hash_id_columns,
             alter=alter,
             ignore=ignore,
             replace=replace,
@@ -2639,6 +2663,7 @@ class Table(Queryable):
         defaults=DEFAULT,
         batch_size=DEFAULT,
         hash_id=DEFAULT,
+        hash_id_columns=DEFAULT,
         alter=DEFAULT,
         ignore=DEFAULT,
         replace=DEFAULT,
@@ -2662,6 +2687,7 @@ class Table(Queryable):
         defaults = self.value_or_default("defaults", defaults)
         batch_size = self.value_or_default("batch_size", batch_size)
         hash_id = self.value_or_default("hash_id", hash_id)
+        hash_id_columns = self.value_or_default("hash_id_columns", hash_id_columns)
         alter = self.value_or_default("alter", alter)
         ignore = self.value_or_default("ignore", ignore)
         replace = self.value_or_default("replace", replace)
@@ -2669,9 +2695,14 @@ class Table(Queryable):
         conversions = self.value_or_default("conversions", conversions) or {}
         columns = self.value_or_default("columns", columns)
 
+        if hash_id_columns and hash_id is None:
+            hash_id = "id"
+
         if upsert and (not pk and not hash_id):
             raise PrimaryKeyRequired("upsert() requires a pk")
         assert not (hash_id and pk), "Use either pk= or hash_id="
+        if hash_id_columns and (hash_id is None):
+            hash_id = "id"
         if hash_id:
             pk = hash_id
 
@@ -2716,6 +2747,7 @@ class Table(Queryable):
                         not_null=not_null,
                         defaults=defaults,
                         hash_id=hash_id,
+                        hash_id_columns=hash_id_columns,
                         extracts=extracts,
                     )
                 all_columns_set = set()
@@ -2738,6 +2770,7 @@ class Table(Queryable):
                 chunk,
                 all_columns,
                 hash_id,
+                hash_id_columns,
                 upsert,
                 pk,
                 conversions,
@@ -2760,6 +2793,7 @@ class Table(Queryable):
         not_null=DEFAULT,
         defaults=DEFAULT,
         hash_id=DEFAULT,
+        hash_id_columns=DEFAULT,
         alter=DEFAULT,
         extracts=DEFAULT,
         conversions=DEFAULT,
@@ -2779,6 +2813,7 @@ class Table(Queryable):
             not_null=not_null,
             defaults=defaults,
             hash_id=hash_id,
+            hash_id_columns=hash_id_columns,
             alter=alter,
             extracts=extracts,
             conversions=conversions,
@@ -2795,6 +2830,7 @@ class Table(Queryable):
         defaults=DEFAULT,
         batch_size=DEFAULT,
         hash_id=DEFAULT,
+        hash_id_columns=DEFAULT,
         alter=DEFAULT,
         extracts=DEFAULT,
         conversions=DEFAULT,
@@ -2813,6 +2849,7 @@ class Table(Queryable):
             defaults=defaults,
             batch_size=batch_size,
             hash_id=hash_id,
+            hash_id_columns=hash_id_columns,
             alter=alter,
             extracts=extracts,
             conversions=conversions,
@@ -3182,14 +3219,6 @@ def jsonify_if_needed(value):
         return str(value)
     else:
         return value
-
-
-def _hash(record):
-    return hashlib.sha1(
-        json.dumps(record, separators=(",", ":"), sort_keys=True, default=repr).encode(
-            "utf8"
-        )
-    ).hexdigest()
 
 
 def resolve_extracts(
