@@ -16,3 +16,12 @@ def test_memory_name():
     db2 = Database(memory_name="shared")
     db1["dogs"].insert({"name": "Cleo"})
     assert list(db2["dogs"].rows) == [{"name": "Cleo"}]
+
+
+def test_sqlite_version():
+    db = Database(memory=True)
+    version = db.sqlite_version
+    assert isinstance(version, tuple)
+    as_string = ".".join(map(str, version))
+    actual = next(db.query("select sqlite_version() as v"))["v"]
+    assert actual == as_string

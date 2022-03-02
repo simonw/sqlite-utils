@@ -387,7 +387,11 @@ class Database:
             if not replace and (name, arity) in self._registered_functions:
                 return fn
             kwargs = {}
-            if deterministic and sys.version_info >= (3, 8):
+            if (
+                deterministic
+                and sys.version_info >= (3, 8)
+                and self.sqlite_version >= (3, 8, 3)
+            ):
                 kwargs["deterministic"] = True
             self.conn.create_function(name, arity, fn, **kwargs)
             self._registered_functions.add((name, arity))
@@ -546,6 +550,12 @@ class Database:
             return True
         except Exception:
             return False
+
+    @property
+    def sqlite_version(self) -> Tuple[int, ...]:
+        "Version of SQLite, as a tuple of integers e.g. (3, 36, 0)"
+        row = self.execute("select sqlite_version()").fetchall()[0]
+        return tuple(map(int, row[0].split(".")))
 
     @property
     def journal_mode(self) -> str:

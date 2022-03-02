@@ -34,16 +34,31 @@ def test_register_function_deterministic(fresh_db):
 @pytest.mark.skipif(
     sys.version_info < (3, 8), reason="deterministic=True was added in Python 3.8"
 )
-def test_register_function_deterministic_registered(fresh_db):
+@pytest.mark.parametrize(
+    "fake_sqlite_version,should_use_deterministic",
+    (
+        ("3.36.0", True),
+        ("3.8.3", True),
+        ("3.8.2", False),
+    ),
+)
+def test_register_function_deterministic_registered(
+    fresh_db, fake_sqlite_version, should_use_deterministic
+):
     fresh_db.conn = MagicMock()
     fresh_db.conn.create_function = MagicMock()
+    fresh_db.conn.execute().fetchall.return_value = [(fake_sqlite_version,)]
 
     @fresh_db.register_function(deterministic=True)
     def to_lower_2(s):
         return s.lower()
 
+    expected_kwargs = {}
+    if should_use_deterministic:
+        expected_kwargs = dict(deterministic=True)
+
     fresh_db.conn.create_function.assert_called_with(
-        "to_lower_2", 1, to_lower_2, deterministic=True
+        "to_lower_2", 1, to_lower_2, **expected_kwargs
     )
 
 

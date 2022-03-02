@@ -1717,6 +1717,16 @@ A more useful example: if you are working with `SpatiaLite <https://www.gaia-gis
 
 This example uses gographical data from [Who's On First](https://whosonfirst.org/) and depends on the [Shapely](https://shapely.readthedocs.io/en/stable/manual.html) and [HTTPX](https://www.python-httpx.org/) Python libraries.
 
+.. _python_api_sqlite_version:
+
+Checking the SQLite version
+===========================
+
+The ``db.sqlite_version`` property returns a tuple of integers representing the version of SQLite used for that database object::
+
+    >>> db.sqlite_version
+    (3, 36, 0)
+
 .. _python_api_introspection:
 
 Introspecting tables and views
