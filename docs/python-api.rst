@@ -1601,7 +1601,7 @@ The hash will be created using all of the column values. To create a hash using 
         hash_id_columns=("name", "twitter")
     )
 
-The `hash_id=` parameter is optional if you specify ``hash_id_columns=`` - it will default to putting the hash in a column called ``id``.
+The ``hash_id=`` parameter is optional if you specify ``hash_id_columns=`` - it will default to putting the hash in a column called ``id``.
 
 You can manually calculate these hashes using the :ref:`hash_record(record, keys=...) <reference_utils_hash_record>` utility function.
 
