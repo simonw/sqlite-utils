@@ -1570,7 +1570,6 @@ class Table(Queryable):
             new_column_pairs.append((new_name, type_))
             copy_from_to[name] = new_name
 
-        sqls = []
         if pk is DEFAULT:
             pks_renamed = tuple(
                 rename.get(p.name) or p.name for p in self.columns if p.is_pk
@@ -1624,6 +1623,7 @@ class Table(Queryable):
         if column_order is not None:
             column_order = [rename.get(col) or col for col in column_order]
 
+        sqls = []
         sqls.append(
             self.db.create_table_sql(
                 new_table_name,
