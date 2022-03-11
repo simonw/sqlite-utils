@@ -1476,7 +1476,7 @@ class Table(Queryable):
         types: Optional[dict] = None,
         rename: Optional[dict] = None,
         drop: Optional[Iterable] = None,
-        pk: Optional[Any] = None,
+        pk: Optional[Any] = DEFAULT,
         not_null: Optional[Set[str]] = None,
         defaults: Optional[Dict[str, Any]] = None,
         drop_foreign_keys: Optional[Iterable] = None,
