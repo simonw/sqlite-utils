@@ -2,6 +2,13 @@
  Changelog
 ===========
 
+.. _v3_25_1:
+
+3.25.1 (2022-03-11)
+-------------------
+
+- Improved display of type information and parameters in the :ref:`API reference documentation <reference>`. (:issue:`413`)
+
 .. _v3_25:
 
 3.25 (2022-03-01)
