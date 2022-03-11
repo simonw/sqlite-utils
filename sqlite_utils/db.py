@@ -275,17 +275,17 @@ class Database:
         # Create an in-memory database:
         dB = Database(memory=True)
 
-    - ``filename_or_conn`` - String path to a file, or a ``pathlib.Path`` object, or a
+    :param filename_or_conn: String path to a file, or a ``pathlib.Path`` object, or a
       ``sqlite3`` connection
-    - ``memory`` - set to ``True`` to create an in-memory database
-    - ``memory_name`` - creates a named in-memory database that can be shared across multiple connections.
-    - ``recreate`` - set to ``True`` to delete and recreate a file database (**dangerous**)
-    - ``recursive_triggers`` - defaults to ``True``, which sets ``PRAGMA recursive_triggers=on;`` -
+    :param memory: set to ``True`` to create an in-memory database
+    :param memory_name: creates a named in-memory database that can be shared across multiple connections
+    :param recreate: set to ``True`` to delete and recreate a file database (**dangerous**)
+    :param recursive_triggers: defaults to ``True``, which sets ``PRAGMA recursive_triggers=on;`` -
       set to ``False`` to avoid setting this pragma
-    - ``tracer`` - set a tracer function (``print`` works for this) which will be called with
+    :param tracer: set a tracer function (``print`` works for this) which will be called with
       ``sql, parameters`` every time a SQL query is executed
-    - ``use_counts_table`` - set to ``True`` to use a cached counts table, if available. See
-      :ref:`python_api_cached_table_counts`.
+    :param use_counts_table: set to ``True`` to use a cached counts table, if available. See
+      :ref:`python_api_cached_table_counts`
     """
 
     _counts_table_name = "_counts"
@@ -340,6 +340,8 @@ class Database:
                 db["creatures"].insert({"name": "Cleo"})
 
         See :ref:`python_api_tracing`.
+
+        :param tracer: Callable accepting ``sql`` and ``parameters`` arguments
         """
         prev_tracer = self._tracer
         self._tracer = tracer or print
@@ -352,6 +354,8 @@ class Database:
         """
         ``db[table_name]`` returns a :class:`.Table` object for the table with the specified name.
         If the table does not exist yet it will be created the first time data is inserted into it.
+
+        :param table_name: The name of the table
         """
         return self.table(table_name)
 
@@ -375,10 +379,11 @@ class Database:
             def upper(value):
                 return str(value).upper()
 
-        - ``deterministic`` - set ``True`` for functions that always returns the same output for a given input
-        - ``replace`` - set ``True`` to replace an existing function with the same name - otherwise throw an error
-
         See :ref:`python_api_register_function`.
+
+        :param fn: Function to register
+        :param deterministic: set ``True`` for functions that always returns the same output for a given input
+        :param replace: set ``True`` to replace an existing function with the same name - otherwise throw an error
         """
 
         def register(fn):
@@ -411,6 +416,9 @@ class Database:
         Attach another SQLite database file to this connection with the specified alias, equivalent to::
 
             ATTACH DATABASE 'filepath.db' AS alias
+
+        :param alias: Alias name to use
+        :param filepath: Path to SQLite database file on disk
         """
         attach_sql = """
             ATTACH DATABASE '{}' AS [{}];
@@ -422,7 +430,13 @@ class Database:
     def query(
         self, sql: str, params: Optional[Union[Iterable, dict]] = None
     ) -> Generator[dict, None, None]:
-        "Execute ``sql`` and return an iterable of dictionaries representing each row."
+        """
+        Execute ``sql`` and return an iterable of dictionaries representing each row.
+
+        :param sql: SQL query to execute
+        :param params: Parameters to use in that query - an iterable for ``where id = ?``
+          parameters, or a dictionary for ``where id = :id``
+        """
         cursor = self.execute(sql, params or tuple())
         keys = [d[0] for d in cursor.description]
         for row in cursor:
@@ -431,7 +445,13 @@ class Database:
     def execute(
         self, sql: str, parameters: Optional[Union[Iterable, dict]] = None
     ) -> sqlite3.Cursor:
-        "Execute SQL query and return a ``sqlite3.Cursor``."
+        """
+        Execute SQL query and return a ``sqlite3.Cursor``.
+
+        :param sql: SQL query to execute
+        :param parameters: Parameters to use in that query - an iterable for ``where id = ?``
+          parameters, or a dictionary for ``where id = :id``
+        """
         if self._tracer:
             self._tracer(sql, parameters)
         if parameters is not None:
@@ -440,18 +460,30 @@ class Database:
             return self.conn.execute(sql)
 
     def executescript(self, sql: str) -> sqlite3.Cursor:
-        "Execute multiple SQL statements separated by ; and return the ``sqlite3.Cursor``."
+        """
+        Execute multiple SQL statements separated by ; and return the ``sqlite3.Cursor``.
+
+        :param sql: SQL to execute
+        """
         if self._tracer:
             self._tracer(sql, None)
         return self.conn.executescript(sql)
 
     def table(self, table_name: str, **kwargs) -> Union["Table", "View"]:
-        "Return a table object, optionally configured with default options."
+        """
+        Return a table object, optionally configured with default options.
+
+        :param table_name: Name of the table
+        """
         klass = View if table_name in self.view_names() else Table
         return klass(self, table_name, **kwargs)
 
     def quote(self, value: str) -> str:
-        "Apply SQLite string quoting to a value, including wrappping it in single quotes."
+        """
+        Apply SQLite string quoting to a value, including wrappping it in single quotes.
+
+        :param value: String to quote
+        """
         # Normally we would use .execute(sql, [params]) for escaping, but
         # occasionally that isn't available - most notable when we need
         # to include a "... DEFAULT 'value'" in a column definition.
@@ -462,16 +494,19 @@ class Database:
         ).fetchone()[0]
 
     def quote_fts(self, query: str) -> str:
-        "Escape special characters in a SQLite full-text search query"
-        # NOTE: This is not a query validator for FTS. Sqlite has
-        # a well defined query syntax here:
-        # https://www2.sqlite.org/fts5.html#full_text_query_syntax
-        # but this function just aggressively quotes strings
-        # to ensure that they are valid. In particular, passing
-        # queries which make use of the query syntax will be incorrect,
-        # e.g 'NEAR(one, two, 3)'.
+        """
+        Escape special characters in a SQLite full-text search query.
 
-        # If query has unbalanced ", add one at end
+        This works by surrounding each token within the query with double
+        quotes, in order to avoid words like ``NOT`` and ``OR`` having
+        special meaning as defined by the FTS query syntax here:
+
+        https://www.sqlite.org/fts5.html#full_text_query_syntax
+
+        If the query has unbalanced ``"`` characters, adds one at end.
+
+        :param query: String to escape
+        """
         if query.count('"') % 2:
             query += '"'
         bits = _quote_fts_re.split(query)
@@ -481,7 +516,12 @@ class Database:
         )
 
     def table_names(self, fts4: bool = False, fts5: bool = False) -> List[str]:
-        "A list of string table names in this database."
+        """
+        List of string table names in this database.
+
+        :param fts4: Only return tables that are part of FTS4 indexes
+        :param fts5: Only return tables that are part of FTS5 indexes
+        """
         where = ["type = 'table'"]
         if fts4:
             where.append("sql like '%USING FTS4%'")
@@ -491,7 +531,7 @@ class Database:
         return [r[0] for r in self.execute(sql).fetchall()]
 
     def view_names(self) -> List[str]:
-        "A list of string view names in this database."
+        "List of string view names in this database."
         return [
             r[0]
             for r in self.execute(
@@ -501,17 +541,17 @@ class Database:
 
     @property
     def tables(self) -> List["Table"]:
-        "A list of Table objects in this database."
+        "List of Table objects in this database."
         return cast(List["Table"], [self[name] for name in self.table_names()])
 
     @property
     def views(self) -> List["View"]:
-        "A list of View objects in this database."
+        "List of View objects in this database."
         return cast(List["View"], [self[name] for name in self.view_names()])
 
     @property
     def triggers(self) -> List[Trigger]:
-        "A list of ``(name, table_name, sql)`` tuples representing triggers in this database."
+        "List of ``(name, table_name, sql)`` tuples representing triggers in this database."
         return [
             Trigger(*r)
             for r in self.execute(
@@ -526,7 +566,7 @@ class Database:
 
     @property
     def schema(self) -> str:
-        "SQL schema for this database"
+        "SQL schema for this database."
         sqls = []
         for row in self.execute(
             "select sql from sqlite_master where sql is not null"
@@ -553,22 +593,28 @@ class Database:
 
     @property
     def sqlite_version(self) -> Tuple[int, ...]:
-        "Version of SQLite, as a tuple of integers e.g. (3, 36, 0)"
+        "Version of SQLite, as a tuple of integers for example ``(3, 36, 0)``."
         row = self.execute("select sqlite_version()").fetchall()[0]
         return tuple(map(int, row[0].split(".")))
 
     @property
     def journal_mode(self) -> str:
-        "Current ``journal_mode`` of this database."
+        """
+        Current ``journal_mode`` of this database.
+
+        https://www.sqlite.org/pragma.html#pragma_journal_mode
+        """
         return self.execute("PRAGMA journal_mode;").fetchone()[0]
 
     def enable_wal(self):
-        "Set ``journal_mode`` to ``'wal'`` to enable Write-Ahead Log mode."
+        """
+        Sets ``journal_mode`` to ``'wal'`` to enable Write-Ahead Log mode.
+        """
         if self.journal_mode != "wal":
             self.execute("PRAGMA journal_mode=wal;")
 
     def disable_wal(self):
-        "Set ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode."
+        "Sets ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode."
         if self.journal_mode != "delete":
             self.execute("PRAGMA journal_mode=delete;")
 
@@ -594,6 +640,8 @@ class Database:
         """
         Return ``{table_name: count}`` dictionary of cached counts for specified tables, or
         all tables if ``tables`` not provided.
+
+        :param tables: Subset list of tables to return counts for.
         """
         sql = "select [table], count from {}".format(self._counts_table_name)
         if tables:
@@ -680,7 +728,21 @@ class Database:
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
     ) -> str:
-        "Returns the SQL ``CREATE TABLE`` statement for creating the specified table."
+        """
+        Returns the SQL ``CREATE TABLE`` statement for creating the specified table.
+
+        :param name: Name of table
+        :param columns: Dictionary mapping column names to their types, for example ``{"name": str, "age": int}``
+        :param pk: String name of column to use as a primary key, or a tuple of strings for a compound primary key covering multiple columns
+        :param foreign_keys: List of foreign key definitions for this table
+        :param column_order: List specifying which columns should come first
+        :param not_null: List of columns that should be created as ``NOT NULL``
+        :param defaults: Dictionary specifying default values for columns
+        :param hash_id: Name of column to be used as a primary key containing a hash of the other columns
+        :param hash_id_columns: List of columns to be used when calculating the hash ID for a row
+        :param extracts: List or dictionary of columns to be extracted during inserts, see :ref:`python_api_extracts`
+        :param if_not_exists: Use ``CREATE TABLE IF NOT EXISTS``
+        """
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
         foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
@@ -800,6 +862,18 @@ class Database:
         Create a table with the specified name and the specified ``{column_name: type}`` columns.
 
         See :ref:`python_api_explicit_create`.
+
+        :param name: Name of table
+        :param columns: Dictionary mapping column names to their types, for example ``{"name": str, "age": int}``
+        :param pk: String name of column to use as a primary key, or a tuple of strings for a compound primary key covering multiple columns
+        :param foreign_keys: List of foreign key definitions for this table
+        :param column_order: List specifying which columns should come first
+        :param not_null: List of columns that should be created as ``NOT NULL``
+        :param defaults: Dictionary specifying default values for columns
+        :param hash_id: Name of column to be used as a primary key containing a hash of the other columns
+        :param hash_id_columns: List of columns to be used when calculating the hash ID for a row
+        :param extracts: List or dictionary of columns to be extracted during inserts, see :ref:`python_api_extracts`
+        :param if_not_exists: Use ``CREATE TABLE IF NOT EXISTS``
         """
         sql = self.create_table_sql(
             name=name,
@@ -833,8 +907,10 @@ class Database:
         """
         Create a new SQL view with the specified name - ``sql`` should start with ``SELECT ...``.
 
-        - ``ignore`` - set to ``True`` to do nothing if a view with this name already exists
-        - ``replace`` - set to ``True`` to replace the view if one with this name already exists
+        :param name: Name of the view
+        :param sql: SQL ``SELECT`` query to use for this view.
+        :param ignore: Set to ``True`` to do nothing if a view with this name already exists
+        :param replace: Set to ``True`` to replace the view if one with this name already exists
         """
         assert not (
             ignore and replace
@@ -858,6 +934,9 @@ class Database:
         Given two table names returns the name of tables that could define a
         many-to-many relationship between those two tables, based on having
         foreign keys to both of the provided tables.
+
+        :param table: Table name
+        :param other_table: Other table name
         """
         candidates = []
         tables = {table, other_table}
@@ -872,8 +951,8 @@ class Database:
         """
         See :ref:`python_api_add_foreign_keys`.
 
-        ``foreign_keys`` should be a list of  ``(table, column, other_table, other_column)``
-        tuples, see :ref:`python_api_add_foreign_keys`.
+        :param foreign_keys: A list of  ``(table, column, other_table, other_column)``
+          tuples
         """
         # foreign_keys is a list of explicit 4-tuples
         assert all(
@@ -957,7 +1036,11 @@ class Database:
         self.execute("VACUUM;")
 
     def analyze(self, name=None):
-        "Run ``ANALYZE`` against the entire database or a named table or index."
+        """
+        Run ``ANALYZE`` against the entire database or a named table or index.
+
+        :param name: Run ``ANALYZE`` against this specific named table or index
+        """
         sql = "ANALYZE"
         if name is not None:
             sql += " [{}]".format(name)
@@ -969,7 +1052,7 @@ class Database:
         The ``path`` argument should be an absolute path to the compiled extension, which
         can be found using ``find_spatialite``.
 
-        Returns true if SpatiaLite was successfully initialized.
+        Returns ``True`` if SpatiaLite was successfully initialized.
 
         .. code-block:: python
 
@@ -990,6 +1073,7 @@ class Database:
             db = Database("mydb.db")
             db.init_spatialite("./local/mod_spatialite.dylib")
 
+        :param path: Path to SpatiaLite module on disk
         """
         if path is None:
             path = find_spatialite()
@@ -1018,7 +1102,13 @@ class Queryable:
         where: str = None,
         where_args: Optional[Union[Iterable, dict]] = None,
     ) -> int:
-        "Executes ``SELECT count(*) FROM table WHERE ...`` and returns a count."
+        """
+        Executes ``SELECT count(*) FROM table WHERE ...`` and returns a count.
+
+        :param where: SQL where fragment to use, for example ``id > ?``
+        :param where_args: Parameters to use with that fragment - an iterable for ``id > ?``
+          parameters, or a dictionary for ``id > :id``
+        """
         sql = "select count(*) from [{}]".format(self.name)
         if where is not None:
             sql += " where " + where
@@ -1050,14 +1140,15 @@ class Queryable:
         """
         Iterate over every row in this table or view that matches the specified where clause.
 
-        - ``where`` - a SQL fragment to use as a ``WHERE`` clause, for example ``age > ?`` or ``age > :age``.
-        - ``where_args`` - a list of arguments (if using ``?``) or a dictionary (if using ``:age``).
-        - ``order_by`` - optional column or fragment of SQL to order by.
-        - ``select`` - optional comma-separated list of columns to select.
-        - ``limit`` - optional integer number of rows to limit to.
-        - ``offset`` - optional integer for SQL offset.
-
         Returns each row as a dictionary. See :ref:`python_api_rows` for more details.
+
+        :param where: SQL where fragment to use, for example ``id > ?``
+        :param where_args: Parameters to use with that fragment - an iterable for ``id > ?``
+          parameters, or a dictionary for ``id > :id``
+        :param order_by: Column or fragment of SQL to order by
+        :param select: Comma-separated list of columns to select - defaults to ``*``
+        :param limit: Integer number of rows to limit to
+        :param offset: Integer for SQL offset
         """
         if not self.exists():
             return
@@ -1083,7 +1174,17 @@ class Queryable:
         limit: int = None,
         offset: int = None,
     ) -> Generator[Tuple[Any, Dict], None, None]:
-        "Like ``.rows_where()`` but returns ``(pk, row)`` pairs - ``pk`` can be a single value or tuple."
+        """
+        Like ``.rows_where()`` but returns ``(pk, row)`` pairs - ``pk`` can be a single value or tuple.
+
+        :param where: SQL where fragment to use, for example ``id > ?``
+        :param where_args: Parameters to use with that fragment - an iterable for ``id > ?``
+          parameters, or a dictionary for ``id > :id``
+        :param order_by: Column or fragment of SQL to order by
+        :param select: Comma-separated list of columns to select - defaults to ``*``
+        :param limit: Integer number of rows to limit to
+        :param offset: Integer for SQL offset
+        """
         column_names = [column.name for column in self.columns]
         pks = [column.name for column in self.columns if column.is_pk]
         if not pks:
@@ -1205,9 +1306,9 @@ class Table(Queryable):
         """
         Return row (as dictionary) for the specified primary key.
 
-        Primary key can be a single value, or a tuple for tables with a compound primary key.
+        Raises ``sqlite_utils.db.NotFoundError`` if a matching row cannot be found.
 
-        Raises ``NotFoundError`` if a matching row cannot be found.
+        :param pk_values: A single value, or a tuple of values for tables that have a compound primary key
         """
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
@@ -1340,6 +1441,17 @@ class Table(Queryable):
         Create a table with the specified columns.
 
         See :ref:`python_api_explicit_create` for full details.
+
+        :param columns: Dictionary mapping column names to their types, for example ``{"name": str, "age": int}``
+        :param pk: String name of column to use as a primary key, or a tuple of strings for a compound primary key covering multiple columns
+        :param foreign_keys: List of foreign key definitions for this table
+        :param column_order: List specifying which columns should come first
+        :param not_null: List of columns that should be created as ``NOT NULL``
+        :param defaults: Dictionary specifying default values for columns
+        :param hash_id: Name of column to be used as a primary key containing a hash of the other columns
+        :param hash_id_columns: List of columns to be used when calculating the hash ID for a row
+        :param extracts: List or dictionary of columns to be extracted during inserts, see :ref:`python_api_extracts`
+        :param if_not_exists: Use ``CREATE TABLE IF NOT EXISTS``
         """
         columns = {name: value for (name, value) in columns.items()}
         with self.db.conn:
@@ -1361,20 +1473,30 @@ class Table(Queryable):
     def transform(
         self,
         *,
-        types=None,
-        rename=None,
-        drop=None,
-        pk=DEFAULT,
-        not_null=None,
-        defaults=None,
-        drop_foreign_keys=None,
-        column_order=None,
+        types: Optional[dict] = None,
+        rename: Optional[dict] = None,
+        drop: Optional[Iterable] = None,
+        pk: Optional[Any] = None,
+        not_null: Optional[Set[str]] = None,
+        defaults: Optional[Dict[str, Any]] = None,
+        drop_foreign_keys: Optional[Iterable] = None,
+        column_order: Optional[List[str]] = None,
     ) -> "Table":
         """
         Apply an advanced alter table, including operations that are not supported by
         ``ALTER TABLE`` in SQLite itself.
 
         See :ref:`python_api_transform` for full details.
+
+        :param types: Columns that should have their type changed, for example ``{"weight": float}``
+        :param rename: Columns to rename, for example ``{"headline": "title"}``
+        :param drop: Columns to drop
+        :param pk: New primary key for the table
+        :param not_null: Columns to set as ``NOT NULL``
+        :param defaults: Default values for columns
+        :param drop_foreign_keys: Names of columns that should have their foreign key constraints removed
+        :param column_order: List of strings specifying a full or partial column order
+          to use when creating the table.
         """
         assert self.exists(), "Cannot transform a table that doesn't exist yet"
         sqls = self.transform_sql(
@@ -1417,7 +1539,19 @@ class Table(Queryable):
         column_order=None,
         tmp_suffix=None,
     ) -> List[str]:
-        "Returns a list of SQL statements that would be executed in order to apply this transformation."
+        """
+        Return a list of SQL statements that should be executed in order to apply this transformation.
+
+        :param types: Columns that should have their type changed, for example ``{"weight": float}``
+        :param rename: Columns to rename, for example ``{"headline": "title"}``
+        :param drop: Columns to drop
+        :param pk: New primary key for the table
+        :param not_null: Columns to set as ``NOT NULL``
+        :param defaults: Default values for columns
+        :param drop_foreign_keys: Names of columns that should have their foreign key constraints removed
+        :param column_order: List of strings specifying a full or partial column order
+          to use when creating the table.
+        """
         types = types or {}
         rename = rename or {}
         drop = drop or set()
@@ -1534,6 +1668,11 @@ class Table(Queryable):
         Extract specified columns into a separate table.
 
         See :ref:`python_api_extract` for details.
+
+        :param columns: Single column or list of columns that should be extracted
+        :param table: Name of table in which the new records should be created
+        :param fk_column: Name of the foreign key column to populate in the original table
+        :param rename: Dictionary of columns that should be renamed when populating the new table
         """
         rename = rename or {}
         if isinstance(columns, str):
@@ -1638,14 +1777,14 @@ class Table(Queryable):
         """
         Create an index on this table.
 
-        - ``columns`` - a single columns or list of columns to index. These can be strings or,
+        :param columns: A single columns or list of columns to index. These can be strings or,
           to create an index using the column in descending order, ``db.DescIndex(column_name)`` objects.
-        - ``index_name`` - the name to use for the new index. Defaults to the column names joined on ``_``.
-        - ``unique`` - should the index be marked as unique, forcing unique values?
-        - ``if_not_exists`` - only create the index if one with that name does not already exist.
-        - ``find_unique_name`` - if ``index_name`` is not provided and the automatically derived name
+        :param index_name: The name to use for the new index. Defaults to the column names joined on ``_``.
+        :param unique: Should the index be marked as unique, forcing unique values?
+        :param if_not_exists: Only create the index if one with that name does not already exist.
+        :param find_unique_name: If ``index_name`` is not provided and the automatically derived name
           already exists, keep incrementing a suffix number to find an available name.
-        - ``analyze`` - run ``ANALYZE`` against this index after creating it.
+        :param analyze: Run ``ANALYZE`` against this index after creating it.
 
         See :ref:`python_api_create_index`.
         """
@@ -1706,9 +1845,22 @@ class Table(Queryable):
         return self
 
     def add_column(
-        self, col_name: str, col_type=None, fk=None, fk_col=None, not_null_default=None
+        self,
+        col_name: str,
+        col_type: Optional[Any] = None,
+        fk: Optional[str] = None,
+        fk_col: Optional[str] = None,
+        not_null_default: Optional[Any] = None,
     ):
-        "Add a column to this table. See :ref:`python_api_add_column`."
+        """
+        Add a column to this table. See :ref:`python_api_add_column`.
+
+        :param col_name: Name of the new column
+        :param col_type: Column type - a Python type such as ``str`` or a SQLite type string such as ``"BLOB"``
+        :param fk: Name of a table that this column should be a foreign key reference to
+        :param fk_col: Column in the foreign key table that this should reference
+        :param not_null_default: Set this column to ``not null`` and give it this default value
+        """
         fk_col_type = None
         if fk is not None:
             # fk must be a valid table
@@ -1744,7 +1896,11 @@ class Table(Queryable):
         return self
 
     def drop(self, ignore: bool = False):
-        "Drop this table. ``ignore=True`` means errors will be ignored."
+        """
+        Drop this table.
+
+        :param ignore: Set to ``True`` to ignore the error if the table does not exist
+        """
         try:
             self.db.execute("DROP TABLE [{}]".format(self.name))
         except sqlite3.OperationalError:
@@ -1760,6 +1916,8 @@ class Table(Queryable):
         a ``tag`` table, if one exists.
 
         If no candidates can be found, raises a ``NoObviousTable`` exception.
+
+        :param column: Name of column
         """
         column = column.lower()
         possibilities = [column]
@@ -1800,10 +1958,10 @@ class Table(Queryable):
         """
         Alter the schema to mark the specified column as a foreign key to another table.
 
-        - ``column`` - the column to mark as a foreign key.
-        - ``other_table`` - the table it refers to - if omitted, will be guessed based on the column name.
-        - ``other_column`` - the column on the other table it - if omitted, will be guessed.
-        - ``ignore`` - set this to ``True`` to ignore an existing foreign key - otherwise a ``AlterError`` will be raised.
+        :param column: The column to mark as a foreign key.
+        :param other_table: The table it refers to - if omitted, will be guessed based on the column name.
+        :param other_column: The column on the other table it - if omitted, will be guessed.
+        :param ignore: Set this to ``True`` to ignore an existing foreign key - otherwise a ``AlterError`` will be raised.
         """
         # Ensure column exists
         if column not in self.columns_dict:
@@ -1911,13 +2069,13 @@ class Table(Queryable):
         """
         Enable SQLite full-text search against the specified columns.
 
-        - ``columns`` - list of column names to include in the search index.
-        - ``fts_version`` - FTS version to use - defaults to ``FTS5`` but you may want ``FTS4`` for older SQLite versions.
-        - ``create_triggers`` - should triggers be created to keep the search index up-to-date? Defaults to ``False``.
-        - ``tokenize`` - custom SQLite tokenizer to use, for example ``"porter"`` to enable Porter stemming.
-        - ``replace`` - should any existing FTS index for this table be replaced by the new one?
-
         See :ref:`python_api_fts` for more details.
+
+        :param columns: List of column names to include in the search index.
+        :param fts_version: FTS version to use - defaults to ``FTS5`` but you may want ``FTS4`` for older SQLite versions.
+        :param create_triggers: Should triggers be created to keep the search index up-to-date? Defaults to ``False``.
+        :param tokenize: Custom SQLite tokenizer to use, for example ``"porter"`` to enable Porter stemming.
+        :param replace: Should any existing FTS index for this table be replaced by the new one?
         """
         create_fts_sql = (
             textwrap.dedent(
@@ -1990,6 +2148,8 @@ class Table(Queryable):
         """
         Update the associated SQLite full-text search index with the latest data from the
         table for the specified columns.
+
+        :param columns: Columns to populate the data for
         """
         sql = (
             textwrap.dedent(
@@ -2089,7 +2249,14 @@ class Table(Queryable):
         limit: Optional[int] = None,
         offset: Optional[int] = None,
     ) -> str:
-        "Return SQL string that can be used to execute searches against this table."
+        """ "
+        Return SQL string that can be used to execute searches against this table.
+
+        :param columns: Columns to search against
+        :param order_by: Column or SQL expression to sort by
+        :param limit: SQL limit
+        :param offset: SQL offset
+        """
         # Pick names for table and rank column that don't clash
         original = "original_" if self.name == "original" else "original"
         columns_sql = "*"
@@ -2159,12 +2326,12 @@ class Table(Queryable):
         Execute a search against this table using SQLite full-text search, returning a sequence of
         dictionaries for each row.
 
-        - ``q`` - terms to search for
-        - ``order_by`` - defaults to order by rank, or specify a column here.
-        - ``columns`` - list of columns to return, defaults to all columns.
-        - ``limit`` - optional integer limit for returned rows.
-        - ``offset`` - optional integer SQL offset.
-        - ``quote`` - apply quoting to disable any special characters in the search query
+        :param q: Terms to search for
+        :param order_by: Defaults to order by rank, or specify a column here.
+        :param columns: List of columns to return, defaults to all columns.
+        :param limit: Optional integer limit for returned rows.
+        :param offset: Optional integer SQL offset.
+        :param quote: Apply quoting to disable any special characters in the search query
 
         See :ref:`python_api_fts_search`.
         """
@@ -2185,7 +2352,11 @@ class Table(Queryable):
         return self._defaults[key] if value is DEFAULT else value
 
     def delete(self, pk_values: Union[list, tuple, str, int, float]) -> "Table":
-        "Delete row matching the specified primary key."
+        """
+        Delete row matching the specified primary key.
+
+        :param pk_values: A single value, or a tuple of values for tables that have a compound primary key
+        """
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
         self.get(pk_values)
@@ -2206,11 +2377,12 @@ class Table(Queryable):
         """
         Delete rows matching the specified where clause, or delete all rows in the table.
 
-        - ``where`` - a SQL fragment to use as a ``WHERE`` clause, for example ``age > ?`` or ``age > :age``.
-        - ``where_args`` - a list of arguments (if using ``?``) or a dictionary (if using ``:age``).
-        - ``analyze`` - set to ``True`` to run ``ANALYZE`` after the rows have been deleted.
-
         See :ref:`python_api_delete_where`.
+
+        :param where: SQL where fragment to use, for example ``id > ?``
+        :param where_args: Parameters to use with that fragment - an iterable for ``id > ?``
+          parameters, or a dictionary for ``id > :id``
+        :param analyze: Set to ``True`` to run ``ANALYZE`` after the rows have been deleted.
         """
         if not self.exists():
             return self
@@ -2232,14 +2404,14 @@ class Table(Queryable):
         """
         Execute a SQL ``UPDATE`` against the specified row.
 
-        - ``pk_values`` - the primary key of an individual record - can be a tuple if the
-          table has a compound primary key.
-        - ``updates`` - a dictionary mapping columns to their updated values.
-        - ``alter`` - set to ``True`` to add any missing columns.
-        - ``conversions`` - optional dictionary of SQL functions to apply during the update, for example
-          ``{"mycolumn": "upper(?)"}``.
-
         See :ref:`python_api_update`.
+
+        :param pk_values: The primary key of an individual record - can be a tuple if the
+          table has a compound primary key.
+        :param updates: A dictionary mapping columns to their updated values.
+        :param alter: Set to ``True`` to add any missing columns.
+        :param conversions: Optional dictionary of SQL functions to apply during the update, for example
+          ``{"mycolumn": "upper(?)"}``.
         """
         updates = updates or {}
         conversions = conversions or {}
@@ -2293,18 +2465,18 @@ class Table(Queryable):
         """
         Apply conversion function ``fn`` to every value in the specified columns.
 
-        - ``columns`` - a single column or list of string column names to convert.
-        - ``fn`` - a callable that takes a single argument, ``value``, and returns it converted.
-        - ``output`` - optional string column name to write the results to (defaults to the input column).
-        - ``output_type`` - if the output column needs to be created, this is the type that will be used
+        :param columns: A single column or list of string column names to convert.
+        :param fn: A callable that takes a single argument, ``value``, and returns it converted.
+        :param output: Optional string column name to write the results to (defaults to the input column).
+        :param output_type: If the output column needs to be created, this is the type that will be used
           for the new column.
-        - ``drop`` - boolean, should the original column be dropped once the conversion is complete?
-        - ``multi`` - boolean, if ``True`` the return value of ``fn(value)`` will be expected to be a
+        :param drop: Should the original column be dropped once the conversion is complete?
+        :param multi: If ``True`` the return value of ``fn(value)`` will be expected to be a
           dictionary, and new columns will be created for each key of that dictionary.
-        - ``where`` - a SQL fragment to use as a ``WHERE`` clause to limit the rows to which the conversion
+        :param where: SQL fragment to use as a ``WHERE`` clause to limit the rows to which the conversion
           is applied, for example ``age > ?`` or ``age > :age``.
-        - ``where_args`` - a list of arguments (if using ``?``) or a dictionary (if using ``:age``).
-        - ``show_progress`` - boolean, should a progress bar be displayed?
+        :param where_args: List of arguments (if using ``?``) or a dictionary (if using ``:age``).
+        :param show_progress: Should a progress bar be displayed?
 
         See :ref:`python_api_convert`.
         """
@@ -2627,23 +2799,24 @@ class Table(Queryable):
         Each of them defaults to ``DEFAULT``, which indicates that the default setting for the current
         ``Table`` object (specified in the table constructor) should be used.
 
-        - ``pk`` - if creating the table, which column should be the primary key.
-        - ``foreign_keys`` - see :ref:`python_api_foreign_keys`.
-        - ``column_order`` - optional list of strings specifying a full or partial column order
+        :param record: Dictionary record to be inserted
+        :param pk: If creating the table, which column should be the primary key.
+        :param foreign_keys: See :ref:`python_api_foreign_keys`.
+        :param column_order: List of strings specifying a full or partial column order
           to use when creating the table.
-        - ``not_null`` - optional set of strings specifying columns that should be ``NOT NULL``.
-        - ``defaults`` - optional dictionary specifying default values for specific columns.
-        - ``hash_id`` - optional name of a column to create and use as a primary key, where the
+        :param not_null: Set of strings specifying columns that should be ``NOT NULL``.
+        :param defaults: Dictionary specifying default values for specific columns.
+        :param hash_id: Name of a column to create and use as a primary key, where the
           value of thet primary key will be derived as a SHA1 hash of the other column values
           in the record. ``hash_id="id"`` is a common column name used for this.
-        - ``alter`` - boolean, should any missing columns be added automatically?
-        - ``ignore`` - boolean, if a record already exists with this primary key, ignore this insert.
-        - ``replace`` - boolean, if a record already exists with this primary key, replace it with this new record.
-        - ``extracts`` - a list of columns to extract to other tables, or a dictionary that maps
+        :param alter: Boolean, should any missing columns be added automatically?
+        :param ignore: Boolean, if a record already exists with this primary key, ignore this insert.
+        :param replace: Boolean, if a record already exists with this primary key, replace it with this new record.
+        :param extracts: A list of columns to extract to other tables, or a dictionary that maps
           ``{column_name: other_table_name}``. See :ref:`python_api_extracts`.
-        - ``conversions`` - dictionary specifying SQL conversion functions to be applied to the data while it
+        :param conversions: Dictionary specifying SQL conversion functions to be applied to the data while it
           is being inserted, for example ``{"name": "upper(?)"}``. See :ref:`python_api_conversions`.
-        - ``columns`` - dictionary over-riding the detected types used for the columns, for example
+        :param columns: Dictionary over-riding the detected types used for the columns, for example
           ``{"age": int, "weight": float}``.
         """
         return self.insert_all(
@@ -2904,9 +3077,12 @@ class Table(Queryable):
         be included only if the record is being created for the first time. These will
         be ignored on subsequent lookup calls for records that already exist.
 
+        All other keyword arguments are passed through to ``.insert()``.
+
         See :ref:`python_api_lookup_tables` for more details.
 
-        All other keyword arguments are passed through to ``.insert()``.
+        :param lookup_values: Dictionary specifying column names and values to use for the lookup
+        :param extra_values: Additional column values to be used only if creating a new record
         """
         assert isinstance(lookup_values, dict)
         if extra_values is not None:
@@ -2978,13 +3154,13 @@ class Table(Queryable):
 
         See :ref:`python_api_m2m` for details.
 
-        - ``other_table`` - the name of the table to insert the new records into.
-        - ``record_or_iterable`` - a single dictionary record to insert, or a list of records.
-        - ``pk`` - the primary key to use if creating ``other_table``.
-        - ``lookup`` - same dictionary as for ``.lookup()``, to create a many-to-many lookup table.
-        - ``m2m_table`` - the string name to use for the many-to-many table, defaults to creating
+        :param other_table: The name of the table to insert the new records into.
+        :param record_or_iterable: A single dictionary record to insert, or a list of records.
+        :param pk: The primary key to use if creating ``other_table``.
+        :param lookup: Same dictionary as for ``.lookup()``, to create a many-to-many lookup table.
+        :param m2m_table: The string name to use for the many-to-many table, defaults to creating
           this automatically based on the names of the two tables.
-        - ``alter`` - set to ``True`` to add any missing columns on ``other_table`` if that table
+        :param alter: Set to ``True`` to add any missing columns on ``other_table`` if that table
           already exists.
         """
         if isinstance(other_table, str):
@@ -3053,6 +3229,11 @@ class Table(Queryable):
         Return statistics about the specified column.
 
         See :ref:`python_api_analyze_column`.
+
+        :param column: Column to analyze
+        :param common_limit: Show this many column values
+        :param value_truncate: Truncate display of common values to this many characters
+        :param total_rows: Optimization - pass the total number of rows in the table to save running a fresh ``count(*)`` query
         """
         db = self.db
         table = self.name
@@ -3133,7 +3314,7 @@ class Table(Queryable):
         `SRID 4326 <https://spatialreference.org/ref/epsg/wgs-84/>`__. This can
         be customized using the ``column_name``, ``srid`` and ``not_null`` arguments.
 
-        Returns True if the column was successfully added, False if not.
+        Returns ``True`` if the column was successfully added, ``False`` if not.
 
         .. code-block:: python
 
@@ -3147,6 +3328,11 @@ class Table(Queryable):
             table = db["locations"].create({"name": str})
             table.add_geometry_column("geometry", "POINT")
 
+        :param column_name: Name of column to add
+        :param geometry_type: Type of geometry column, for example ``"GEOMETRY"`` or ``"POINT" or ``"POLYGON"``
+        :param srid: Integer SRID, defaults to 4326 for WGS84
+        :param coord_dimension: Dimensions to use, defaults to ``"XY"`` - set to ``"XYZ"`` to work in three dimensions
+        :param not_null: Should the column be ``NOT NULL``
         """
         cursor = self.db.execute(
             "SELECT AddGeometryColumn(?, ?, ?, ?, ?, ?);",
@@ -3185,6 +3371,7 @@ class Table(Queryable):
             # outputs:
             # CREATE VIRTUAL TABLE "idx_locations_geometry" USING rtree(pkid, xmin, xmax, ymin, ymax)
 
+        :param column_name: Geometry column to create the spatial index against
         """
         if f"idx_{self.name}_{column_name}" in self.db.table_names():
             return False
@@ -3206,6 +3393,12 @@ class View(Queryable):
         )
 
     def drop(self, ignore=False):
+        """
+        Drop this view.
+
+        :param ignore: Set to ``True`` to ignore the error if the view does not exist
+        """
+
         try:
             self.db.execute("DROP VIEW [{}]".format(self.name))
         except sqlite3.OperationalError:
@@ -3213,6 +3406,7 @@ class View(Queryable):
                 raise
 
     def enable_fts(self, *args, **kwargs):
+        "``enable_fts()`` is supported on tables but not on views."
         raise NotImplementedError(
             "enable_fts() is supported on tables but not on views"
         )

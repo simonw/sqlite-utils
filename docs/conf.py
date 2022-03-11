@@ -32,6 +32,7 @@ from subprocess import Popen, PIPE
 # ones.
 extensions = ["sphinx.ext.extlinks", "sphinx.ext.autodoc"]
 autodoc_member_order = "bysource"
+autodoc_typehints = "description"
 
 extlinks = {
     "issue": ("https://github.com/simonw/sqlite-utils/issues/%s", "#"),

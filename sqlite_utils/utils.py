@@ -365,6 +365,9 @@ def hash_record(record: Dict, keys: Optional[Iterable[str]] = None):
             {"name": "Cleo", "twitter": "CleoPaws", "age": 7},
             keys=("name", "twitter")
         )
+
+    :param record: Record to generate a hash for
+    :param keys: Subset of keys to use for that hash
     """
     to_hash = record
     if keys is not None:
