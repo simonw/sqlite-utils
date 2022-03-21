@@ -2676,9 +2676,11 @@ def convert(
         raise click.ClickException(str(e))
     if dry_run:
         # Pull first 20 values for first column and preview them
-        preview = lambda v: fn(v) if v else v
+        preview = lambda v: fn(v) if v else v  # noqa: E731
         if multi:
-            preview = lambda v: json.dumps(fn(v), default=repr) if v else v
+            preview = (
+                lambda v: json.dumps(fn(v), default=repr) if v else v
+            )  # noqa: E731
         db.conn.create_function("preview_transform", 1, preview)
         sql = """
             select
