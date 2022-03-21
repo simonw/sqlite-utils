@@ -48,7 +48,13 @@ def test_convert_help():
 
 @pytest.mark.parametrize(
     "recipe",
-    [n for n in dir(recipes) if not n.startswith("_") and n not in ("json", "parser")],
+    [
+        n
+        for n in dir(recipes)
+        if not n.startswith("_")
+        and n not in ("json", "parser")
+        and callable(getattr(recipes, n))
+    ],
 )
 def test_recipes_are_documented(documented_recipes, recipe):
     assert recipe in documented_recipes

@@ -2583,12 +2583,16 @@ def _generate_convert_help():
     """
     ).strip()
     recipe_names = [
-        n for n in dir(recipes) if not n.startswith("_") and n not in ("json", "parser")
+        n
+        for n in dir(recipes)
+        if not n.startswith("_")
+        and n not in ("json", "parser")
+        and callable(getattr(recipes, n))
     ]
     for name in recipe_names:
         fn = getattr(recipes, name)
-        help += "\n\nr.{}{}\n\n  {}".format(
-            name, str(inspect.signature(fn)), fn.__doc__
+        help += "\n\nr.{}{}\n\n\b{}".format(
+            name, str(inspect.signature(fn)), fn.__doc__.rstrip()
         )
     help += "\n\n"
     help += textwrap.dedent(

@@ -1303,12 +1303,20 @@ Various built-in recipe functions are available for common operations. These are
 
   Would produce an array like this: ``[1.2, 3.0, 4.5]``
 
-``r.parsedate(value, dayfirst=False, yearfirst=False)``
+``r.parsedate(value, dayfirst=False, yearfirst=False, errors=None)``
   Parse a date and convert it to ISO date format: ``yyyy-mm-dd``
 
   In the case of dates such as ``03/04/05`` U.S. ``MM/DD/YY`` format is assumed - you can use ``dayfirst=True`` or ``yearfirst=True`` to change how these ambiguous dates are interpreted.
 
-``r.parsedatetime(value, dayfirst=False, yearfirst=False)``
+  Use the ``errors=`` parameter to specify what should happen if a value cannot be parsed.
+
+  By default, if any value cannot be parsed an error will be occurred and all values will be left as they were.
+
+  Set ``errors=r.IGNORE`` to ignore any values that cannot be parsed, leaving them unchanged.
+
+  Set ``errors=r.SET_NULL`` to set any values that cannot be parsed to ``null``.
+
+``r.parsedatetime(value, dayfirst=False, yearfirst=False, errors=None)``
   Parse a datetime and convert it to ISO datetime format: ``yyyy-mm-ddTHH:MM:SS``
 
 These recipes can be used in the code passed to ``sqlite-utils convert`` like this::
