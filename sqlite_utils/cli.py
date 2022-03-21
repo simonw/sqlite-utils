@@ -2676,7 +2676,10 @@ def convert(
         raise click.ClickException(str(e))
     if dry_run:
         # Pull first 20 values for first column and preview them
-        db.conn.create_function("preview_transform", 1, lambda v: fn(v) if v else v)
+        preview = lambda v: fn(v) if v else v
+        if multi:
+            preview = lambda v: json.dumps(fn(v), default=repr) if v else v
+        db.conn.create_function("preview_transform", 1, preview)
         sql = """
             select
                 [{column}] as value,

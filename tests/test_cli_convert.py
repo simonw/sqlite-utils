@@ -179,6 +179,42 @@ def test_convert_dryrun(test_db_and_path):
     assert result.output.strip().split("\n")[-1] == "Would affect 1 row"
 
 
+def test_convert_multi_dryrun(test_db_and_path):
+    db_path = test_db_and_path[1]
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "convert",
+            db_path,
+            "example",
+            "dt",
+            "{'foo': 'bar', 'baz': 1}",
+            "--dry-run",
+            "--multi",
+        ],
+    )
+    assert result.exit_code == 0
+    assert result.output.strip() == (
+        "5th October 2019 12:04\n"
+        " --- becomes:\n"
+        '{"foo": "bar", "baz": 1}\n'
+        "\n"
+        "6th October 2019 00:05:06\n"
+        " --- becomes:\n"
+        '{"foo": "bar", "baz": 1}\n'
+        "\n"
+        "\n"
+        " --- becomes:\n"
+        "\n"
+        "\n"
+        "None\n"
+        " --- becomes:\n"
+        "None\n"
+        "\n"
+        "Would affect 4 rows"
+    )
+
+
 @pytest.mark.parametrize("drop", (True, False))
 def test_convert_output_column(test_db_and_path, drop):
     db, db_path = test_db_and_path
