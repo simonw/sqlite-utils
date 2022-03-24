@@ -12,3 +12,7 @@ venv
 .coverage
 .schema
 .vscode
+.hypothesis
+Pipfile
+Pipfile.lock
+pyproject.toml
