@@ -1002,6 +1002,8 @@ The ``--convert`` option also works with the ``--csv``, ``--tsv`` and ``--nl`` i
 
 As with ``sqlite-utils convert`` you can use ``--import`` to import additional Python modules, see :ref:`cli_convert_import` for details.
 
+You can also pass code that runs some initialization steps and defines a ``convert(value)`` function, see :ref:`cli_convert_complex`.
+
 .. _cli_insert_convert_lines:
 
 \-\-convert with \-\-lines
@@ -1284,6 +1286,27 @@ This supports nested imports as well, for example to use `ElementTree <https://d
     $ sqlite-utils convert content.db articles content \
         'xml.etree.ElementTree.fromstring(value).attrib["title"]' \
         --import=xml.etree.ElementTree
+
+.. _cli_convert_complex:
+
+Using a convert() function to execute initialization
+----------------------------------------------------
+
+In some cases you may need to execute one-off initialization code at the start of the run. You can do that by providing code that runs before defining your ``convert(value)`` function.
+
+The following example adds a new ``score`` column, then updates it to list a random number - after first seeding the random number generator to ensure that multiple runs produce the same results::
+
+    $ sqlite-utils add-column content.db articles score float --not-null-default 1.0
+    $ sqlite-utils convert content.db articles score '
+    import random
+    random.seed(10)
+
+    def convert(value):
+        global random
+        return random.random()
+    '
+
+Note the ``global random`` line here. Due to the way the tool compiles Python code, this is necessary to ensure the ``random`` module is available within the ``convert()`` function. If you were to omit this you would see a ``NameError: name 'random' is not defined`` error.
 
 .. _cli_convert_recipes:
 
