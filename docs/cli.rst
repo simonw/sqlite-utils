@@ -805,12 +805,21 @@ You can insert binary data into a BLOB column by first encoding it using base64 
 Inserting newline-delimited JSON
 --------------------------------
 
-You can also import newline-delimited JSON using the ``--nl`` option. Since `Datasette <https://datasette.io/>`__ can export newline-delimited JSON, you can combine the two tools like so::
+You can also import `newline-delimited JSON <http://ndjson.org/>`__ using the ``--nl`` option::
+
+    $ echo '{"id": 1, "name": "Cleo"}
+    {"id": 2, "name": "Suna"}' | sqlite-utils insert creatures.db creatures - --nl
+
+Newline-delimited JSON consists of full JSON objects separated by newlines.
+
+If you are processing data using ``jq`` you can use the ``jq -c`` option to output valid newline-delimited JSON.
+
+Since `Datasette <https://datasette.io/>`__ can export newline-delimited JSON, you can combine the Datasette and ``sqlite-utils`` like so::
 
     $ curl -L "https://latest.datasette.io/fixtures/facetable.json?_shape=array&_nl=on" \
         | sqlite-utils insert nl-demo.db facetable - --pk=id --nl
 
-This also means you pipe ``sqlite-utils`` together to easily create a new SQLite database file containing the results of a SQL query against another database::
+You can also pipe ``sqlite-utils`` together to create a new SQLite database file containing the results of a SQL query against another database::
 
     $ sqlite-utils sf-trees.db \
         "select TreeID, qAddress, Latitude, Longitude from Street_Tree_List" --nl \
