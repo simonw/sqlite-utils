@@ -22,7 +22,6 @@ import pathlib
 import re
 import secrets
 from sqlite_fts4 import rank_bm25  # type: ignore
-import sys
 import textwrap
 from typing import (
     cast,
