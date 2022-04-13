@@ -400,7 +400,8 @@ class Database:
                         name, arity, fn, **dict(kwargs, deterministic=True)
                     )
                     registered = True
-                except sqlite3.NotSupportedError:
+                except (sqlite3.NotSupportedError, TypeError):
+                    # TypeError is Python 3.7 "function takes at most 3 arguments"
                     pass
             if not registered:
                 self.conn.create_function(name, arity, fn, **kwargs)
