@@ -392,13 +392,18 @@ class Database:
             if not replace and (name, arity) in self._registered_functions:
                 return fn
             kwargs = {}
-            if (
-                deterministic
-                and sys.version_info >= (3, 8)
-                and self.sqlite_version >= (3, 8, 3)
-            ):
-                kwargs["deterministic"] = True
-            self.conn.create_function(name, arity, fn, **kwargs)
+            registered = False
+            if deterministic:
+                # Try this, but fall back if sqlite3.NotSupportedError
+                try:
+                    self.conn.create_function(
+                        name, arity, fn, **dict(kwargs, deterministic=True)
+                    )
+                    registered = True
+                except sqlite3.NotSupportedError:
+                    pass
+            if not registered:
+                self.conn.create_function(name, arity, fn, **kwargs)
             self._registered_functions.add((name, arity))
             return fn
 
