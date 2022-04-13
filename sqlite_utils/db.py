@@ -768,6 +768,7 @@ class Database:
         # Soundness check not_null, and defaults if provided
         not_null = not_null or set()
         defaults = defaults or {}
+        assert columns, "Tables must have at least one column"
         assert all(
             n in columns for n in not_null
         ), "not_null set {} includes items not in columns {}".format(

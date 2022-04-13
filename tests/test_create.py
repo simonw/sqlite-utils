@@ -1149,3 +1149,9 @@ def test_create_if_not_exists(fresh_db):
         fresh_db["t"].create({"id": int})
     # This should not
     fresh_db["t"].create({"id": int}, if_not_exists=True)
+
+
+def test_create_if_no_columns(fresh_db):
+    with pytest.raises(AssertionError) as error:
+        fresh_db["t"].create({})
+    assert error.value.args[0] == "Tables must have at least one column"
