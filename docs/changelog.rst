@@ -2,6 +2,16 @@
  Changelog
 ===========
 
+.. _v3_26:
+
+3.26 (2022-04-13)
+-----------------
+
+- New ``errors=r.IGNORE/r.SET_NULL`` parameter for the ``r.parsedatetime()`` and ``r.parsedate()`` :ref:`convert recipes <cli_convert_recipes>`. (:issue:`416`)
+- Fixed a bug where ``--multi`` could not be used in combination with ``--dry-run`` for the :ref:`convert <cli_convert>` command. (:issue:`415`)
+- New documentation: :ref:`cli_convert_complex`. (:issue:`420`)
+- More robust detection for whether or not ``deterministic=True`` is supported. (:issue:`425`)
+
 .. _v3_25_1:
 
 3.25.1 (2022-03-11)
