@@ -2,6 +2,24 @@
  Changelog
 ===========
 
+.. _v3_26_1:
+
+3.26.1 (2022-05-02)
+-------------------
+
+- Now depends on `click-default-group-wheel <https://github.com/simonw/click-default-group-wheel>`__, a pure Python wheel package. This means you can install and use this package with `Pyodide <https://pyodide.org/>`__, which can run Python entirely in your broswer using WebAssembly. (`#429 <https://github.com/simonw/sqlite-utils/pull/429>`__)
+
+  Try that out using the `Pyodide REPL <https://pyodide.org/en/stable/console.html>`__:
+
+  .. code-block:: python
+
+      >>> import micropip
+      >>> await micropip.install("sqlite-utils")
+      >>> import sqlite_utils
+      >>> db = sqlite_utils.Database(memory=True)
+      >>> list(db.query("select 3 * 5"))
+      [{'3 * 5': 15}]
+
 .. _v3_26:
 
 3.26 (2022-04-13)
@@ -49,7 +67,7 @@
 3.23 (2022-02-03)
 -----------------
 
-This release introduces four new utility methods for working with `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__. Thanks, Chris Amico. (`#330 <https://github.com/simonw/sqlite-utils/pull/385>`__)
+This release introduces four new utility methods for working with `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__. Thanks, Chris Amico. (`#385 <https://github.com/simonw/sqlite-utils/pull/385>`__)
 
 - ``sqlite_utils.utils.find_spatialite()`` :ref:`finds the location of the SpatiaLite module <python_api_gis_find_spatialite>` on disk.
 - ``db.init_spatialite()`` :ref:`initializes SpatiaLite <python_api_gis_init_spatialite>` for the given database.
