@@ -7,7 +7,7 @@
 3.26.1 (2022-05-02)
 -------------------
 
-- Now depends on `click-default-group-wheel <https://github.com/simonw/click-default-group-wheel>`__, a pure Python wheel package. This means you can install and use this package with `Pyodide <https://pyodide.org/>`__, which can run Python entirely in your broswer using WebAssembly. (`#429 <https://github.com/simonw/sqlite-utils/pull/429>`__)
+- Now depends on `click-default-group-wheel <https://github.com/simonw/click-default-group-wheel>`__, a pure Python wheel package. This means you can install and use this package with `Pyodide <https://pyodide.org/>`__, which can run Python entirely in your browser using WebAssembly. (`#429 <https://github.com/simonw/sqlite-utils/pull/429>`__)
 
   Try that out using the `Pyodide REPL <https://pyodide.org/en/stable/console.html>`__:
 
