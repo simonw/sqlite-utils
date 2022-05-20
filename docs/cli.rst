@@ -9,6 +9,7 @@ The ``sqlite-utils`` command-line tool can be used to manipulate SQLite database
 Once installed, the tool should be available as ``sqlite-utils``. It can also be run using ``python -m sqlite_utils``.
 
 .. contents:: :local:
+   :class: this-will-duplicate-information-and-it-is-still-useful-here
 
 .. _cli_query:
 

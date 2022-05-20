@@ -5,6 +5,7 @@
 =============================
 
 .. contents:: :local:
+   :class: this-will-duplicate-information-and-it-is-still-useful-here
 
 .. _python_api_getting_started:
 

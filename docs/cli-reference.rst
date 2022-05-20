@@ -7,6 +7,7 @@
 This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
 
 .. contents:: :local:
+   :class: this-will-duplicate-information-and-it-is-still-useful-here
 
 .. [[[cog
     from sqlite_utils import cli

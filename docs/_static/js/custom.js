@@ -1,13 +1,3 @@
-{%- extends "!layout.html" %}
-
-{% block htmltitle %}
-{{ super() }}
-<script defer data-domain="sqlite-utils.datasette.io" src="https://plausible.io/js/plausible.js"></script>
-{% endblock %}
-
-{% block footer %}
-{{ super() }}
-<script>
 jQuery(function ($) {
   // Show banner linking to /stable/ if this is a /latest/ page
   if (!/\/latest\//.test(location.pathname)) {
@@ -27,13 +17,7 @@ jQuery(function ($) {
         </div>`
       );
       warning.find("a").attr("href", stableUrl);
-      var body = $("div.body");
-      if (!body.length) {
-        body = $("div.document");
-      }
-      body.prepend(warning);
+      $("article[role=main]").prepend(warning);
     }
   });
 });
-</script>
-{% endblock %}
