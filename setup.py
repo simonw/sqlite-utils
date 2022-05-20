@@ -32,7 +32,7 @@ setup(
     ],
     extras_require={
         "test": ["pytest", "black", "hypothesis", "cogapp"],
-        "docs": ["furo", "sphinx-autobuild", "codespell"],
+        "docs": ["furo", "sphinx-autobuild", "codespell", "sphinx-copybutton"],
         "mypy": [
             "mypy",
             "types-click",
