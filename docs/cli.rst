@@ -884,7 +884,7 @@ Inserting CSV or TSV data
 
 If your data is in CSV format, you can insert it using the ``--csv`` option::
 
-    $ sqlite-utils insert dogs.db dogs docs.csv --csv
+    $ sqlite-utils insert dogs.db dogs dogs.csv --csv
 
 For tab-delimited data, use ``--tsv``::
 
