@@ -1275,8 +1275,8 @@ The conversion will be applied to every row in the specified table. You can limi
 You can include named parameters in your where clause and populate them using one or more ``--param`` options::
 
     $ sqlite-utils convert content.db articles headline 'value.upper()' \
-        --where "headline like :like" \
-        --param like '%cat%'
+        --where "headline like :query" \
+        --param query '%cat%'
 
 The ``--dry-run`` option will output a preview of the conversion against the first ten rows, without modifying the database.
 
