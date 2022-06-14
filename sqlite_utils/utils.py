@@ -8,7 +8,7 @@ import itertools
 import json
 import os
 from . import recipes
-from typing import Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type
+from typing import Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type, Union
 
 import click
 
@@ -176,25 +176,27 @@ class RowError(Exception):
 
 
 def _extra_key_strategy(
-    reader: Iterable[dict],
+    reader: Union[Iterable[dict], csv.DictReader[str]],
     ignore_extras: Optional[bool] = False,
     restkey: Optional[str] = None,
-):
+) -> Iterable[dict]:
     # Logic for handling CSV rows with more values than there are headings
     for row in reader:
         # DictReader adds a 'None' key with extra row values
         if None not in row:
             yield row
         elif ignore_extras:
-            row.pop(None)
+            # ignoring row.pop(none) because of this issue:
+            # https://github.com/simonw/sqlite-utils/issues/440#issuecomment-1155358637
+            row.pop(None)  # type: ignore
             yield row
         elif not restkey:
-            extras = row.pop(None)
+            extras = row.pop(None)  # type: ignore
             raise RowError(
                 "Row {} contained these extra values: {}".format(row, extras)
             )
         else:
-            row[restkey] = row.pop(None)
+            row[restkey] = row.pop(None)  # type: ignore
             yield row
 
 
@@ -226,11 +228,11 @@ def rows_from_file(
             reader = csv.DictReader(decoded_fp)
         return _extra_key_strategy(reader, ignore_extras, restkey), Format.CSV
     elif format == Format.TSV:
-        reader = rows_from_file(
+        rows = rows_from_file(
             fp, format=Format.CSV, dialect=csv.excel_tab, encoding=encoding
         )[0]
         return (
-            _extra_key_strategy(reader, ignore_extras, restkey),
+            _extra_key_strategy(rows, ignore_extras, restkey),
             Format.TSV,
         )
     elif format is None:
