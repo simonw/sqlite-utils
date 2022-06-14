@@ -176,7 +176,7 @@ class RowError(Exception):
 
 
 def _extra_key_strategy(
-    reader: Union[Iterable[dict], csv.DictReader[str]],
+    reader: Iterable[dict],
     ignore_extras: Optional[bool] = False,
     restkey: Optional[str] = None,
 ) -> Iterable[dict]:
