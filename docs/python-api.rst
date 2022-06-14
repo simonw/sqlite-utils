@@ -2539,6 +2539,16 @@ If that option isn't relevant to your use-case you can to quote a string for use
     >>> db.quote("hello'this'has'quotes")
     "'hello''this''has''quotes'"
 
+.. _python_api_rows_from_file:
+
+Reading rows from a file
+========================
+
+The ``sqlite_utils.utils.rows_from_file()`` helper function can read rows (a sequence of dictionaries) from CSV, TSV, JSON or newline-delimited JSON files.
+
+.. autofunction:: sqlite_utils.utils.rows_from_file
+   :noindex:
+
 .. _python_api_gis:
 
 SpatiaLite helpers

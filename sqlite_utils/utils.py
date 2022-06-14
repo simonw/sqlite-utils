@@ -178,7 +178,7 @@ class RowError(Exception):
 def _extra_key_strategy(
     reader: Iterable[dict],
     ignore_extras: Optional[bool] = False,
-    restkey: Optional[str] = None,
+    extras_key: Optional[str] = None,
 ) -> Iterable[dict]:
     # Logic for handling CSV rows with more values than there are headings
     for row in reader:
@@ -190,13 +190,13 @@ def _extra_key_strategy(
             # https://github.com/simonw/sqlite-utils/issues/440#issuecomment-1155358637
             row.pop(None)  # type: ignore
             yield row
-        elif not restkey:
+        elif not extras_key:
             extras = row.pop(None)  # type: ignore
             raise RowError(
                 "Row {} contained these extra values: {}".format(row, extras)
             )
         else:
-            row[restkey] = row.pop(None)  # type: ignore
+            row[extras_key] = row.pop(None)  # type: ignore
             yield row
 
 
@@ -206,10 +206,50 @@ def rows_from_file(
     dialect: Optional[Type[csv.Dialect]] = None,
     encoding: Optional[str] = None,
     ignore_extras: Optional[bool] = False,
-    restkey: Optional[str] = None,
+    extras_key: Optional[str] = None,
 ) -> Tuple[Iterable[dict], Format]:
-    if ignore_extras and restkey:
-        raise ValueError("Cannot use ignore_extras= and restkey= together")
+    """
+    Load a sequence of dictionaries from a file-like object containing one of four different formats.
+
+    .. code-block:: python
+
+        from sqlite_utils.utils import rows_from_file
+        import io
+
+        rows, format = rows_from_file(io.StringIO("id,name\\n1,Cleo")))
+        print(list(rows), format)
+        # Outputs [{'id': '1', 'name': 'Cleo'}] Format.CSV
+
+    This defaults to attempting to automatically detect the format of the data, or you can pass in an
+    explicit format using the format= option.
+
+    Returns a tuple of ``(rows_generator, format_used)`` where ``rows_generator`` can be iterated over
+    to return dictionaries, while ``format_used`` is a value from the ``sqlite_utils.utils.Format`` enum:
+
+    .. code-block:: python
+
+        class Format(enum.Enum):
+            CSV = 1
+            TSV = 2
+            JSON = 3
+            NL = 4
+
+    If a CSV or TSV file includes rows with more fields than are declared in the header a
+    ``sqlite_utils.utils.RowError`` exception will be raised when you loop over the generator.
+
+    You can instead ignore the extra data by passing ``ignore_extras=True``.
+
+    Or pass ``extras_key="rest"`` to put those additional values in a list in a key called ``rest``.
+
+    :param fp: a file-like object containing binary data
+    :param format: the format to use - omit this to detect the format
+    :param dialect: the CSV dialect to use - omit this to detect the dialect
+    :param encoding: the character encoding to use when reading CSV/TSV data
+    :param ignore_extras: ignore any extra fields on rows
+    :param extras_key: put any extra fields in a list with this key
+    """
+    if ignore_extras and extras_key:
+        raise ValueError("Cannot use ignore_extras= and extras_key= together")
     if format == Format.JSON:
         decoded = json.load(fp)
         if isinstance(decoded, dict):
@@ -226,13 +266,13 @@ def rows_from_file(
             reader = csv.DictReader(decoded_fp, dialect=dialect)
         else:
             reader = csv.DictReader(decoded_fp)
-        return _extra_key_strategy(reader, ignore_extras, restkey), Format.CSV
+        return _extra_key_strategy(reader, ignore_extras, extras_key), Format.CSV
     elif format == Format.TSV:
         rows = rows_from_file(
             fp, format=Format.CSV, dialect=csv.excel_tab, encoding=encoding
         )[0]
         return (
-            _extra_key_strategy(rows, ignore_extras, restkey),
+            _extra_key_strategy(rows, ignore_extras, extras_key),
             Format.TSV,
         )
     elif format is None:
@@ -251,7 +291,7 @@ def rows_from_file(
             )
             # Make sure we return the format we detected
             format = Format.TSV if dialect.delimiter == "\t" else Format.CSV
-            return _extra_key_strategy(rows, ignore_extras, restkey), format
+            return _extra_key_strategy(rows, ignore_extras, extras_key), format
     else:
         raise RowsFromFileError("Bad format")
 
