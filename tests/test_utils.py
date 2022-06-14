@@ -1,4 +1,6 @@
 from sqlite_utils import utils
+import csv
+import io
 import pytest
 
 
@@ -49,3 +51,23 @@ def test_hash_record():
     assert (
         utils.hash_record({"name": "Cleo", "twitter": "CleoPaws", "age": 7}) != expected
     )
+
+
+def test_maximize_csv_field_size_limit():
+    # Reset to default in case other tests have changed it
+    csv.field_size_limit(utils.ORIGINAL_CSV_FIELD_SIZE_LIMIT)
+    long_value = "a" * 131073
+    long_csv = "id,text\n1,{}".format(long_value)
+    fp = io.BytesIO(long_csv.encode("utf-8"))
+    # Using rows_from_file should error
+    with pytest.raises(csv.Error):
+        rows, _ = utils.rows_from_file(fp, utils.Format.CSV)
+        list(rows)
+    # But if we call maximize_csv_field_size_limit() first it should be OK:
+    utils.maximize_csv_field_size_limit()
+    fp2 = io.BytesIO(long_csv.encode("utf-8"))
+    rows2, _ = utils.rows_from_file(fp2, utils.Format.CSV)
+    rows_list2 = list(rows2)
+    assert len(rows_list2) == 1
+    assert rows_list2[0]["id"] == "1"
+    assert rows_list2[0]["text"] == long_value
