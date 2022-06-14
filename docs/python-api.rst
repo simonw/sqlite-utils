@@ -2108,10 +2108,16 @@ The ``.search()`` method also accepts the following optional parameters:
 ``offset`` integer
     Offset to use along side the limit parameter.
 
+``where`` string
+    Extra SQL fragment for the WHERE clause
+
+``where_args`` dictionary
+    Arguments to use for ``:param`` placeholders in the extra WHERE clause
+
 ``quote`` bool
     Apply :ref:`FTS quoting rules <python_api_quote_fts>` to the search query, disabling advanced query syntax in a way that avoids surprising errors.
 
-To return just the title and published columns for three matches for ``"dog"`` ordered by ``published`` with the most recent first, use the following:
+To return just the title and published columns for three matches for ``"dog"`` where the ``id`` is greater than 10 ordered by ``published`` with the most recent first, use the following:
 
 .. code-block:: python
 
@@ -2119,6 +2125,8 @@ To return just the title and published columns for three matches for ``"dog"`` o
         "dog",
         order_by="published desc",
         limit=3,
+        where="id > :min_id",
+        where_args={"min_id": 10},
         columns=["title", "published"]
     ):
         print(article)
@@ -2128,7 +2136,7 @@ To return just the title and published columns for three matches for ``"dog"`` o
 Building SQL queries with table.search_sql()
 --------------------------------------------
 
-You can generate the SQL query that would be used for a search using the ``table.search_sql()`` method. It takes the same arguments as ``table.search()`` with the exception of the search query itself, since the returned SQL includes a parameter that can be used for the search.
+You can generate the SQL query that would be used for a search using the ``table.search_sql()`` method. It takes the same arguments as ``table.search()``, with the exception of the search query and the ``where_args`` parameter, since those should be provided when the returned SQL is executed.
 
 .. code-block:: python
 

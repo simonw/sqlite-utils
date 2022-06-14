@@ -94,6 +94,38 @@ def test_search_limit_offset(fresh_db):
     )
 
 
+@pytest.mark.parametrize("fts_version", ("FTS4", "FTS5"))
+def test_search_where(fresh_db, fts_version):
+    table = fresh_db["t"]
+    table.insert_all(search_records)
+    table.enable_fts(["text", "country"], fts_version=fts_version)
+    results = list(
+        table.search("are", where="country = :country", where_args={"country": "Japan"})
+    )
+    assert results == [
+        {
+            "rowid": 1,
+            "text": "tanuki are running tricksters",
+            "country": "Japan",
+            "not_searchable": "foo",
+        }
+    ]
+
+
+def test_search_where_args_disallows_query(fresh_db):
+    table = fresh_db["t"]
+    with pytest.raises(ValueError) as ex:
+        list(
+            table.search(
+                "x", where="author = :query", where_args={"query": "not allowed"}
+            )
+        )
+    assert (
+        ex.value.args[0]
+        == "'query' is a reserved key and cannot be passed to where_args for .search()"
+    )
+
+
 def test_enable_fts_table_names_containing_spaces(fresh_db):
     table = fresh_db["test"]
     table.insert({"column with spaces": "in its name"})
@@ -416,6 +448,28 @@ def test_enable_fts_error_message_on_views():
             ),
         ),
         (
+            {"where": "author = :author"},
+            "FTS5",
+            (
+                "with original as (\n"
+                "    select\n"
+                "        rowid,\n"
+                "        *\n"
+                "    from [books]\n"
+                "    where author = :author\n"
+                ")\n"
+                "select\n"
+                "    [original].*\n"
+                "from\n"
+                "    [original]\n"
+                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                "where\n"
+                "    [books_fts] match :query\n"
+                "order by\n"
+                "    [books_fts].rank"
+            ),
+        ),
+        (
             {"columns": ["title"]},
             "FTS4",
             (
@@ -478,6 +532,28 @@ def test_enable_fts_error_message_on_views():
                 "order by\n"
                 "    rank_bm25(matchinfo([books_fts], 'pcnalx'))\n"
                 "limit 2"
+            ),
+        ),
+        (
+            {"where": "author = :author"},
+            "FTS4",
+            (
+                "with original as (\n"
+                "    select\n"
+                "        rowid,\n"
+                "        *\n"
+                "    from [books]\n"
+                "    where author = :author\n"
+                ")\n"
+                "select\n"
+                "    [original].*\n"
+                "from\n"
+                "    [original]\n"
+                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                "where\n"
+                "    [books_fts] match :query\n"
+                "order by\n"
+                "    rank_bm25(matchinfo([books_fts], 'pcnalx'))"
             ),
         ),
     ],

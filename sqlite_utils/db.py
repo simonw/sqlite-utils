@@ -2254,6 +2254,7 @@ class Table(Queryable):
         order_by: Optional[str] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
+        where: Optional[str] = None,
     ) -> str:
         """ "
         Return SQL string that can be used to execute searches against this table.
@@ -2262,6 +2263,7 @@ class Table(Queryable):
         :param order_by: Column or SQL expression to sort by
         :param limit: SQL limit
         :param offset: SQL offset
+        :param where: Extra SQL fragment for the WHERE clause
         """
         # Pick names for table and rank column that don't clash
         original = "original_" if self.name == "original" else "original"
@@ -2283,7 +2285,7 @@ class Table(Queryable):
             select
                 rowid,
                 {columns}
-            from [{dbtable}]
+            from [{dbtable}]{where_clause}
         )
         select
             {columns_with_prefix}
@@ -2311,6 +2313,7 @@ class Table(Queryable):
             limit_offset += " offset {}".format(offset)
         return sql.format(
             dbtable=self.name,
+            where_clause="\n    where {}".format(where) if where else "",
             original=original,
             columns=columns_sql,
             columns_with_prefix=columns_with_prefix_sql,
@@ -2326,6 +2329,8 @@ class Table(Queryable):
         columns: Optional[Iterable[str]] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
+        where: str = None,
+        where_args: Optional[Union[Iterable, dict]] = None,
         quote: bool = False,
     ) -> Generator[dict, None, None]:
         """
@@ -2337,18 +2342,29 @@ class Table(Queryable):
         :param columns: List of columns to return, defaults to all columns.
         :param limit: Optional integer limit for returned rows.
         :param offset: Optional integer SQL offset.
+        :param where: Extra SQL fragment for the WHERE clause
+        :param where_args: Arguments to use for :param placeholders in the extra WHERE clause
         :param quote: Apply quoting to disable any special characters in the search query
 
         See :ref:`python_api_fts_search`.
         """
+        args = {"query": self.db.quote_fts(q) if quote else q}
+        if where_args and "query" in where_args:
+            raise ValueError(
+                "'query' is a reserved key and cannot be passed to where_args for .search()"
+            )
+        if where_args:
+            args.update(where_args)
+
         cursor = self.db.execute(
             self.search_sql(
                 order_by=order_by,
                 columns=columns,
                 limit=limit,
                 offset=offset,
+                where=where,
             ),
-            {"query": self.db.quote_fts(q) if quote else q},
+            args,
         )
         columns = [c[0] for c in cursor.description]
         for row in cursor:
