@@ -2549,6 +2549,37 @@ The ``sqlite_utils.utils.rows_from_file()`` helper function can read rows (a seq
 .. autofunction:: sqlite_utils.utils.rows_from_file
    :noindex:
 
+.. _python_api_maximize_csv_field_size_limit:
+
+Setting the maximum CSV field size limit
+========================================
+
+Sometimes when working with CSV files that include extremely long fields you may see an error that looks like this::
+
+    _csv.Error: field larger than field limit (131072)
+
+The Python standard library ``csv`` module enforces a field size limit. You can increase that limit using the ``csv.field_size_limit(new_limit)`` method (`documented here <https://docs.python.org/3/library/csv.html#csv.field_size_limit>`__) but if you don't want to pick a new level you may instead want to increase it to the maximum possible.
+
+The maximum possible value for this is not documented, and varies between systems.
+
+Calling ``sqlite_utils.utils.maximize_csv_field_size_limit()`` will set the value to the highest possible for the current system:
+
+.. code-block:: python
+
+    from sqlite_utils.utils import maximize_csv_field_size_limit
+
+    maximize_csv_field_size_limit()
+
+
+If you need to reset to the original value after calling this function you can do so like this:
+
+.. code-block:: python
+
+    from sqlite_utils.utils import ORIGINAL_CSV_FIELD_SIZE_LIMIT
+    import csv
+
+    csv.field_size_limit(ORIGINAL_CSV_FIELD_SIZE_LIMIT)
+
 .. _python_api_gis:
 
 SpatiaLite helpers
