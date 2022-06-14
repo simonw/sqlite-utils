@@ -8,7 +8,7 @@ import itertools
 import json
 import os
 from . import recipes
-from typing import Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type, Union
+from typing import Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type
 
 import click
 
