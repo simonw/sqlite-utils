@@ -54,14 +54,19 @@ def test_with_tracer():
                 "SELECT name FROM sqlite_master\n"
                 "    WHERE rootpage = 0\n"
                 "    AND (\n"
-                "        sql LIKE '%VIRTUAL TABLE%USING FTS%content=%dogs%'\n"
+                "        sql LIKE :like\n"
+                "        OR sql LIKE :like2\n"
                 "        OR (\n"
-                '            tbl_name = "dogs"\n'
+                "            tbl_name = :table\n"
                 "            AND sql LIKE '%VIRTUAL TABLE%USING FTS%'\n"
                 "        )\n"
-                "    )"
-            ),
-            None,
+                "    )",
+                {
+                    "like": "%VIRTUAL TABLE%USING FTS%content=[dogs]%",
+                    "like2": '%VIRTUAL TABLE%USING FTS%content="dogs"%',
+                    "table": "dogs",
+                },
+            )
         ),
         ("select name from sqlite_master where type = 'view'", None),
         ("select sql from sqlite_master where name = ?", ("dogs_fts",)),

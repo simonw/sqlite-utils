@@ -2212,24 +2212,26 @@ class Table(Queryable):
 
     def detect_fts(self) -> Optional[str]:
         "Detect if table has a corresponding FTS virtual table and return it"
-        sql = (
-            textwrap.dedent(
-                """
+        sql = textwrap.dedent(
+            """
             SELECT name FROM sqlite_master
                 WHERE rootpage = 0
                 AND (
-                    sql LIKE '%VIRTUAL TABLE%USING FTS%content=%{table}%'
+                    sql LIKE :like
+                    OR sql LIKE :like2
                     OR (
-                        tbl_name = "{table}"
+                        tbl_name = :table
                         AND sql LIKE '%VIRTUAL TABLE%USING FTS%'
                     )
                 )
         """
-            )
-            .strip()
-            .format(table=self.name)
-        )
-        rows = self.db.execute(sql).fetchall()
+        ).strip()
+        args = {
+            "like": "%VIRTUAL TABLE%USING FTS%content=[{}]%".format(self.name),
+            "like2": '%VIRTUAL TABLE%USING FTS%content="{}"%'.format(self.name),
+            "table": self.name,
+        }
+        rows = self.db.execute(sql, args).fetchall()
         if len(rows) == 0:
             return None
         else:

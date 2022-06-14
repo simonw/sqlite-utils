@@ -36,6 +36,23 @@ def test_detect_fts(existing_db):
     assert existing_db["foo"].detect_fts() is None
 
 
+@pytest.mark.parametrize("reverse_order", (True, False))
+def test_detect_fts_similar_tables(fresh_db, reverse_order):
+    # https://github.com/simonw/sqlite-utils/issues/434
+    table1, table2 = ("demo", "demo2")
+    if reverse_order:
+        table1, table2 = table2, table1
+
+    fresh_db[table1].insert({"title": "Hello"}).enable_fts(
+        ["title"], fts_version="FTS4"
+    )
+    fresh_db[table2].insert({"title": "Hello"}).enable_fts(
+        ["title"], fts_version="FTS4"
+    )
+    assert fresh_db[table1].detect_fts() == "{}_fts".format(table1)
+    assert fresh_db[table2].detect_fts() == "{}_fts".format(table2)
+
+
 def test_tables(existing_db):
     assert 1 == len(existing_db.tables)
     assert "foo" == existing_db.tables[0].name
