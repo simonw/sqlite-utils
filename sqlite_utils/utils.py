@@ -7,6 +7,7 @@ import io
 import itertools
 import json
 import os
+import sys
 from . import recipes
 from typing import Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type
 
@@ -28,6 +29,24 @@ SPATIALITE_PATHS = (
     "/usr/lib/x86_64-linux-gnu/mod_spatialite.so",
     "/usr/local/lib/mod_spatialite.dylib",
 )
+
+# Mainly so we can restore it if needed in the tests:
+ORIGINAL_CSV_FIELD_SIZE_LIMIT = csv.field_size_limit()
+
+
+def maximize_csv_field_size_limit():
+    """
+    Increase the CSV field size limit to the maximum possible.
+    """
+    # https://stackoverflow.com/a/15063941
+    field_size_limit = sys.maxsize
+
+    while True:
+        try:
+            csv.field_size_limit(field_size_limit)
+            break
+        except OverflowError:
+            field_size_limit = int(field_size_limit / 10)
 
 
 def find_spatialite() -> Optional[str]:

@@ -6,6 +6,7 @@ import hashlib
 import pathlib
 import sqlite_utils
 from sqlite_utils.db import AlterError, BadMultiValues, DescIndex
+from sqlite_utils.utils import maximize_csv_field_size_limit
 from sqlite_utils import recipes
 import textwrap
 import inspect
@@ -46,17 +47,7 @@ If you do not know the encoding, running 'file filename.csv' may tell you.
 It's often worth trying: --encoding=latin-1
 """.strip()
 
-
-# Increase CSV field size limit to maximum possible
-# https://stackoverflow.com/a/15063941
-field_size_limit = sys.maxsize
-
-while True:
-    try:
-        csv_std.field_size_limit(field_size_limit)
-        break
-    except OverflowError:
-        field_size_limit = int(field_size_limit / 10)
+maximize_csv_field_size_limit()
 
 
 def output_options(fn):
