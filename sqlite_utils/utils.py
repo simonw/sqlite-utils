@@ -171,12 +171,43 @@ class RowsFromFileBadJSON(RowsFromFileError):
     pass
 
 
+class RowError(Exception):
+    pass
+
+
+def _extra_key_strategy(
+    reader: Iterable[dict],
+    ignore_extras: Optional[bool] = False,
+    restkey: Optional[str] = None,
+):
+    # Logic for handling CSV rows with more values than there are headings
+    for row in reader:
+        # DictReader adds a 'None' key with extra row values
+        if None not in row:
+            yield row
+        elif ignore_extras:
+            row.pop(None)
+            yield row
+        elif not restkey:
+            extras = row.pop(None)
+            raise RowError(
+                "Row {} contained these extra values: {}".format(row, extras)
+            )
+        else:
+            row[restkey] = row.pop(None)
+            yield row
+
+
 def rows_from_file(
     fp: BinaryIO,
     format: Optional[Format] = None,
     dialect: Optional[Type[csv.Dialect]] = None,
     encoding: Optional[str] = None,
+    ignore_extras: Optional[bool] = False,
+    restkey: Optional[str] = None,
 ) -> Tuple[Iterable[dict], Format]:
+    if ignore_extras and restkey:
+        raise ValueError("Cannot use ignore_extras= and restkey= together")
     if format == Format.JSON:
         decoded = json.load(fp)
         if isinstance(decoded, dict):
@@ -193,12 +224,13 @@ def rows_from_file(
             reader = csv.DictReader(decoded_fp, dialect=dialect)
         else:
             reader = csv.DictReader(decoded_fp)
-        return reader, Format.CSV
+        return _extra_key_strategy(reader, ignore_extras, restkey), Format.CSV
     elif format == Format.TSV:
+        reader = rows_from_file(
+            fp, format=Format.CSV, dialect=csv.excel_tab, encoding=encoding
+        )[0]
         return (
-            rows_from_file(
-                fp, format=Format.CSV, dialect=csv.excel_tab, encoding=encoding
-            )[0],
+            _extra_key_strategy(reader, ignore_extras, restkey),
             Format.TSV,
         )
     elif format is None:
@@ -212,9 +244,12 @@ def rows_from_file(
             dialect = csv.Sniffer().sniff(
                 first_bytes.decode(encoding or "utf-8-sig", "ignore")
             )
-            return rows_from_file(
+            rows, _ = rows_from_file(
                 buffered, format=Format.CSV, dialect=dialect, encoding=encoding
             )
+            # Make sure we return the format we detected
+            format = Format.TSV if dialect.delimiter == "\t" else Format.CSV
+            return _extra_key_strategy(rows, ignore_extras, restkey), format
     else:
         raise RowsFromFileError("Bad format")
 
