@@ -223,6 +223,42 @@ def test_insert_csv_tsv(content, options, db_path, tmpdir):
 
 
 @pytest.mark.parametrize(
+    "options,expected_rows,expected_error",
+    [
+        (["--csv", "--ignore-extras"], [{"id": "1", "name": "Cleo"}], None),
+        (
+            ["--csv", "--extras-key", "x"],
+            [{"id": "1", "name": "Cleo", "x": '["extra"]'}],
+            None,
+        ),
+        (["--csv"], None, "Oh no an extra field found"),
+        (
+            ["--csv", "--extras-key", "x", "--ignore-extras"],
+            None,
+            "Error: --ignore-extras and --extras-key cannot be used together\n",
+        ),
+    ],
+)
+def test_insert_csv_with_extra_fields(
+    options, expected_rows, expected_error, db_path, tmpdir
+):
+    db = Database(db_path)
+    file_path = str(tmpdir / "insert.csv")
+    open(file_path, "w").write("id,name\n1,Cleo,extra")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "data", file_path] + options,
+        catch_exceptions=False,
+    )
+    if expected_error:
+        assert result.exit_code == 2
+        assert result.output == expected_error
+    else:
+        assert result.exit_code == 0
+        assert list(db["data"].rows) == expected_rows
+
+
+@pytest.mark.parametrize(
     "options",
     (
         ["--tsv", "--nl"],

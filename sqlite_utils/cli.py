@@ -6,7 +6,7 @@ import hashlib
 import pathlib
 import sqlite_utils
 from sqlite_utils.db import AlterError, BadMultiValues, DescIndex
-from sqlite_utils.utils import maximize_csv_field_size_limit
+from sqlite_utils.utils import maximize_csv_field_size_limit, _extra_key_strategy_row
 from sqlite_utils import recipes
 import textwrap
 import inspect
@@ -797,6 +797,15 @@ _import_options = (
         "--encoding",
         help="Character encoding for input, defaults to utf-8",
     ),
+    click.option(
+        "--ignore-extras",
+        is_flag=True,
+        help="If a CSV line has more than the expected number of values, ignore the extras",
+    ),
+    click.option(
+        "--extras-key",
+        help="If a CSV line has more than the expected number of values put them in a list in this column",
+    ),
 )
 
 
@@ -885,6 +894,8 @@ def insert_upsert_implementation(
     sniff,
     no_headers,
     encoding,
+    ignore_extras,
+    extras_key,
     batch_size,
     alter,
     upsert,
@@ -909,6 +920,10 @@ def insert_upsert_implementation(
         raise click.ClickException("--flatten cannot be used with --csv or --tsv")
     if encoding and not (csv or tsv):
         raise click.ClickException("--encoding must be used with --csv or --tsv")
+    if ignore_extras and extras_key:
+        raise click.ClickException(
+            "--ignore-extras and --extras-key cannot be used together"
+        )
     if pk and len(pk) == 1:
         pk = pk[0]
     encoding = encoding or "utf-8-sig"
@@ -942,7 +957,10 @@ def insert_upsert_implementation(
                 reader = itertools.chain([first_row], reader)
             else:
                 headers = first_row
-            docs = (dict(zip(headers, row)) for row in reader)
+            docs = (
+                _extra_key_strategy_row(headers, row, ignore_extras, extras_key)
+                for row in reader
+            )
             if detect_types:
                 tracker = TypeTracker()
                 docs = tracker.wrap(docs)
@@ -1101,6 +1119,8 @@ def insert(
     sniff,
     no_headers,
     encoding,
+    ignore_extras,
+    extras_key,
     batch_size,
     alter,
     detect_types,
@@ -1176,6 +1196,8 @@ def insert(
             sniff,
             no_headers,
             encoding,
+            ignore_extras,
+            extras_key,
             batch_size,
             alter=alter,
             upsert=False,
@@ -1214,6 +1236,8 @@ def upsert(
     sniff,
     no_headers,
     encoding,
+    ignore_extras,
+    extras_key,
     alter,
     not_null,
     default,
@@ -1254,6 +1278,8 @@ def upsert(
             sniff,
             no_headers,
             encoding,
+            ignore_extras,
+            extras_key,
             batch_size,
             alter=alter,
             upsert=True,
@@ -1297,6 +1323,8 @@ def bulk(
     sniff,
     no_headers,
     encoding,
+    ignore_extras,
+    extras_key,
     load_extension,
 ):
     """
@@ -1331,6 +1359,8 @@ def bulk(
             sniff=sniff,
             no_headers=no_headers,
             encoding=encoding,
+            ignore_extras=ignore_extras,
+            extras_key=extras_key,
             batch_size=batch_size,
             alter=False,
             upsert=False,

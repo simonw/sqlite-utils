@@ -9,7 +9,7 @@ import json
 import os
 import sys
 from . import recipes
-from typing import Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type
+from typing import Any, Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type
 
 import click
 
@@ -217,6 +217,25 @@ def _extra_key_strategy(
         else:
             row[extras_key] = row.pop(None)  # type: ignore
             yield row
+
+
+def _extra_key_strategy_row(
+    headers: Iterable[str],
+    row: Iterable[Any],
+    ignore_extras: Optional[bool] = False,
+    extras_key: Optional[str] = None,
+) -> dict:
+    # Logic for handling CSV rows with more values than there are headings
+    if len(headers) <= len(row) or ignore_extras:
+        return dict(zip(headers, row))
+    # There are more row items than headers, what to do with the extras?
+    if not ignore_extras:
+        extras = row[len(headers) :]
+        raise RowError("Row {} contained these extra values: {}".format(row, extras))
+    if extras_key:
+        d = dict(zip(headers, row))
+        d[extras_key] = row[len(headers) :]
+        return d
 
 
 def rows_from_file(
