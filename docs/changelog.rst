@@ -10,7 +10,7 @@
 - Documentation now uses the `Furo <https://github.com/pradyunsg/furo>`__ Sphinx theme. (:issue:`435`)
 - Code examples in documentation now have a "copy to clipboard" button. (:issue:`436`)
 - ``sqlite_utils.utils.utils.rows_from_file()`` is now a documented API, see :ref:`python_api_rows_from_file`. (:issue:`443`)
-- ``rows_from_file()`` has two new parameters to help handle CSV files with rows that contain more values than are listed in that CSV file's headings: ``ignore_extrasTrue`` and ``extras_key="name-of-key"``. (:issue:`440`)
+- ``rows_from_file()`` has two new parameters to help handle CSV files with rows that contain more values than are listed in that CSV file's headings: ``ignore_extras=True`` and ``extras_key="name-of-key"``. (:issue:`440`)
 - ``sqlite_utils.utils.maximize_csv_field_size_limit()`` helper function for increasing the field size limit for reading CSV files to its maximum, see :ref:`python_api_maximize_csv_field_size_limit`. (:issue:`442`)
 - ``table.search(where=, where_args=)`` parameters for adding additional ``WHERE`` clauses to a search query. The ``where=`` parameter is available on ``table.search_sql(...)`` as well. See :ref:`python_api_fts_search`. (:issue:`441`)
 - Fixed bug where ``table.detect_fts()`` and other search-related functions could fail if two FTS-enabled tables had names that were prefixes of each other. (:issue:`434`)
