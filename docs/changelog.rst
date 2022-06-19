@@ -7,6 +7,8 @@
 3.27 (2022-06-14)
 -----------------
 
+See also `the annotated release notes <https://simonwillison.net/2022/Jun/19/weeknotes/#sqlite-utils-3-27>`__ for this release.
+
 - Documentation now uses the `Furo <https://github.com/pradyunsg/furo>`__ Sphinx theme. (:issue:`435`)
 - Code examples in documentation now have a "copy to clipboard" button. (:issue:`436`)
 - ``sqlite_utils.utils.utils.rows_from_file()`` is now a documented API, see :ref:`python_api_rows_from_file`. (:issue:`443`)
