@@ -335,6 +335,7 @@ class TypeTracker:
         # Outputs {'id': 'integer', 'name': 'text'}
         db["creatures"].transform(types=tracker.types)
     """
+
     def __init__(self):
         self.trackers = {}
 
