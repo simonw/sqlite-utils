@@ -79,3 +79,10 @@ sqlite_utils.utils.hash_record
 ------------------------------
 
 .. autofunction:: sqlite_utils.utils.hash_record
+
+.. _reference_utils_rows_from_file:
+
+sqlite_utils.utils.rows_from_file
+---------------------------------
+
+.. autofunction:: sqlite_utils.utils.rows_from_file
