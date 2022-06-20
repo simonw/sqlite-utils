@@ -2588,6 +2588,65 @@ If you need to reset to the original value after calling this function you can d
 
     csv.field_size_limit(ORIGINAL_CSV_FIELD_SIZE_LIMIT)
 
+.. _python_api_typetracker:
+
+Detecting column types using TypeTracker
+========================================
+
+Sometimes you may find yourself working with data that lacks type information - data from a CSV file for example.
+
+The ``TypeTracker`` class can be used to try to automatically identify the most likely types for data that is initially represented as strings.
+
+Consider this example:
+
+.. code-block:: python
+
+    import csv, io
+
+    csv_file = io.StringIO("id,name\n1,Cleo\n2,Cardi")
+    rows = list(csv.DictReader(csv_file))
+
+    # rows is now this:
+    # [{'id': '1', 'name': 'Cleo'}, {'id': '2', 'name': 'Cardi'}]
+
+If we insert this data directly into a table we will get a schema that is entirely ``TEXT`` columns:
+
+.. code-block:: python
+
+    from sqlite_utils import Database
+
+    db = Database(memory=True)
+    db["creatures"].insert_all(rows)
+    print(db.schema)
+    # Outputs:
+    # CREATE TABLE [creatures] (
+    #    [id] TEXT,
+    #    [name] TEXT
+    # );
+
+We can detect the best column types using a ``TypeTracker`` instance:
+
+.. code-block:: python
+
+    from sqlite_utils.utils import TypeTracker
+
+    tracker = TypeTracker()
+    db["creatures2"].insert_all(tracker.wrap(rows))
+    print(tracker.types)
+    # Outputs {'id': 'integer', 'name': 'text'}
+
+We can then apply those types to our new table using the :ref:`table.transform() <python_api_transform>` method:
+
+.. code-block:: python
+
+    db["creatures2"].transform(types=tracker.types)
+    print(db["creatures2"].schema)
+    # Outputs:
+    # CREATE TABLE [creatures2] (
+    #    [id] INTEGER,
+    #    [name] TEXT
+    # );
+
 .. _python_api_gis:
 
 SpatiaLite helpers

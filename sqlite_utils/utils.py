@@ -316,10 +316,35 @@ def rows_from_file(
 
 
 class TypeTracker:
+    """
+    Wrap an iterator of dictionaries and keep track of which SQLite column
+    types are the most likely fit for each of their keys.
+
+    Example usage:
+
+    .. code-block:: python
+
+        from sqlite_utils.utils import TypeTracker
+        import sqlite_utils
+
+        db = sqlite_utils.Database(memory=True)
+        tracker = TypeTracker()
+        rows = [{"id": "1", "name": "Cleo", "id": "2", "name": "Cardi"}]
+        db["creatures"].insert_all(tracker.wrap(rows))
+        print(tracker.types)
+        # Outputs {'id': 'integer', 'name': 'text'}
+        db["creatures"].transform(types=tracker.types)
+    """
     def __init__(self):
         self.trackers = {}
 
-    def wrap(self, iterator):
+    def wrap(self, iterator: Iterable[dict]) -> Iterable[dict]:
+        """
+        Use this to loop through an existing iterator, tracking the column types
+        as part of the iteration.
+
+        :param iterator: The iterator to wrap
+        """
         for row in iterator:
             for key, value in row.items():
                 tracker = self.trackers.setdefault(key, ValueTracker())
@@ -327,7 +352,11 @@ class TypeTracker:
             yield row
 
     @property
-    def types(self):
+    def types(self) -> Dict[str, str]:
+        """
+        A dictionary mapping column names to their detected types. This can be passed
+        to the ``db[table_name].transform(types=tracker.types)`` method.
+        """
         return {key: tracker.guessed_type for key, tracker in self.trackers.items()}
 
 

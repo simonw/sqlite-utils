@@ -86,3 +86,11 @@ sqlite_utils.utils.rows_from_file
 ---------------------------------
 
 .. autofunction:: sqlite_utils.utils.rows_from_file
+
+.. _reference_utils_typetracker:
+
+sqlite_utils.utils.TypeTracker
+------------------------------
+
+.. autoclass:: sqlite_utils.utils.TypeTracker
+   :members: wrap, types
