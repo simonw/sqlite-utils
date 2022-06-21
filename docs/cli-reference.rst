@@ -180,6 +180,7 @@ See :ref:`cli_memory`.
       --dump                      Dump SQL for in-memory database
       --save FILE                 Save in-memory database to this file
       --analyze                   Analyze resulting tables and output results
+      --fast                      Fast mode, only works with CSV
       --load-extension TEXT       SQLite extensions to load
       -h, --help                  Show this message and exit.
 

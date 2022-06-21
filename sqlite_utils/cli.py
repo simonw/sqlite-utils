@@ -14,6 +14,8 @@ import io
 import itertools
 import json
 import os
+import shutil
+import subprocess
 import sys
 import csv as csv_std
 import tabulate
@@ -1669,6 +1671,7 @@ def query(
     is_flag=True,
     help="Analyze resulting tables and output results",
 )
+@click.option("--fast", is_flag=True, help="Fast mode, only works with CSV")
 @load_extension_option
 def memory(
     paths,
@@ -1692,6 +1695,7 @@ def memory(
     save,
     analyze,
     load_extension,
+    fast,
 ):
     """Execute SQL query against an in-memory database, optionally populated by imported data
 
@@ -1719,6 +1723,23 @@ def memory(
     \b
         sqlite-utils memory animals.csv --schema
     """
+    if fast:
+        if (
+            attach
+            or flatten
+            or param
+            or encoding
+            or no_detect_types
+            or analyze
+            or load_extension
+        ):
+            raise click.ClickException(
+                "--fast mode does not support any of the following options: "
+                "--attach, --flatten, --param, --encoding, --no-detect-types, --analyze, --load-extension"
+            )
+        # TODO: Figure out and pass other supported options
+        memory_fast(paths, sql)
+        return
     db = sqlite_utils.Database(memory=True)
     # If --dump or --save or --analyze used but no paths detected, assume SQL query is a path:
     if (dump or save or schema or analyze) and not paths:
@@ -1789,6 +1810,33 @@ def memory(
     _execute_query(
         db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
     )
+
+
+def memory_fast(paths, sql):
+    if not shutil.which("sqlite3"):
+        raise click.ClickException("sqlite3 not found in PATH")
+    args = ["sqlite3", ":memory:", "-cmd", ".mode csv"]
+    table_names = []
+
+    def name(path):
+        base_name = pathlib.Path(path).stem or "t"
+        table_name = base_name
+        prefix = 1
+        while table_name in table_names:
+            prefix += 1
+            table_name = "{}_{}".format(base_name, prefix)
+        return table_name
+
+    for path in paths:
+        table_name = name(path)
+        table_names.append(table_name)
+        args.extend(
+            ["-cmd", ".import {} {}".format(pathlib.Path(path).resolve(), table_name)]
+        )
+
+    args.extend(["-cmd", ".mode column"])
+    args.append(sql)
+    subprocess.run(args)
 
 
 def _execute_query(
