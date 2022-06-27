@@ -1,4 +1,5 @@
 .venv
+build
 *.db
 __pycache__/
 *.py[cod]
