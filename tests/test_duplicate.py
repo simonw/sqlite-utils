@@ -1,4 +1,5 @@
 import datetime
+import pytest
 
 
 def test_duplicate(fresh_db):
@@ -34,3 +35,8 @@ def test_duplicate(fresh_db):
         {"name": "bool_col", "type": "INT"},
         {"name": "datetime_col", "type": "TEXT"},
     ] == [{"name": col.name, "type": col.type} for col in table2.columns]
+
+
+def test_duplicate_fails_if_table_does_not_exist(fresh_db):
+    with pytest.raises(AssertionError):
+        fresh_db["not_a_table"].duplicate("duplicated")
