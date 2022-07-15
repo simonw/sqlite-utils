@@ -1,3 +1,4 @@
+from sqlite_utils.db import NoTable
 import datetime
 import pytest
 
@@ -38,5 +39,5 @@ def test_duplicate(fresh_db):
 
 
 def test_duplicate_fails_if_table_does_not_exist(fresh_db):
-    with pytest.raises(AssertionError):
+    with pytest.raises(NoTable):
         fresh_db["not_a_table"].duplicate("duplicated")

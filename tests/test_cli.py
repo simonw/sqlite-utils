@@ -2129,3 +2129,26 @@ def test_analyze(tmpdir, options, expected):
     result = CliRunner().invoke(cli.cli, ["analyze", db_path] + options)
     assert result.exit_code == 0
     assert list(db["sqlite_stat1"].rows) == expected
+
+
+def test_duplicate_table(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    db["one"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    # First try a non-existent table
+    result_error = CliRunner().invoke(
+        cli.cli,
+        ["duplicate", db_path, "missing", "two"],
+        catch_exceptions=False,
+    )
+    assert result_error.exit_code == 1
+    assert result_error.output == 'Error: Table "missing" does not exist\n'
+    # Now try for a table that exists
+    result = CliRunner().invoke(
+        cli.cli,
+        ["duplicate", db_path, "one", "two"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    assert db["one"].columns_dict == db["two"].columns_dict
+    assert list(db["one"].rows) == list(db["two"].rows)

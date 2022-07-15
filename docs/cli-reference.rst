@@ -1176,6 +1176,20 @@ reset-counts
       -h, --help             Show this message and exit.
 
 
+duplicate
+=========
+
+::
+
+    Usage: sqlite-utils duplicate [OPTIONS] PATH TABLE NEW_TABLE
+
+      Create a duplicate of this table, copying across the schema and all row data.
+
+    Options:
+      --load-extension TEXT  SQLite extensions to load
+      -h, --help             Show this message and exit.
+
+
 drop-table
 ==========
 

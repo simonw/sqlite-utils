@@ -5,7 +5,7 @@ from datetime import datetime
 import hashlib
 import pathlib
 import sqlite_utils
-from sqlite_utils.db import AlterError, BadMultiValues, DescIndex
+from sqlite_utils.db import AlterError, BadMultiValues, DescIndex, NoTable
 from sqlite_utils.utils import maximize_csv_field_size_limit
 from sqlite_utils import recipes
 import textwrap
@@ -1463,6 +1463,27 @@ def create_table(
     db[table].create(
         coltypes, pk=pk, not_null=not_null, defaults=dict(default), foreign_keys=fk
     )
+
+
+@cli.command(name="duplicate")
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.argument("new_table")
+@load_extension_option
+def create_table(path, table, new_table, load_extension):
+    """
+    Create a duplicate of this table, copying across the schema and all row data.
+    """
+    db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
+    try:
+        db[table].duplicate(new_table)
+    except NoTable:
+        raise click.ClickException('Table "{}" does not exist'.format(table))
 
 
 @cli.command(name="drop-table")

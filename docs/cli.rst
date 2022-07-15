@@ -1476,6 +1476,15 @@ You can specify foreign key relationships between the tables you are creating us
 
 If a table with the same name already exists, you will get an error. You can choose to silently ignore this error with ``--ignore``, or you can replace the existing table with a new, empty table using ``--replace``.
 
+.. _cli_duplicate_table:
+
+Duplicating tables
+==================
+
+The ``duplicate`` command duplicates a table - creating a new table with the same schema and a copy of all of the rows::
+
+    $ sqlite-utils duplicate books.db authors authors_copy
+
 .. _cli_drop_table:
 
 Dropping tables

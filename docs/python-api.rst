@@ -691,6 +691,8 @@ The ``table.duplicate()`` method creates a copy of the table, copying both the t
 
 The new ``authors_copy`` table will now contain a duplicate copy of the data from ``authors``.
 
+This method raises ``sqlite_utils.db.NoTable`` if the table does not exist.
+
 .. _python_api_bulk_inserts:
 
 Bulk inserts

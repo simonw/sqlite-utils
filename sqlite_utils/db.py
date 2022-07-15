@@ -1,3 +1,4 @@
+from ast import Not
 from .utils import (
     chunks,
     hash_record,
@@ -221,6 +222,11 @@ class AlterError(Exception):
 
 class NoObviousTable(Exception):
     "Could not tell which table this operation refers to"
+    pass
+
+
+class NoTable(Exception):
+    "Specified table does not exist"
     pass
 
 
@@ -1482,7 +1488,8 @@ class Table(Queryable):
 
         :param new_name: Name of the new table
         """
-        assert self.exists()
+        if not self.exists():
+            raise NoTable(f"Table {self.name} does not exist")
         with self.db.conn:
             sql = "CREATE TABLE [{new_table}] AS SELECT * FROM [{table}];".format(
                 new_table=new_name,
