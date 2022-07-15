@@ -1474,7 +1474,7 @@ def create_table(
 @click.argument("table")
 @click.argument("new_table")
 @load_extension_option
-def create_table(path, table, new_table, load_extension):
+def duplicate(path, table, new_table, load_extension):
     """
     Create a duplicate of this table, copying across the schema and all row data.
     """

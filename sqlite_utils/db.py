@@ -1,4 +1,3 @@
-from ast import Not
 from .utils import (
     chunks,
     hash_record,
