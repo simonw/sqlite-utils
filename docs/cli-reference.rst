@@ -1206,7 +1206,7 @@ See :ref:`cli_drop_table`.
           sqlite-utils drop-table chickens.db chickens
 
     Options:
-      --ignore
+      --ignore               If table does not exist, do nothing
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
@@ -1250,7 +1250,7 @@ See :ref:`cli_drop_view`.
           sqlite-utils drop-view chickens.db heavy_chickens
 
     Options:
-      --ignore
+      --ignore               If view does not exist, do nothing
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 

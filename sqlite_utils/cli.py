@@ -1493,7 +1493,7 @@ def duplicate(path, table, new_table, load_extension):
     required=True,
 )
 @click.argument("table")
-@click.option("--ignore", is_flag=True)
+@click.option("--ignore", is_flag=True, help="If table does not exist, do nothing")
 @load_extension_option
 def drop_table(path, table, ignore, load_extension):
     """Drop the specified table
@@ -1563,7 +1563,7 @@ def create_view(path, view, select, ignore, replace, load_extension):
     required=True,
 )
 @click.argument("view")
-@click.option("--ignore", is_flag=True)
+@click.option("--ignore", is_flag=True, help="If view does not exist, do nothing")
 @load_extension_option
 def drop_view(path, view, ignore, load_extension):
     """Drop the specified view
