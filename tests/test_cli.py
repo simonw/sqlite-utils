@@ -455,6 +455,31 @@ def test_enable_fts(db_path):
     db["http://example.com"].drop()
 
 
+def test_enable_fts_replace(db_path):
+    db = Database(db_path)
+    assert db["Gosh"].detect_fts() is None
+    result = CliRunner().invoke(
+        cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"]
+    )
+    assert result.exit_code == 0
+    assert "Gosh_fts" == db["Gosh"].detect_fts()
+    assert db["Gosh_fts"].columns_dict == {"c1": str}
+
+    # This should throw an error
+    result2 = CliRunner().invoke(
+        cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"]
+    )
+    assert result2.exit_code == 1
+    assert result2.output == "Error: table [Gosh_fts] already exists\n"
+
+    # This should work
+    result3 = CliRunner().invoke(
+        cli.cli, ["enable-fts", db_path, "Gosh", "c2", "--fts4", "--replace"]
+    )
+    assert result3.exit_code == 0
+    assert db["Gosh_fts"].columns_dict == {"c2": str}
+
+
 def test_enable_fts_with_triggers(db_path):
     Database(db_path)["Gosh"].insert_all([{"c1": "baz"}])
     exit_code = (

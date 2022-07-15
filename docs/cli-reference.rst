@@ -870,6 +870,7 @@ See :ref:`cli_fts`.
       --tokenize TEXT        Tokenizer to use, e.g. porter
       --create-triggers      Create triggers to update the FTS tables when the
                              parent table changes.
+      --replace              Replace existing FTS configuration if it exists
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 

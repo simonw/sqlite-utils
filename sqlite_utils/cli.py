@@ -18,6 +18,7 @@ import sys
 import csv as csv_std
 import tabulate
 from .utils import (
+    OperationalError,
     _compile_code,
     chunks,
     file_progress,
@@ -345,7 +346,7 @@ def analyze(path, names):
                 db.analyze(name)
         else:
             db.analyze()
-    except sqlite3.OperationalError as e:
+    except OperationalError as e:
         raise click.ClickException(e)
 
 
@@ -598,9 +599,14 @@ def create_index(
     default=False,
     is_flag=True,
 )
+@click.option(
+    "--replace",
+    is_flag=True,
+    help="Replace existing FTS configuration if it exists",
+)
 @load_extension_option
 def enable_fts(
-    path, table, column, fts4, fts5, tokenize, create_triggers, load_extension
+    path, table, column, fts4, fts5, tokenize, create_triggers, replace, load_extension
 ):
     """Enable full-text search for specific table and columns"
 
@@ -618,12 +624,16 @@ def enable_fts(
 
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
-    db[table].enable_fts(
-        column,
-        fts_version=fts_version,
-        tokenize=tokenize,
-        create_triggers=create_triggers,
-    )
+    try:
+        db[table].enable_fts(
+            column,
+            fts_version=fts_version,
+            tokenize=tokenize,
+            create_triggers=create_triggers,
+            replace=replace,
+        )
+    except OperationalError as ex:
+        raise click.ClickException(ex)
 
 
 @cli.command(name="populate-fts")
@@ -1024,7 +1034,7 @@ def insert_upsert_implementation(
         )
     except Exception as e:
         if (
-            isinstance(e, sqlite3.OperationalError)
+            isinstance(e, OperationalError)
             and e.args
             and "has no column named" in e.args[0]
         ):
@@ -1341,7 +1351,7 @@ def bulk(
             silent=False,
             bulk_sql=sql,
         )
-    except (sqlite3.OperationalError, sqlite3.IntegrityError) as e:
+    except (OperationalError, sqlite3.IntegrityError) as e:
         raise click.ClickException(str(e))
 
 
@@ -1507,7 +1517,7 @@ def drop_table(path, table, ignore, load_extension):
     _load_extensions(db, load_extension)
     try:
         db[table].drop(ignore=ignore)
-    except sqlite3.OperationalError:
+    except OperationalError:
         raise click.ClickException('Table "{}" does not exist'.format(table))
 
 
@@ -1577,7 +1587,7 @@ def drop_view(path, view, ignore, load_extension):
     _load_extensions(db, load_extension)
     try:
         db[view].drop(ignore=ignore)
-    except sqlite3.OperationalError:
+    except OperationalError:
         raise click.ClickException('View "{}" does not exist'.format(view))
 
 
@@ -1818,7 +1828,7 @@ def _execute_query(
     with db.conn:
         try:
             cursor = db.execute(sql, dict(param))
-        except sqlite3.OperationalError as e:
+        except OperationalError as e:
             raise click.ClickException(str(e))
         if cursor.description is None:
             # This was an update/insert
