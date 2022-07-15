@@ -214,13 +214,12 @@ def test_create_index(db_path):
     ] == db["Gosh2"].indexes
     # Trying to create the same index should fail
     assert 0 != CliRunner().invoke(cli.cli, create_index_unique_args).exit_code
-    # ... unless we use --if-not-exists
-    assert (
-        0
-        == CliRunner()
-        .invoke(cli.cli, create_index_unique_args + ["--if-not-exists"])
-        .exit_code
-    )
+    # ... unless we use --if-not-exists or --ignore
+    for option in ("--if-not-exists", "--ignore"):
+        assert (
+            CliRunner().invoke(cli.cli, create_index_unique_args + [option]).exit_code
+            == 0
+        )
 
 
 def test_create_index_analyze(db_path):

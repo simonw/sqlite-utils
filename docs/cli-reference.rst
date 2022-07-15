@@ -841,12 +841,12 @@ See :ref:`cli_create_index`.
           sqlite-utils create-index chickens.db chickens -- -name
 
     Options:
-      --name TEXT            Explicit name for the new index
-      --unique               Make this a unique index
-      --if-not-exists        Ignore if index already exists
-      --analyze              Run ANALYZE after creating the index
-      --load-extension TEXT  SQLite extensions to load
-      -h, --help             Show this message and exit.
+      --name TEXT                Explicit name for the new index
+      --unique                   Make this a unique index
+      --if-not-exists, --ignore  Ignore if index already exists
+      --analyze                  Run ANALYZE after creating the index
+      --load-extension TEXT      SQLite extensions to load
+      -h, --help                 Show this message and exit.
 
 
 enable-fts

@@ -539,6 +539,7 @@ def index_foreign_keys(path, load_extension):
 @click.option("--unique", help="Make this a unique index", default=False, is_flag=True)
 @click.option(
     "--if-not-exists",
+    "--ignore",
     help="Ignore if index already exists",
     default=False,
     is_flag=True,
