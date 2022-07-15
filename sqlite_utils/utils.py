@@ -468,7 +468,13 @@ def _compile_code(code, imports, variable="value"):
     return locals["fn"]
 
 
-def chunks(sequence, size):
+def chunks(sequence: Iterable, size: int) -> Iterable[Iterable]:
+    """
+    Iterate over chunks of the sequence of the given size.
+
+    :param sequence: Any Python iterator
+    :param size: The size of each chunk
+    """
     iterator = iter(sequence)
     for item in iterator:
         yield itertools.chain([item], itertools.islice(iterator, size - 1))

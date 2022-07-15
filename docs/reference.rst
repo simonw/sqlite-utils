@@ -94,3 +94,10 @@ sqlite_utils.utils.TypeTracker
 
 .. autoclass:: sqlite_utils.utils.TypeTracker
    :members: wrap, types
+
+.. _reference_utils_chunks:
+
+sqlite_utils.utils.chunks
+-------------------------
+
+.. autofunction:: sqlite_utils.utils.chunks
