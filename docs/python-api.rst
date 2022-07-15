@@ -678,6 +678,19 @@ Here's an example that uses these features:
     #     [score] INTEGER NOT NULL DEFAULT 1
     # )
 
+.. _python_api_duplicate:
+
+Duplicating tables
+==================
+
+The ``table.duplicate()`` method creates a copy of the table, copying both the table schema and all of the rows in that table:
+
+.. code-block:: python
+
+    db["authors"].duplicate("authors_copy")
+
+The new ``authors_copy`` table will now contain a duplicate copy of the data from ``authors``.
+
 .. _python_api_bulk_inserts:
 
 Bulk inserts
