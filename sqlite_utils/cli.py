@@ -418,9 +418,22 @@ def dump(path, load_extension):
     required=False,
     help="Add NOT NULL DEFAULT 'TEXT' constraint",
 )
+@click.option(
+    "--ignore",
+    is_flag=True,
+    help="If column already exists, do nothing",
+)
 @load_extension_option
 def add_column(
-    path, table, col_name, col_type, fk, fk_col, not_null_default, load_extension
+    path,
+    table,
+    col_name,
+    col_type,
+    fk,
+    fk_col,
+    not_null_default,
+    ignore,
+    load_extension,
 ):
     """Add a column to the specified table
 
@@ -431,9 +444,13 @@ def add_column(
     """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
-    db[table].add_column(
-        col_name, col_type, fk=fk, fk_col=fk_col, not_null_default=not_null_default
-    )
+    try:
+        db[table].add_column(
+            col_name, col_type, fk=fk, fk_col=fk_col, not_null_default=not_null_default
+        )
+    except OperationalError as ex:
+        if not ignore:
+            raise click.ClickException(str(ex))
 
 
 @cli.command(name="add-foreign-key")

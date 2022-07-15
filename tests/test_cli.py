@@ -271,6 +271,19 @@ def test_add_column(db_path, col_name, col_type, expected_schema):
     assert expected_schema == collapse_whitespace(db["dogs"].schema)
 
 
+@pytest.mark.parametrize("ignore", (True, False))
+def test_add_column_ignore(db_path, ignore):
+    db = Database(db_path)
+    db.create_table("dogs", {"name": str})
+    args = ["add-column", db_path, "dogs", "name"] + (["--ignore"] if ignore else [])
+    result = CliRunner().invoke(cli.cli, args)
+    if ignore:
+        assert result.exit_code == 0
+    else:
+        assert result.exit_code == 1
+        assert result.output == "Error: duplicate column name: name\n"
+
+
 def test_add_column_not_null_default(db_path):
     db = Database(db_path)
     db.create_table("dogs", {"name": str})

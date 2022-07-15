@@ -1031,6 +1031,7 @@ See :ref:`cli_add_column`.
       --fk-col TEXT            Referenced column on that foreign key table - if
                                omitted will automatically use the primary key
       --not-null-default TEXT  Add NOT NULL DEFAULT 'TEXT' constraint
+      --ignore                 If column already exists, do nothing
       --load-extension TEXT    SQLite extensions to load
       -h, --help               Show this message and exit.
 
