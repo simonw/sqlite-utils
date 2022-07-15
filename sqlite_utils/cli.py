@@ -1501,8 +1501,9 @@ def create_table(
 )
 @click.argument("table")
 @click.argument("new_table")
+@click.option("--ignore", is_flag=True, help="If table does not exist, do nothing")
 @load_extension_option
-def duplicate(path, table, new_table, load_extension):
+def duplicate(path, table, new_table, ignore, load_extension):
     """
     Create a duplicate of this table, copying across the schema and all row data.
     """
@@ -1511,7 +1512,8 @@ def duplicate(path, table, new_table, load_extension):
     try:
         db[table].duplicate(new_table)
     except NoTable:
-        raise click.ClickException('Table "{}" does not exist'.format(table))
+        if not ignore:
+            raise click.ClickException('Table "{}" does not exist'.format(table))
 
 
 @cli.command(name="drop-table")

@@ -1188,6 +1188,7 @@ duplicate
       Create a duplicate of this table, copying across the schema and all row data.
 
     Options:
+      --ignore               If table does not exist, do nothing
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 

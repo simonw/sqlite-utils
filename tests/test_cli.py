@@ -2180,6 +2180,13 @@ def test_duplicate_table(tmpdir):
     )
     assert result_error.exit_code == 1
     assert result_error.output == 'Error: Table "missing" does not exist\n'
+    # And check --ignore works
+    result_error2 = CliRunner().invoke(
+        cli.cli,
+        ["duplicate", db_path, "missing", "two", "--ignore"],
+        catch_exceptions=False,
+    )
+    assert result_error2.exit_code == 0
     # Now try for a table that exists
     result = CliRunner().invoke(
         cli.cli,
