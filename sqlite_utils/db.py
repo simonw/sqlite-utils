@@ -1476,6 +1476,21 @@ class Table(Queryable):
             )
         return self
 
+    def duplicate(self, name_new: str) -> "Table":
+        """
+        Duplicate this table in this database.
+
+        :param name_new: Name of new table.
+        """
+        assert self.exists()
+        with self.db.conn:
+            sql = "CREATE TABLE [{new_table}] AS SELECT * FROM [{table}];".format(
+                new_table=name_new,
+                table=self.name,
+            )
+            self.db.execute(sql)
+        return self.db[name_new]
+
     def transform(
         self,
         *,
