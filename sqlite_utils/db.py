@@ -305,7 +305,11 @@ class Database:
         ), "Either specify a filename_or_conn or pass memory=True"
         if memory_name:
             uri = "file:{}?mode=memory&cache=shared".format(memory_name)
-            self.conn = sqlite3.connect(uri, uri=True, check_same_thread=False,)
+            self.conn = sqlite3.connect(
+                uri,
+                uri=True,
+                check_same_thread=False,
+            )
         elif memory or filename_or_conn == ":memory:":
             self.conn = sqlite3.connect(":memory:")
         elif isinstance(filename_or_conn, (str, pathlib.Path)):
@@ -1100,7 +1104,9 @@ class Queryable:
         self.name = name
 
     def count_where(
-        self, where: str = None, where_args: Optional[Union[Iterable, dict]] = None,
+        self,
+        where: str = None,
+        where_args: Optional[Union[Iterable, dict]] = None,
     ) -> int:
         """
         Executes ``SELECT count(*) FROM table WHERE ...`` and returns a count.
@@ -1479,7 +1485,8 @@ class Table(Queryable):
         assert self.exists()
         with self.db.conn:
             sql = "CREATE TABLE [{new_table}] AS SELECT * FROM [{table}];".format(
-                new_table=name_new, table=self.name,
+                new_table=name_new,
+                table=self.name,
             )
             self.db.execute(sql)
         return self.db[name_new]
@@ -1719,7 +1726,13 @@ class Table(Queryable):
                 )
         else:
             lookup_table.create(
-                {**{"id": int,}, **lookup_columns_definition,}, pk="id",
+                {
+                    **{
+                        "id": int,
+                    },
+                    **lookup_columns_definition,
+                },
+                pk="id",
             )
         lookup_columns = [(rename.get(col) or col) for col in columns]
         lookup_table.create_index(lookup_columns, unique=True, if_not_exists=True)
