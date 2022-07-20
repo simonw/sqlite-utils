@@ -11,7 +11,7 @@
 - New ``sqlite-utils duplicate data.db table_name new_name`` CLI command for :ref:`cli_duplicate_table`. (:issue:`454`)
 - ``sqlite_utils.utils.rows_from_file()`` is now a :ref:`documented API <reference_utils_rows_from_file>`. It can be used to read a sequence of dictionaries from a file-like object containing CSV, TSV, JSON or newline-delimited JSON. It can be passed an explicit format or can attempt to detect the format automatically. (:issue:`443`)
 - ``sqlite_utils.utils.TypeTracker`` is now a documented API for detecting the likely column types for a sequence of string rows, see :ref:`python_api_typetracker`. (:issue:`445`)
-- ``sqlite_utils.utils.chunks()`` is now a documented API for :ref:`splitting an iterator into chunks  <reference_utils_chunks>`. (:issue:`441`)
+- ``sqlite_utils.utils.chunks()`` is now a documented API for :ref:`splitting an iterator into chunks  <reference_utils_chunks>`. (:issue:`451`)
 - ``sqlite-utils enable-fts`` now has a ``--replace`` option for replacing the existing FTS configuration for a table. (:issue:`450`)
 - The ``create-index``, ``add-column`` and ``duplicate`` commands all now take a ``--ignore`` option for ignoring errors should the database not be in the right state for them to operate. (:issue:`450`)
 
