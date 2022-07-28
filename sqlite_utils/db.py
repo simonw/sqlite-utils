@@ -373,13 +373,13 @@ class Database:
         ``fn`` will be made available as a function within SQL, with the same name and number
         of arguments. Can be used as a decorator::
 
-            @db.register
+            @db.register_function
             def upper(value):
                 return str(value).upper()
 
         The decorator can take arguments::
 
-            @db.register(deterministic=True, replace=True)
+            @db.register_function(deterministic=True, replace=True)
             def upper(value):
                 return str(value).upper()
 
