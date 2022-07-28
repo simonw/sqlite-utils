@@ -367,7 +367,11 @@ class Database:
         return "<Database {}>".format(self.conn)
 
     def register_function(
-        self, fn: Callable = None, deterministic: bool = False, replace: bool = False
+        self,
+        fn: Callable = None,
+        deterministic: bool = False,
+        replace: bool = False,
+        name: Optional[str] = None,
     ):
         """
         ``fn`` will be made available as a function within SQL, with the same name and number
@@ -388,12 +392,13 @@ class Database:
         :param fn: Function to register
         :param deterministic: set ``True`` for functions that always returns the same output for a given input
         :param replace: set ``True`` to replace an existing function with the same name - otherwise throw an error
+        :param name: name of the SQLite function - if not specified, the Python function name will be used
         """
 
         def register(fn):
-            name = fn.__name__
+            fn_name = name or fn.__name__
             arity = len(inspect.signature(fn).parameters)
-            if not replace and (name, arity) in self._registered_functions:
+            if not replace and (fn_name, arity) in self._registered_functions:
                 return fn
             kwargs = {}
             registered = False
@@ -401,15 +406,15 @@ class Database:
                 # Try this, but fall back if sqlite3.NotSupportedError
                 try:
                     self.conn.create_function(
-                        name, arity, fn, **dict(kwargs, deterministic=True)
+                        fn_name, arity, fn, **dict(kwargs, deterministic=True)
                     )
                     registered = True
                 except (sqlite3.NotSupportedError, TypeError):
                     # TypeError is Python 3.7 "function takes at most 3 arguments"
                     pass
             if not registered:
-                self.conn.create_function(name, arity, fn, **kwargs)
-            self._registered_functions.add((name, arity))
+                self.conn.create_function(fn_name, arity, fn, **kwargs)
+            self._registered_functions.add((fn_name, arity))
             return fn
 
         if fn is None:

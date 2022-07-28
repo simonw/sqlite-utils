@@ -2513,6 +2513,16 @@ You can also use the method as a function decorator like so:
 
     print(db.execute('select reverse_string("hello")').fetchone()[0])
 
+By default, the name of the Python function will be used as the name of the SQL function. You can customize this with the ``name=`` keyword argument:
+
+.. code-block:: python
+
+    @db.register_function(name="rev")
+    def reverse_string(s):
+        return "".join(reversed(list(s)))
+
+    print(db.execute('select rev("hello")').fetchone()[0])
+
 Python 3.8 added the ability to register `deterministic SQLite functions <https://sqlite.org/deterministic.html>`__, allowing you to indicate that a function will return the exact same result for any given inputs and hence allowing SQLite to apply some performance optimizations. You can mark a function as deterministic using ``deterministic=True``, like this:
 
 .. code-block:: python

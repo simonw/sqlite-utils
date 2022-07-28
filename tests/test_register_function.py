@@ -14,6 +14,15 @@ def test_register_function(fresh_db):
     assert result == "olleh"
 
 
+def test_register_function_custom_name(fresh_db):
+    @fresh_db.register_function(name="revstr")
+    def reverse_string(s):
+        return "".join(reversed(list(s)))
+
+    result = fresh_db.execute('select revstr("hello")').fetchone()[0]
+    assert result == "olleh"
+
+
 def test_register_function_multiple_arguments(fresh_db):
     @fresh_db.register_function
     def a_times_b_plus_c(a, b, c):
