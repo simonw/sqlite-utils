@@ -488,6 +488,8 @@ class Database:
         """
         Return a table object, optionally configured with default options.
 
+        See :ref:`reference_db_table` for option details.
+
         :param table_name: Name of the table
         """
         klass = View if table_name in self.view_names() else Table
@@ -1242,7 +1244,29 @@ class Queryable:
 
 
 class Table(Queryable):
-    "Tables should usually be initialized using the ``db.table(table_name)`` or ``db[table_name]`` methods."
+    """
+    Tables should usually be initialized using the ``db.table(table_name)`` or
+    ``db[table_name]`` methods.
+
+    The following optional parameters can be passed to ``db.table(table_name, ...)``:
+
+    :param db: Provided by ``db.table(table_name)``
+    :param name: Provided by ``db.table(table_name)``
+    :param pk: Name of the primary key column, or tuple of columns
+    :param foreign_keys: List of foreign key definitions
+    :param column_order: List of column names in the order they should be in the table
+    :param not_null: List of columns that cannot be null
+    :param defaults: Dictionary of column names and default values
+    :param batch_size: Integer number of rows to insert at a time
+    :param hash_id: If True, use a hash of the row values as the primary key
+    :param hash_id_columns: List of columns to use for the hash_id
+    :param alter: If True, automatically alter the table if it doesn't match the schema
+    :param ignore: If True, ignore rows that already exist when inserting
+    :param replace: If True, replace rows that already exist when inserting
+    :param extracts: Dictionary or list of column names to extract into a separate table on inserts
+    :param conversions: Dictionary of column names and conversion functions
+    :param columns: Dictionary of column names to column types
+    """
     #: The ``rowid`` of the last inserted, updated or selected row.
     last_rowid: Optional[int] = None
     #: The primary key of the last inserted, updated or selected row.
