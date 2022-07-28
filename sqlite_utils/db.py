@@ -1267,6 +1267,7 @@ class Table(Queryable):
     :param conversions: Dictionary of column names and conversion functions
     :param columns: Dictionary of column names to column types
     """
+
     #: The ``rowid`` of the last inserted, updated or selected row.
     last_rowid: Optional[int] = None
     #: The primary key of the last inserted, updated or selected row.
