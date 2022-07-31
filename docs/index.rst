@@ -23,6 +23,8 @@ sqlite-utils is not intended to be a full ORM: the focus is utility helpers to m
 
 It is designed as a useful complement to `Datasette <https://datasette.io/>`_.
 
+`Cleaning data with sqlite-utils and Datasette <https://datasette.io/tutorials/clean-data>`_ provides a tutorial introduction (and accompanying ten minute video) about using this tool.
+
 Contents
 --------
 
