@@ -2,7 +2,7 @@
  sqlite-utils |version|
 =======================
 
-|PyPI| |Changelog| |CI| |License|
+|PyPI| |Changelog| |CI| |License| |discord|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/sqlite-utils.svg
    :target: https://pypi.org/project/sqlite-utils/
