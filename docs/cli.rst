@@ -21,6 +21,9 @@ The ``sqlite-utils query`` command lets you run queries directly against a SQLit
     $ sqlite-utils query dogs.db "select * from dogs"
     $ sqlite-utils dogs.db "select * from dogs"
 
+.. note::
+    In Python: :ref:`db.query() <python_api_query>`  CLI reference: :ref:`sqlite-utils query <cli_ref_query>`
+
 .. _cli_query_json:
 
 Returning JSON
@@ -257,6 +260,7 @@ You can load SQLite extension modules using the ``--load-extension`` option, see
     $ sqlite-utils dogs.db "select spatialite_version()" --load-extension=spatialite
     [{"spatialite_version()": "4.3.0a"}]
 
+
 .. _cli_query_attach:
 
 Attaching additional databases
@@ -270,6 +274,9 @@ This example attaches the ``books.db`` database under the alias ``books`` and th
 
     sqlite-utils dogs.db --attach books books.db \
        'select * from sqlite_master union all select * from books.sqlite_master'
+
+.. note::
+    In Python: :ref:`db.attach() <python_api_attach>`
 
 .. _cli_memory:
 
