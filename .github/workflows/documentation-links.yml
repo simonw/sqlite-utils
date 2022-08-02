@@ -13,4 +13,4 @@ jobs:
     steps:
       - uses: readthedocs/readthedocs-preview@main
         with:
-          project-slug: "readthedocs-preview"
+          project-slug: "sqlite-utils"
