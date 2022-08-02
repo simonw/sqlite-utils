@@ -469,6 +469,9 @@ Or pass named parameters using ``--where`` in combination with ``-p``::
 
 Use ``--limit N`` to only return the first ``N`` rows. Use ``--offset N`` to return rows starting from the specified offset.
 
+.. note::
+    In Python: :ref:`table.rows <python_api_rows>`  CLI reference: :ref:`sqlite-utils rows <cli_ref_rows>`
+
 .. _cli_tables:
 
 Listing tables
@@ -521,6 +524,9 @@ Use ``--schema`` to include the schema of each table::
 
 The ``--nl``, ``--csv``, ``--tsv``, ``--table`` and ``--fmt`` options are also available.
 
+.. note::
+    In Python: :ref:`db.tables or db.table_names() <python_api_tables>`  CLI reference: :ref:`sqlite-utils tables <cli_ref_tables>`
+
 .. _cli_views:
 
 Listing views
@@ -543,6 +549,9 @@ It takes the same options as the ``tables`` command:
 * ``--csv``
 * ``--tsv``
 * ``--table``
+
+.. note::
+    In Python: :ref:`db.views or db.view_names() <python_api_views>`  CLI reference: :ref:`sqlite-utils views <cli_ref_views>`
 
 .. _cli_indexes:
 
@@ -570,6 +579,9 @@ It shows indexes across all tables. To see indexes for specific tables, list tho
 The command defaults to only showing the columns that are explicitly part of the index. To also include auxiliary columns use the ``--aux`` option - these columns will be listed with a ``key`` of ``0``.
 
 The command takes the same format options as the ``tables`` and ``views`` commands.
+
+.. note::
+    In Python: :ref:`table.indexes <python_api_introspection_indexes>`  CLI reference: :ref:`sqlite-utils indexes <cli_ref_indexes>`
 
 .. _cli_triggers:
 
@@ -599,6 +611,9 @@ It defaults to showing triggers for all tables. To see triggers for one or more 
 
 The command takes the same format options as the ``tables`` and ``views`` commands.
 
+.. note::
+    In Python: :ref:`table.triggers or db.triggers <python_api_introspection_triggers>`  CLI reference: :ref:`sqlite-utils triggers <cli_ref_triggers>`
+
 .. _cli_schema:
 
 Showing the schema
@@ -616,6 +631,9 @@ This will show the schema for every table and index in the database. To view the
 
     $ sqlite-utils schema dogs.db dogs chickens
     ...
+
+.. note::
+    In Python: :ref:`table.schema <python_api_introspection_schema>` or :ref:`db.schema <python_api_schema>`  CLI reference: :ref:`sqlite-utils schema <cli_ref_schema>`
 
 .. _cli_analyze_tables:
 
