@@ -12,6 +12,8 @@
    :target: https://github.com/simonw/sqlite-utils/actions
 .. |License| image:: https://img.shields.io/badge/license-Apache%202.0-blue.svg
    :target: https://github.com/simonw/sqlite-utils/blob/main/LICENSE
+.. |discord| image:: https://img.shields.io/discord/823971286308356157?label=discord
+   :target: https://discord.gg/Ass7bCAMDw
 
 *CLI tool and Python utility functions for manipulating SQLite databases*
 
