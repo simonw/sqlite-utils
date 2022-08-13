@@ -32,7 +32,13 @@ setup(
     ],
     extras_require={
         "test": ["pytest", "black", "hypothesis", "cogapp"],
-        "docs": ["furo", "sphinx-autobuild", "codespell", "sphinx-copybutton"],
+        "docs": [
+            "furo",
+            "sphinx-autobuild",
+            "codespell",
+            "sphinx-copybutton",
+            "beanbag-docutils @ https://github.com/simonw/beanbag-docutils/archive/refs/heads/bytes-in-url.zip",
+        ],
         "mypy": [
             "mypy",
             "types-click",
