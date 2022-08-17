@@ -37,7 +37,7 @@ setup(
             "sphinx-autobuild",
             "codespell",
             "sphinx-copybutton",
-            "beanbag-docutils @ https://github.com/simonw/beanbag-docutils/archive/refs/heads/bytes-in-url.zip",
+            "beanbag-docutils>=2.0",
         ],
         "mypy": [
             "mypy",
