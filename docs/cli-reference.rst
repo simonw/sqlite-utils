@@ -63,6 +63,7 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
     commands.sort(key = lambda command: go_first.index(command) if command in go_first else 999)
     cog.out("\n")
     for command in commands:
+        cog.out(".. _cli_ref_" + command.replace("-", "_") + ":\n\n")
         cog.out(command + "\n")
         cog.out(("=" * len(command)) + "\n\n")
         if command in refs:
@@ -80,6 +81,8 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         cog.out(textwrap.indent(output, '    '))
         cog.out("\n\n")
 .. ]]]
+
+.. _cli_ref_query:
 
 query
 =====
@@ -119,6 +122,8 @@ See :ref:`cli_query`.
       --load-extension TEXT       SQLite extensions to load
       -h, --help                  Show this message and exit.
 
+
+.. _cli_ref_memory:
 
 memory
 ======
@@ -183,6 +188,8 @@ See :ref:`cli_memory`.
       --load-extension TEXT       SQLite extensions to load
       -h, --help                  Show this message and exit.
 
+
+.. _cli_ref_insert:
 
 insert
 ======
@@ -264,6 +271,8 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       -h, --help                Show this message and exit.
 
 
+.. _cli_ref_upsert:
+
 upsert
 ======
 
@@ -312,6 +321,8 @@ See :ref:`cli_upsert`.
       -h, --help                Show this message and exit.
 
 
+.. _cli_ref_bulk:
+
 bulk
 ====
 
@@ -352,6 +363,8 @@ See :ref:`cli_bulk`.
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_search:
+
 search
 ======
 
@@ -390,6 +403,8 @@ See :ref:`cli_search`.
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_transform:
+
 transform
 =========
 
@@ -424,6 +439,8 @@ See :ref:`cli_transform_table`.
       -h, --help                Show this message and exit.
 
 
+.. _cli_ref_extract:
+
 extract
 =======
 
@@ -447,6 +464,8 @@ See :ref:`cli_extract`.
       -h, --help               Show this message and exit.
 
 
+.. _cli_ref_schema:
+
 schema
 ======
 
@@ -466,6 +485,8 @@ See :ref:`cli_schema`.
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_insert_files:
 
 insert-files
 ============
@@ -503,6 +524,8 @@ See :ref:`cli_insert_files`.
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_analyze_tables:
+
 analyze-tables
 ==============
 
@@ -524,6 +547,8 @@ See :ref:`cli_analyze_tables`.
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_convert:
 
 convert
 =======
@@ -590,6 +615,8 @@ See :ref:`cli_convert`.
       -h, --help                      Show this message and exit.
 
 
+.. _cli_ref_tables:
+
 tables
 ======
 
@@ -628,6 +655,8 @@ See :ref:`cli_tables`.
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_views:
+
 views
 =====
 
@@ -663,6 +692,8 @@ See :ref:`cli_views`.
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_rows:
 
 rows
 ====
@@ -702,6 +733,8 @@ See :ref:`cli_rows`.
       -h, --help                  Show this message and exit.
 
 
+.. _cli_ref_triggers:
+
 triggers
 ========
 
@@ -734,6 +767,8 @@ See :ref:`cli_triggers`.
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_indexes:
 
 indexes
 =======
@@ -769,6 +804,8 @@ See :ref:`cli_indexes`.
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_create_database:
+
 create-database
 ===============
 
@@ -790,6 +827,8 @@ See :ref:`cli_create_database`.
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_create_table:
 
 create-table
 ============
@@ -821,6 +860,8 @@ See :ref:`cli_create_table`.
       -h, --help                Show this message and exit.
 
 
+.. _cli_ref_create_index:
+
 create-index
 ============
 
@@ -849,6 +890,8 @@ See :ref:`cli_create_index`.
       -h, --help                 Show this message and exit.
 
 
+.. _cli_ref_enable_fts:
+
 enable-fts
 ==========
 
@@ -875,6 +918,8 @@ See :ref:`cli_fts`.
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_populate_fts:
+
 populate-fts
 ============
 
@@ -892,6 +937,8 @@ populate-fts
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_rebuild_fts:
 
 rebuild-fts
 ===========
@@ -911,6 +958,8 @@ rebuild-fts
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_disable_fts:
+
 disable-fts
 ===========
 
@@ -928,6 +977,8 @@ disable-fts
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_optimize:
 
 optimize
 ========
@@ -951,6 +1002,8 @@ See :ref:`cli_optimize`.
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_analyze:
+
 analyze
 =======
 
@@ -971,6 +1024,8 @@ See :ref:`cli_analyze`.
       -h, --help  Show this message and exit.
 
 
+.. _cli_ref_vacuum:
+
 vacuum
 ======
 
@@ -989,6 +1044,8 @@ See :ref:`cli_vacuum`.
     Options:
       -h, --help  Show this message and exit.
 
+
+.. _cli_ref_dump:
 
 dump
 ====
@@ -1009,6 +1066,8 @@ See :ref:`cli_dump`.
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_add_column:
 
 add-column
 ==========
@@ -1036,6 +1095,8 @@ See :ref:`cli_add_column`.
       -h, --help               Show this message and exit.
 
 
+.. _cli_ref_add_foreign_key:
+
 add-foreign-key
 ===============
 
@@ -1060,6 +1121,8 @@ See :ref:`cli_add_foreign_key`.
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_add_foreign_keys:
+
 add-foreign-keys
 ================
 
@@ -1082,6 +1145,8 @@ See :ref:`cli_add_foreign_keys`.
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_index_foreign_keys:
+
 index-foreign-keys
 ==================
 
@@ -1101,6 +1166,8 @@ See :ref:`cli_index_foreign_keys`.
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_enable_wal:
 
 enable-wal
 ==========
@@ -1122,6 +1189,8 @@ See :ref:`cli_wal`.
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_disable_wal:
+
 disable-wal
 ===========
 
@@ -1139,6 +1208,8 @@ disable-wal
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_enable_counts:
 
 enable-counts
 =============
@@ -1160,6 +1231,8 @@ See :ref:`cli_enable_counts`.
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_reset_counts:
+
 reset-counts
 ============
 
@@ -1178,6 +1251,8 @@ reset-counts
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_duplicate:
+
 duplicate
 =========
 
@@ -1192,6 +1267,8 @@ duplicate
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_drop_table:
 
 drop-table
 ==========
@@ -1213,6 +1290,8 @@ See :ref:`cli_drop_table`.
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_create_view:
 
 create-view
 ===========
@@ -1237,6 +1316,8 @@ See :ref:`cli_create_view`.
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_drop_view:
+
 drop-view
 =========
 
@@ -1257,6 +1338,8 @@ See :ref:`cli_drop_view`.
       --load-extension TEXT  SQLite extensions to load
       -h, --help             Show this message and exit.
 
+
+.. _cli_ref_add_geometry_column:
 
 add-geometry-column
 ===================
@@ -1286,6 +1369,8 @@ See :ref:`cli_spatialite`.
       --load-extension TEXT           SQLite extensions to load
       -h, --help                      Show this message and exit.
 
+
+.. _cli_ref_create_spatial_index:
 
 create-spatial-index
 ====================
