@@ -897,8 +897,9 @@ class Database:
         """
         # Transform table to match the new definition if table already exists:
         if transform and self[name].exists():
+            table = cast(Table, self[name])
             # First add missing columns and columns to drop
-            existing_columns = self[name].columns_dict
+            existing_columns = table.columns_dict
             missing_columns = dict(
                 (col_name, col_type)
                 for col_name, col_type in columns.items()
@@ -909,7 +910,7 @@ class Database:
             ]
             if missing_columns:
                 for col_name, col_type in missing_columns.items():
-                    self[name].add_column(col_name, col_type)
+                    table.add_column(col_name, col_type)
             # Do we need to reset the column order?
             column_order = None
             if list(existing_columns) != list(columns):
@@ -917,7 +918,7 @@ class Database:
             # Only run .transform() if there is something to do
             # TODO: this misses changes like pk= without also column changes
             if columns_to_drop or missing_columns or column_order:
-                self[name].transform(
+                table.transform(
                     types=columns,
                     drop=columns_to_drop,
                     column_order=column_order,
@@ -925,7 +926,7 @@ class Database:
                     defaults=defaults,
                     pk=pk,
                 )
-            return cast(Table, self[name])
+            return table
         sql = self.create_table_sql(
             name=name,
             columns=columns,
@@ -940,7 +941,7 @@ class Database:
             if_not_exists=if_not_exists,
         )
         self.execute(sql)
-        table = self.table(
+        created_table = self.table(
             name,
             pk=pk,
             foreign_keys=foreign_keys,
@@ -950,7 +951,7 @@ class Database:
             hash_id=hash_id,
             hash_id_columns=hash_id_columns,
         )
-        return cast(Table, table)
+        return cast(Table, created_table)
 
     def create_view(
         self, name: str, sql: str, ignore: bool = False, replace: bool = False
@@ -1569,7 +1570,7 @@ class Table(Queryable):
         rename: Optional[dict] = None,
         drop: Optional[Iterable] = None,
         pk: Optional[Any] = DEFAULT,
-        not_null: Optional[Set[str]] = None,
+        not_null: Optional[Iterable[str]] = None,
         defaults: Optional[Dict[str, Any]] = None,
         drop_foreign_keys: Optional[Iterable] = None,
         column_order: Optional[List[str]] = None,
@@ -2886,7 +2887,7 @@ class Table(Queryable):
         pk=DEFAULT,
         foreign_keys=DEFAULT,
         column_order: Optional[Union[List[str], Default]] = DEFAULT,
-        not_null: Optional[Union[Set[str], Default]] = DEFAULT,
+        not_null: Optional[Union[Iterable[str], Default]] = DEFAULT,
         defaults: Optional[Union[Dict[str, Any], Default]] = DEFAULT,
         hash_id: Optional[Union[str, Default]] = DEFAULT,
         hash_id_columns: Optional[Union[Iterable[str], Default]] = DEFAULT,
@@ -3166,7 +3167,7 @@ class Table(Queryable):
         pk: Optional[str] = "id",
         foreign_keys: Optional[ForeignKeysType] = None,
         column_order: Optional[List[str]] = None,
-        not_null: Optional[Set[str]] = None,
+        not_null: Optional[Iterable[str]] = None,
         defaults: Optional[Dict[str, Any]] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         conversions: Optional[Dict[str, str]] = None,
