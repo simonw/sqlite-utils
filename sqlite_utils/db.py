@@ -875,6 +875,7 @@ class Database:
         hash_id_columns: Optional[Iterable[str]] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
+        transform: bool = False,
     ) -> "Table":
         """
         Create a table with the specified name and the specified ``{column_name: type}`` columns.
@@ -892,7 +893,39 @@ class Database:
         :param hash_id_columns: List of columns to be used when calculating the hash ID for a row
         :param extracts: List or dictionary of columns to be extracted during inserts, see :ref:`python_api_extracts`
         :param if_not_exists: Use ``CREATE TABLE IF NOT EXISTS``
+        :param transform: If table already exists, transform it to fit the specified schema
         """
+        # Transform table to match the new definition if table already exists:
+        if transform and self[name].exists():
+            # First add missing columns and columns to drop
+            existing_columns = self[name].columns_dict
+            missing_columns = dict(
+                (col_name, col_type)
+                for col_name, col_type in columns.items()
+                if col_name not in existing_columns
+            )
+            columns_to_drop = [
+                column for column in existing_columns if column not in columns
+            ]
+            if missing_columns:
+                for col_name, col_type in missing_columns.items():
+                    self[name].add_column(col_name, col_type)
+            # Do we need to reset the column order?
+            column_order = None
+            if list(existing_columns) != list(columns):
+                column_order = list(columns)
+            # Only run .transform() if there is something to do
+            # TODO: this misses changes like pk= without also column changes
+            if columns_to_drop or missing_columns or column_order:
+                self[name].transform(
+                    types=columns,
+                    drop=columns_to_drop,
+                    column_order=column_order,
+                    not_null=not_null,
+                    defaults=defaults,
+                    pk=pk,
+                )
+            return cast(Table, self[name])
         sql = self.create_table_sql(
             name=name,
             columns=columns,
@@ -1477,6 +1510,7 @@ class Table(Queryable):
         hash_id_columns: Optional[Iterable[str]] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
+        transform: bool = False,
     ) -> "Table":
         """
         Create a table with the specified columns.
@@ -1508,6 +1542,7 @@ class Table(Queryable):
                 hash_id_columns=hash_id_columns,
                 extracts=extracts,
                 if_not_exists=if_not_exists,
+                transform=transform,
             )
         return self
 
