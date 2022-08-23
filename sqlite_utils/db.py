@@ -892,7 +892,7 @@ class Database:
         :param hash_id_columns: List of columns to be used when calculating the hash ID for a row
         :param extracts: List or dictionary of columns to be extracted during inserts, see :ref:`python_api_extracts`
         :param if_not_exists: Use ``CREATE TABLE IF NOT EXISTS``
-        :param transform: If table already exists, transform it to fit the specified schema
+        :param transform: If table already exists transform it to fit the specified schema
         """
         # Transform table to match the new definition if table already exists:
         if transform and self[name].exists():
