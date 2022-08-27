@@ -1155,3 +1155,79 @@ def test_create_if_no_columns(fresh_db):
     with pytest.raises(AssertionError) as error:
         fresh_db["t"].create({})
     assert error.value.args[0] == "Tables must have at least one column"
+
+
+@pytest.mark.parametrize(
+    "cols,kwargs,expected_schema,should_transform",
+    (
+        # Change nothing
+        (
+            {"id": int, "name": str},
+            {"pk": "id"},
+            "CREATE TABLE [demo] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n)",
+            False,
+        ),
+        # Drop name column, remove primary key
+        ({"id": int}, {}, 'CREATE TABLE "demo" (\n   [id] INTEGER\n)', True),
+        # Add a new column
+        (
+            {"id": int, "name": str, "age": int},
+            {"pk": "id"},
+            'CREATE TABLE "demo" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] INTEGER\n)',
+            True,
+        ),
+        # Change a column type
+        (
+            {"id": int, "name": bytes},
+            {"pk": "id"},
+            'CREATE TABLE "demo" (\n   [id] INTEGER PRIMARY KEY,\n   [name] BLOB\n)',
+            True,
+        ),
+        # Change the primary key
+        (
+            {"id": int, "name": str},
+            {"pk": "name"},
+            'CREATE TABLE "demo" (\n   [id] INTEGER,\n   [name] TEXT PRIMARY KEY\n)',
+            True,
+        ),
+        # Change in column order
+        (
+            {"id": int, "name": str},
+            {"pk": "id", "column_order": ["name"]},
+            'CREATE TABLE "demo" (\n   [name] TEXT,\n   [id] INTEGER PRIMARY KEY\n)',
+            True,
+        ),
+        # Same column order is ignored
+        (
+            {"id": int, "name": str},
+            {"pk": "id", "column_order": ["id", "name"]},
+            "CREATE TABLE [demo] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n)",
+            False,
+        ),
+        # Change not null
+        (
+            {"id": int, "name": str},
+            {"pk": "id", "not_null": {"name"}},
+            'CREATE TABLE "demo" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT NOT NULL\n)',
+            True,
+        ),
+        # Change default values
+        (
+            {"id": int, "name": str},
+            {"pk": "id", "defaults": {"id": 0, "name": "Bob"}},
+            "CREATE TABLE \"demo\" (\n   [id] INTEGER PRIMARY KEY DEFAULT 0,\n   [name] TEXT DEFAULT 'Bob'\n)",
+            True,
+        ),
+    ),
+)
+def test_create_transform(fresh_db, cols, kwargs, expected_schema, should_transform):
+    fresh_db.create_table("demo", {"id": int, "name": str}, pk="id")
+    fresh_db["demo"].insert({"id": 1, "name": "Cleo"})
+    traces = []
+    with fresh_db.tracer(lambda sql, parameters: traces.append((sql, parameters))):
+        fresh_db["demo"].create(cols, **kwargs, transform=True)
+    at_least_one_create_table = any(sql.startswith("CREATE TABLE") for sql, _ in traces)
+    assert should_transform == at_least_one_create_table
+    new_schema = fresh_db["demo"].schema
+    assert new_schema == expected_schema, repr(new_schema)
+    assert fresh_db["demo"].count == 1

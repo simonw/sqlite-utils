@@ -34,7 +34,6 @@ from typing import (
     Union,
     Optional,
     List,
-    Set,
     Tuple,
 )
 import uuid
@@ -876,6 +875,7 @@ class Database:
         hash_id_columns: Optional[Iterable[str]] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
+        transform: bool = False,
     ) -> "Table":
         """
         Create a table with the specified name and the specified ``{column_name: type}`` columns.
@@ -893,7 +893,61 @@ class Database:
         :param hash_id_columns: List of columns to be used when calculating the hash ID for a row
         :param extracts: List or dictionary of columns to be extracted during inserts, see :ref:`python_api_extracts`
         :param if_not_exists: Use ``CREATE TABLE IF NOT EXISTS``
+        :param transform: If table already exists transform it to fit the specified schema
         """
+        # Transform table to match the new definition if table already exists:
+        if transform and self[name].exists():
+            table = cast(Table, self[name])
+            should_transform = False
+            # First add missing columns and figure out columns to drop
+            existing_columns = table.columns_dict
+            missing_columns = dict(
+                (col_name, col_type)
+                for col_name, col_type in columns.items()
+                if col_name not in existing_columns
+            )
+            columns_to_drop = [
+                column for column in existing_columns if column not in columns
+            ]
+            if missing_columns:
+                for col_name, col_type in missing_columns.items():
+                    table.add_column(col_name, col_type)
+            if missing_columns or columns_to_drop or columns != existing_columns:
+                should_transform = True
+            # Do we need to change the column order?
+            if (
+                column_order
+                and list(existing_columns)[: len(column_order)] != column_order
+            ):
+                should_transform = True
+            # Has the primary key changed?
+            current_pks = table.pks
+            desired_pk = None
+            if isinstance(pk, str):
+                desired_pk = [pk]
+            elif pk:
+                desired_pk = list(pk)
+            if desired_pk and current_pks != desired_pk:
+                should_transform = True
+            # Any not-null changes?
+            current_not_null = {c.name for c in table.columns if c.notnull}
+            desired_not_null = set(not_null) if not_null else set()
+            if current_not_null != desired_not_null:
+                should_transform = True
+            # How about defaults?
+            if defaults and defaults != table.default_values:
+                should_transform = True
+            # Only run .transform() if there is something to do
+            if should_transform:
+                table.transform(
+                    types=columns,
+                    drop=columns_to_drop,
+                    column_order=column_order,
+                    not_null=not_null,
+                    defaults=defaults,
+                    pk=pk,
+                )
+            return table
         sql = self.create_table_sql(
             name=name,
             columns=columns,
@@ -908,7 +962,7 @@ class Database:
             if_not_exists=if_not_exists,
         )
         self.execute(sql)
-        table = self.table(
+        created_table = self.table(
             name,
             pk=pk,
             foreign_keys=foreign_keys,
@@ -918,7 +972,7 @@ class Database:
             hash_id=hash_id,
             hash_id_columns=hash_id_columns,
         )
-        return cast(Table, table)
+        return cast(Table, created_table)
 
     def create_view(
         self, name: str, sql: str, ignore: bool = False, replace: bool = False
@@ -1487,6 +1541,7 @@ class Table(Queryable):
         hash_id_columns: Optional[Iterable[str]] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
+        transform: bool = False,
     ) -> "Table":
         """
         Create a table with the specified columns.
@@ -1518,6 +1573,7 @@ class Table(Queryable):
                 hash_id_columns=hash_id_columns,
                 extracts=extracts,
                 if_not_exists=if_not_exists,
+                transform=transform,
             )
         return self
 
@@ -1544,7 +1600,7 @@ class Table(Queryable):
         rename: Optional[dict] = None,
         drop: Optional[Iterable] = None,
         pk: Optional[Any] = DEFAULT,
-        not_null: Optional[Set[str]] = None,
+        not_null: Optional[Iterable[str]] = None,
         defaults: Optional[Dict[str, Any]] = None,
         drop_foreign_keys: Optional[Iterable] = None,
         column_order: Optional[List[str]] = None,
@@ -1664,10 +1720,12 @@ class Table(Queryable):
                     create_table_not_null.add(key)
         elif isinstance(not_null, set):
             create_table_not_null.update((rename.get(k) or k) for k in not_null)
-        elif not_null is None:
+        elif not not_null:
             pass
         else:
-            assert False, "not_null must be a dict or a set or None"
+            assert False, "not_null must be a dict or a set or None, it was {}".format(
+                repr(not_null)
+            )
         # defaults=
         create_table_defaults = {
             (rename.get(c.name) or c.name): c.default_value
@@ -2861,7 +2919,7 @@ class Table(Queryable):
         pk=DEFAULT,
         foreign_keys=DEFAULT,
         column_order: Optional[Union[List[str], Default]] = DEFAULT,
-        not_null: Optional[Union[Set[str], Default]] = DEFAULT,
+        not_null: Optional[Union[Iterable[str], Default]] = DEFAULT,
         defaults: Optional[Union[Dict[str, Any], Default]] = DEFAULT,
         hash_id: Optional[Union[str, Default]] = DEFAULT,
         hash_id_columns: Optional[Union[Iterable[str], Default]] = DEFAULT,
@@ -3141,7 +3199,7 @@ class Table(Queryable):
         pk: Optional[str] = "id",
         foreign_keys: Optional[ForeignKeysType] = None,
         column_order: Optional[List[str]] = None,
-        not_null: Optional[Set[str]] = None,
+        not_null: Optional[Iterable[str]] = None,
         defaults: Optional[Dict[str, Any]] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         conversions: Optional[Dict[str, str]] = None,

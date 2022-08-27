@@ -1453,9 +1453,24 @@ def create_database(path, enable_wal, init_spatialite, load_extension):
     is_flag=True,
     help="If table already exists, replace it",
 )
+@click.option(
+    "--transform",
+    is_flag=True,
+    help="If table already exists, try to transform the schema",
+)
 @load_extension_option
 def create_table(
-    path, table, columns, pk, not_null, default, fk, ignore, replace, load_extension
+    path,
+    table,
+    columns,
+    pk,
+    not_null,
+    default,
+    fk,
+    ignore,
+    replace,
+    transform,
+    load_extension,
 ):
     """
     Add a table with the specified columns. Columns should be specified using
@@ -1490,6 +1505,8 @@ def create_table(
             return
         elif replace:
             db[table].drop()
+        elif transform:
+            pass
         else:
             raise click.ClickException(
                 'Table "{}" already exists. Use --replace to delete and replace it.'.format(
@@ -1497,7 +1514,12 @@ def create_table(
                 )
             )
     db[table].create(
-        coltypes, pk=pk, not_null=not_null, defaults=dict(default), foreign_keys=fk
+        coltypes,
+        pk=pk,
+        not_null=not_null,
+        defaults=dict(default),
+        foreign_keys=fk,
+        transform=transform,
     )
 
 
