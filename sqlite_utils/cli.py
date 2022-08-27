@@ -926,9 +926,12 @@ def insert_upsert_implementation(
     load_extension=None,
     silent=False,
     bulk_sql=None,
+    functions=None,
 ):
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
+    if functions:
+        _register_functions(db, functions)
     if (delimiter or quotechar or sniff or no_headers) and not tsv:
         csv = True
     if (nl + csv + tsv) >= 2:
@@ -1305,6 +1308,9 @@ def upsert(
 @click.argument("sql")
 @click.argument("file", type=click.File("rb"), required=True)
 @click.option("--batch-size", type=int, default=100, help="Commit every X records")
+@click.option(
+    "--functions", help="Python code defining one or more custom SQL functions"
+)
 @import_options
 @load_extension_option
 def bulk(
@@ -1312,6 +1318,7 @@ def bulk(
     sql,
     file,
     batch_size,
+    functions,
     flatten,
     nl,
     csv,
@@ -1368,6 +1375,7 @@ def bulk(
             load_extension=load_extension,
             silent=False,
             bulk_sql=sql,
+            functions=functions,
         )
     except (OperationalError, sqlite3.IntegrityError) as e:
         raise click.ClickException(str(e))

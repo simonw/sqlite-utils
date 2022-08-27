@@ -349,6 +349,7 @@ See :ref:`cli_bulk`.
 
     Options:
       --batch-size INTEGER   Commit every X records
+      --functions TEXT       Python code defining one or more custom SQL functions
       --flatten              Flatten nested JSON objects, so {"a": {"b": 1}} becomes
                              {"a_b": 1}
       --nl                   Expect newline-delimited JSON
