@@ -9,6 +9,7 @@ from .utils import (
     progressbar,
     find_spatialite,
 )
+import binascii
 from collections import namedtuple
 from collections.abc import Mapping
 import contextlib
@@ -1457,6 +1458,15 @@ class Table(Queryable):
     def triggers_dict(self) -> Dict[str, str]:
         "``{trigger_name: sql}`` dictionary of triggers defined on this table."
         return {trigger.name: trigger.sql for trigger in self.triggers}
+
+    @property
+    def default_values(self) -> Dict[str, Any]:
+        "``{column_name: default_value}`` dictionary of default values for columns in this table."
+        return {
+            column.name: _decode_default_value(column.default_value)
+            for column in self.columns
+            if column.default_value is not None
+        }
 
     @property
     def strict(self) -> bool:
@@ -3527,3 +3537,22 @@ def fix_square_braces(records: Iterable[Dict[str, Any]]):
             }
         else:
             yield record
+
+
+def _decode_default_value(value):
+    if value.startswith("'") and value.endswith("'"):
+        # It's a string
+        return value[1:-1]
+    if value.isdigit():
+        # It's an integer
+        return int(value)
+    if value.startswith("X'") and value.endswith("'"):
+        # It's a binary string, stored as hex
+        to_decode = value[2:-1]
+        return binascii.unhexlify(to_decode)
+    # If it is a string containing a floating point number:
+    try:
+        return float(value)
+    except ValueError:
+        pass
+    return value

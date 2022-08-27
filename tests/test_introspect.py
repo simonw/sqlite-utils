@@ -299,3 +299,21 @@ def test_table_strict(fresh_db, create_table, expected_strict):
     fresh_db.execute(create_table)
     table = fresh_db["t"]
     assert table.strict == expected_strict
+
+
+@pytest.mark.parametrize(
+    "value",
+    (
+        1,
+        1.3,
+        "foo",
+        True,
+        b"binary",
+    ),
+)
+def test_table_default_values(fresh_db, value):
+    fresh_db["default_values"].insert(
+        {"nodefault": 1, "value": value}, defaults={"value": value}
+    )
+    default_values = fresh_db["default_values"].default_values
+    assert default_values == {"value": value}
