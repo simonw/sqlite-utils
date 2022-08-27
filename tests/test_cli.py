@@ -12,6 +12,15 @@ import textwrap
 from .utils import collapse_whitespace
 
 
+def _supports_pragma_function_list():
+    db = Database(memory=True)
+    try:
+        db.execute("select * from pragma_function_list()")
+    except Exception:
+        return False
+    return True
+
+
 @pytest.mark.parametrize(
     "options",
     (
@@ -753,6 +762,10 @@ def test_query_complex_function(db_path):
     ]
 
 
+@pytest.mark.skipif(
+    not _supports_pragma_function_list(),
+    reason="Needs SQLite version that supports pragma_function_list()",
+)
 def test_hidden_functions_are_hidden(db_path):
     result = CliRunner().invoke(
         cli.cli,
