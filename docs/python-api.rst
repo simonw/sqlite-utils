@@ -554,6 +554,25 @@ To do nothing if the table already exists, add ``if_not_exists=True``:
         "name": str,
     }, pk="id", if_not_exists=True)
 
+You can also pass ``transform=True`` to have any existing tables :ref:`transformed <python_api_transform>` to match your new table specification. This is a **dangerous operation** as it may drop columns that are no longer listed in your call to ``.create()``, so be careful when running this.
+
+.. code-block:: python
+
+    db["cats"].create({
+        "id": int,
+        "name": str,
+        "weight": float,
+    }, pk="id", transform=True)
+
+The ``transform=True`` option will update the table schema if any of the following have changed:
+
+- The specified columns or their types
+- The specified primary key
+- The order of the columns, defined using ``column_order=``
+- The ``not_null=`` or ``defaults=`` arguments
+
+Changes to ``foreign_keys=`` are not currently detected and applied by ``transform=True``.
+
 .. _python_api_compound_primary_keys:
 
 Compound primary keys
