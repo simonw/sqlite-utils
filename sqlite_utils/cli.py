@@ -1669,18 +1669,8 @@ def query(
     _load_extensions(db, load_extension)
     db.register_fts4_bm25()
 
-    # Register any Python functions as SQL functions:
     if functions:
-        sqlite3.enable_callback_tracebacks(True)
-        globals = {}
-        try:
-            exec(functions, globals)
-        except SyntaxError as ex:
-            raise click.ClickException("Error in functions definition: {}".format(ex))
-        # Register all callables in the locals dict:
-        for name, value in globals.items():
-            if callable(value) and not name.startswith("_"):
-                db.register_function(value, name=name)
+        _register_functions(db, functions)
 
     _execute_query(
         db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
@@ -1695,6 +1685,9 @@ def query(
     nargs=-1,
 )
 @click.argument("sql")
+@click.option(
+    "--functions", help="Python code defining one or more custom SQL functions"
+)
 @click.option(
     "--attach",
     type=(str, click.Path(file_okay=True, dir_okay=False, allow_dash=False)),
@@ -1741,6 +1734,7 @@ def query(
 def memory(
     paths,
     sql,
+    functions,
     attach,
     flatten,
     nl,
@@ -1853,6 +1847,9 @@ def memory(
         db.attach(alias, attach_path)
     _load_extensions(db, load_extension)
     db.register_fts4_bm25()
+
+    if functions:
+        _register_functions(db, functions)
 
     _execute_query(
         db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
@@ -2993,3 +2990,17 @@ def _load_extensions(db, load_extension):
             if ext == "spatialite" and not os.path.exists(ext):
                 ext = find_spatialite()
             db.conn.load_extension(ext)
+
+
+def _register_functions(db, functions):
+    # Register any Python functions as SQL functions:
+    sqlite3.enable_callback_tracebacks(True)
+    globals = {}
+    try:
+        exec(functions, globals)
+    except SyntaxError as ex:
+        raise click.ClickException("Error in functions definition: {}".format(ex))
+    # Register all callables in the locals dict:
+    for name, value in globals.items():
+        if callable(value) and not name.startswith("_"):
+            db.register_function(value, name=name)

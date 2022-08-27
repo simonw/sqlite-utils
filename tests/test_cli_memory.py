@@ -289,3 +289,12 @@ def test_memory_two_files_with_same_stem(tmpdir):
         ");\n"
         "CREATE VIEW t2 AS select * from [data_2];\n"
     )
+
+
+def test_memory_functions():
+    result = CliRunner().invoke(
+        cli.cli,
+        ["memory", "select hello()", "--functions", "hello = lambda: 'Hello'"],
+    )
+    assert result.exit_code == 0
+    assert result.output.strip() == '[{"hello()": "Hello"}]'

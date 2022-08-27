@@ -161,6 +161,8 @@ See :ref:`cli_memory`.
           sqlite-utils memory animals.csv --schema
 
     Options:
+      --functions TEXT            Python code defining one or more custom SQL
+                                  functions
       --attach <TEXT FILE>...     Additional databases to attach - specify alias and
                                   filepath
       --flatten                   Flatten nested JSON objects, so {"foo": {"bar":
