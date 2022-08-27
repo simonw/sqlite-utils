@@ -94,7 +94,7 @@ def load_extension_option(fn):
     return click.option(
         "--load-extension",
         multiple=True,
-        help="SQLite extensions to load",
+        help="Path to SQLite extension, with optional :entrypoint",
     )(fn)
 
 
@@ -2997,7 +2997,11 @@ def _load_extensions(db, load_extension):
         for ext in load_extension:
             if ext == "spatialite" and not os.path.exists(ext):
                 ext = find_spatialite()
-            db.conn.load_extension(ext)
+            if ":" in ext:
+                path, _, entrypoint = ext.partition(":")
+                db.conn.execute("SELECT load_extension(?, ?)", [path, entrypoint])
+            else:
+                db.conn.load_extension(ext)
 
 
 def _register_functions(db, functions):

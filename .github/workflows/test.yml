@@ -35,6 +35,10 @@ jobs:
     - name: Install SpatiaLite
       if: matrix.os == 'ubuntu-latest'
       run: sudo apt-get install libsqlite3-mod-spatialite
+    - name: Build extension for --load-extension test
+      if: matrix.os == 'ubuntu-latest'
+      run: |-
+        (cd tests && gcc ext.c -fPIC -shared -o ext.so)
     - name: Run tests
       run: |
         pytest -v
