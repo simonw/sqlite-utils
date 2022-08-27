@@ -1,6 +1,7 @@
 from sqlite_utils import cli, Database
 from sqlite_utils.db import Index, ForeignKey
 from click.testing import CliRunner
+from pathlib import Path
 import subprocess
 import sys
 from unittest import mock
@@ -19,6 +20,17 @@ def _supports_pragma_function_list():
     except Exception:
         return False
     return True
+
+
+def _has_compiled_ext():
+    for ext in ["dylib", "so", "dll"]:
+        path = Path(__file__).parent / f"ext.{ext}"
+        if path.is_file():
+            return True
+    return False
+
+
+COMPILED_EXTENSION_PATH = str(Path(__file__).parent / "ext")
 
 
 @pytest.mark.parametrize(
@@ -2284,3 +2296,32 @@ def test_duplicate_table(tmpdir):
     assert result.exit_code == 0
     assert db["one"].columns_dict == db["two"].columns_dict
     assert list(db["one"].rows) == list(db["two"].rows)
+
+
+@pytest.mark.skipif(not _has_compiled_ext(), reason="Requires compiled ext.c")
+@pytest.mark.parametrize(
+    "entrypoint,should_pass,should_fail",
+    (
+        (None, ("a",), ("b", "c")),
+        ("sqlite3_ext_b_init", ("b"), ("a", "c")),
+        ("sqlite3_ext_c_init", ("c"), ("a", "b")),
+    ),
+)
+def test_load_extension(entrypoint, should_pass, should_fail):
+    ext = COMPILED_EXTENSION_PATH
+    if entrypoint:
+        ext += ":" + entrypoint
+    for func in should_pass:
+        result = CliRunner().invoke(
+            cli.cli,
+            ["memory", "select {}()".format(func), "--load-extension", ext],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+    for func in should_fail:
+        result = CliRunner().invoke(
+            cli.cli,
+            ["memory", "select {}()".format(func), "--load-extension", ext],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 1

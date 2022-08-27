@@ -17,3 +17,6 @@ venv
 Pipfile
 Pipfile.lock
 pyproject.toml
+tests/*.dylib
+tests/*.so
+tests/*.dll

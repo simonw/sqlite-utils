@@ -121,7 +121,8 @@ See :ref:`cli_query`.
       -p, --param <TEXT TEXT>...  Named :parameters for SQL query
       --functions TEXT            Python code defining one or more custom SQL
                                   functions
-      --load-extension TEXT       SQLite extensions to load
+      --load-extension TEXT       Path to SQLite extension, with optional
+                                  :entrypoint
       -h, --help                  Show this message and exit.
 
 
@@ -189,7 +190,8 @@ See :ref:`cli_memory`.
       --dump                      Dump SQL for in-memory database
       --save FILE                 Save in-memory database to this file
       --analyze                   Analyze resulting tables and output results
-      --load-extension TEXT       SQLite extensions to load
+      --load-extension TEXT       Path to SQLite extension, with optional
+                                  :entrypoint
       -h, --help                  Show this message and exit.
 
 
@@ -266,7 +268,7 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --default <TEXT TEXT>...  Default value that should be set for a column
       -d, --detect-types        Detect types for columns in CSV/TSV data
       --analyze                 Run ANALYZE at the end of this operation
-      --load-extension TEXT     SQLite extensions to load
+      --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       --silent                  Do not show progress bar
       --ignore                  Ignore records if pk already exists
       --replace                 Replace records if pk already exists
@@ -320,7 +322,7 @@ See :ref:`cli_upsert`.
       --default <TEXT TEXT>...  Default value that should be set for a column
       -d, --detect-types        Detect types for columns in CSV/TSV data
       --analyze                 Run ANALYZE at the end of this operation
-      --load-extension TEXT     SQLite extensions to load
+      --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       --silent                  Do not show progress bar
       -h, --help                Show this message and exit.
 
@@ -364,7 +366,7 @@ See :ref:`cli_bulk`.
       --sniff                Detect delimiter and quote character
       --no-headers           CSV file has no header row
       --encoding TEXT        Character encoding for input, defaults to utf-8
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -404,7 +406,7 @@ See :ref:`cli_search`.
                              textile, tsv, unsafehtml, youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -440,7 +442,7 @@ See :ref:`cli_transform_table`.
       --default-none TEXT       Remove default from this column
       --drop-foreign-key TEXT   Drop foreign key constraint for this column
       --sql                     Output SQL without executing it
-      --load-extension TEXT     SQLite extensions to load
+      --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       -h, --help                Show this message and exit.
 
 
@@ -465,7 +467,7 @@ See :ref:`cli_extract`.
       --table TEXT             Name of the other table to extract columns to
       --fk-column TEXT         Name of the foreign key column to add to the table
       --rename <TEXT TEXT>...  Rename this column in extracted table
-      --load-extension TEXT    SQLite extensions to load
+      --load-extension TEXT    Path to SQLite extension, with optional :entrypoint
       -h, --help               Show this message and exit.
 
 
@@ -487,7 +489,7 @@ See :ref:`cli_schema`.
           sqlite-utils schema trees.db
 
     Options:
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -525,7 +527,7 @@ See :ref:`cli_insert_files`.
       --text                 Store file content as TEXT, not BLOB
       --encoding TEXT        Character encoding for input, defaults to utf-8
       -s, --silent           Don't show a progress bar
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -549,7 +551,7 @@ See :ref:`cli_analyze_tables`.
     Options:
       -c, --column TEXT      Specific columns to analyze
       --save                 Save results to _analyze_tables table
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -656,7 +658,7 @@ See :ref:`cli_tables`.
                              strings
       --columns              Include list of columns for each table
       --schema               Include schema for each table
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -694,7 +696,7 @@ See :ref:`cli_views`.
                              strings
       --columns              Include list of columns for each view
       --schema               Include schema for each view
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -735,7 +737,8 @@ See :ref:`cli_rows`.
                                   simple, textile, tsv, unsafehtml, youtrack
       --json-cols                 Detect JSON cols and output them as JSON, not
                                   escaped strings
-      --load-extension TEXT       SQLite extensions to load
+      --load-extension TEXT       Path to SQLite extension, with optional
+                                  :entrypoint
       -h, --help                  Show this message and exit.
 
 
@@ -770,7 +773,7 @@ See :ref:`cli_triggers`.
                              textile, tsv, unsafehtml, youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -806,7 +809,7 @@ See :ref:`cli_indexes`.
                              textile, tsv, unsafehtml, youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -830,7 +833,7 @@ See :ref:`cli_create_database`.
     Options:
       --enable-wal           Enable WAL mode on the created database
       --init-spatialite      Enable SpatiaLite on the created database
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -862,7 +865,7 @@ See :ref:`cli_create_table`.
                                 foreign key
       --ignore                  If table already exists, do nothing
       --replace                 If table already exists, replace it
-      --load-extension TEXT     SQLite extensions to load
+      --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       -h, --help                Show this message and exit.
 
 
@@ -892,7 +895,7 @@ See :ref:`cli_create_index`.
       --unique                   Make this a unique index
       --if-not-exists, --ignore  Ignore if index already exists
       --analyze                  Run ANALYZE after creating the index
-      --load-extension TEXT      SQLite extensions to load
+      --load-extension TEXT      Path to SQLite extension, with optional :entrypoint
       -h, --help                 Show this message and exit.
 
 
@@ -920,7 +923,7 @@ See :ref:`cli_fts`.
       --create-triggers      Create triggers to update the FTS tables when the
                              parent table changes.
       --replace              Replace existing FTS configuration if it exists
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -940,7 +943,7 @@ populate-fts
           sqlite-utils populate-fts chickens.db chickens name
 
     Options:
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -960,7 +963,7 @@ rebuild-fts
           sqlite-utils rebuild-fts chickens.db chickens
 
     Options:
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -980,7 +983,7 @@ disable-fts
           sqlite-utils disable-fts chickens.db chickens
 
     Options:
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1004,7 +1007,7 @@ See :ref:`cli_optimize`.
 
     Options:
       --no-vacuum            Don't run VACUUM
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1069,7 +1072,7 @@ See :ref:`cli_dump`.
           sqlite-utils dump chickens.db
 
     Options:
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1097,7 +1100,7 @@ See :ref:`cli_add_column`.
                                omitted will automatically use the primary key
       --not-null-default TEXT  Add NOT NULL DEFAULT 'TEXT' constraint
       --ignore                 If column already exists, do nothing
-      --load-extension TEXT    SQLite extensions to load
+      --load-extension TEXT    Path to SQLite extension, with optional :entrypoint
       -h, --help               Show this message and exit.
 
 
@@ -1123,7 +1126,7 @@ See :ref:`cli_add_foreign_key`.
 
     Options:
       --ignore               If foreign key already exists, do nothing
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1147,7 +1150,7 @@ See :ref:`cli_add_foreign_keys`.
               authors country_id countries id
 
     Options:
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1169,7 +1172,7 @@ See :ref:`cli_index_foreign_keys`.
           sqlite-utils index-foreign-keys chickens.db
 
     Options:
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1191,7 +1194,7 @@ See :ref:`cli_wal`.
           sqlite-utils enable-wal chickens.db
 
     Options:
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1211,7 +1214,7 @@ disable-wal
           sqlite-utils disable-wal chickens.db
 
     Options:
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1233,7 +1236,7 @@ See :ref:`cli_enable_counts`.
           sqlite-utils enable-counts chickens.db
 
     Options:
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1253,7 +1256,7 @@ reset-counts
           sqlite-utils reset-counts chickens.db
 
     Options:
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1270,7 +1273,7 @@ duplicate
 
     Options:
       --ignore               If table does not exist, do nothing
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1293,7 +1296,7 @@ See :ref:`cli_drop_table`.
 
     Options:
       --ignore               If table does not exist, do nothing
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1318,7 +1321,7 @@ See :ref:`cli_create_view`.
     Options:
       --ignore               If view already exists, do nothing
       --replace              If view already exists, replace it
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1341,7 +1344,7 @@ See :ref:`cli_drop_view`.
 
     Options:
       --ignore               If view does not exist, do nothing
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
@@ -1372,7 +1375,8 @@ See :ref:`cli_spatialite`.
       --dimensions TEXT               Coordinate dimensions. Use XYZ for three-
                                       dimensional geometries.
       --not-null                      Add a NOT NULL constraint.
-      --load-extension TEXT           SQLite extensions to load
+      --load-extension TEXT           Path to SQLite extension, with optional
+                                      :entrypoint
       -h, --help                      Show this message and exit.
 
 
@@ -1394,7 +1398,7 @@ See :ref:`cli_spatialite_indexes`.
       paths. To load it from a specific path, use --load-extension.
 
     Options:
-      --load-extension TEXT  SQLite extensions to load
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
 
