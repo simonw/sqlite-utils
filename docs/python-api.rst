@@ -1802,6 +1802,16 @@ The ``.columns_dict`` property returns a dictionary version of the columns with 
     >>> db["PlantType"].columns_dict
     {'id': <class 'int'>, 'value': <class 'str'>}
 
+.. _python_api_introspection_default_values:
+
+.default_values
+---------------
+
+The ``.default_values`` property returns a dictionary of default values for each column that has a default::
+
+    >>> db["table_with_defaults"].default_values
+    {'score': 5}
+
 .. _python_api_introspection_pks:
 
 .pks
