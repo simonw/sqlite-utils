@@ -897,7 +897,8 @@ class Database:
         # Transform table to match the new definition if table already exists:
         if transform and self[name].exists():
             table = cast(Table, self[name])
-            # First add missing columns and columns to drop
+            needs_transform = False
+            # First add missing columns and figure out columns to drop
             existing_columns = table.columns_dict
             missing_columns = dict(
                 (col_name, col_type)
@@ -910,13 +911,26 @@ class Database:
             if missing_columns:
                 for col_name, col_type in missing_columns.items():
                     table.add_column(col_name, col_type)
-            # Do we need to reset the column order?
-            column_order = None
-            if list(existing_columns) != list(columns):
-                column_order = list(columns)
+            if missing_columns or columns_to_drop:
+                needs_transform = True
+            # Do we need to change the column order?
+            if (
+                column_order
+                and list(existing_columns)[: len(column_order)] != column_order
+            ):
+                needs_transform = True
+            # Has the primary key changed?
+            current_pks = table.pks
+            desired_pk = None
+            if isinstance(pk, str):
+                desired_pk = [pk]
+            elif pk:
+                desired_pk = list(pk)
+            if desired_pk and current_pks != desired_pk:
+                needs_transform = True
             # Only run .transform() if there is something to do
-            # TODO: this misses changes like pk= without also column changes
-            if columns_to_drop or missing_columns or column_order:
+            # TODO: what about not null and defaults?
+            if needs_transform:
                 table.transform(
                     types=columns,
                     drop=columns_to_drop,
@@ -1692,7 +1706,9 @@ class Table(Queryable):
         elif not not_null:
             pass
         else:
-            assert False, "not_null must be a dict or a set or None, it was {}".format(repr(not_null))
+            assert False, "not_null must be a dict or a set or None, it was {}".format(
+                repr(not_null)
+            )
         # defaults=
         create_table_defaults = {
             (rename.get(c.name) or c.name): c.default_value
