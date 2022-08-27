@@ -929,6 +929,11 @@ class Database:
                 desired_pk = list(pk)
             if desired_pk and current_pks != desired_pk:
                 needs_transform = True
+            # Any not-null changes?
+            current_not_null = {c.name for c in table.columns if c.notnull}
+            desired_not_null = set(not_null) if not_null else set()
+            if current_not_null != desired_not_null:
+                needs_transform = True
             # Only run .transform() if there is something to do
             # TODO: what about not null and defaults?
             if needs_transform:

@@ -1197,6 +1197,13 @@ def test_create_if_no_columns(fresh_db):
             "CREATE TABLE [demo] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n)",
             False,
         ),
+        # Change not null
+        (
+            {"id": int, "name": str},
+            {"pk": "id", "not_null": {"name"}},
+            'CREATE TABLE "demo" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT NOT NULL\n)',
+            True,
+        ),
     ),
 )
 def test_create_transform(fresh_db, cols, kwargs, expected_schema, should_transform):
@@ -1205,8 +1212,8 @@ def test_create_transform(fresh_db, cols, kwargs, expected_schema, should_transf
     traces = []
     with fresh_db.tracer(lambda sql, parameters: traces.append((sql, parameters))):
         fresh_db["demo"].create(cols, **kwargs, transform=True)
-    new_schema = fresh_db["demo"].schema
-    assert new_schema == expected_schema, repr(new_schema)
     at_least_one_create_table = any(sql.startswith("CREATE TABLE") for sql, _ in traces)
     assert should_transform == at_least_one_create_table
+    new_schema = fresh_db["demo"].schema
+    assert new_schema == expected_schema, repr(new_schema)
     assert fresh_db["demo"].count == 1
