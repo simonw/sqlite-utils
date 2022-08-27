@@ -912,7 +912,7 @@ class Database:
             if missing_columns:
                 for col_name, col_type in missing_columns.items():
                     table.add_column(col_name, col_type)
-            if missing_columns or columns_to_drop:
+            if missing_columns or columns_to_drop or columns != existing_columns:
                 should_transform = True
             # Do we need to change the column order?
             if (

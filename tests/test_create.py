@@ -1176,6 +1176,13 @@ def test_create_if_no_columns(fresh_db):
             'CREATE TABLE "demo" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] INTEGER\n)',
             True,
         ),
+        # Change a column type
+        (
+            {"id": int, "name": bytes},
+            {"pk": "id"},
+            'CREATE TABLE "demo" (\n   [id] INTEGER PRIMARY KEY,\n   [name] BLOB\n)',
+            True,
+        ),
         # Change the primary key
         (
             {"id": int, "name": str},
