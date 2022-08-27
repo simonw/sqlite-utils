@@ -554,7 +554,7 @@ To do nothing if the table already exists, add ``if_not_exists=True``:
         "name": str,
     }, pk="id", if_not_exists=True)
 
-You can also pass ``transform=True`` to have any existing tables :ref:`transformed <python_api_transform>` to match your new table specification. This is a **dangerous operation** as it may drop columns that are no longer listed in your call to ``.create()``, so be careful when running this.
+You can also pass ``transform=True`` to have any existing tables :ref:`transformed <python_api_transform>` to match your new table specification. This is a **dangerous operation** as it will drop columns that are no longer listed in your call to ``.create()``, so be careful when running this.
 
 .. code-block:: python
 
