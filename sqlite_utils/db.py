@@ -1842,7 +1842,7 @@ class Table(Queryable):
                 magic_lookup_column=magic_lookup_column,
                 lookup_table=table,
                 where=" AND ".join(
-                    "[{table}].[{column}] = [{lookup_table}].[{lookup_column}]".format(
+                    "[{table}].[{column}] IS [{lookup_table}].[{lookup_column}]".format(
                         table=self.name,
                         lookup_table=table,
                         column=column,

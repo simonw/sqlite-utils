@@ -1,6 +1,7 @@
 from sqlite_utils import cli, Database
 from sqlite_utils.db import Index, ForeignKey
 from click.testing import CliRunner
+from pathlib import Path
 import subprocess
 import sys
 from unittest import mock
@@ -10,6 +11,26 @@ import pytest
 import textwrap
 
 from .utils import collapse_whitespace
+
+
+def _supports_pragma_function_list():
+    db = Database(memory=True)
+    try:
+        db.execute("select * from pragma_function_list()")
+    except Exception:
+        return False
+    return True
+
+
+def _has_compiled_ext():
+    for ext in ["dylib", "so", "dll"]:
+        path = Path(__file__).parent / f"ext.{ext}"
+        if path.is_file():
+            return True
+    return False
+
+
+COMPILED_EXTENSION_PATH = str(Path(__file__).parent / "ext")
 
 
 @pytest.mark.parametrize(
@@ -683,6 +704,11 @@ _one_query = "select id, name, age from dogs where id = 1"
         (_one_query, ["--nl"], '{"id": 1, "name": "Cleo", "age": 4}'),
         (_one_query, ["--arrays"], '[[1, "Cleo", 4]]'),
         (_one_query, ["--arrays", "--nl"], '[1, "Cleo", 4]'),
+        (
+            "select id, dog(age) from dogs",
+            ["--functions", "def dog(i):\n  return i * 7"],
+            '[{"id": 1, "dog(age)": 28},\n {"id": 2, "dog(age)": 14}]',
+        ),
     ],
 )
 def test_query_json(db_path, sql, args, expected):
@@ -700,9 +726,74 @@ def test_query_json(db_path, sql, args, expected):
 
 def test_query_json_empty(db_path):
     result = CliRunner().invoke(
-        cli.cli, [db_path, "select * from sqlite_master where 0"]
+        cli.cli,
+        [db_path, "select * from sqlite_master where 0"],
     )
     assert result.output.strip() == "[]"
+
+
+def test_query_invalid_function(db_path):
+    result = CliRunner().invoke(
+        cli.cli, [db_path, "select bad()", "--functions", "def invalid_python"]
+    )
+    assert result.exit_code == 1
+    assert (
+        result.output.strip()
+        == "Error: Error in functions definition: invalid syntax (<string>, line 1)"
+    )
+
+
+TEST_FUNCTIONS = """
+def zero():
+    return 0
+
+def one(a):
+    return a
+
+def _two(a, b):
+    return a + b
+
+def two(a, b):
+    return _two(a, b)
+"""
+
+
+def test_query_complex_function(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            db_path,
+            "select zero(), one(1), two(1, 2)",
+            "--functions",
+            TEST_FUNCTIONS,
+        ],
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output.strip()) == [
+        {"zero()": 0, "one(1)": 1, "two(1, 2)": 3}
+    ]
+
+
+@pytest.mark.skipif(
+    not _supports_pragma_function_list(),
+    reason="Needs SQLite version that supports pragma_function_list()",
+)
+def test_hidden_functions_are_hidden(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            db_path,
+            "select name from pragma_function_list()",
+            "--functions",
+            TEST_FUNCTIONS,
+        ],
+    )
+    assert result.exit_code == 0
+    functions = {r["name"] for r in json.loads(result.output.strip())}
+    assert "zero" in functions
+    assert "one" in functions
+    assert "two" in functions
+    assert "_two" not in functions
 
 
 LOREM_IPSUM_COMPRESSED = (
@@ -880,6 +971,15 @@ def test_query_memory_does_not_create_file(tmpdir):
         (
             ["-c", "name", "--where", "id = :id", "--param", "id", "1"],
             '[{"name": "Cleo"}]',
+        ),
+        # --order
+        (
+            ["-c", "id", "--order", "id desc", "--limit", "1"],
+            '[{"id": 2}]',
+        ),
+        (
+            ["-c", "id", "--order", "id", "--limit", "1"],
+            '[{"id": 1}]',
         ),
     ],
 )
@@ -2196,3 +2296,32 @@ def test_duplicate_table(tmpdir):
     assert result.exit_code == 0
     assert db["one"].columns_dict == db["two"].columns_dict
     assert list(db["one"].rows) == list(db["two"].rows)
+
+
+@pytest.mark.skipif(not _has_compiled_ext(), reason="Requires compiled ext.c")
+@pytest.mark.parametrize(
+    "entrypoint,should_pass,should_fail",
+    (
+        (None, ("a",), ("b", "c")),
+        ("sqlite3_ext_b_init", ("b"), ("a", "c")),
+        ("sqlite3_ext_c_init", ("c"), ("a", "b")),
+    ),
+)
+def test_load_extension(entrypoint, should_pass, should_fail):
+    ext = COMPILED_EXTENSION_PATH
+    if entrypoint:
+        ext += ":" + entrypoint
+    for func in should_pass:
+        result = CliRunner().invoke(
+            cli.cli,
+            ["memory", "select {}()".format(func), "--load-extension", ext],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+    for func in should_fail:
+        result = CliRunner().invoke(
+            cli.cli,
+            ["memory", "select {}()".format(func), "--load-extension", ext],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 1

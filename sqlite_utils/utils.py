@@ -432,12 +432,11 @@ def progressbar(*args, **kwargs):
 
 
 def _compile_code(code, imports, variable="value"):
-    locals = {}
     globals = {"r": recipes, "recipes": recipes}
     # If user defined a convert() function, return that
     try:
-        exec(code, globals, locals)
-        return locals["convert"]
+        exec(code, globals)
+        return globals["convert"]
     except (AttributeError, SyntaxError, NameError, KeyError, TypeError):
         pass
 
@@ -464,8 +463,8 @@ def _compile_code(code, imports, variable="value"):
 
     for import_ in imports:
         globals[import_.split(".")[0]] = __import__(import_)
-    exec(code_o, globals, locals)
-    return locals["fn"]
+    exec(code_o, globals)
+    return globals["fn"]
 
 
 def chunks(sequence: Iterable, size: int) -> Iterable[Iterable]:

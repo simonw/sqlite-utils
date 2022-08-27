@@ -94,7 +94,7 @@ def load_extension_option(fn):
     return click.option(
         "--load-extension",
         multiple=True,
-        help="SQLite extensions to load",
+        help="Path to SQLite extension, with optional :entrypoint",
     )(fn)
 
 
@@ -926,9 +926,12 @@ def insert_upsert_implementation(
     load_extension=None,
     silent=False,
     bulk_sql=None,
+    functions=None,
 ):
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
+    if functions:
+        _register_functions(db, functions)
     if (delimiter or quotechar or sniff or no_headers) and not tsv:
         csv = True
     if (nl + csv + tsv) >= 2:
@@ -1305,6 +1308,9 @@ def upsert(
 @click.argument("sql")
 @click.argument("file", type=click.File("rb"), required=True)
 @click.option("--batch-size", type=int, default=100, help="Commit every X records")
+@click.option(
+    "--functions", help="Python code defining one or more custom SQL functions"
+)
 @import_options
 @load_extension_option
 def bulk(
@@ -1312,6 +1318,7 @@ def bulk(
     sql,
     file,
     batch_size,
+    functions,
     flatten,
     nl,
     csv,
@@ -1368,6 +1375,7 @@ def bulk(
             load_extension=load_extension,
             silent=False,
             bulk_sql=sql,
+            functions=functions,
         )
     except (OperationalError, sqlite3.IntegrityError) as e:
         raise click.ClickException(str(e))
@@ -1655,6 +1663,9 @@ def drop_view(path, view, ignore, load_extension):
     type=(str, str),
     help="Named :parameters for SQL query",
 )
+@click.option(
+    "--functions", help="Python code defining one or more custom SQL functions"
+)
 @load_extension_option
 def query(
     path,
@@ -1671,6 +1682,7 @@ def query(
     raw,
     param,
     load_extension,
+    functions,
 ):
     """Execute SQL query and return the results as JSON
 
@@ -1687,6 +1699,9 @@ def query(
     _load_extensions(db, load_extension)
     db.register_fts4_bm25()
 
+    if functions:
+        _register_functions(db, functions)
+
     _execute_query(
         db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
     )
@@ -1700,6 +1715,9 @@ def query(
     nargs=-1,
 )
 @click.argument("sql")
+@click.option(
+    "--functions", help="Python code defining one or more custom SQL functions"
+)
 @click.option(
     "--attach",
     type=(str, click.Path(file_okay=True, dir_okay=False, allow_dash=False)),
@@ -1746,6 +1764,7 @@ def query(
 def memory(
     paths,
     sql,
+    functions,
     attach,
     flatten,
     nl,
@@ -1858,6 +1877,9 @@ def memory(
         db.attach(alias, attach_path)
     _load_extensions(db, load_extension)
     db.register_fts4_bm25()
+
+    if functions:
+        _register_functions(db, functions)
 
     _execute_query(
         db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
@@ -2007,6 +2029,7 @@ def search(
 @click.argument("dbtable")
 @click.option("-c", "--column", type=str, multiple=True, help="Columns to return")
 @click.option("--where", help="Optional where clause")
+@click.option("-o", "--order", type=str, help="Order by ('column' or 'column desc')")
 @click.option(
     "-p",
     "--param",
@@ -2033,6 +2056,7 @@ def rows(
     dbtable,
     column,
     where,
+    order,
     param,
     limit,
     offset,
@@ -2059,6 +2083,8 @@ def rows(
     sql = "select {} from [{}]".format(columns, dbtable)
     if where:
         sql += " where " + where
+    if order:
+        sql += " order by " + order
     if limit:
         sql += " limit {}".format(limit)
     if offset:
@@ -2993,4 +3019,22 @@ def _load_extensions(db, load_extension):
         for ext in load_extension:
             if ext == "spatialite" and not os.path.exists(ext):
                 ext = find_spatialite()
-            db.conn.load_extension(ext)
+            if ":" in ext:
+                path, _, entrypoint = ext.partition(":")
+                db.conn.execute("SELECT load_extension(?, ?)", [path, entrypoint])
+            else:
+                db.conn.load_extension(ext)
+
+
+def _register_functions(db, functions):
+    # Register any Python functions as SQL functions:
+    sqlite3.enable_callback_tracebacks(True)
+    globals = {}
+    try:
+        exec(functions, globals)
+    except SyntaxError as ex:
+        raise click.ClickException("Error in functions definition: {}".format(ex))
+    # Register all callables in the locals dict:
+    for name, value in globals.items():
+        if callable(value) and not name.startswith("_"):
+            db.register_function(value, name=name)

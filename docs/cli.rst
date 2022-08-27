@@ -250,6 +250,26 @@ If you execute an ``UPDATE``, ``INSERT`` or ``DELETE`` query the command will re
     $ sqlite-utils dogs.db "update dogs set age = 5 where name = 'Cleo'"
     [{"rows_affected": 1}]
 
+.. _cli_query_functions:
+
+Defining custom SQL functions
+-----------------------------
+
+You can use the ``--functions`` option to pass a block of Python code that defines additional functions which can then be called by your SQL query.
+
+This example defines a function which extracts the domain from a URL::
+
+    $ sqlite-utils query dogs.db "select url, domain(url) from urls" --functions '
+    from urllib.parse import urlparse
+
+    def domain(url):
+        return urlparse(url).netloc
+    '
+
+Every callable object defined in the block will be registered as a SQL function with the same name, with the exception of functions with names that begin with an underscore.
+
+.. _cli_query_extensions:
+
 SQLite extensions
 -----------------
 
@@ -466,6 +486,8 @@ Or pass named parameters using ``--where`` in combination with ``-p``::
 
     $ sqlite-utils rows dogs.db dogs -c name --where 'name = :name' -p name Cleo
     [{"name": "Cleo"}]
+
+You can define a sort order using ``--order column`` or ``--order 'column desc'``.
 
 Use ``--limit N`` to only return the first ``N`` rows. Use ``--offset N`` to return rows starting from the specified offset.
 
@@ -1337,11 +1359,8 @@ The following example adds a new ``score`` column, then updates it to list a ran
     random.seed(10)
 
     def convert(value):
-        global random
         return random.random()
     '
-
-Note the ``global random`` line here. Due to the way the tool compiles Python code, this is necessary to ensure the ``random`` module is available within the ``convert()`` function. If you were to omit this you would see a ``NameError: name 'random' is not defined`` error.
 
 .. _cli_convert_recipes:
 

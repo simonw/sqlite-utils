@@ -606,3 +606,23 @@ def test_convert_hyphen_workaround(fresh_db_and_path):
     assert list(db["names"].rows) == [
         {"id": 1, "name": "-"},
     ]
+
+
+def test_convert_initialization_pattern(fresh_db_and_path):
+    db, db_path = fresh_db_and_path
+    db["names"].insert_all([{"id": 1, "name": "Cleo"}], pk="id")
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "convert",
+            db_path,
+            "names",
+            "name",
+            "-",
+        ],
+        input="import random\nrandom.seed(1)\ndef convert(value):    return random.randint(0, 100)",
+    )
+    assert 0 == result.exit_code, result.output
+    assert list(db["names"].rows) == [
+        {"id": 1, "name": "17"},
+    ]

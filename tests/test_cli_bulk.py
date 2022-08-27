@@ -28,9 +28,11 @@ def test_cli_bulk(test_db_and_path):
         [
             "bulk",
             db_path,
-            "insert into example (id, name) values (:id, :name)",
+            "insert into example (id, name) values (:id, myupper(:name))",
             "-",
             "--nl",
+            "--functions",
+            "myupper = lambda s: s.upper()",
         ],
         input='{"id": 3, "name": "Three"}\n{"id": 4, "name": "Four"}\n',
     )
@@ -38,8 +40,8 @@ def test_cli_bulk(test_db_and_path):
     assert [
         {"id": 1, "name": "One"},
         {"id": 2, "name": "Two"},
-        {"id": 3, "name": "Three"},
-        {"id": 4, "name": "Four"},
+        {"id": 3, "name": "THREE"},
+        {"id": 4, "name": "FOUR"},
     ] == list(db["example"].rows)
 
 
