@@ -856,6 +856,7 @@ See :ref:`cli_create_table`.
                                 foreign key
       --ignore                  If table already exists, do nothing
       --replace                 If table already exists, replace it
+      --transform               If table already exists, try to transform the schema
       --load-extension TEXT     SQLite extensions to load
       -h, --help                Show this message and exit.
 

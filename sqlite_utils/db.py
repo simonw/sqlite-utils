@@ -1689,10 +1689,10 @@ class Table(Queryable):
                     create_table_not_null.add(key)
         elif isinstance(not_null, set):
             create_table_not_null.update((rename.get(k) or k) for k in not_null)
-        elif not_null is None:
+        elif not not_null:
             pass
         else:
-            assert False, "not_null must be a dict or a set or None"
+            assert False, "not_null must be a dict or a set or None, it was {}".format(repr(not_null))
         # defaults=
         create_table_defaults = {
             (rename.get(c.name) or c.name): c.default_value
