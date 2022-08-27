@@ -1359,11 +1359,8 @@ The following example adds a new ``score`` column, then updates it to list a ran
     random.seed(10)
 
     def convert(value):
-        global random
         return random.random()
     '
-
-Note the ``global random`` line here. Due to the way the tool compiles Python code, this is necessary to ensure the ``random`` module is available within the ``convert()`` function. If you were to omit this you would see a ``NameError: name 'random' is not defined`` error.
 
 .. _cli_convert_recipes:
 
