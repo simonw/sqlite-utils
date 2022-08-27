@@ -38,7 +38,7 @@ jobs:
     - name: Build extension for --load-extension test
       if: matrix.os == 'ubuntu-latest'
       run: |-
-        (cd tests && gcc ext.c -fPIC -shared -o ext.so)
+        (cd tests && gcc ext.c -fPIC -shared -o ext.so && ls -lah)
     - name: Run tests
       run: |
         pytest -v
