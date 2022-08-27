@@ -1633,6 +1633,9 @@ def drop_view(path, view, ignore, load_extension):
     type=(str, str),
     help="Named :parameters for SQL query",
 )
+@click.option(
+    "--functions", help="Python code defining one or more custom SQL functions"
+)
 @load_extension_option
 def query(
     path,
@@ -1649,6 +1652,7 @@ def query(
     raw,
     param,
     load_extension,
+    functions,
 ):
     """Execute SQL query and return the results as JSON
 
@@ -1664,6 +1668,19 @@ def query(
         db.attach(alias, attach_path)
     _load_extensions(db, load_extension)
     db.register_fts4_bm25()
+
+    # Register any Python functions as SQL functions:
+    if functions:
+        sqlite3.enable_callback_tracebacks(True)
+        globals = {}
+        try:
+            exec(functions, globals)
+        except SyntaxError as ex:
+            raise click.ClickException("Error in functions definition: {}".format(ex))
+        # Register all callables in the locals dict:
+        for name, value in globals.items():
+            if callable(value) and not name.startswith("_"):
+                db.register_function(value, name=name)
 
     _execute_query(
         db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols

@@ -119,6 +119,8 @@ See :ref:`cli_query`.
                                   escaped strings
       -r, --raw                   Raw output, first column of first row
       -p, --param <TEXT TEXT>...  Named :parameters for SQL query
+      --functions TEXT            Python code defining one or more custom SQL
+                                  functions
       --load-extension TEXT       SQLite extensions to load
       -h, --help                  Show this message and exit.
 

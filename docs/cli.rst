@@ -250,6 +250,26 @@ If you execute an ``UPDATE``, ``INSERT`` or ``DELETE`` query the command will re
     $ sqlite-utils dogs.db "update dogs set age = 5 where name = 'Cleo'"
     [{"rows_affected": 1}]
 
+.. _cli_query_functions:
+
+Defining custom SQL functions
+-----------------------------
+
+You can use the ``--functions`` option to pass a block of Python code that defines additional functions which can then be called by your SQL query.
+
+This example defines a function which extracts the domain from a URL::
+
+    $ sqlite-utils query dogs.db "select url, domain(url) from urls" --functions '
+    from urllib.parse import urlparse
+
+    def domain(url):
+        return urlparse(url).netloc
+    '
+
+Every callable object defined in the block will be registered as a SQL function with the same name, with the exception of functions with names that begin with an underscore.
+
+.. _cli_query_extensions:
+
 SQLite extensions
 -----------------
 

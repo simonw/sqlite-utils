@@ -683,6 +683,11 @@ _one_query = "select id, name, age from dogs where id = 1"
         (_one_query, ["--nl"], '{"id": 1, "name": "Cleo", "age": 4}'),
         (_one_query, ["--arrays"], '[[1, "Cleo", 4]]'),
         (_one_query, ["--arrays", "--nl"], '[1, "Cleo", 4]'),
+        (
+            "select id, dog(age) from dogs",
+            ["--functions", "def dog(i):\n  return i * 7"],
+            '[{"id": 1, "dog(age)": 28},\n {"id": 2, "dog(age)": 14}]',
+        ),
     ],
 )
 def test_query_json(db_path, sql, args, expected):
@@ -700,9 +705,70 @@ def test_query_json(db_path, sql, args, expected):
 
 def test_query_json_empty(db_path):
     result = CliRunner().invoke(
-        cli.cli, [db_path, "select * from sqlite_master where 0"]
+        cli.cli,
+        [db_path, "select * from sqlite_master where 0"],
     )
     assert result.output.strip() == "[]"
+
+
+def test_query_invalid_function(db_path):
+    result = CliRunner().invoke(
+        cli.cli, [db_path, "select bad()", "--functions", "def invalid_python"]
+    )
+    assert result.exit_code == 1
+    assert (
+        result.output.strip()
+        == "Error: Error in functions definition: invalid syntax (<string>, line 1)"
+    )
+
+
+TEST_FUNCTIONS = """
+def zero():
+    return 0
+
+def one(a):
+    return a
+
+def _two(a, b):
+    return a + b
+
+def two(a, b):
+    return _two(a, b)
+"""
+
+
+def test_query_complex_function(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            db_path,
+            "select zero(), one(1), two(1, 2)",
+            "--functions",
+            TEST_FUNCTIONS,
+        ],
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output.strip()) == [
+        {"zero()": 0, "one(1)": 1, "two(1, 2)": 3}
+    ]
+
+
+def test_hidden_functions_are_hidden(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            db_path,
+            "select name from pragma_function_list()",
+            "--functions",
+            TEST_FUNCTIONS,
+        ],
+    )
+    assert result.exit_code == 0
+    functions = {r["name"] for r in json.loads(result.output.strip())}
+    assert "zero" in functions
+    assert "one" in functions
+    assert "two" in functions
+    assert "_two" not in functions
 
 
 LOREM_IPSUM_COMPRESSED = (
