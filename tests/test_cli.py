@@ -2298,17 +2298,16 @@ def test_duplicate_table(tmpdir):
     assert list(db["one"].rows) == list(db["two"].rows)
 
 
-@pytest.mark.asyncio
 @pytest.mark.skipif(not _has_compiled_ext(), reason="Requires compiled ext.c")
 @pytest.mark.parametrize(
     "entrypoint,should_pass,should_fail",
     (
-        (None, ("a", "b", "c"), ()),
+        (None, ("a",), ("b", "c")),
         ("sqlite3_ext_b_init", ("b"), ("a", "c")),
         ("sqlite3_ext_c_init", ("c"), ("a", "b")),
     ),
 )
-async def test_load_extension(entrypoint, should_pass, should_fail):
+def test_load_extension(entrypoint, should_pass, should_fail):
     ext = COMPILED_EXTENSION_PATH
     if entrypoint:
         ext += ":" + entrypoint
