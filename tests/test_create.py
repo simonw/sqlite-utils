@@ -1204,6 +1204,13 @@ def test_create_if_no_columns(fresh_db):
             'CREATE TABLE "demo" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT NOT NULL\n)',
             True,
         ),
+        # Change default values
+        (
+            {"id": int, "name": str},
+            {"pk": "id", "defaults": {"id": 0, "name": "Bob"}},
+            "CREATE TABLE \"demo\" (\n   [id] INTEGER PRIMARY KEY DEFAULT 0,\n   [name] TEXT DEFAULT 'Bob'\n)",
+            True,
+        ),
     ),
 )
 def test_create_transform(fresh_db, cols, kwargs, expected_schema, should_transform):

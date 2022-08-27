@@ -898,7 +898,7 @@ class Database:
         # Transform table to match the new definition if table already exists:
         if transform and self[name].exists():
             table = cast(Table, self[name])
-            needs_transform = False
+            should_transform = False
             # First add missing columns and figure out columns to drop
             existing_columns = table.columns_dict
             missing_columns = dict(
@@ -913,13 +913,13 @@ class Database:
                 for col_name, col_type in missing_columns.items():
                     table.add_column(col_name, col_type)
             if missing_columns or columns_to_drop:
-                needs_transform = True
+                should_transform = True
             # Do we need to change the column order?
             if (
                 column_order
                 and list(existing_columns)[: len(column_order)] != column_order
             ):
-                needs_transform = True
+                should_transform = True
             # Has the primary key changed?
             current_pks = table.pks
             desired_pk = None
@@ -928,15 +928,17 @@ class Database:
             elif pk:
                 desired_pk = list(pk)
             if desired_pk and current_pks != desired_pk:
-                needs_transform = True
+                should_transform = True
             # Any not-null changes?
             current_not_null = {c.name for c in table.columns if c.notnull}
             desired_not_null = set(not_null) if not_null else set()
             if current_not_null != desired_not_null:
-                needs_transform = True
+                should_transform = True
+            # How about defaults?
+            if defaults and defaults != table.default_values:
+                should_transform = True
             # Only run .transform() if there is something to do
-            # TODO: what about not null and defaults?
-            if needs_transform:
+            if should_transform:
                 table.transform(
                     types=columns,
                     drop=columns_to_drop,
