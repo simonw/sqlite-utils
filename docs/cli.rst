@@ -1520,6 +1520,8 @@ You can specify foreign key relationships between the tables you are creating us
 
 If a table with the same name already exists, you will get an error. You can choose to silently ignore this error with ``--ignore``, or you can replace the existing table with a new, empty table using ``--replace``.
 
+You can also pass ``--transform`` to transform the existing table to match the new schema. See :ref:`python_api_explicit_create` in the Python library documentation for details of how this option works.
+
 .. _cli_duplicate_table:
 
 Duplicating tables
