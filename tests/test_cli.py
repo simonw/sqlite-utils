@@ -881,6 +881,15 @@ def test_query_memory_does_not_create_file(tmpdir):
             ["-c", "name", "--where", "id = :id", "--param", "id", "1"],
             '[{"name": "Cleo"}]',
         ),
+        # --order
+        (
+            ["-c", "id", "--order", "id desc", "--limit", "1"],
+            '[{"id": 2}]',
+        ),
+        (
+            ["-c", "id", "--order", "id", "--limit", "1"],
+            '[{"id": 1}]',
+        ),
     ],
 )
 def test_rows(db_path, args, expected):

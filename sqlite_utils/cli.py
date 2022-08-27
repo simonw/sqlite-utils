@@ -1985,6 +1985,7 @@ def search(
 @click.argument("dbtable")
 @click.option("-c", "--column", type=str, multiple=True, help="Columns to return")
 @click.option("--where", help="Optional where clause")
+@click.option("-o", "--order", type=str, help="Order by ('column' or 'column desc')")
 @click.option(
     "-p",
     "--param",
@@ -2011,6 +2012,7 @@ def rows(
     dbtable,
     column,
     where,
+    order,
     param,
     limit,
     offset,
@@ -2037,6 +2039,8 @@ def rows(
     sql = "select {} from [{}]".format(columns, dbtable)
     if where:
         sql += " where " + where
+    if order:
+        sql += " order by " + order
     if limit:
         sql += " limit {}".format(limit)
     if offset:

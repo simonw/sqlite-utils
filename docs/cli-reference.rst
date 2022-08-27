@@ -713,6 +713,7 @@ See :ref:`cli_rows`.
     Options:
       -c, --column TEXT           Columns to return
       --where TEXT                Optional where clause
+      -o, --order TEXT            Order by ('column' or 'column desc')
       -p, --param <TEXT TEXT>...  Named :parameters for where clause
       --limit INTEGER             Number of rows to return - defaults to everything
       --offset INTEGER            SQL offset to use

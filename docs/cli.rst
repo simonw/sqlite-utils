@@ -467,6 +467,8 @@ Or pass named parameters using ``--where`` in combination with ``-p``::
     $ sqlite-utils rows dogs.db dogs -c name --where 'name = :name' -p name Cleo
     [{"name": "Cleo"}]
 
+You can define a sort order using ``--order column`` or ``--order 'column desc'``.
+
 Use ``--limit N`` to only return the first ``N`` rows. Use ``--offset N`` to return rows starting from the specified offset.
 
 .. note::
