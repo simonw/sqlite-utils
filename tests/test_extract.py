@@ -186,3 +186,24 @@ def test_extract_error_on_incompatible_existing_lookup_table(fresh_db):
     fresh_db["species2"].insert({"id": 1, "common_name": 3.5})
     with pytest.raises(InvalidColumns):
         fresh_db["tree"].extract("common_name", table="species2")
+
+
+def test_extract_works_with_null_values(fresh_db):
+    fresh_db["listens"].insert_all(
+        [
+            {"id": 1, "track_title": "foo", "album_title": "bar"},
+            {"id": 2, "track_title": "baz", "album_title": None},
+        ],
+        pk="id",
+    )
+    fresh_db["listens"].extract(
+        columns=["album_title"], table="albums", fk_column="album_id"
+    )
+    assert list(fresh_db["listens"].rows) == [
+        {"id": 1, "track_title": "foo", "album_id": 1},
+        {"id": 2, "track_title": "baz", "album_id": 2},
+    ]
+    assert list(fresh_db["albums"].rows) == [
+        {"id": 1, "album_title": "bar"},
+        {"id": 2, "album_title": None},
+    ]
