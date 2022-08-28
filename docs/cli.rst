@@ -259,7 +259,7 @@ You can use the ``--functions`` option to pass a block of Python code that defin
 
 This example defines a function which extracts the domain from a URL::
 
-    $ sqlite-utils query dogs.db "select url, domain(url) from urls" --functions '
+    $ sqlite-utils query sites.db "select url, domain(url) from urls" --functions '
     from urllib.parse import urlparse
 
     def domain(url):
