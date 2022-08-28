@@ -2,6 +2,23 @@
  Changelog
 ===========
 
+.. _v3_29:
+
+3.29 (2022-08-27)
+-----------------
+
+- The ``sqlite-utils query``, ``memory`` and ``bulk`` commands now all accept a new ``--functions`` option. This can be passed a string of Python code, and any callable objects defined in that code will be made available to SQL queries as custom SQL functions. See :ref:`cli_query_functions` for details. (:issue:`471`)
+- ``db[table].create(...)`` method now accepts a new ``transform=True`` parameter. If the table already exists it will be :ref:`transform <python_api_transformed>` to match the schema configuration options passed to the function. This may result in columns being added or dropped, column types being changed, column order being updated or not null and default values for columns being set. (:issue:`467`)
+- Related to the above, the ``sqlite-utils create-table`` command now accepts a ``--transform`` option.
+- New introspection property: ``table.default_values`` returns a dictionary mapping each column name with a default value to the configured default value. (:issue:`475`)
+- The ``--load-extension`` option can now be provided a path to a compiled SQLite extension module accompanied by the name of an entrypoint, separated by a colon - for example ``--load-extension ./lines0:sqlite3_lines0_noread_init``. This feature is modelled on code first `contributed to Datasette <https://github.com/simonw/datasette/pull/1789>`__ by Alex Garcia. (:issue:`470`)
+- Functions registered using the :ref:`db.register_function() <python_api_register_function>` method can now have a custom name specified using the new ``db.register_function(fn, name=...)`` parameter. (:issue:`458`)
+- :ref:`sqlite-utils rows <cli_rows>` has a new ``--order`` option for specifying the sort order for the returned rows. (:issue:`469`)
+- All of the CLI options that accept Python code blocks can now all be used to define functions that can access modules imported in that same block of code without needing to use the ``global`` keyword. (:issue:`472`)
+- Fixed bug where ``table.extract()`` would not behave correctly for columns containing null values. Thanks, Forest Gregg. (:issue:`423`)
+- New tutorial: `Cleaning data with sqlite-utils and Datasette <https://datasette.io/tutorials/clean-data>`__ shows how to use ``sqlite-utils`` to import and clean an example CSV file.
+- Datasette and ``sqlite-utils`` now have a Discord community. `Join the Discord here <https://discord.gg/Ass7bCAMDw>`__.
+
 .. _v3_28:
 
 3.28 (2022-07-15)
