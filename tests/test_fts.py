@@ -567,7 +567,8 @@ def test_enable_fts_error_message_on_views():
                 "    from [books]\n"
                 ")\n"
                 "select\n"
-                "    [original].*,\n    [books_fts].rank rank\n"
+                "    [original].*,\n"
+                "    [books_fts].rank rank\n"
                 "from\n"
                 "    [original]\n"
                 "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
@@ -575,6 +576,28 @@ def test_enable_fts_error_message_on_views():
                 "    [books_fts] match :query\n"
                 "order by\n"
                 "    [books_fts].rank"
+            ),
+        ),
+        (
+            {'include_rank': True},
+            "FTS4",
+            (
+                "with original as (\n"
+                "    select\n"
+                "        rowid,\n"
+                "        *\n"
+                "    from [books]\n"
+                ")\n"
+                "select\n"
+                "    [original].*,\n"
+                "    rank_bm25(matchinfo([books_fts], 'pcnalx')) rank\n"
+                "from\n"
+                "    [original]\n"
+                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                "where\n"
+                "    [books_fts] match :query\n"
+                "order by\n"
+                "    rank_bm25(matchinfo([books_fts], 'pcnalx'))"
             ),
         ),
     ],
