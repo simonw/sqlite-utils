@@ -2376,6 +2376,7 @@ class Table(Queryable):
         limit: Optional[int] = None,
         offset: Optional[int] = None,
         where: Optional[str] = None,
+        include_rank: bool = False,
     ) -> str:
         """ "
         Return SQL string that can be used to execute searches against this table.
@@ -2427,6 +2428,8 @@ class Table(Queryable):
             rank_implementation = "rank_bm25(matchinfo([{}], 'pcnalx'))".format(
                 fts_table
             )
+        if include_rank:
+            columns_with_prefix_sql += ",\n    " + rank_implementation + " rank"
         limit_offset = ""
         if limit is not None:
             limit_offset += " limit {}".format(limit)
