@@ -2386,6 +2386,7 @@ class Table(Queryable):
         :param limit: SQL limit
         :param offset: SQL offset
         :param where: Extra SQL fragment for the WHERE clause
+        :param include_rank: Select the search rank column in the final query
         """
         # Pick names for table and rank column that don't clash
         original = "original_" if self.name == "original" else "original"
