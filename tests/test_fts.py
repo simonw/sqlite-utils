@@ -556,6 +556,27 @@ def test_enable_fts_error_message_on_views():
                 "    rank_bm25(matchinfo([books_fts], 'pcnalx'))"
             ),
         ),
+        (
+            {'include_rank': True},
+            "FTS5",
+            (
+                "with original as (\n"
+                "    select\n"
+                "        rowid,\n"
+                "        *\n"
+                "    from [books]\n"
+                ")\n"
+                "select\n"
+                "    [original].*,\n    [books_fts].rank rank\n"
+                "from\n"
+                "    [original]\n"
+                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                "where\n"
+                "    [books_fts] match :query\n"
+                "order by\n"
+                "    [books_fts].rank"
+            ),
+        ),
     ],
 )
 def test_search_sql(kwargs, fts, expected):
