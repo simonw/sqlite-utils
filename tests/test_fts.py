@@ -557,7 +557,7 @@ def test_enable_fts_error_message_on_views():
             ),
         ),
         (
-            {'include_rank': True},
+            {"include_rank": True},
             "FTS5",
             (
                 "with original as (\n"
@@ -579,7 +579,7 @@ def test_enable_fts_error_message_on_views():
             ),
         ),
         (
-            {'include_rank': True},
+            {"include_rank": True},
             "FTS4",
             (
                 "with original as (\n"
