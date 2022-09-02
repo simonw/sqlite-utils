@@ -2097,14 +2097,14 @@ Use the ``--type`` option to specify a geometry type. By default, ``add-geometry
 
 Eight (case-insensitive) types are allowed:
 
- * POINT
- * LINESTRING
- * POLYGON
- * MULTIPOINT
- * MULTILINESTRING
- * MULTIPOLYGON
- * GEOMETRYCOLLECTION
- * GEOMETRY
+* POINT
+* LINESTRING
+* POLYGON
+* MULTIPOINT
+* MULTILINESTRING
+* MULTIPOLYGON
+* GEOMETRYCOLLECTION
+* GEOMETRY
 
 .. _cli_spatialite_indexes:
 
