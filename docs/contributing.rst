@@ -78,3 +78,40 @@ Both commands can then be run in the root of the project like this::
     mypy sqlite_utils
 
 All three of these tools are run by our CI mechanism against every commit and pull request.
+
+.. _release_process:
+
+Release process
+===============
+
+Releases are performed using tags. When a new release is published on GitHub, a `GitHub Action workflow <https://github.com/simonw/sqlite-utils/blob/main/.github/workflows/publish.yml>`__ will perform the following:
+
+* Run the unit tests against all supported Python versions. If the tests pass...
+* Build a wheel bundle of the underlying Python source code
+* Push that new wheel up to PyPI: https://pypi.org/project/sqlite-utils/
+
+To deploy new releases you will need to have push access to the GitHub repository.
+
+``sqlite-utils`` follows `Semantic Versioning <https://semver.org/>`__::
+
+    major.minor.patch
+
+We increment ``major`` for backwards-incompatible releases.
+
+We increment ``minor`` for new features.
+
+We increment ``patch`` for bugfix releass.
+
+To release a new version, first create a commit that updates the version number in ``setup.py`` and the :ref:`the changelog <changelog>` with highlights of the new version. An example `commit can be seen here <https://github.com/simonw/sqlite-utils/commit/b491f22d817836829965516983a3f4c3c72c05fc>`__::
+
+    # Update changelog
+    git commit -m " Release 3.29
+
+    Refs #423, #458, #467, #469, #470, #471, #472, #475" -a
+    git push
+
+Referencing the issues that are part of the release in the commit message ensures the name of the release shows up on those issue pages, e.g. `here <https://github.com/simonw/sqlite-utils/issues/458#ref-commit-b491f22>`__.
+
+You can generate the list of issue references for a specific release by copying and pasting text from the release notes or GitHub changes-since-last-release view into this `Extract issue numbers from pasted text <https://observablehq.com/@simonw/extract-issue-numbers-from-pasted-text>`__ tool.
+
+To create the tag for the release, create `a new release <https://github.com/simonw/sqlite-utils/releases/new>`__ on GitHub matching the new version number. You can convert the release notes to Markdown by copying and pasting the rendered HTML into this `Paste to Markdown tool <https://euangoddard.github.io/clipboard2markdown/>`__.
