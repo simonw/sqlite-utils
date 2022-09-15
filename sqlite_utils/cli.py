@@ -1762,6 +1762,17 @@ def query(
     is_flag=True,
     help="Analyze resulting tables and output results",
 )
+@click.option("--key", help="read data from this key of the root object")
+@click.option(
+    "--auto-key",
+    is_flag=True,
+    help="Find a key in the root object that is a list of objects",
+)
+@click.option(
+    "--analyze",
+    is_flag=True,
+    help="Analyze resulting tables and output results",
+)
 @load_extension_option
 def memory(
     paths,
@@ -1784,6 +1795,8 @@ def memory(
     schema,
     dump,
     save,
+    key,
+    auto_key,
     analyze,
     load_extension,
 ):
@@ -1838,7 +1851,9 @@ def memory(
                 csv_table = stem
             stem_counts[stem] = stem_counts.get(stem, 1) + 1
             csv_fp = csv_path.open("rb")
-        rows, format_used = rows_from_file(csv_fp, format=format, encoding=encoding)
+        rows, format_used = rows_from_file(
+            csv_fp, format=format, encoding=encoding, key=key, auto_key=auto_key
+        )
         tracker = None
         if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
             tracker = TypeTracker()

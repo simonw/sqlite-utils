@@ -231,6 +231,8 @@ def rows_from_file(
     encoding: Optional[str] = None,
     ignore_extras: Optional[bool] = False,
     extras_key: Optional[str] = None,
+    key: Optional[str] = None,
+    auto_key: Optional[bool] = False,
 ) -> Tuple[Iterable[dict], Format]:
     """
     Load a sequence of dictionaries from a file-like object containing one of four different formats.
@@ -271,13 +273,31 @@ def rows_from_file(
     :param encoding: the character encoding to use when reading CSV/TSV data
     :param ignore_extras: ignore any extra fields on rows
     :param extras_key: put any extra fields in a list with this key
+    :param key: read data from this key of the root object
+    :param auto_key: find a key in the root object that is a list of objects
     """
     if ignore_extras and extras_key:
         raise ValueError("Cannot use ignore_extras= and extras_key= together")
+    if key and auto_key:
+        raise ValueError("Cannot use key= and auto_key= together")
     if format == Format.JSON:
         decoded = json.load(fp)
         if isinstance(decoded, dict):
-            decoded = [decoded]
+            if auto_key:
+                list_keys = [
+                    k
+                    for k in decoded
+                    if isinstance(decoded[k], list)
+                    and decoded[k]
+                    and all(isinstance(o, dict) for o in decoded[k])
+                ]
+                if len(list_keys) == 1:
+                    decoded = decoded[list_keys[0]]
+            elif key:
+                # Raises KeyError, I think that's OK
+                decoded = decoded[key]
+            if not isinstance(decoded, list):
+                decoded = [decoded]
         if not isinstance(decoded, list):
             raise RowsFromFileBadJSON("JSON must be a list or a dictionary")
         return decoded, Format.JSON
@@ -305,7 +325,9 @@ def rows_from_file(
         first_bytes = buffered.peek(2048).strip()
         if first_bytes.startswith(b"[") or first_bytes.startswith(b"{"):
             # TODO: Detect newline-JSON
-            return rows_from_file(buffered, format=Format.JSON)
+            return rows_from_file(
+                buffered, format=Format.JSON, key=key, auto_key=auto_key
+            )
         else:
             dialect = csv.Sniffer().sniff(
                 first_bytes.decode(encoding or "utf-8-sig", "ignore")
