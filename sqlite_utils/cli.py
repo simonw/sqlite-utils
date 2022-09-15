@@ -953,14 +953,16 @@ def insert_upsert_implementation(
         decoded = io.TextIOWrapper(file, encoding=encoding)
 
     tracker = None
-    if csv or tsv:
-        if sniff:
-            # Read first 2048 bytes and use that to detect
-            first_bytes = sniff_buffer.peek(2048)
-            dialect = csv_std.Sniffer().sniff(first_bytes.decode(encoding, "ignore"))
-        else:
-            dialect = "excel-tab" if tsv else "excel"
-        with file_progress(decoded, silent=silent) as decoded:
+    with file_progress(decoded, silent=silent) as decoded:
+        if csv or tsv:
+            if sniff:
+                # Read first 2048 bytes and use that to detect
+                first_bytes = sniff_buffer.peek(2048)
+                dialect = csv_std.Sniffer().sniff(
+                    first_bytes.decode(encoding, "ignore")
+                )
+            else:
+                dialect = "excel-tab" if tsv else "excel"
             csv_reader_args = {"dialect": dialect}
             if delimiter:
                 csv_reader_args["delimiter"] = delimiter
@@ -977,24 +979,24 @@ def insert_upsert_implementation(
             if detect_types:
                 tracker = TypeTracker()
                 docs = tracker.wrap(docs)
-    elif lines:
-        docs = ({"line": line.strip()} for line in decoded)
-    elif text:
-        docs = ({"text": decoded.read()},)
-    else:
-        try:
-            if nl:
-                docs = (json.loads(line) for line in decoded if line.strip())
-            else:
-                docs = json.load(decoded)
-                if isinstance(docs, dict):
-                    docs = [docs]
-        except json.decoder.JSONDecodeError:
-            raise click.ClickException(
-                "Invalid JSON - use --csv for CSV or --tsv for TSV files"
-            )
-        if flatten:
-            docs = (dict(_flatten(doc)) for doc in docs)
+        elif lines:
+            docs = ({"line": line.strip()} for line in decoded)
+        elif text:
+            docs = ({"text": decoded.read()},)
+        else:
+            try:
+                if nl:
+                    docs = (json.loads(line) for line in decoded if line.strip())
+                else:
+                    docs = json.load(decoded)
+                    if isinstance(docs, dict):
+                        docs = [docs]
+            except json.decoder.JSONDecodeError:
+                raise click.ClickException(
+                    "Invalid JSON - use --csv for CSV or --tsv for TSV files"
+                )
+            if flatten:
+                docs = (dict(_flatten(doc)) for doc in docs)
 
     if convert:
         variable = "row"

@@ -155,6 +155,11 @@ class UpdateWrapper:
             self._update(len(line))
             yield line
 
+    def read(self, size=-1):
+        data = self._wrapped.read(size)
+        self._update(len(data))
+        return data
+
 
 @contextlib.contextmanager
 def file_progress(file, silent=False, **kwargs):
