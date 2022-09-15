@@ -958,7 +958,9 @@ def insert_upsert_implementation(
             if sniff:
                 # Read first 2048 bytes and use that to detect
                 first_bytes = sniff_buffer.peek(2048)
-                dialect = csv_std.Sniffer().sniff(first_bytes.decode(encoding, "ignore"))
+                dialect = csv_std.Sniffer().sniff(
+                    first_bytes.decode(encoding, "ignore")
+                )
             else:
                 dialect = "excel-tab" if tsv else "excel"
             csv_reader_args = {"dialect": dialect}
