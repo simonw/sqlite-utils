@@ -2122,7 +2122,7 @@ See this `SpatiaLite Cookbook recipe <http://www.gaia-gis.it/gaia-sins/spatialit
 Installing packages
 ===================
 
-The :ref:`insert -\\-convert <cli_insert_convert>` and :ref:`query -\\-functions <cli_query_functions>` options can be provided with a Python script that imports additional modules from the ``sqlite-utils`` environment.
+The :ref:`convert command <cli_convert>` and the :ref:`insert -\\-convert <cli_insert_convert>` and :ref:`query -\\-functions <cli_query_functions>` options can be provided with a Python script that imports additional modules from the ``sqlite-utils`` environment.
 
 You can install packages from PyPI directly into the correct environment using ``sqlite-utils install <package>``. This is a wrapper around ``pip install``.
 
