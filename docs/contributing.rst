@@ -79,6 +79,46 @@ Both commands can then be run in the root of the project like this::
 
 All three of these tools are run by our CI mechanism against every commit and pull request.
 
+Using Just and pipenv
+=====================
+
+If you install `Just <https://github.com/casey/just>`__ and `pipenv <https://pipenv.pypa.io/>`__ you can use them to manage your local development environment.
+
+To create a virtual environment and install all development dependencies, run::
+
+    cd sqlite-utils
+    just init
+
+To run all of the tests and linters::
+
+    just
+
+To run tests, or run a specific test module or test by name::
+
+    just test # All tests
+    just test tests/test_cli_memory.py # Just this module
+    just test -k test_memory_no_detect_types # Just this test
+
+To run just the linters::
+
+    just lint
+
+To apply Black to your code::
+
+    just black
+
+To update documentation using Cog::
+
+    just cog
+
+To run the live documentation server (after building with Cog first)::
+
+    just docs
+
+And to list all available commands::
+
+    just -l
+
 .. _release_process:
 
 Release process
