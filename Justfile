@@ -20,6 +20,7 @@
 @cog:
   pipenv run cog -r README.md docs/*.rst
 
+# Serve live docs on localhost:8000
 @docs: cog
   cd docs && pipenv run make livehtml
 
