@@ -2120,7 +2120,7 @@ See this `SpatiaLite Cookbook recipe <http://www.gaia-gis.it/gaia-sins/spatialit
 .. _cli_install:
 
 Installing packages
--------------------
+===================
 
 The :ref:`insert -\\-convert <cli_insert_convert>` and :ref:`query -\\-functions <cli_query_functions>` options can be provided with a Python script that imports additional modules from the ``sqlite-utils`` environment.
 
@@ -2135,7 +2135,7 @@ Use ``-U`` to upgrade an existing package.
 .. _cli_uninstall:
 
 Uninstalling packages
----------------------
+=====================
 
 You can uninstall packages that were installed using ``sqlite-utils install`` with ``sqlite-utils uninstall <package>``::
 
