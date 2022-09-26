@@ -59,6 +59,8 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         "convert": "cli_convert",
         "add-geometry-column": "cli_spatialite",
         "create-spatial-index": "cli_spatialite_indexes",
+        "install": "cli_install",
+        "uninstall": "cli_uninstall",
     }
     commands.sort(key = lambda command: go_first.index(command) if command in go_first else 999)
     cog.out("\n")
@@ -1347,6 +1349,42 @@ See :ref:`cli_drop_view`.
       --ignore               If view does not exist, do nothing
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
+
+
+.. _cli_ref_install:
+
+install
+=======
+
+See :ref:`cli_install`.
+
+::
+
+    Usage: sqlite-utils install [OPTIONS] PACKAGES...
+
+      Install packages from PyPI into the same environment as sqlite-utils
+
+    Options:
+      -U, --upgrade  Upgrade packages to latest version
+      -h, --help     Show this message and exit.
+
+
+.. _cli_ref_uninstall:
+
+uninstall
+=========
+
+See :ref:`cli_uninstall`.
+
+::
+
+    Usage: sqlite-utils uninstall [OPTIONS] PACKAGES...
+
+      Uninstall Python packages from the sqlite-utils environment
+
+    Options:
+      -y, --yes   Don't ask for confirmation
+      -h, --help  Show this message and exit.
 
 
 .. _cli_ref_add_geometry_column:

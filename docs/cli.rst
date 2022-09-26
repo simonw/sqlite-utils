@@ -2116,3 +2116,29 @@ Once you have a geometry column, you can speed up bounding box queries by adding
     $ sqlite-utils create-spatial-index spatial.db locations geometry
 
 See this `SpatiaLite Cookbook recipe <http://www.gaia-gis.it/gaia-sins/spatialite-cookbook-5/cookbook_topics.03.html#topic_Wonderful_RTree_Spatial_Index>`__ for examples of how to use a spatial index.
+
+.. _cli_install:
+
+Installing packages
+-------------------
+
+The :ref:`insert -\\-convert <cli_insert_convert>` and :ref:`query -\\-functions <cli_query_functions>` options can be provided with a Python script that imports additional modules from the ``sqlite-utils`` environment.
+
+You can install packages from PyPI directly into the correct environment using ``sqlite-utils install <package>``. This is a wrapper around ``pip install``.
+
+::
+
+    $ sqlite-utils install beautifulsoup4
+
+Use ``-U`` to upgrade an existing package.
+
+.. _cli_uninstall:
+
+Uninstalling packages
+---------------------
+
+You can uninstall packages that were installed using ``sqlite-utils install`` with ``sqlite-utils uninstall <package>``::
+
+    $ sqlite-utils uninstall beautifulsoup4
+
+Use ``-y`` to skip the request for confirmation.
