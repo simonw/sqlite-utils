@@ -124,7 +124,7 @@ And to list all available commands::
 Release process
 ===============
 
-Releases are performed using tags. When a new release is published on GitHub, a `GitHub Action workflow <https://github.com/simonw/sqlite-utils/blob/main/.github/workflows/publish.yml>`__ will perform the following:
+Releases are performed using tags. When a new release is published on GitHub, a `GitHub Actions workflow <https://github.com/simonw/sqlite-utils/blob/main/.github/workflows/publish.yml>`__ will perform the following:
 
 * Run the unit tests against all supported Python versions. If the tests pass...
 * Build a wheel bundle of the underlying Python source code
