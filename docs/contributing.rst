@@ -111,7 +111,7 @@ To update documentation using Cog::
 
     just cog
 
-To run the live documentation server (after building with Cog first)::
+To run the live documentation server (this will run Cog first)::
 
     just docs
 
