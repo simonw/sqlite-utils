@@ -2266,7 +2266,8 @@ class Table(Queryable):
                     new_cols=new_cols,
                 )
             )
-            self.db.executescript(triggers)
+            with self.db.conn:
+                self.db.conn.executescript(triggers)
         return self
 
     def populate_fts(self, columns: Iterable[str]) -> "Table":
