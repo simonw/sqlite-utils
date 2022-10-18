@@ -187,10 +187,15 @@ Available ``--fmt`` options are:
     cog.out("\n" + "\n".join('- ``{}``'.format(t) for t in tabulate.tabulate_formats) + "\n\n")
 .. ]]]
 
+- ``asciidoc``
+- ``double_grid``
+- ``double_outline``
 - ``fancy_grid``
 - ``fancy_outline``
 - ``github``
 - ``grid``
+- ``heavy_grid``
+- ``heavy_outline``
 - ``html``
 - ``jira``
 - ``latex``
@@ -198,15 +203,22 @@ Available ``--fmt`` options are:
 - ``latex_longtable``
 - ``latex_raw``
 - ``mediawiki``
+- ``mixed_grid``
+- ``mixed_outline``
 - ``moinmoin``
 - ``orgtbl``
+- ``outline``
 - ``pipe``
 - ``plain``
 - ``presto``
 - ``pretty``
 - ``psql``
+- ``rounded_grid``
+- ``rounded_outline``
 - ``rst``
 - ``simple``
+- ``simple_grid``
+- ``simple_outline``
 - ``textile``
 - ``tsv``
 - ``unsafehtml``
