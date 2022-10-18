@@ -71,3 +71,15 @@ def test_maximize_csv_field_size_limit():
     assert len(rows_list2) == 1
     assert rows_list2[0]["id"] == "1"
     assert rows_list2[0]["text"] == long_value
+
+
+@pytest.mark.parametrize(
+    "input,expected",
+    (
+        ({"foo": {"bar": 1}}, {"foo_bar": 1}),
+        ({"foo": {"bar": [1, 2, {"baz": 3}]}}, {"foo_bar": [1, 2, {"baz": 3}]}),
+        ({"foo": {"bar": 1, "baz": {"three": 3}}}, {"foo_bar": 1, "foo_baz_three": 3}),
+    ),
+)
+def test_flatten(input, expected):
+    assert utils.flatten(input) == expected

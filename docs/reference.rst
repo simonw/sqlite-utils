@@ -101,3 +101,10 @@ sqlite_utils.utils.chunks
 -------------------------
 
 .. autofunction:: sqlite_utils.utils.chunks
+
+.. _reference_utils_flatten:
+
+sqlite_utils.utils.flatten
+--------------------------
+
+.. autofunction:: sqlite_utils.utils.flatten

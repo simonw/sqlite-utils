@@ -513,3 +513,21 @@ def hash_record(record: Dict, keys: Optional[Iterable[str]] = None):
             "utf8"
         )
     ).hexdigest()
+
+
+def _flatten(d):
+    for key, value in d.items():
+        if isinstance(value, dict):
+            for key2, value2 in _flatten(value):
+                yield key + "_" + key2, value2
+        else:
+            yield key, value
+
+
+def flatten(row: dict) -> dict:
+    """
+    Turn a nested dict e.g. ``{"a": {"b": 1}}`` into a flat dict: ``{"a_b": 1}``
+
+    :param row: A Python dictionary, optionally with nested dictionaries
+    """
+    return dict(_flatten(row))

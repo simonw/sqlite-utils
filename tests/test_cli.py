@@ -2176,18 +2176,6 @@ def test_upsert_detect_types(tmpdir, option):
     ]
 
 
-@pytest.mark.parametrize(
-    "input,expected",
-    (
-        ({"foo": {"bar": 1}}, {"foo_bar": 1}),
-        ({"foo": {"bar": [1, 2, {"baz": 3}]}}, {"foo_bar": [1, 2, {"baz": 3}]}),
-        ({"foo": {"bar": 1, "baz": {"three": 3}}}, {"foo_bar": 1, "foo_baz_three": 3}),
-    ),
-)
-def test_flatten_helper(input, expected):
-    assert dict(cli._flatten(input)) == expected
-
-
 def test_integer_overflow_error(tmpdir):
     db_path = str(tmpdir / "test.db")
     result = CliRunner().invoke(

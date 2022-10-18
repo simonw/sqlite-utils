@@ -24,6 +24,7 @@ from .utils import (
     chunks,
     file_progress,
     find_spatialite,
+    flatten as _flatten,
     sqlite3,
     decode_base64_values,
     progressbar,
@@ -997,7 +998,7 @@ def insert_upsert_implementation(
                     "Invalid JSON - use --csv for CSV or --tsv for TSV files"
                 )
             if flatten:
-                docs = (dict(_flatten(doc)) for doc in docs)
+                docs = (_flatten(doc) for doc in docs)
 
     if convert:
         variable = "row"
@@ -1077,15 +1078,6 @@ def insert_upsert_implementation(
             raise
     if tracker is not None:
         db[table].transform(types=tracker.types)
-
-
-def _flatten(d):
-    for key, value in d.items():
-        if isinstance(value, dict):
-            for key2, value2 in _flatten(value):
-                yield key + "_" + key2, value2
-        else:
-            yield key, value
 
 
 def _find_variables(tb, vars):
@@ -1845,7 +1837,7 @@ def memory(
             tracker = TypeTracker()
             rows = tracker.wrap(rows)
         if flatten:
-            rows = (dict(_flatten(row)) for row in rows)
+            rows = (_flatten(row) for row in rows)
         db[csv_table].insert_all(rows, alter=True)
         if tracker is not None:
             db[csv_table].transform(types=tracker.types)
