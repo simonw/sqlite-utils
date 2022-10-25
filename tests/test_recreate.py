@@ -1,5 +1,6 @@
 from sqlite_utils import Database
 import sqlite3
+import time
 import pathlib
 import pytest
 
@@ -19,14 +20,16 @@ def test_recreate_not_allowed_for_connection():
 
 
 @pytest.mark.parametrize(
-    "use_path,file_exists", [(True, True), (True, False), (False, True), (False, False)]
+    "use_path,create_file_first",
+    [(True, True), (True, False), (False, True), (False, False)],
 )
-def test_recreate(tmp_path, use_path, file_exists):
+def test_recreate(tmp_path, use_path, create_file_first):
     filepath = str(tmp_path / "data.db")
     if use_path:
         filepath = pathlib.Path(filepath)
-    if file_exists:
+    if create_file_first:
         Database(filepath)["t1"].insert({"foo": "bar"})
         assert ["t1"] == Database(filepath).table_names()
+        time.sleep(0.1)
     Database(filepath, recreate=True)["t2"].insert({"foo": "bar"})
     assert ["t2"] == Database(filepath).table_names()
