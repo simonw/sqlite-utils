@@ -737,10 +737,7 @@ def test_query_invalid_function(db_path):
         cli.cli, [db_path, "select bad()", "--functions", "def invalid_python"]
     )
     assert result.exit_code == 1
-    assert (
-        result.output.strip()
-        == "Error: Error in functions definition: invalid syntax (<string>, line 1)"
-    )
+    assert result.output.startswith("Error: Error in functions definition:")
 
 
 TEST_FUNCTIONS = """
