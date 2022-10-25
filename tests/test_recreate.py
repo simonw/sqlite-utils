@@ -30,6 +30,6 @@ def test_recreate(tmp_path, use_path, create_file_first):
         db = Database(filepath)
         db["t1"].insert({"foo": "bar"})
         assert ["t1"] == db.table_names()
-        db.conn.close()
+        db.close()
     Database(filepath, recreate=True)["t2"].insert({"foo": "bar"})
     assert ["t2"] == Database(filepath).table_names()
