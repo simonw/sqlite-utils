@@ -4,6 +4,21 @@
  Changelog
 ===========
 
+.. _v3_30:
+
+3.30 (2022-10-25)
+-----------------
+
+- Now tested against Python 3.11. (:issue:`502`)
+- New ``table.search_sql(include_rank=True)`` option, which adds a ``rank`` column to the generated SQL. Thanks, Jacob Chapman. (`#480 <https://github.com/simonw/sqlite-utils/pull/480>`__)
+- Progress bars now display for newline-delimited JSON files using the ``--nl`` option. Thanks, Mischa Untaga. (:issue:`485`)
+- New ``db.close()`` method. (:issue:`504`)
+- Conversion functions passed to :ref:`table.convert(...) <python_api_convert>` can now return lists or dictionaries, which will be inserted into the database as JSON strings. (:issue:`495`)
+- ``sqlite-utils install`` and ``sqlite-utils uninstall`` commands for installing packages into the same virtual environment as ``sqlite-utils``, :ref:`described here <cli_install>`. (:issue:`483`)
+- New :ref:`sqlite_utils.utils.flatten() <reference_utils_flatten>` utility function. (:issue:`500`)
+- Documentation on :ref:`using Just <contributing_just>` to run tests, linters and build documentation. 
+- Documentation now covers the :ref:`release_process` for this package.
+
 .. _v3_29:
 
 3.29 (2022-08-27)

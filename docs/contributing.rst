@@ -79,6 +79,8 @@ Both commands can then be run in the root of the project like this::
 
 All three of these tools are run by our CI mechanism against every commit and pull request.
 
+.. _contributing_just:
+
 Using Just and pipenv
 =====================
 
