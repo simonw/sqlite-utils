@@ -308,6 +308,7 @@ class Database:
         assert (filename_or_conn is not None and (not memory and not memory_name)) or (
             filename_or_conn is None and (memory or memory_name)
         ), "Either specify a filename_or_conn or pass memory=True"
+        self.conn = None
         if memory_name:
             uri = "file:{}?mode=memory&cache=shared".format(memory_name)
             self.conn = sqlite3.connect(
@@ -3534,7 +3535,7 @@ class View(Queryable):
     def exists(self):
         return True
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<View {} ({})>".format(
             self.name, ", ".join(c.name for c in self.columns)
         )

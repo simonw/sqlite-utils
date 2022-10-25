@@ -392,7 +392,7 @@ class ValueTracker:
         except (ValueError, TypeError):
             return False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.guessed_type + ": possibilities = " + repr(self.couldbe)
 
     @property
