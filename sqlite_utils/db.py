@@ -2662,7 +2662,7 @@ class Table(Queryable):
                 bar.update(1)
                 if not v:
                     return v
-                return fn(v)
+                return jsonify_if_needed(fn(v))
 
             self.db.register_function(convert_value)
             sql = "update [{table}] set {sets}{where};".format(

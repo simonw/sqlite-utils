@@ -15,6 +15,14 @@ import pytest
             lambda value: value.upper(),
             {"title": "MIXED CASE", "abstract": "ABSTRACT"},
         ),
+        (
+            "title",
+            lambda value: {"upper": value.upper(), "lower": value.lower()},
+            {
+                "title": '{"upper": "MIXED CASE", "lower": "mixed case"}',
+                "abstract": "Abstract",
+            },
+        ),
     ),
 )
 def test_convert(fresh_db, columns, fn, expected):
@@ -81,10 +89,24 @@ def test_convert_multi(fresh_db):
     table = fresh_db["table"]
     table.insert({"title": "Mixed Case"})
     table.convert(
-        "title", lambda v: {"upper": v.upper(), "lower": v.lower()}, multi=True
+        "title",
+        lambda v: {
+            "upper": v.upper(),
+            "lower": v.lower(),
+            "both": {
+                "upper": v.upper(),
+                "lower": v.lower(),
+            },
+        },
+        multi=True,
     )
     assert list(table.rows) == [
-        {"title": "Mixed Case", "upper": "MIXED CASE", "lower": "mixed case"}
+        {
+            "title": "Mixed Case",
+            "upper": "MIXED CASE",
+            "lower": "mixed case",
+            "both": '{"upper": "MIXED CASE", "lower": "mixed case"}',
+        }
     ]
 
 
