@@ -21,8 +21,8 @@ def test_recreate_not_allowed_for_connection():
 @pytest.mark.parametrize(
     "use_path,file_exists", [(True, True), (True, False), (False, True), (False, False)]
 )
-def test_recreate(tmpdir, use_path, file_exists):
-    filepath = str(tmpdir / "data.db")
+def test_recreate(tmp_path, use_path, file_exists):
+    filepath = str(tmp_path / "data.db")
     if use_path:
         filepath = pathlib.Path(filepath)
     if file_exists:
