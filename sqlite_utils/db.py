@@ -336,6 +336,10 @@ class Database:
         self._registered_functions: set = set()
         self.use_counts_table = use_counts_table
 
+    def close(self):
+        "Close the SQLite connection, and the underlying database file"
+        self.conn.close()
+
     @contextlib.contextmanager
     def tracer(self, tracer: Callable = None):
         """
