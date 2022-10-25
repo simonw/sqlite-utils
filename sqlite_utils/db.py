@@ -308,7 +308,6 @@ class Database:
         assert (filename_or_conn is not None and (not memory and not memory_name)) or (
             filename_or_conn is None and (memory or memory_name)
         ), "Either specify a filename_or_conn or pass memory=True"
-        self.conn = None
         if memory_name:
             uri = "file:{}?mode=memory&cache=shared".format(memory_name)
             self.conn = sqlite3.connect(
@@ -320,7 +319,13 @@ class Database:
             self.conn = sqlite3.connect(":memory:")
         elif isinstance(filename_or_conn, (str, pathlib.Path)):
             if recreate and os.path.exists(filename_or_conn):
-                os.remove(filename_or_conn)
+                try:
+                    os.remove(filename_or_conn)
+                except OSError:
+                    # Avoid mypy and __repr__ errors, see:
+                    # https://github.com/simonw/sqlite-utils/issues/503
+                    self.conn = sqlite3.connect(":memory:")
+                    raise
             self.conn = sqlite3.connect(str(filename_or_conn))
         else:
             assert not recreate, "recreate cannot be used with connections, only paths"
