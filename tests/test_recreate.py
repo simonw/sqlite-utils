@@ -1,6 +1,5 @@
 from sqlite_utils import Database
 import sqlite3
-import time
 import pathlib
 import pytest
 
@@ -28,8 +27,9 @@ def test_recreate(tmp_path, use_path, create_file_first):
     if use_path:
         filepath = pathlib.Path(filepath)
     if create_file_first:
-        Database(filepath)["t1"].insert({"foo": "bar"})
-        assert ["t1"] == Database(filepath).table_names()
-        time.sleep(0.1)
+        db = Database(filepath)
+        db["t1"].insert({"foo": "bar"})
+        assert ["t1"] == db.table_names()
+        db.conn.close()
     Database(filepath, recreate=True)["t2"].insert({"foo": "bar"})
     assert ["t2"] == Database(filepath).table_names()
