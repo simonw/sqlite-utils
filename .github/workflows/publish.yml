@@ -11,10 +11,6 @@ jobs:
       matrix:
         python-version: ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
         os: [ubuntu-latest, windows-latest, macos-latest]
-        exclude:
-        # https://github.com/actions/setup-python/issues/531
-        - os: macos-latest
-          python-version: "3.11"
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
