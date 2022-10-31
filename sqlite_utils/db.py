@@ -485,9 +485,18 @@ class Database:
             else:
                 return self.conn.execute(sql)
         except UnicodeEncodeError:
-            sql = sql.encode('utf-8', 'surrogatepass').decode('utf-8')
+            sql = sql.encode("utf-8", "surrogatepass").decode("utf-8")
             if parameters is not None:
-                parameters = parameters.encode('utf-8', 'surrogatepass').decode('utf-8')
+                if isinstance(parameters, dict):
+                    parameters = {
+                        k: v.encode("utf-8", "surrogateescape").decode("utf-8")
+                        for k, v in parameters.items()
+                    }
+                elif isinstance(parameters, list):
+                    parameters = [
+                        p.encode("utf-8", "surrogateescape").decode("utf-8")
+                        for p in parameters
+                    ]
             return self.execute(sql, parameters)
 
     def executescript(self, sql: str) -> sqlite3.Cursor:
