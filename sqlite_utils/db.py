@@ -477,12 +477,18 @@ class Database:
         :param parameters: Parameters to use in that query - an iterable for ``where id = ?``
           parameters, or a dictionary for ``where id = :id``
         """
-        if self._tracer:
-            self._tracer(sql, parameters)
-        if parameters is not None:
-            return self.conn.execute(sql, parameters)
-        else:
-            return self.conn.execute(sql)
+        try:
+            if self._tracer:
+                self._tracer(sql, parameters)
+            if parameters is not None:
+                return self.conn.execute(sql, parameters)
+            else:
+                return self.conn.execute(sql)
+        except UnicodeEncodeError:
+            sql = sql.encode('utf-8', 'surrogatepass').decode('utf-8')
+            if parameters is not None:
+                parameters = parameters.encode('utf-8', 'surrogatepass').decode('utf-8')
+            return self.execute(sql, parameters)
 
     def executescript(self, sql: str) -> sqlite3.Cursor:
         """
