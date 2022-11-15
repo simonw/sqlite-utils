@@ -15,7 +15,7 @@
 .. |discord| image:: https://img.shields.io/discord/823971286308356157?label=discord
    :target: https://discord.gg/Ass7bCAMDw
 
-*CLI tool and Python utility functions for manipulating SQLite databases*
+*CLI tool and Python library for manipulating SQLite databases*
 
 This library and command-line utility helps create SQLite databases from an existing collection of data.
 

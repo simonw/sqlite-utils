@@ -187,7 +187,7 @@ texinfo_documents = [
         "sqlite-utils documentation",
         author,
         "sqlite-utils",
-        "Python utility functions for manipulating SQLite databases",
+        "Python library for manipulating SQLite databases",
         "Miscellaneous",
     )
 ]
