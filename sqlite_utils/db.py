@@ -297,12 +297,12 @@ class Database:
 
     def __init__(
         self,
-        filename_or_conn: Union[str, pathlib.Path, sqlite3.Connection] = None,
+        filename_or_conn: Optional[Union[str, pathlib.Path, sqlite3.Connection]] = None,
         memory: bool = False,
-        memory_name: str = None,
+        memory_name: Optional[str] = None,
         recreate: bool = False,
         recursive_triggers: bool = True,
-        tracer: Callable = None,
+        tracer: Optional[Callable] = None,
         use_counts_table: bool = False,
     ):
         assert (filename_or_conn is not None and (not memory and not memory_name)) or (
@@ -341,7 +341,7 @@ class Database:
         self.conn.close()
 
     @contextlib.contextmanager
-    def tracer(self, tracer: Callable = None):
+    def tracer(self, tracer: Optional[Callable] = None):
         """
         Context manager to temporarily set a tracer function - all executed SQL queries will
         be passed to this.
@@ -378,7 +378,7 @@ class Database:
 
     def register_function(
         self,
-        fn: Callable = None,
+        fn: Optional[Callable] = None,
         deterministic: bool = False,
         replace: bool = False,
         name: Optional[str] = None,
@@ -879,7 +879,7 @@ class Database:
         pk: Optional[Any] = None,
         foreign_keys: Optional[ForeignKeysType] = None,
         column_order: Optional[List[str]] = None,
-        not_null: Iterable[str] = None,
+        not_null: Optional[Iterable[str]] = None,
         defaults: Optional[Dict[str, Any]] = None,
         hash_id: Optional[str] = None,
         hash_id_columns: Optional[Iterable[str]] = None,
@@ -1129,7 +1129,7 @@ class Database:
             sql += " [{}]".format(name)
         self.execute(sql)
 
-    def init_spatialite(self, path: str = None) -> bool:
+    def init_spatialite(self, path: Optional[str] = None) -> bool:
         """
         The ``init_spatialite`` method will load and initialize the SpatiaLite extension.
         The ``path`` argument should be an absolute path to the compiled extension, which
@@ -1182,7 +1182,7 @@ class Queryable:
 
     def count_where(
         self,
-        where: str = None,
+        where: Optional[str] = None,
         where_args: Optional[Union[Iterable, dict]] = None,
     ) -> int:
         """
@@ -1213,12 +1213,12 @@ class Queryable:
 
     def rows_where(
         self,
-        where: str = None,
+        where: Optional[str] = None,
         where_args: Optional[Union[Iterable, dict]] = None,
-        order_by: str = None,
+        order_by: Optional[str] = None,
         select: str = "*",
-        limit: int = None,
-        offset: int = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
     ) -> Generator[dict, None, None]:
         """
         Iterate over every row in this table or view that matches the specified where clause.
@@ -1251,11 +1251,11 @@ class Queryable:
 
     def pks_and_rows_where(
         self,
-        where: str = None,
+        where: Optional[str] = None,
         where_args: Optional[Union[Iterable, dict]] = None,
-        order_by: str = None,
-        limit: int = None,
-        offset: int = None,
+        order_by: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
     ) -> Generator[Tuple[Any, Dict], None, None]:
         """
         Like ``.rows_where()`` but returns ``(pk, row)`` pairs - ``pk`` can be a single value or tuple.
@@ -1345,7 +1345,7 @@ class Table(Queryable):
         pk: Optional[Any] = None,
         foreign_keys: Optional[ForeignKeysType] = None,
         column_order: Optional[List[str]] = None,
-        not_null: Iterable[str] = None,
+        not_null: Optional[Iterable[str]] = None,
         defaults: Optional[Dict[str, Any]] = None,
         batch_size: int = 100,
         hash_id: Optional[str] = None,
@@ -1545,7 +1545,7 @@ class Table(Queryable):
         pk: Optional[Any] = None,
         foreign_keys: Optional[ForeignKeysType] = None,
         column_order: Optional[List[str]] = None,
-        not_null: Iterable[str] = None,
+        not_null: Optional[Iterable[str]] = None,
         defaults: Optional[Dict[str, Any]] = None,
         hash_id: Optional[str] = None,
         hash_id_columns: Optional[Iterable[str]] = None,
@@ -2464,7 +2464,7 @@ class Table(Queryable):
         columns: Optional[Iterable[str]] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
-        where: str = None,
+        where: Optional[str] = None,
         where_args: Optional[Union[Iterable, dict]] = None,
         quote: bool = False,
     ) -> Generator[dict, None, None]:
@@ -2527,7 +2527,7 @@ class Table(Queryable):
 
     def delete_where(
         self,
-        where: str = None,
+        where: Optional[str] = None,
         where_args: Optional[Union[Iterable, dict]] = None,
         analyze: bool = False,
     ) -> "Table":
