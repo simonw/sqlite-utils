@@ -2779,13 +2779,16 @@ class Table(Queryable):
             self.last_pk = None
             for record_values in values:
                 # TODO: make more efficient:
+
+                # The initial insert statement includes all columns, so that upserts
+                # of new rows whose non-pk columns have constraints can succeed
                 record = dict(zip(all_columns, record_values))
-                sql = "INSERT OR IGNORE INTO [{table}]({pks}) VALUES({pk_placeholders});".format(
+                sql = "INSERT OR IGNORE INTO [{table}]({columns}) VALUES({column_placeholders});".format(
                     table=self.name,
-                    pks=", ".join(["[{}]".format(p) for p in pks]),
-                    pk_placeholders=", ".join(["?" for p in pks]),
+                    columns=", ".join(["[{}]".format(p) for p in all_columns]),
+                    column_placeholders=", ".join(["?" for p in all_columns]),
                 )
-                queries_and_params.append((sql, [record[col] for col in pks]))
+                queries_and_params.append((sql, [record[col] for col in all_columns]))
                 # UPDATE [book] SET [name] = 'Programming' WHERE [id] = 1001;
                 set_cols = [col for col in all_columns if col not in pks]
                 if set_cols:

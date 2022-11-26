@@ -36,6 +36,20 @@ def test_upsert_error_if_no_pk(fresh_db):
         table.upsert({"id": 1, "name": "Cleo"})
 
 
+def test_upsert_with_constraints(fresh_db):
+    table = fresh_db.create_table(
+        "table_with_constraints",
+        {
+            "id": "text",
+            "name": "text",
+        },
+        not_null=["name"],
+    )
+
+    table.upsert({"id": 1, "name": "Cleo"}, pk="id")
+    assert 1 == table.last_pk
+
+
 def test_upsert_with_hash_id(fresh_db):
     table = fresh_db["table"]
     table.upsert({"foo": "bar"}, hash_id="pk")
