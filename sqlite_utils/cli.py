@@ -1477,6 +1477,8 @@ def create_table(
             name text \\
             height float \\
             photo blob --pk id
+
+    Valid column types are text, integer, float and blob.
     """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)

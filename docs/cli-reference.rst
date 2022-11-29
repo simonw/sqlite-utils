@@ -886,6 +886,8 @@ See :ref:`cli_create_table`.
               height float \
               photo blob --pk id
 
+      Valid column types are text, integer, float and blob.
+
     Options:
       --pk TEXT                 Column to use as primary key
       --not-null TEXT           Columns that should be created as NOT NULL
