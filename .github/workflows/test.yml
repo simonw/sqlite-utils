@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
         numpy: [0, 1]
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
@@ -49,6 +49,5 @@ jobs:
     - name: Check formatting
       run: black . --check
     - name: Check if cog needs to be run
-      if: matrix.python-version != '3.6'
       run: |
         cog --check README.md docs/*.rst

@@ -60,7 +60,7 @@ setup(
         "Issues": "https://github.com/simonw/sqlite-utils/issues",
         "CI": "https://github.com/simonw/sqlite-utils/actions",
     },
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
@@ -68,11 +68,11 @@ setup(
         "Intended Audience :: End Users/Desktop",
         "Topic :: Database",
         "License :: OSI Approved :: Apache Software License",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
     # Needed to bundle py.typed so mypy can see it:
     zip_safe=False,
