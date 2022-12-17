@@ -542,6 +542,24 @@ class Database:
             '"{}"'.format(bit) if not bit.startswith('"') else bit for bit in bits
         )
 
+    def quote_default_value(self, value: str) -> str:
+        if any(
+            [
+                str(value).startswith("'") and str(value).endswith("'"),
+                str(value).startswith('"') and str(value).endswith('"'),
+            ]
+        ):
+            return value
+
+        if str(value).upper() in ("CURRENT_TIME", "CURRENT_DATE", "CURRENT_TIMESTAMP"):
+            return value
+
+        if str(value).endswith(")"):
+            # Expr
+            return "({})".format(value)
+
+        return self.quote(value)
+
     def table_names(self, fts4: bool = False, fts5: bool = False) -> List[str]:
         """
         List of string table names in this database.
@@ -837,7 +855,7 @@ class Database:
                 column_extras.append("NOT NULL")
             if column_name in defaults and defaults[column_name] is not None:
                 column_extras.append(
-                    "DEFAULT {}".format(self.quote(defaults[column_name]))
+                    "DEFAULT {}".format(self.quote_default_value(defaults[column_name]))
                 )
             if column_name in foreign_keys_by_column:
                 column_extras.append(
@@ -2018,7 +2036,9 @@ class Table(Queryable):
             col_type = str
         not_null_sql = None
         if not_null_default is not None:
-            not_null_sql = "NOT NULL DEFAULT {}".format(self.db.quote(not_null_default))
+            not_null_sql = "NOT NULL DEFAULT {}".format(
+                self.db.quote_default_value(not_null_default)
+            )
         sql = "ALTER TABLE [{table}] ADD COLUMN [{col_name}] {col_type}{not_null_default};".format(
             table=self.name,
             col_name=col_name,
