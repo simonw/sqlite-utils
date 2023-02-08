@@ -2664,13 +2664,16 @@ class Table(Queryable):
                     return v
                 return jsonify_if_needed(fn(v))
 
-            self.db.register_function(convert_value)
+            fn_name = fn.__name__
+            if fn_name == '<lambda>':
+                fn_name = f'lambda_{hash(fn)}'
+            self.db.register_function(convert_value, name=fn_name)
             sql = "update [{table}] set {sets}{where};".format(
                 table=self.name,
                 sets=", ".join(
                     [
-                        "[{output_column}] = convert_value([{column}])".format(
-                            output_column=output or column, column=column
+                        "[{output_column}] = {fn_name}([{column}])".format(
+                            output_column=output or column, column=column, fn_name=fn_name
                         )
                         for column in columns
                     ]
