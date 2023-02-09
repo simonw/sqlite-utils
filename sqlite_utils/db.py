@@ -2660,8 +2660,6 @@ class Table(Queryable):
 
             def convert_value(v):
                 bar.update(1)
-                if not v:
-                    return v
                 return jsonify_if_needed(fn(v))
 
             self.db.register_function(convert_value)

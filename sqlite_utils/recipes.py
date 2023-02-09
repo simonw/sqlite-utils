@@ -14,6 +14,8 @@ def parsedate(value, dayfirst=False, yearfirst=False, errors=None):
     - errors=r.IGNORE to ignore values that cannot be parsed
     - errors=r.SET_NULL to set values that cannot be parsed to null
     """
+    if not value:
+        return value
     try:
         return (
             parser.parse(value, dayfirst=dayfirst, yearfirst=yearfirst)
@@ -38,6 +40,8 @@ def parsedatetime(value, dayfirst=False, yearfirst=False, errors=None):
     - errors=r.IGNORE to ignore values that cannot be parsed
     - errors=r.SET_NULL to set values that cannot be parsed to null
     """
+    if not value:
+        return value
     try:
         return parser.parse(value, dayfirst=dayfirst, yearfirst=yearfirst).isoformat()
     except parser.ParserError:
@@ -53,4 +57,6 @@ def jsonsplit(value, delimiter=",", type=str):
     """
     Convert a string like a,b,c into a JSON array ["a", "b", "c"]
     """
+    if not value:
+        return value
     return json.dumps([type(s.strip()) for s in value.split(delimiter)])

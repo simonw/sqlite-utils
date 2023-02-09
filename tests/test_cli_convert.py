@@ -80,7 +80,8 @@ def test_convert_import(test_db_and_path):
             db_path,
             "example",
             "dt",
-            "return re.sub('O..', 'OXX', value)",
+            #"return re.sub('O..', 'OXX', value)",
+            "return None if value is None else re.sub('O..', 'OXX', value)",
             "--import",
             "re",
         ],
@@ -223,7 +224,7 @@ def test_convert_output_column(test_db_and_path, drop):
         db_path,
         "example",
         "dt",
-        "value.replace('October', 'Spooktober')",
+        "None if value is None else value.replace('October', 'Spooktober')",
         "--output",
         "newcol",
     ]
