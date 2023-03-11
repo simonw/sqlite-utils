@@ -234,3 +234,30 @@ def test_cli_create_spatial_index(tmpdir):
     assert 0 == result.exit_code
 
     assert "idx_locations_geometry" in db.table_names()
+
+
+def test_cli_create_spatial_index_with_path(tmpdir):
+    # create a rowid table with one column
+    db_path = tmpdir / "spatial.db"
+    db = Database(str(db_path))
+    db.init_spatialite()
+
+    table = db["locations"].create({"name": str})
+    table.add_geometry_column("geometry", "POINT")
+
+    path = find_spatialite()
+    result = CliRunner().invoke(
+        cli,
+        [
+            "create-spatial-index",
+            str(db_path),
+            table.name,
+            "geometry",
+            "--load-extension",
+            path,
+        ],
+    )
+
+    assert 0 == result.exit_code
+
+    assert "idx_locations_geometry" in db.table_names()

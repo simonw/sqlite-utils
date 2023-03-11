@@ -28,6 +28,8 @@ except ImportError:
 SPATIALITE_PATHS = (
     "/usr/lib/x86_64-linux-gnu/mod_spatialite.so",
     "/usr/local/lib/mod_spatialite.dylib",
+    "/usr/local/lib/mod_spatialite.so",
+    "/opt/homebrew/lib/mod_spatialite.dylib",
 )
 
 # Mainly so we can restore it if needed in the tests:

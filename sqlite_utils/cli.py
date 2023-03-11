@@ -1407,7 +1407,7 @@ def create_database(path, enable_wal, init_spatialite, load_extension):
 
     # load spatialite from expected locations and initialize metadata
     if init_spatialite:
-        db.init_spatialite()
+        db.init_spatialite(find_spatialite() or load_extension)
 
     db.vacuum()
 
@@ -2902,7 +2902,7 @@ def add_geometry_column(
     # load spatialite, one way or another
     if load_extension:
         _load_extensions(db, load_extension)
-    db.init_spatialite()
+    db.init_spatialite(find_spatialite() or load_extension)
 
     if db[table].add_geometry_column(
         column_name, geometry_type, srid, coord_dimension, not_null
@@ -2934,7 +2934,7 @@ def create_spatial_index(db_path, table, column_name, load_extension):
     # load spatialite
     if load_extension:
         _load_extensions(db, load_extension)
-    db.init_spatialite()
+    db.init_spatialite(find_spatialite() or load_extension)
 
     if column_name not in db[table].columns_dict:
         raise click.ClickException(
