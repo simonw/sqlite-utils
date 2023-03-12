@@ -2876,7 +2876,6 @@ class Table(Queryable):
                         self.add_missing_columns(chunk)
                         result = self.db.execute(query, params)
                     elif e.args[0] == "too many SQL variables":
-
                         first_half = chunk[: len(chunk) // 2]
                         second_half = chunk[len(chunk) // 2 :]
 
