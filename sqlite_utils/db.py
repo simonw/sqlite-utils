@@ -813,6 +813,8 @@ class Database:
             pk = hash_id
         # Soundness check foreign_keys point to existing tables
         for fk in foreign_keys:
+            if fk.other_table == name and columns.get(fk.other_column):
+                continue
             if not any(
                 c for c in self[fk.other_table].columns if c.name == fk.other_column
             ):
