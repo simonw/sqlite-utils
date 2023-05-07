@@ -124,6 +124,7 @@ See :ref:`cli_query`.
       --json-cols                 Detect JSON cols and output them as JSON, not
                                   escaped strings
       -r, --raw                   Raw output, first column of first row
+      --raw-lines                 Raw output, first column of each row
       -p, --param <TEXT TEXT>...  Named :parameters for SQL query
       --functions TEXT            Python code defining one or more custom SQL
                                   functions
@@ -192,6 +193,7 @@ See :ref:`cli_memory`.
       --json-cols                 Detect JSON cols and output them as JSON, not
                                   escaped strings
       -r, --raw                   Raw output, first column of first row
+      --raw-lines                 Raw output, first column of each row
       -p, --param <TEXT TEXT>...  Named :parameters for SQL query
       --encoding TEXT             Character encoding for CSV input, defaults to
                                   utf-8

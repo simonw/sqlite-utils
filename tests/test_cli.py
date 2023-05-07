@@ -916,6 +916,21 @@ def test_query_raw(db_path, content, is_binary):
         assert result.output == str(content)
 
 
+@pytest.mark.parametrize(
+    "content,is_binary",
+    [(b"\x00\x0Fbinary", True), ("this is text", False), (1, False), (1.5, False)],
+)
+def test_query_raw_lines(db_path, content, is_binary):
+    Database(db_path)["files"].insert_all({"content": content} for _ in range(3))
+    result = CliRunner().invoke(
+        cli.cli, [db_path, "select content from files", "--raw-lines"]
+    )
+    if is_binary:
+        assert result.stdout_bytes == b"\n".join(content for _ in range(3)) + b"\n"
+    else:
+        assert result.output == "\n".join(str(content) for _ in range(3)) + "\n"
+
+
 def test_query_memory_does_not_create_file(tmpdir):
     owd = os.getcwd()
     try:

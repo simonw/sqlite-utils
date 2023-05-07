@@ -1653,6 +1653,7 @@ def drop_view(path, view, ignore, load_extension):
 )
 @output_options
 @click.option("-r", "--raw", is_flag=True, help="Raw output, first column of first row")
+@click.option("--raw-lines", is_flag=True, help="Raw output, first column of each row")
 @click.option(
     "-p",
     "--param",
@@ -1677,6 +1678,7 @@ def query(
     fmt,
     json_cols,
     raw,
+    raw_lines,
     param,
     load_extension,
     functions,
@@ -1700,7 +1702,19 @@ def query(
         _register_functions(db, functions)
 
     _execute_query(
-        db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
+        db,
+        sql,
+        param,
+        raw,
+        raw_lines,
+        table,
+        csv,
+        tsv,
+        no_headers,
+        fmt,
+        nl,
+        arrays,
+        json_cols,
     )
 
 
@@ -1728,6 +1742,7 @@ def query(
 )
 @output_options
 @click.option("-r", "--raw", is_flag=True, help="Raw output, first column of first row")
+@click.option("--raw-lines", is_flag=True, help="Raw output, first column of each row")
 @click.option(
     "-p",
     "--param",
@@ -1773,6 +1788,7 @@ def memory(
     fmt,
     json_cols,
     raw,
+    raw_lines,
     param,
     encoding,
     no_detect_types,
@@ -1879,12 +1895,36 @@ def memory(
         _register_functions(db, functions)
 
     _execute_query(
-        db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
+        db,
+        sql,
+        param,
+        raw,
+        raw_lines,
+        table,
+        csv,
+        tsv,
+        no_headers,
+        fmt,
+        nl,
+        arrays,
+        json_cols,
     )
 
 
 def _execute_query(
-    db, sql, param, raw, table, csv, tsv, no_headers, fmt, nl, arrays, json_cols
+    db,
+    sql,
+    param,
+    raw,
+    raw_lines,
+    table,
+    csv,
+    tsv,
+    no_headers,
+    fmt,
+    nl,
+    arrays,
+    json_cols,
 ):
     with db.conn:
         try:
@@ -1903,6 +1943,13 @@ def _execute_query(
                 sys.stdout.buffer.write(data)
             else:
                 sys.stdout.write(str(data))
+        elif raw_lines:
+            for row in cursor:
+                data = row[0]
+                if isinstance(data, bytes):
+                    sys.stdout.buffer.write(data + b"\n")
+                else:
+                    sys.stdout.write(str(data) + "\n")
         elif fmt or table:
             print(
                 tabulate.tabulate(

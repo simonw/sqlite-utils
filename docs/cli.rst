@@ -239,6 +239,9 @@ For example, to retrieve a binary image from a ``BLOB`` column and store it in a
 
     $ sqlite-utils photos.db "select contents from photos where id=1" --raw > myphoto.jpg
 
+To return the first column of each result as raw data, separated by newlines, use ``--raw-lines``::
+
+    $ sqlite-utils photos.db "select caption from photos" --raw-lines > captions.txt
 
 .. _cli_query_parameters:
 
