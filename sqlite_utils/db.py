@@ -2741,6 +2741,7 @@ class Table(Queryable):
         hash_id_columns,
         upsert,
         pk,
+        not_null,
         conversions,
         num_records_processed,
         replace,
@@ -2778,14 +2779,20 @@ class Table(Queryable):
                 pks = pk
             self.last_pk = None
             for record_values in values:
-                # TODO: make more efficient:
                 record = dict(zip(all_columns, record_values))
-                sql = "INSERT OR IGNORE INTO [{table}]({pks}) VALUES({pk_placeholders});".format(
+                placeholders = list(pks)
+                # Need to populate not-null columns too, or INSERT OR IGNORE ignores
+                # them since it ignores the resulting integrity errors
+                if not_null:
+                    placeholders.extend(not_null)
+                sql = "INSERT OR IGNORE INTO [{table}]({cols}) VALUES({placeholders});".format(
                     table=self.name,
-                    pks=", ".join(["[{}]".format(p) for p in pks]),
-                    pk_placeholders=", ".join(["?" for p in pks]),
+                    cols=", ".join(["[{}]".format(p) for p in placeholders]),
+                    placeholders=", ".join(["?" for p in placeholders]),
                 )
-                queries_and_params.append((sql, [record[col] for col in pks]))
+                queries_and_params.append(
+                    (sql, [record[col] for col in pks] + ["" for _ in (not_null or [])])
+                )
                 # UPDATE [book] SET [name] = 'Programming' WHERE [id] = 1001;
                 set_cols = [col for col in all_columns if col not in pks]
                 if set_cols:
@@ -2846,6 +2853,7 @@ class Table(Queryable):
         hash_id_columns,
         upsert,
         pk,
+        not_null,
         conversions,
         num_records_processed,
         replace,
@@ -2859,6 +2867,7 @@ class Table(Queryable):
             hash_id_columns,
             upsert,
             pk,
+            not_null,
             conversions,
             num_records_processed,
             replace,
@@ -2888,6 +2897,7 @@ class Table(Queryable):
                             hash_id_columns,
                             upsert,
                             pk,
+                            not_null,
                             conversions,
                             num_records_processed,
                             replace,
@@ -2903,6 +2913,7 @@ class Table(Queryable):
                             hash_id_columns,
                             upsert,
                             pk,
+                            not_null,
                             conversions,
                             num_records_processed,
                             replace,
@@ -3112,6 +3123,7 @@ class Table(Queryable):
                 hash_id_columns,
                 upsert,
                 pk,
+                not_null,
                 conversions,
                 num_records_processed,
                 replace,

@@ -28,6 +28,16 @@ def test_upsert_all_single_column(fresh_db):
     assert table.pks == ["name"]
 
 
+def test_upsert_all_not_null(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/538
+    fresh_db["comments"].upsert_all(
+        [{"id": 1, "name": "Cleo"}],
+        pk="id",
+        not_null=["name"],
+    )
+    assert list(fresh_db["comments"].rows) == [{"id": 1, "name": "Cleo"}]
+
+
 def test_upsert_error_if_no_pk(fresh_db):
     table = fresh_db["table"]
     with pytest.raises(PrimaryKeyRequired):
