@@ -288,12 +288,40 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(
     )
 
 
+def test_self_referential_foreign_key(fresh_db):
+    assert [] == fresh_db.table_names()
+    table = fresh_db.create_table(
+        "test_table",
+        columns={
+            "id": int,
+            "ref": int,
+        },
+        pk="id",
+        foreign_keys=(("ref", "test_table", "id"),),
+    )
+    assert (
+        "CREATE TABLE [test_table] (\n"
+        "   [id] INTEGER PRIMARY KEY,\n"
+        "   [ref] INTEGER REFERENCES [test_table]([id])\n"
+        ")"
+    ) == table.schema
+
+
 def test_create_error_if_invalid_foreign_keys(fresh_db):
     with pytest.raises(AlterError):
         fresh_db["one"].insert(
             {"id": 1, "ref_id": 3},
             pk="id",
             foreign_keys=(("ref_id", "bad_table", "bad_column"),),
+        )
+
+
+def test_create_error_if_invalid_self_referential_foreign_keys(fresh_db):
+    with pytest.raises(AlterError):
+        fresh_db["one"].insert(
+            {"id": 1, "ref_id": 3},
+            pk="id",
+            foreign_keys=(("ref_id", "one", "bad_column"),),
         )
 
 
