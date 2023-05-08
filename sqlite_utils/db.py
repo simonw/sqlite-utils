@@ -2689,7 +2689,7 @@ class Table(Queryable):
 
             fn_name = fn.__name__
             if fn_name == "<lambda>":
-                fn_name = f"lambda_{hash(fn)}"
+                fn_name = f"lambda_{abs(hash(fn))}"
             self.db.register_function(convert_value, name=fn_name)
             sql = "update [{table}] set {sets}{where};".format(
                 table=self.name,
