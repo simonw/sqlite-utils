@@ -317,12 +317,13 @@ def test_create_error_if_invalid_foreign_keys(fresh_db):
 
 
 def test_create_error_if_invalid_self_referential_foreign_keys(fresh_db):
-    with pytest.raises(AlterError):
+    with pytest.raises(AlterError) as ex:
         fresh_db["one"].insert(
             {"id": 1, "ref_id": 3},
             pk="id",
             foreign_keys=(("ref_id", "one", "bad_column"),),
         )
+        assert ex.value.args == ("No such column: one.bad_column",)
 
 
 @pytest.mark.parametrize(
