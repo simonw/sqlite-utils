@@ -219,11 +219,6 @@ class AlterError(Exception):
     pass
 
 
-class FunctionAlreadyRegistered(Exception):
-    "A function with this name and arity was already registered"
-    pass
-
-
 class NoObviousTable(Exception):
     "Could not tell which table this operation refers to"
     pass
@@ -414,9 +409,7 @@ class Database:
             fn_name = name or fn.__name__
             arity = len(inspect.signature(fn).parameters)
             if not replace and (fn_name, arity) in self._registered_functions:
-                raise FunctionAlreadyRegistered(
-                    f'Already registered function with name "{fn_name}" and identical arity'
-                )
+                return fn
             kwargs = {}
             registered = False
             if deterministic:
