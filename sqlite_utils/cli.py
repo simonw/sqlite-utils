@@ -948,14 +948,15 @@ def insert_upsert_implementation(
 
     # The --sniff option needs us to buffer the file to peek ahead
     sniff_buffer = None
+    decoded_buffer = None
     if sniff:
         sniff_buffer = io.BufferedReader(file, buffer_size=4096)
-        decoded = io.TextIOWrapper(sniff_buffer, encoding=encoding)
+        decoded_buffer = io.TextIOWrapper(sniff_buffer, encoding=encoding)
     else:
-        decoded = io.TextIOWrapper(file, encoding=encoding)
+        decoded_buffer = io.TextIOWrapper(file, encoding=encoding)
 
     tracker = None
-    with file_progress(decoded, silent=silent) as decoded:
+    with file_progress(decoded_buffer, silent=silent) as decoded:
         if csv or tsv:
             if sniff:
                 # Read first 2048 bytes and use that to detect
@@ -1078,6 +1079,12 @@ def insert_upsert_implementation(
             raise
     if tracker is not None:
         db[table].transform(types=tracker.types)
+
+    # Clean up open file-like objects
+    if sniff_buffer:
+        sniff_buffer.close()
+    if decoded_buffer:
+        decoded_buffer.close()
 
 
 def _find_variables(tb, vars):
