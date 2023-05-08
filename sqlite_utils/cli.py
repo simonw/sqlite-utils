@@ -2811,6 +2811,7 @@ def _generate_convert_help():
     type=click.Choice(["integer", "float", "blob", "text"]),
 )
 @click.option("--drop", is_flag=True, help="Drop original column afterwards")
+@click.option("--no-skip-false", is_flag=True, help="Don't skip falsey values")
 @click.option("-s", "--silent", is_flag=True, help="Don't show a progress bar")
 def convert(
     db_path,
@@ -2825,6 +2826,7 @@ def convert(
     output,
     output_type,
     drop,
+    no_skip_false,
     silent,
 ):
     sqlite3.enable_callback_tracebacks(True)
@@ -2882,6 +2884,7 @@ def convert(
                 output=output,
                 output_type=output_type,
                 drop=drop,
+                skip_false=not no_skip_false,
                 multi=multi,
                 show_progress=not silent,
             )

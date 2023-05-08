@@ -916,6 +916,8 @@ This will add the new column, if it does not already exist. You can pass ``outpu
 
 If you want to drop the original column after saving the results in a separate output column, pass ``drop=True``.
 
+By default any rows with a falsey value for the column - such as ``0`` or ``None`` - will be skipped. Pass ``skip_false=False`` to disable this behaviour.
+
 You can create multiple new columns from a single input column by passing ``multi=True`` and a conversion function that returns a Python dictionary. This example creates new ``upper`` and ``lower`` columns populated from the single ``title`` column:
 
 .. code-block:: python

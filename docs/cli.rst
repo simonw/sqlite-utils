@@ -1342,6 +1342,8 @@ You can include named parameters in your where clause and populate them using on
 
 The ``--dry-run`` option will output a preview of the conversion against the first ten rows, without modifying the database.
 
+By default any rows with a falsey value for the column - such as ``0`` or ``null`` - will be skipped. Use the ``--no-skip-false`` option to disable this behaviour.
+
 .. _cli_convert_import:
 
 Importing additional modules
