@@ -3,7 +3,7 @@ import pytest
 import sys
 from unittest.mock import MagicMock, call
 from sqlite_utils.utils import sqlite3
-
+from sqlite_utils.db import FunctionAlreadyRegistered
 
 def test_register_function(fresh_db):
     @fresh_db.register_function
@@ -85,9 +85,10 @@ def test_register_function_replace(fresh_db):
     assert "one" == fresh_db.execute("select one()").fetchone()[0]
 
     # This will fail to replace the function:
-    @fresh_db.register_function()
-    def one():  # noqa
-        return "two"
+    with pytest.raises(FunctionAlreadyRegistered):
+        @fresh_db.register_function()
+        def one():  # noqa
+            return "two"
 
     assert "one" == fresh_db.execute("select one()").fetchone()[0]
 
@@ -97,3 +98,11 @@ def test_register_function_replace(fresh_db):
         return "two"
 
     assert "two" == fresh_db.execute("select one()").fetchone()[0]
+
+
+def test_register_function_duplicate(fresh_db):
+    def to_lower(s):
+        return s.lower()
+    fresh_db.register_function(to_lower)
+    with pytest.raises(FunctionAlreadyRegistered):
+        fresh_db.register_function(to_lower)
