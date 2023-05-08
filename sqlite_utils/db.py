@@ -414,7 +414,9 @@ class Database:
             fn_name = name or fn.__name__
             arity = len(inspect.signature(fn).parameters)
             if not replace and (fn_name, arity) in self._registered_functions:
-                raise FunctionAlreadyRegistered(f'Already registered function with name "{fn_name}" and identical arity')
+                raise FunctionAlreadyRegistered(
+                    f'Already registered function with name "{fn_name}" and identical arity'
+                )
             kwargs = {}
             registered = False
             if deterministic:
@@ -2693,15 +2695,17 @@ class Table(Queryable):
                 return jsonify_if_needed(fn(v))
 
             fn_name = fn.__name__
-            if fn_name == '<lambda>':
-                fn_name = f'lambda_{hash(fn)}'
+            if fn_name == "<lambda>":
+                fn_name = f"lambda_{hash(fn)}"
             self.db.register_function(convert_value, name=fn_name)
             sql = "update [{table}] set {sets}{where};".format(
                 table=self.name,
                 sets=", ".join(
                     [
                         "[{output_column}] = {fn_name}([{column}])".format(
-                            output_column=output or column, column=column, fn_name=fn_name
+                            output_column=output or column,
+                            column=column,
+                            fn_name=fn_name,
                         )
                         for column in columns
                     ]

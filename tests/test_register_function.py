@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, call
 from sqlite_utils.utils import sqlite3
 from sqlite_utils.db import FunctionAlreadyRegistered
 
+
 def test_register_function(fresh_db):
     @fresh_db.register_function
     def reverse_string(s):
@@ -86,6 +87,7 @@ def test_register_function_replace(fresh_db):
 
     # This will fail to replace the function:
     with pytest.raises(FunctionAlreadyRegistered):
+
         @fresh_db.register_function()
         def one():  # noqa
             return "two"
@@ -103,6 +105,7 @@ def test_register_function_replace(fresh_db):
 def test_register_function_duplicate(fresh_db):
     def to_lower(s):
         return s.lower()
+
     fresh_db.register_function(to_lower)
     with pytest.raises(FunctionAlreadyRegistered):
         fresh_db.register_function(to_lower)

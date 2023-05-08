@@ -153,6 +153,6 @@ def test_convert_repeated(fresh_db):
     table = fresh_db["table"]
     col = "num"
     table.insert({col: 1})
-    table.convert(col, lambda x: x*2)
+    table.convert(col, lambda x: x * 2)
     table.convert(col, lambda _x: 0)
     assert table.get(1) == {col: 0}
