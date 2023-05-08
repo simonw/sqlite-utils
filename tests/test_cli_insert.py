@@ -43,9 +43,9 @@ def test_insert_invalid_json_error(tmpdir):
         input="name,age\nCleo,4",
     )
     assert result.exit_code == 1
-    assert (
-        result.output
-        == "Error: Invalid JSON - use --csv for CSV or --tsv for TSV files\n"
+    assert result.output == (
+        "Error: Invalid JSON - use --csv for CSV or --tsv for TSV files\n\n"
+        "JSON error: Expecting value: line 1 column 1 (char 0)\n"
     )
 
 

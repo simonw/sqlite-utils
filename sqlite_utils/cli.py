@@ -994,9 +994,11 @@ def insert_upsert_implementation(
                     docs = json.load(decoded)
                     if isinstance(docs, dict):
                         docs = [docs]
-            except json.decoder.JSONDecodeError:
+            except json.decoder.JSONDecodeError as ex:
                 raise click.ClickException(
-                    "Invalid JSON - use --csv for CSV or --tsv for TSV files"
+                    "Invalid JSON - use --csv for CSV or --tsv for TSV files\n\nJSON error: {}".format(
+                        ex
+                    )
                 )
             if flatten:
                 docs = (_flatten(doc) for doc in docs)
