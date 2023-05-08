@@ -303,7 +303,13 @@ def rows_from_file(
     elif format is None:
         # Detect the format, then call this recursively
         buffered = io.BufferedReader(cast(io.RawIOBase, fp), buffer_size=4096)
-        first_bytes = buffered.peek(2048).strip()
+        try:
+            first_bytes = buffered.peek(2048).strip()
+        except AttributeError:
+            # Likely the user passed a TextIO when this needs a BytesIO
+            raise TypeError(
+                "rows_from_file() requires a file-like object that supports peek(), such as io.BytesIO"
+            )
         if first_bytes.startswith(b"[") or first_bytes.startswith(b"{"):
             # TODO: Detect newline-JSON
             return rows_from_file(buffered, format=Format.JSON)
