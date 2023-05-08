@@ -2618,6 +2618,7 @@ class Table(Queryable):
         where: Optional[str] = None,
         where_args: Optional[Union[Iterable, dict]] = None,
         show_progress: bool = False,
+        skip_false: bool = True,
     ):
         """
         Apply conversion function ``fn`` to every value in the specified columns.
@@ -2660,7 +2661,7 @@ class Table(Queryable):
 
             def convert_value(v):
                 bar.update(1)
-                if not v:
+                if skip_false and not v:
                     return v
                 return jsonify_if_needed(fn(v))
 
