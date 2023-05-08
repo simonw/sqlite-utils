@@ -1839,40 +1839,43 @@ def memory(
     stem_counts = {}
     for i, path in enumerate(paths):
         # Path may have a :format suffix
+        fp = None
         if ":" in path and path.rsplit(":", 1)[-1].upper() in Format.__members__:
             path, suffix = path.rsplit(":", 1)
             format = Format[suffix.upper()]
         else:
             format = None
         if path in ("-", "stdin"):
-            csv_fp = sys.stdin.buffer
-            csv_table = "stdin"
+            fp = sys.stdin.buffer
+            file_table = "stdin"
         else:
-            csv_path = pathlib.Path(path)
-            stem = csv_path.stem
+            file_path = pathlib.Path(path)
+            stem = file_path.stem
             if stem_counts.get(stem):
-                csv_table = "{}_{}".format(stem, stem_counts[stem])
+                file_table = "{}_{}".format(stem, stem_counts[stem])
             else:
-                csv_table = stem
+                file_table = stem
             stem_counts[stem] = stem_counts.get(stem, 1) + 1
-            csv_fp = csv_path.open("rb")
-        rows, format_used = rows_from_file(csv_fp, format=format, encoding=encoding)
+            fp = file_path.open("rb")
+        rows, format_used = rows_from_file(fp, format=format, encoding=encoding)
         tracker = None
         if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
             tracker = TypeTracker()
             rows = tracker.wrap(rows)
         if flatten:
             rows = (_flatten(row) for row in rows)
-        db[csv_table].insert_all(rows, alter=True)
+        db[file_table].insert_all(rows, alter=True)
         if tracker is not None:
-            db[csv_table].transform(types=tracker.types)
+            db[file_table].transform(types=tracker.types)
         # Add convenient t / t1 / t2 views
         view_names = ["t{}".format(i + 1)]
         if i == 0:
             view_names.append("t")
         for view_name in view_names:
             if not db[view_name].exists():
-                db.create_view(view_name, "select * from [{}]".format(csv_table))
+                db.create_view(view_name, "select * from [{}]".format(file_table))
+        if fp:
+            fp.close()
 
     if analyze:
         _analyze(db, tables=None, columns=None, save=False)

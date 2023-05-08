@@ -13,6 +13,11 @@ import textwrap
 from .utils import collapse_whitespace
 
 
+def write_json(file_path, data):
+    with open(file_path, "w") as fp:
+        json.dump(data, fp)
+
+
 def _supports_pragma_function_list():
     db = Database(memory=True)
     try:
@@ -1016,7 +1021,7 @@ def test_upsert(db_path, tmpdir):
         {"id": 1, "name": "Cleo", "age": 4},
         {"id": 2, "name": "Nixie", "age": 4},
     ]
-    open(json_path, "w").write(json.dumps(insert_dogs))
+    write_json(json_path, insert_dogs)
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "dogs", json_path, "--pk", "id"],
@@ -1029,7 +1034,7 @@ def test_upsert(db_path, tmpdir):
         {"id": 1, "age": 5},
         {"id": 2, "age": 5},
     ]
-    open(json_path, "w").write(json.dumps(upsert_dogs))
+    write_json(json_path, upsert_dogs)
     result = CliRunner().invoke(
         cli.cli,
         ["upsert", db_path, "dogs", json_path, "--pk", "id"],
@@ -1048,7 +1053,7 @@ def test_upsert_pk_required(db_path, tmpdir):
         {"id": 1, "name": "Cleo", "age": 4},
         {"id": 2, "name": "Nixie", "age": 4},
     ]
-    open(json_path, "w").write(json.dumps(insert_dogs))
+    write_json(json_path, insert_dogs)
     result = CliRunner().invoke(
         cli.cli,
         ["upsert", db_path, "dogs", json_path],
@@ -1091,14 +1096,14 @@ def test_upsert_alter(db_path, tmpdir):
     json_path = str(tmpdir / "dogs.json")
     db = Database(db_path)
     insert_dogs = [{"id": 1, "name": "Cleo"}]
-    open(json_path, "w").write(json.dumps(insert_dogs))
+    write_json(json_path, insert_dogs)
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
     )
     assert 0 == result.exit_code, result.output
     # Should fail with error code if no --alter
     upsert_dogs = [{"id": 1, "age": 5}]
-    open(json_path, "w").write(json.dumps(upsert_dogs))
+    write_json(json_path, upsert_dogs)
     result = CliRunner().invoke(
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id"]
     )
@@ -1767,7 +1772,8 @@ def test_insert_encoding(tmpdir):
     )
     assert latin1_csv.decode("latin-1").split("\n")[2].split(",")[1] == "São Paulo"
     csv_path = str(tmpdir / "test.csv")
-    open(csv_path, "wb").write(latin1_csv)
+    with open(csv_path, "wb") as fp:
+        fp.write(latin1_csv)
     # First attempt should error:
     bad_result = CliRunner().invoke(
         cli.cli,

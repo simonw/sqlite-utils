@@ -10,7 +10,8 @@ import time
 def test_insert_simple(tmpdir):
     json_path = str(tmpdir / "dog.json")
     db_path = str(tmpdir / "dogs.db")
-    open(json_path, "w").write(json.dumps({"name": "Cleo", "age": 4}))
+    with open(json_path, "w") as fp:
+        fp.write(json.dumps({"name": "Cleo", "age": 4}))
     result = CliRunner().invoke(cli.cli, ["insert", db_path, "dogs", json_path])
     assert 0 == result.exit_code
     assert [{"age": 4, "name": "Cleo"}] == list(
@@ -78,7 +79,8 @@ def test_insert_json_flatten_nl(tmpdir):
 
 def test_insert_with_primary_key(db_path, tmpdir):
     json_path = str(tmpdir / "dog.json")
-    open(json_path, "w").write(json.dumps({"id": 1, "name": "Cleo", "age": 4}))
+    with open(json_path, "w") as fp:
+        fp.write(json.dumps({"id": 1, "name": "Cleo", "age": 4}))
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
     )
@@ -93,7 +95,8 @@ def test_insert_with_primary_key(db_path, tmpdir):
 def test_insert_multiple_with_primary_key(db_path, tmpdir):
     json_path = str(tmpdir / "dogs.json")
     dogs = [{"id": i, "name": "Cleo {}".format(i), "age": i + 3} for i in range(1, 21)]
-    open(json_path, "w").write(json.dumps(dogs))
+    with open(json_path, "w") as fp:
+        fp.write(json.dumps(dogs))
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
     )
@@ -109,7 +112,8 @@ def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
         {"breed": "mixed", "id": i, "name": "Cleo {}".format(i), "age": i + 3}
         for i in range(1, 21)
     ]
-    open(json_path, "w").write(json.dumps(dogs))
+    with open(json_path, "w") as fp:
+        fp.write(json.dumps(dogs))
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id", "--pk", "breed"]
     )
@@ -134,7 +138,8 @@ def test_insert_not_null_default(db_path, tmpdir):
         {"id": i, "name": "Cleo {}".format(i), "age": i + 3, "score": 10}
         for i in range(1, 21)
     ]
-    open(json_path, "w").write(json.dumps(dogs))
+    with open(json_path, "w") as fp:
+        fp.write(json.dumps(dogs))
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "dogs", json_path, "--pk", "id"]
@@ -182,7 +187,8 @@ def test_insert_ignore(db_path, tmpdir):
     db = Database(db_path)
     db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
     json_path = str(tmpdir / "dogs.json")
-    open(json_path, "w").write(json.dumps([{"id": 1, "name": "Bailey"}]))
+    with open(json_path, "w") as fp:
+        fp.write(json.dumps([{"id": 1, "name": "Bailey"}]))
     # Should raise error without --ignore
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
@@ -212,7 +218,8 @@ def test_insert_ignore(db_path, tmpdir):
 def test_insert_csv_tsv(content, options, db_path, tmpdir):
     db = Database(db_path)
     file_path = str(tmpdir / "insert.csv-tsv")
-    open(file_path, "w").write(content)
+    with open(file_path, "w") as fp:
+        fp.write(content)
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "data", file_path] + options,
@@ -233,7 +240,8 @@ def test_insert_csv_tsv(content, options, db_path, tmpdir):
 )
 def test_only_allow_one_of_nl_tsv_csv(options, db_path, tmpdir):
     file_path = str(tmpdir / "insert.csv-tsv")
-    open(file_path, "w").write("foo")
+    with open(file_path, "w") as fp:
+        fp.write("foo")
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "data", file_path] + options
     )
@@ -251,7 +259,8 @@ def test_insert_replace(db_path, tmpdir):
         {"id": 2, "name": "Insert replaced 2", "age": 4},
         {"id": 21, "name": "Fresh insert 21", "age": 6},
     ]
-    open(json_path, "w").write(json.dumps(insert_replace_dogs))
+    with open(json_path, "w") as fp:
+        fp.write(json.dumps(insert_replace_dogs))
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id", "--replace"]
     )

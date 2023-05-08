@@ -24,7 +24,8 @@ def test_memory_csv(tmpdir, sql_from, use_stdin):
             sql_from = "stdin"
     else:
         csv_path = str(tmpdir / "test.csv")
-        open(csv_path, "w").write(content)
+        with open(csv_path, "w") as fp:
+            fp.write(content)
     result = CliRunner().invoke(
         cli.cli,
         ["memory", csv_path, "select * from {}".format(sql_from), "--nl"],
@@ -46,7 +47,8 @@ def test_memory_tsv(tmpdir, use_stdin):
     else:
         input = None
         path = str(tmpdir / "chickens.tsv")
-        open(path, "w").write(data)
+        with open(path, "w") as fp:
+            fp.write(data)
         path = path + ":tsv"
         sql_from = "chickens"
     result = CliRunner().invoke(
@@ -71,7 +73,8 @@ def test_memory_json(tmpdir, use_stdin):
     else:
         input = None
         path = str(tmpdir / "chickens.json")
-        open(path, "w").write(data)
+        with open(path, "w") as fp:
+            fp.write(data)
         path = path + ":json"
         sql_from = "chickens"
     result = CliRunner().invoke(
@@ -96,7 +99,8 @@ def test_memory_json_nl(tmpdir, use_stdin):
     else:
         input = None
         path = str(tmpdir / "chickens.json")
-        open(path, "w").write(data)
+        with open(path, "w") as fp:
+            fp.write(data)
         path = path + ":nl"
         sql_from = "chickens"
     result = CliRunner().invoke(
