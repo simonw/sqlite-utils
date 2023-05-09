@@ -15,7 +15,7 @@
 - Fixed a bug where ``table.upsert_all()`` failed if the ``not_null=`` option was passed. (:issue:`538`)
 - Fixed a ``ResourceWarning`` when using ``sqlite-utils insert``. (:issue:`534`)
 - Now shows a more detailed error message when ``sqlite-utils insert`` is called with invalid JSON. (:issue:`532`)
-- ``table.convert(..., skip_false=False)`` and ``sqlite-utils convert --no-skip-false`` options, for avoiding a misfeature where the :ref:`convert()  <python_api_convert>` mechanism skips rows in the database with a falsey value for the specified column. Fixing this by default would be a backwards-compatible change and is under consideration for a 4.0 release in the future. (:issue:`527`)
+- ``table.convert(..., skip_false=False)`` and ``sqlite-utils convert --no-skip-false`` options, for avoiding a misfeature where the :ref:`convert()  <python_api_convert>` mechanism skips rows in the database with a falsey value for the specified column. Fixing this by default would be a backwards-incompatible change and is under consideration for a 4.0 release in the future. (:issue:`527`)
 - Tables can now be created with self-referential foreign keys. Thanks, Scott Perry. (`#537 <https://github.com/simonw/sqlite-utils/pull/537>`__)
 - ``sqlite-utils transform`` no longer breaks if a table defines default values for columns. Thanks, Kenny Song. (:issue:`509`)
 - Fixed a bug where repeated calls to ``table.transform()`` did not work correctly. Thanks, Martin Carpenter. (:issue:`525`)
