@@ -1154,7 +1154,6 @@ You can also pipe ``sqlite-utils`` together to create a new SQLite database file
     
 .. code-block:: bash
 
-    # This creates saved.db with a single table called trees:
     sqlite-utils saved.db "select * from trees limit 5" --csv
 
 .. code-block:: output
@@ -1262,7 +1261,7 @@ Will produce this schema:
 
     sqlite-utils schema creatures.db
 
-.. code-block:: sql
+.. code-block:: output
 
     CREATE TABLE "creatures" (
        [name] TEXT,
@@ -1861,6 +1860,9 @@ You can specify columns that should be NOT NULL using ``--not-null colname``. Yo
         --not-null age \
         --default is_good 1 \
         --pk=id
+
+.. code-block:: bash
+
     sqlite-utils tables mydb.db --schema -t
 
 .. code-block:: output
@@ -1889,6 +1891,8 @@ You can specify foreign key relationships between the tables you are creating us
         author_id integer \
         --pk=id \
         --fk author_id authors id
+
+.. code-block:: bash
 
     sqlite-utils tables books.db --schema -t
 
@@ -1995,7 +1999,7 @@ If you want to see the SQL that will be executed to make the change without actu
         --drop address \
         --sql
 
-.. code-block:: sql
+.. code-block:: output
 
     CREATE TABLE [roadside_attractions_new_4033a60276b9] (
        [id] INTEGER PRIMARY KEY,
@@ -2050,6 +2054,9 @@ You can use ``sqlite-utils transform ... --pk id`` to add a primary key column c
 .. code-block:: bash
 
     sqlite-utils transform chickens.db chickens --pk id
+
+.. code-block:: bash
+
     sqlite-utils schema chickens.db
 
 .. code-block:: output
@@ -2071,6 +2078,9 @@ You can use ``sqlite-utils transform ... --pk id`` to add a primary key column c
 .. code-block:: bash
 
     echo '{"name": "Cardi"}' | sqlite-utils insert chickens.db chickens -
+
+.. code-block:: bash
+
     sqlite-utils chickens.db 'select * from chickens'
 
 .. code-block:: output
@@ -2187,6 +2197,9 @@ You can create a view using the ``create-view`` command:
 .. code-block:: bash
 
     sqlite-utils create-view mydb.db version "select sqlite_version()"
+
+.. code-block:: bash
+
     sqlite-utils mydb.db "select * from version"
 
 .. code-block:: output
@@ -2588,6 +2601,9 @@ Since `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ is com
 .. code-block:: bash
 
     sqlite-utils memory "select spatialite_version()" --load-extension=spatialite
+
+.. code-block:: output
+
     [{"spatialite_version()": "4.3.0a"}]
 
 .. _cli_spatialite:
