@@ -2167,11 +2167,11 @@ Experimental TUI
 
 A TUI is a "text user interface" (or "terminal user interface") - a keyboard and mouse driven graphical interface running in your terminal.
 
-``sqlite-utils`` has experimental support for a TUI for building command-line invocations, built on top of the `Trogan <https://github.com/Textualize/trogon/>`__ TUI library.
+``sqlite-utils`` has experimental support for a TUI for building command-line invocations, built on top of the `Trogon <https://github.com/Textualize/trogon/>`__ TUI library.
 
-To enable this feature you will need to install the ``trogan`` dependency. You can do that like so::
+To enable this feature you will need to install the ``trogon`` dependency. You can do that like so::
 
-    sqite-utils install trogan
+    sqite-utils install trogon
 
 Once installed, running the ``sqlite-utils tui`` command will launch the TUI interface::
 
