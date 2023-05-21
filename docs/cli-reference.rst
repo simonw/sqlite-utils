@@ -564,10 +564,13 @@ See :ref:`cli_analyze_tables`.
           sqlite-utils analyze-tables data.db trees
 
     Options:
-      -c, --column TEXT      Specific columns to analyze
-      --save                 Save results to _analyze_tables table
-      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
-      -h, --help             Show this message and exit.
+      -c, --column TEXT       Specific columns to analyze
+      --save                  Save results to _analyze_tables table
+      --common-limit INTEGER  How many common values
+      --no-most               Skip most common values
+      --no-least              Skip least common values
+      --load-extension TEXT   Path to SQLite extension, with optional :entrypoint
+      -h, --help              Show this message and exit.
 
 
 .. _cli_ref_convert:

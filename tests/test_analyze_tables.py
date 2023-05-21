@@ -24,11 +24,34 @@ def db_to_analyze(fresh_db):
     return fresh_db
 
 
+@pytest.fixture
+def big_db_to_analyze_path(tmpdir):
+    path = str(tmpdir / "test.db")
+    db = Database(path)
+    categories = {
+        "A": 40,
+        "B": 30,
+        "C": 20,
+        "D": 10,
+    }
+    to_insert = []
+    for category, count in categories.items():
+        for _ in range(count):
+            to_insert.append(
+                {
+                    "category": category,
+                }
+            )
+    db["stuff"].insert_all(to_insert)
+    return path
+
+
 @pytest.mark.parametrize(
-    "column,expected",
+    "column,extra_kwargs,expected",
     [
         (
             "id",
+            {},
             ColumnDetails(
                 table="stuff",
                 column="id",
@@ -42,6 +65,7 @@ def db_to_analyze(fresh_db):
         ),
         (
             "owner",
+            {},
             ColumnDetails(
                 table="stuff",
                 column="owner",
@@ -55,6 +79,7 @@ def db_to_analyze(fresh_db):
         ),
         (
             "size",
+            {},
             ColumnDetails(
                 table="stuff",
                 column="size",
@@ -66,11 +91,41 @@ def db_to_analyze(fresh_db):
                 least_common=None,
             ),
         ),
+        (
+            "owner",
+            {"most_common": False},
+            ColumnDetails(
+                table="stuff",
+                column="owner",
+                total_rows=8,
+                num_null=0,
+                num_blank=0,
+                num_distinct=4,
+                most_common=None,
+                least_common=[("Anne", 1), ("Terry...", 2)],
+            ),
+        ),
+        (
+            "owner",
+            {"least_common": False},
+            ColumnDetails(
+                table="stuff",
+                column="owner",
+                total_rows=8,
+                num_null=0,
+                num_blank=0,
+                num_distinct=4,
+                most_common=[("Joan", 3), ("Kumar", 2)],
+                least_common=None,
+            ),
+        ),
     ],
 )
-def test_analyze_column(db_to_analyze, column, expected):
+def test_analyze_column(db_to_analyze, column, extra_kwargs, expected):
     assert (
-        db_to_analyze["stuff"].analyze_column(column, common_limit=2, value_truncate=5)
+        db_to_analyze["stuff"].analyze_column(
+            column, common_limit=2, value_truncate=5, **extra_kwargs
+        )
         == expected
     )
 
@@ -164,3 +219,41 @@ def test_analyze_table_save(db_to_analyze_path):
             "least_common": None,
         },
     ]
+
+
+@pytest.mark.parametrize(
+    "no_most,no_least",
+    (
+        (False, False),
+        (True, False),
+        (False, True),
+        (True, True),
+    ),
+)
+def test_analyze_table_save_no_most_no_least_options(
+    no_most, no_least, big_db_to_analyze_path
+):
+    args = ["analyze-tables", big_db_to_analyze_path, "--save", "--common-limit", "2"]
+    if no_most:
+        args.append("--no-most")
+    if no_least:
+        args.append("--no-least")
+    result = CliRunner().invoke(cli.cli, args)
+    assert result.exit_code == 0
+    rows = list(Database(big_db_to_analyze_path)["_analyze_tables_"].rows)
+    expected = {
+        "table": "stuff",
+        "column": "category",
+        "total_rows": 100,
+        "num_null": 0,
+        "num_blank": 0,
+        "num_distinct": 4,
+        "most_common": None,
+        "least_common": None,
+    }
+    if not no_most:
+        expected["most_common"] = '[["A", 40], ["B", 30]]'
+    if not no_least:
+        expected["least_common"] = '[["D", 10], ["C", 20]]'
+
+    assert rows == [expected]

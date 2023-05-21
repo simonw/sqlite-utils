@@ -730,11 +730,15 @@ For each column this tool displays the number of null rows, the number of blank 
 
 If you do not specify any tables every table in the database will be analyzed::
 
-    $ sqlite-utils analyze-tables github.db
+    sqlite-utils analyze-tables github.db
 
 If you wish to analyze one or more specific columns, use the ``-c`` option::
 
-    $ sqlite-utils analyze-tables github.db tags -c sha
+    sqlite-utils analyze-tables github.db tags -c sha
+
+To show more than 10 common values, use ``--common-limit 20``.  To skip the most common or least common value analysis, use ``--no-most`` or ``--no-least``::
+
+    sqlite-utils analyze-tables github.db tags --common-limit 20 --no-least
 
 .. _cli_analyze_tables_save:
 
@@ -743,7 +747,7 @@ Saving the analyzed table details
 
 ``analyze-tables`` can take quite a while to run for large database files. You can save the results of the analysis to a database table called ``_analyze_tables_`` using the ``--save`` option::
 
-    $ sqlite-utils analyze-tables github.db --save
+    sqlite-utils analyze-tables github.db --save
 
 The ``_analyze_tables_`` table has the following schema::
 
