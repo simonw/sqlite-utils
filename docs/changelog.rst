@@ -4,6 +4,18 @@
  Changelog
 ===========
 
+.. _v3_32:
+
+3.32 (2023-05-21)
+-----------------
+
+- New experimental ``sqlite-utils tui`` interface for interactively building command-line invocations, powered by `Trogon <https://github.com/Textualize/trogon>`__. This requires an optional dependency, installed using ``sqlite-utils install trogon``. There is a screenshot :ref:`in the documentation <cli_tui>`. (:issue:`545`)
+- ``sqlite-utils analyze-tables`` command (:ref:`documentation <cli_analyze_tables>`) now has a ``--common-limit 20`` option for changing the number of common/least-common values shown for each column. (:issue:`544`)
+- ``sqlite-utils analyze-tables --no-most`` and ``--no-least`` options for disabling calculation of most-common and least-common values.
+- If a column contains only ``null`` values, ``analyze-tables`` will no longer attempt to calculate the most common and least common values for that column. (:issue:`547`)
+- Calling ``sqlite-utils analyze-tables`` with non-existent columns in the ``-c/--column`` option now results in an error message. (:issue:`548`)
+- The ``table.analyze_column()`` method (:ref:`documented here <python_api_analyze_column>`) now accepts ``most_common=False`` and ``least_common=False`` options for disabling calculation of those values.
+
 .. _v3_31:
 
 3.31 (2023-05-08)
