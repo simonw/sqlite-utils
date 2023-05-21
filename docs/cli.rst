@@ -1243,7 +1243,7 @@ By default every column inserted from a CSV or TSV file will be of type ``TEXT``
 
 For example, given a ``creatures.csv`` file containing this:
 
-.. code-block:: csv
+.. code-block::
 
     name,age,weight
     Cleo,6,45.5
@@ -1499,7 +1499,7 @@ The SQL query should include ``:named`` parameters that match the keys in the re
 
 For example, given a ``chickens.csv`` CSV file containing the following:
 
-.. code-block:: csv
+.. code-block::
 
     id,name
     1,Blue
