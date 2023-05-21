@@ -26,7 +26,7 @@ jobs:
           ${{ runner.os }}-pip-
     - name: Install dependencies
       run: |
-        pip install -e '.[test]'
+        pip install -e '.[test,tui]'
     - name: Run tests
       run: |
         pytest

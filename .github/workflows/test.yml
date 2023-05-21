@@ -28,7 +28,7 @@ jobs:
           ${{ runner.os }}-pip-
     - name: Install dependencies
       run: |
-        pip install -e '.[test,mypy,flake8]'
+        pip install -e '.[test,mypy,flake8,tui]'
     - name: Optionally install numpy
       if: matrix.numpy == 1
       run: pip install numpy
