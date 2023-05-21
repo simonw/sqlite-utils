@@ -2672,11 +2672,20 @@ def _analyze(db, tables, columns, save, common_limit=10, no_most=False, no_least
         tables = db.table_names()
     todo = []
     table_counts = {}
+    seen_columns = set()
     for table in tables:
         table_counts[table] = db[table].count
         for column in db[table].columns:
             if not columns or column.name in columns:
                 todo.append((table, column.name))
+                seen_columns.add(column.name)
+    # Check the user didn't specify a column that doesn't exist
+    if columns and (set(columns) - seen_columns):
+        raise click.ClickException(
+            "These columns were not found: {}".format(
+                ", ".join(sorted(set(columns) - seen_columns))
+            )
+        )
     # Now we now how many we need to do
     for i, (table, column) in enumerate(todo):
         column_details = db[table].analyze_column(

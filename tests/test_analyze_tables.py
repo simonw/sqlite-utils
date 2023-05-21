@@ -281,3 +281,40 @@ def test_analyze_table_column_all_nulls(big_db_to_analyze_path):
         "\n"
         "  Distinct values: 0\n\n"
     )
+
+
+@pytest.mark.parametrize(
+    "args,expected_error",
+    (
+        (["-c", "bad_column"], "These columns were not found: bad_column\n"),
+        (["one", "-c", "age"], "These columns were not found: age\n"),
+        (["two", "-c", "age"], None),
+        (
+            ["one", "-c", "age", "--column", "bad"],
+            "These columns were not found: age, bad\n",
+        ),
+    ),
+)
+def test_analyze_table_validate_columns(tmpdir, args, expected_error):
+    path = str(tmpdir / "test_validate_columns.db")
+    db = Database(path)
+    db["one"].insert(
+        {
+            "id": 1,
+            "name": "one",
+        }
+    )
+    db["two"].insert(
+        {
+            "id": 1,
+            "age": 5,
+        }
+    )
+    result = CliRunner().invoke(
+        cli.cli,
+        ["analyze-tables", path] + args,
+        catch_exceptions=False,
+    )
+    assert result.exit_code == (1 if expected_error else 0)
+    if expected_error:
+        assert expected_error in result.output
