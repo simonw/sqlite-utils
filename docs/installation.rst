@@ -40,7 +40,7 @@ Using pipx
     pipx install sqlite-utils
 
 
-.. _cli_completion:
+.. _installation_completion:
 
 Setting up shell completion
 ===========================
