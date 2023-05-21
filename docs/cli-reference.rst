@@ -61,6 +61,7 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         "create-spatial-index": "cli_spatialite_indexes",
         "install": "cli_install",
         "uninstall": "cli_uninstall",
+        "tui": "cli_tui",
     }
     commands.sort(key = lambda command: go_first.index(command) if command in go_first else 999)
     cog.out("\n")
@@ -1023,6 +1024,23 @@ disable-fts
     Options:
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
+
+
+.. _cli_ref_tui:
+
+tui
+===
+
+See :ref:`cli_tui`.
+
+::
+
+    Usage: sqlite-utils tui [OPTIONS]
+
+      Open Textual TUI.
+
+    Options:
+      -h, --help  Show this message and exit.
 
 
 .. _cli_ref_optimize:

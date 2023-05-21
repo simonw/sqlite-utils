@@ -47,6 +47,7 @@ setup(
             "data-science-types",
         ],
         "flake8": ["flake8"],
+        "tui": ["trogon"],
     },
     entry_points="""
         [console_scripts]

@@ -2163,3 +2163,25 @@ You can uninstall packages that were installed using ``sqlite-utils install`` wi
     $ sqlite-utils uninstall beautifulsoup4
 
 Use ``-y`` to skip the request for confirmation.
+
+.. _cli_tui:
+
+Experimental TUI
+================
+
+A TUI is a "text user interface" (or "terminal user interface") - a keyboard and mouse driven graphical interface running in your terminal.
+
+``sqlite-utils`` has experimental support for a TUI for building command-line invocations, built on top of the `Trogon <https://github.com/Textualize/trogon/>`__ TUI library.
+
+To enable this feature you will need to install the ``trogon`` dependency. You can do that like so::
+
+    sqite-utils install trogon
+
+Once installed, running the ``sqlite-utils tui`` command will launch the TUI interface::
+
+    sqlite-utils tui
+
+You can then construct a command by selecting options from the menus, and execute it using ``Ctrl+R``.
+
+.. image:: _static/img/tui.png
+    :alt: A TUI interface for sqlite-utils - the left column shows a list of commands, while the right panel has a form for constructing arguments to the add-column command.

@@ -5,7 +5,7 @@ import pytest
 import re
 
 docs_path = Path(__file__).parent.parent / "docs"
-commands_re = re.compile(r"(?:\$ |    )sqlite-utils (\S+) ")
+commands_re = re.compile(r"(?:\$ |    )sqlite-utils (\S+)")
 recipes_re = re.compile(r"r\.(\w+)\(")
 
 
