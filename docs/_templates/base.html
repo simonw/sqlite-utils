@@ -7,6 +7,11 @@
 
 {% block scripts %}
 {{ super() }}
+<style type="text/css">
+.highlight-output .highlight {
+  border-left: 9px solid #30c94f;
+}
+</style>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
   // Show banner linking to /stable/ if this is a /latest/ page
