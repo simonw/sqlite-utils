@@ -33,6 +33,11 @@ from .utils import (
     TypeTracker,
 )
 
+try:
+    import trogon
+except ImportError:
+    trogon = None
+
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
@@ -110,6 +115,10 @@ def load_extension_option(fn):
 def cli():
     "Commands for interacting with a SQLite database"
     pass
+
+
+if trogon is not None:
+    cli = trogon.tui()(cli)
 
 
 @cli.command()
