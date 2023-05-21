@@ -9,7 +9,7 @@
 3.32.1 (2023-05-21)
 -------------------
 
-- Examples in the :ref:`CLI documentation <>` can now all be copied and pasted without needing to remove a leading ``$``. (:issue:`551`)
+- Examples in the :ref:`CLI documentation <cli>` can now all be copied and pasted without needing to remove a leading ``$``. (:issue:`551`)
 - Documentation now covers :ref:`installation_completion` for ``bash`` and ``zsh``. (:issue:`552`)
 
 .. _v3_32:
