@@ -38,3 +38,27 @@ Using pipx
 `pipx <https://pypi.org/project/pipx/>`__ is a tool for installing Python command-line applications in their own isolated environments. You can use ``pipx`` to install the ``sqlite-utils`` command-line tool like this::
 
     pipx install sqlite-utils
+
+
+.. _cli_completion:
+
+Setting up shell completion
+===========================
+
+You can configure shell tab completion for the ``sqlite-utils`` command using these commands.
+
+For ``bash``:
+
+.. code-block:: bash
+
+    eval "$(_SQLITE_UTILS_COMPLETE=bash_source sqlite-utils)"
+
+For ``zsh``:
+
+.. code-block:: zsh
+
+    eval "$(_SQLITE_UTILS_COMPLETE=zsh_source sqlite-utils)"
+
+Add this code to ``~/.zshrc`` or ``~/.bashrc`` to automatically run it when you start a new shell.
+
+See `the Click documentation <https://click.palletsprojects.com/en/8.1.x/shell-completion/>`__ for more details.
