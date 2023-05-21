@@ -3470,18 +3470,22 @@ class Table(Queryable):
             most_common_results = [(truncate(value), total_rows)]
         elif num_distinct != total_rows:
             if most_common:
-                most_common_results = [
-                    (truncate(r[0]), r[1])
-                    for r in db.execute(
-                        "select [{}], count(*) from [{}] group by [{}] order by count(*) desc, [{}] limit {}".format(
-                            column, table, column, column, common_limit
-                        )
-                    ).fetchall()
-                ]
-                most_common_results.sort(key=lambda p: (p[1], p[0]), reverse=True)
+                # Optimization - if all rows are null, don't run this query
+                if num_null == total_rows:
+                    most_common_results = [(None, total_rows)]
+                else:
+                    most_common_results = [
+                        (truncate(r[0]), r[1])
+                        for r in db.execute(
+                            "select [{}], count(*) from [{}] group by [{}] order by count(*) desc, [{}] limit {}".format(
+                                column, table, column, column, common_limit
+                            )
+                        ).fetchall()
+                    ]
+                    most_common_results.sort(key=lambda p: (p[1], p[0]), reverse=True)
             if least_common:
                 if num_distinct <= common_limit:
-                    # No need to run the query if it will just return the results in revers order
+                    # No need to run the query if it will just return the results in reverse order
                     least_common_results = None
                 else:
                     least_common_results = [

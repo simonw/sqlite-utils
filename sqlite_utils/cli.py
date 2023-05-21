@@ -2691,9 +2691,11 @@ def _analyze(db, tables, columns, save, common_limit=10, no_most=False, no_least
             db["_analyze_tables_"].insert(
                 column_details._asdict(), pk=("table", "column"), replace=True
             )
-        most_common_rendered = _render_common(
-            "\n\n  Most common:", column_details.most_common
-        )
+        most_common_rendered = ""
+        if column_details.num_null != column_details.total_rows:
+            most_common_rendered = _render_common(
+                "\n\n  Most common:", column_details.most_common
+            )
         least_common_rendered = _render_common(
             "\n\n  Least common:", column_details.least_common
         )

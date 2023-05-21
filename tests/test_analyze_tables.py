@@ -40,6 +40,7 @@ def big_db_to_analyze_path(tmpdir):
             to_insert.append(
                 {
                     "category": category,
+                    "all_null": None,
                 }
             )
     db["stuff"].insert_all(to_insert)
@@ -233,7 +234,15 @@ def test_analyze_table_save(db_to_analyze_path):
 def test_analyze_table_save_no_most_no_least_options(
     no_most, no_least, big_db_to_analyze_path
 ):
-    args = ["analyze-tables", big_db_to_analyze_path, "--save", "--common-limit", "2"]
+    args = [
+        "analyze-tables",
+        big_db_to_analyze_path,
+        "--save",
+        "--common-limit",
+        "2",
+        "--column",
+        "category",
+    ]
     if no_most:
         args.append("--no-most")
     if no_least:
@@ -257,3 +266,18 @@ def test_analyze_table_save_no_most_no_least_options(
         expected["least_common"] = '[["D", 10], ["C", 20]]'
 
     assert rows == [expected]
+
+
+def test_analyze_table_column_all_nulls(big_db_to_analyze_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        ["analyze-tables", big_db_to_analyze_path, "stuff", "--column", "all_null"],
+    )
+    assert result.exit_code == 0
+    assert result.output == (
+        "stuff.all_null: (1/1)\n\n  Total rows: 100\n"
+        "  Null rows: 100\n"
+        "  Blank rows: 0\n"
+        "\n"
+        "  Distinct values: 0\n\n"
+    )
