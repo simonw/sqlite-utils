@@ -25,10 +25,11 @@ def db_to_analyze(fresh_db):
 
 
 @pytest.mark.parametrize(
-    "column,expected",
+    "column,extra_kwargs,expected",
     [
         (
             "id",
+            {},
             ColumnDetails(
                 table="stuff",
                 column="id",
@@ -42,6 +43,7 @@ def db_to_analyze(fresh_db):
         ),
         (
             "owner",
+            {},
             ColumnDetails(
                 table="stuff",
                 column="owner",
@@ -55,6 +57,7 @@ def db_to_analyze(fresh_db):
         ),
         (
             "size",
+            {},
             ColumnDetails(
                 table="stuff",
                 column="size",
@@ -66,11 +69,41 @@ def db_to_analyze(fresh_db):
                 least_common=None,
             ),
         ),
+        (
+            "owner",
+            {"most_common": False},
+            ColumnDetails(
+                table="stuff",
+                column="owner",
+                total_rows=8,
+                num_null=0,
+                num_blank=0,
+                num_distinct=4,
+                most_common=None,
+                least_common=[("Anne", 1), ("Terry...", 2)],
+            ),
+        ),
+        (
+            "owner",
+            {"least_common": False},
+            ColumnDetails(
+                table="stuff",
+                column="owner",
+                total_rows=8,
+                num_null=0,
+                num_blank=0,
+                num_distinct=4,
+                most_common=[("Joan", 3), ("Kumar", 2)],
+                least_common=None,
+            ),
+        ),
     ],
 )
-def test_analyze_column(db_to_analyze, column, expected):
+def test_analyze_column(db_to_analyze, column, extra_kwargs, expected):
     assert (
-        db_to_analyze["stuff"].analyze_column(column, common_limit=2, value_truncate=5)
+        db_to_analyze["stuff"].analyze_column(
+            column, common_limit=2, value_truncate=5, **extra_kwargs
+        )
         == expected
     )
 

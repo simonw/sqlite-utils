@@ -3436,6 +3436,8 @@ class Table(Queryable):
         :param common_limit: Show this many column values
         :param value_truncate: Truncate display of common values to this many characters
         :param total_rows: Optimization - pass the total number of rows in the table to save running a fresh ``count(*)`` query
+        :param most_common: If ``True``, calculate the most common values
+        :param least_common: If ``True``, calculate the least common values
         """
         db = self.db
         table = self.name

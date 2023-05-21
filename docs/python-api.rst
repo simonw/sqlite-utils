@@ -1115,7 +1115,26 @@ You can inspect the database to see the results like this::
 Analyzing a column
 ==================
 
-The ``table.analyze_column(column, common_limit=10, value_truncate=None)`` method is used by the :ref:`analyze-tables <cli_analyze_tables>` CLI command. It returns a ``ColumnDetails`` named tuple with the following fields:
+The ``table.analyze_column(column)`` method is used by the :ref:`analyze-tables <cli_analyze_tables>` CLI command.
+
+It takes the following arguments and options:
+
+``column`` - required
+    The name of the column to analyze
+
+``common_limit``
+    The number of most common values to return. Defaults to 10.
+
+``value_truncate``
+    If set to an integer, values longer than this will be truncated to this length. Defaults to None.
+
+``most_common``
+    If set to False, the ``most_common`` field of the returned ``ColumnDetails`` will be set to None. Defaults to True.
+
+``least_common``
+    If set to False, the ``least_common`` field of the returned ``ColumnDetails`` will be set to None. Defaults to True.
+
+And returns a ``ColumnDetails`` named tuple with the following fields:
 
 ``table``
     The name of the table
@@ -1140,10 +1159,6 @@ The ``table.analyze_column(column, common_limit=10, value_truncate=None)`` metho
 
 ``least_common``
     The ``N`` least common values as a list of ``(value, count)`` tuples`, or ``None`` if the table is entirely distinct or if the number of distinct values is less than N (since they will already have been returned in ``most_common``)
-
-``N`` defaults to 10, or you can pass a custom ``N`` using the ``common_limit`` parameter.
-
-You can use the ``value_truncate`` parameter to truncate values in the ``most_common`` and ``least_common`` lists to a specified number of characters.
 
 .. _python_api_add_column:
 
