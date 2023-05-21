@@ -34,7 +34,7 @@ from .utils import (
 )
 
 try:
-    import trogon
+    import trogon  # type: ignore
 except ImportError:
     trogon = None
 
