@@ -2639,12 +2639,20 @@ def insert_files(
     help="Specific columns to analyze",
 )
 @click.option("--save", is_flag=True, help="Save results to _analyze_tables table")
+@click.option("--common-limit", type=int, default=10, help="How many common values")
+@click.option("--no-most", is_flag=True, default=False, help="Skip most common values")
+@click.option(
+    "--no-least", is_flag=True, default=False, help="Skip least common values"
+)
 @load_extension_option
 def analyze_tables(
     path,
     tables,
     columns,
     save,
+    common_limit,
+    no_most,
+    no_least,
     load_extension,
 ):
     """Analyze the columns in one or more tables
@@ -2656,10 +2664,10 @@ def analyze_tables(
     """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
-    _analyze(db, tables, columns, save)
+    _analyze(db, tables, columns, save, common_limit, no_most, no_least)
 
 
-def _analyze(db, tables, columns, save):
+def _analyze(db, tables, columns, save, common_limit=10, no_most=False, no_least=False):
     if not tables:
         tables = db.table_names()
     todo = []
@@ -2672,7 +2680,12 @@ def _analyze(db, tables, columns, save):
     # Now we now how many we need to do
     for i, (table, column) in enumerate(todo):
         column_details = db[table].analyze_column(
-            column, total_rows=table_counts[table], value_truncate=80
+            column,
+            common_limit=common_limit,
+            total_rows=table_counts[table],
+            value_truncate=80,
+            most_common=not no_most,
+            least_common=not no_least,
         )
         if save:
             db["_analyze_tables_"].insert(

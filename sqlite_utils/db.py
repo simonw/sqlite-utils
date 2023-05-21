@@ -3419,7 +3419,13 @@ class Table(Queryable):
         self.db.analyze(self.name)
 
     def analyze_column(
-        self, column: str, common_limit: int = 10, value_truncate=None, total_rows=None
+        self,
+        column: str,
+        common_limit: int = 10,
+        value_truncate=None,
+        total_rows=None,
+        most_common: bool = True,
+        least_common: bool = True,
     ) -> "ColumnDetails":
         """
         Return statistics about the specified column.
@@ -3453,36 +3459,38 @@ class Table(Queryable):
         num_distinct = db.execute(
             "select count(distinct [{}]) from [{}]".format(column, table)
         ).fetchone()[0]
-        most_common = None
-        least_common = None
+        most_common_results = None
+        least_common_results = None
         if num_distinct == 1:
             value = db.execute(
                 "select [{}] from [{}] limit 1".format(column, table)
             ).fetchone()[0]
-            most_common = [(truncate(value), total_rows)]
+            most_common_results = [(truncate(value), total_rows)]
         elif num_distinct != total_rows:
-            most_common = [
-                (truncate(r[0]), r[1])
-                for r in db.execute(
-                    "select [{}], count(*) from [{}] group by [{}] order by count(*) desc, [{}] limit {}".format(
-                        column, table, column, column, common_limit
-                    )
-                ).fetchall()
-            ]
-            most_common.sort(key=lambda p: (p[1], p[0]), reverse=True)
-            if num_distinct <= common_limit:
-                # No need to run the query if it will just return the results in revers order
-                least_common = None
-            else:
-                least_common = [
+            if most_common:
+                most_common_results = [
                     (truncate(r[0]), r[1])
                     for r in db.execute(
-                        "select [{}], count(*) from [{}] group by [{}] order by count(*), [{}] desc limit {}".format(
+                        "select [{}], count(*) from [{}] group by [{}] order by count(*) desc, [{}] limit {}".format(
                             column, table, column, column, common_limit
                         )
                     ).fetchall()
                 ]
-                least_common.sort(key=lambda p: (p[1], p[0]))
+                most_common_results.sort(key=lambda p: (p[1], p[0]), reverse=True)
+            if least_common:
+                if num_distinct <= common_limit:
+                    # No need to run the query if it will just return the results in revers order
+                    least_common_results = None
+                else:
+                    least_common_results = [
+                        (truncate(r[0]), r[1])
+                        for r in db.execute(
+                            "select [{}], count(*) from [{}] group by [{}] order by count(*), [{}] desc limit {}".format(
+                                column, table, column, column, common_limit
+                            )
+                        ).fetchall()
+                    ]
+                    least_common_results.sort(key=lambda p: (p[1], p[0]))
         return ColumnDetails(
             self.name,
             column,
@@ -3490,8 +3498,8 @@ class Table(Queryable):
             num_null,
             num_blank,
             num_distinct,
-            most_common,
-            least_common,
+            most_common_results,
+            least_common_results,
         )
 
     def add_geometry_column(
