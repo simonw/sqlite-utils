@@ -13,16 +13,17 @@ from typing import Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type
 
 import click
 
-try:
-    import pysqlite3 as sqlite3  # type: ignore
-    import pysqlite3.dbapi2  # type: ignore
+db_modules = ("pysqlite3", "sqlean", "sqlite3")
 
-    OperationalError = pysqlite3.dbapi2.OperationalError
-except ImportError:
-    # https://github.com/python/mypy/issues/1153#issuecomment-253842414
-    import sqlite3  # type: ignore
+for module in db_modules:
+    try:
+        sqlite3 = __import__(module)
+        dbapi2 = __import__("{}.dbapi2".format(module))
+        OperationalError = dbapi2.OperationalError
+        break
+    except ImportError:
+        pass
 
-    OperationalError = sqlite3.OperationalError
 
 SPATIALITE_PATHS = (
     "/usr/lib/x86_64-linux-gnu/mod_spatialite.so",
