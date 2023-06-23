@@ -13,16 +13,22 @@ from typing import Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type
 
 import click
 
-db_modules = ("pysqlite3", "sqlean", "sqlite3")
+try:
+    import pysqlite3 as sqlite3  # noqa: F401
+    from pysqlite3 import dbapi2  # noqa: F401
 
-for module in db_modules:
+    OperationalError = dbapi2.OperationalError
+except ImportError:
     try:
-        sqlite3 = __import__(module)  # type: ignore
-        dbapi2 = __import__("{}.dbapi2".format(module))  # type: ignore
-        OperationalError = dbapi2.OperationalError  # type: ignore
-        break
+        import sqlean as sqlite3  # noqa: F401
+        from sqlean import dbapi2  # noqa: F401
+
+        OperationalError = dbapi2.OperationalError
     except ImportError:
-        pass
+        import sqlite3  # noqa: F401
+        from sqlite3 import dbapi2  # noqa: F401
+
+        OperationalError = dbapi2.OperationalError
 
 
 SPATIALITE_PATHS = (
