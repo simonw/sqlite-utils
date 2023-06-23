@@ -17,9 +17,9 @@ db_modules = ("pysqlite3", "sqlean", "sqlite3")
 
 for module in db_modules:
     try:
-        sqlite3 = __import__(module)
-        dbapi2 = __import__("{}.dbapi2".format(module))
-        OperationalError = dbapi2.OperationalError
+        sqlite3 = __import__(module)  # type: ignore
+        dbapi2 = __import__("{}.dbapi2".format(module))  # type: ignore
+        OperationalError = dbapi2.OperationalError  # type: ignore
         break
     except ImportError:
         pass
