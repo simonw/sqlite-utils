@@ -60,6 +60,12 @@ To install ``sqlean.py`` (which has compiled binary wheels available for all maj
 
     sqlite-utils install sqlean.py
 
+``pysqlite3`` and ``sqlean.py`` do not provide implementations of the ``.iterdump()`` method. To use that method (see :ref:`python_api_itedump`) or the ``sqlite-utils dump`` command you should also install the ``sqlite-dump`` package:
+
+.. code-block:: bash
+
+    sqlite-utils install sqlite-dump
+
 .. _installation_completion:
 
 Setting up shell completion

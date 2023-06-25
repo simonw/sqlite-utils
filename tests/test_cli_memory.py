@@ -164,9 +164,9 @@ def test_memory_dump(extra_args):
         input="id,name\n1,Cleo\n2,Bants",
     )
     assert result.exit_code == 0
-    assert result.output.strip() == (
+    expected = (
         "BEGIN TRANSACTION;\n"
-        'CREATE TABLE "stdin" (\n'
+        'CREATE TABLE IF NOT EXISTS "stdin" (\n'
         "   [id] INTEGER,\n"
         "   [name] TEXT\n"
         ");\n"
@@ -176,6 +176,9 @@ def test_memory_dump(extra_args):
         "CREATE VIEW t AS select * from [stdin];\n"
         "COMMIT;"
     )
+    # Using sqlite-dump it won't have IF NOT EXISTS
+    expected_alternative = expected.replace("IF NOT EXISTS ", "")
+    assert result.output.strip() in (expected, expected_alternative)
 
 
 @pytest.mark.parametrize("extra_args", ([], ["select 1"]))

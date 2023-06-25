@@ -135,7 +135,8 @@ def test_analyze_column(db_to_analyze, column, extra_kwargs, expected):
 def db_to_analyze_path(db_to_analyze, tmpdir):
     path = str(tmpdir / "test.db")
     db = sqlite3.connect(path)
-    db.executescript("\n".join(db_to_analyze.conn.iterdump()))
+    sql = "\n".join(db_to_analyze.iterdump())
+    db.executescript(sql)
     return path
 
 

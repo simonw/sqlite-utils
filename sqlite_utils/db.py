@@ -38,6 +38,12 @@ from typing import (
 )
 import uuid
 
+try:
+    from sqlite_dump import iterdump
+except ImportError:
+    iterdump = None
+
+
 SQLITE_MAX_VARS = 999
 
 _quote_fts_re = re.compile(r'\s+|(".*?")')
@@ -1148,6 +1154,18 @@ class Database:
         if name is not None:
             sql += " [{}]".format(name)
         self.execute(sql)
+
+    def iterdump(self) -> Generator[str, None, None]:
+        "A sequence of strings representing a SQL dump of the database"
+        if iterdump:
+            yield from iterdump(self.conn)
+        else:
+            try:
+                yield from self.conn.iterdump()
+            except AttributeError:
+                raise AttributeError(
+                    "conn.iterdump() not found - try pip install sqlite-dump"
+                )
 
     def init_spatialite(self, path: Optional[str] = None) -> bool:
         """

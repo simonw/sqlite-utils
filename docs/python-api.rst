@@ -1779,6 +1779,25 @@ The ``db.sqlite_version`` property returns a tuple of integers representing the 
     >>> db.sqlite_version
     (3, 36, 0)
 
+.. _python_api_itedump:
+
+Dumping the database to SQL
+===========================
+
+The ``db.iterdump()`` method returns a sequence of SQL strings representing a complete dump of the database. Use it like this:
+
+.. code-block:: python
+
+    full_sql = "".join(db.iterdump())
+
+This uses the `sqlite3.Connection.iterdump() <https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.iterdump>`__ method.
+
+If you are using ``pysqlite3`` or ``sqlean.py`` the underlying method may be missing. If you install the `sqlite-dump <https://pypi.org/project/sqlite-dump/>`__ package then the ``db.iterdump()`` method will use that implementation instead:
+
+.. code-block:: bash
+
+    pip install sqlite-dump
+
 .. _python_api_introspection:
 
 Introspecting tables and views

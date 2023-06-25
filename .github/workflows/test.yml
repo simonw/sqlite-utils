@@ -37,7 +37,7 @@ jobs:
       run: sudo apt-get install libsqlite3-mod-spatialite
     - name: On macOS with Python 3.10 test with sqlean.py
       if: matrix.os == 'macos-latest' && matrix.python-version == '3.10'
-      run: pip install sqlean.py
+      run: pip install sqlean.py sqlite-dump
     - name: Build extension for --load-extension test
       if: matrix.os == 'ubuntu-latest'
       run: |-
