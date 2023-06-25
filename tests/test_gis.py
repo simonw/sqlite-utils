@@ -6,6 +6,12 @@ from sqlite_utils.cli import cli
 from sqlite_utils.db import Database
 from sqlite_utils.utils import find_spatialite, sqlite3
 
+try:
+    import sqlean
+except ImportError:
+    sqlean = None
+
+
 pytestmark = [
     pytest.mark.skipif(
         not find_spatialite(), reason="Could not find SpatiaLite extension"
@@ -13,6 +19,9 @@ pytestmark = [
     pytest.mark.skipif(
         not hasattr(sqlite3.Connection, "enable_load_extension"),
         reason="sqlite3.Connection missing enable_load_extension",
+    ),
+    pytest.mark.skipif(
+        sqlean is not None, reason="sqlean.py is not compatible with SpatiaLite"
     ),
 ]
 
