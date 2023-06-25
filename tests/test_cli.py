@@ -1429,7 +1429,7 @@ def test_enable_wal():
             db = Database(dbname)
             db["t"].create({"pk": int}, pk="pk")
             assert db.journal_mode == "delete"
-        result = runner.invoke(cli.cli, ["enable-wal"] + dbs)
+        result = runner.invoke(cli.cli, ["enable-wal"] + dbs, catch_exceptions=False)
         assert 0 == result.exit_code
         for dbname in dbs:
             db = Database(dbname)
