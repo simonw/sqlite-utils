@@ -14,15 +14,22 @@ from typing import Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type
 import click
 
 try:
-    import pysqlite3 as sqlite3  # type: ignore
-    import pysqlite3.dbapi2  # type: ignore
+    import pysqlite3 as sqlite3  # noqa: F401
+    from pysqlite3 import dbapi2  # noqa: F401
 
-    OperationalError = pysqlite3.dbapi2.OperationalError
+    OperationalError = dbapi2.OperationalError
 except ImportError:
-    # https://github.com/python/mypy/issues/1153#issuecomment-253842414
-    import sqlite3  # type: ignore
+    try:
+        import sqlean as sqlite3  # noqa: F401
+        from sqlean import dbapi2  # noqa: F401
 
-    OperationalError = sqlite3.OperationalError
+        OperationalError = dbapi2.OperationalError
+    except ImportError:
+        import sqlite3  # noqa: F401
+        from sqlite3 import dbapi2  # noqa: F401
+
+        OperationalError = dbapi2.OperationalError
+
 
 SPATIALITE_PATHS = (
     "/usr/lib/x86_64-linux-gnu/mod_spatialite.so",

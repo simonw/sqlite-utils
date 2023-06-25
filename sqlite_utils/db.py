@@ -38,6 +38,12 @@ from typing import (
 )
 import uuid
 
+try:
+    from sqlite_dump import iterdump
+except ImportError:
+    iterdump = None
+
+
 SQLITE_MAX_VARS = 999
 
 _quote_fts_re = re.compile(r'\s+|(".*?")')
@@ -339,6 +345,25 @@ class Database:
     def close(self):
         "Close the SQLite connection, and the underlying database file"
         self.conn.close()
+
+    @contextlib.contextmanager
+    def ensure_autocommit_off(self):
+        """
+        Ensure autocommit is off for this database connection.
+
+        Example usage::
+
+            with db.ensure_autocommit_off():
+                # do stuff here
+
+        This will reset to the previous autocommit state at the end of the block.
+        """
+        old_isolation_level = self.conn.isolation_level
+        try:
+            self.conn.isolation_level = None
+            yield
+        finally:
+            self.conn.isolation_level = old_isolation_level
 
     @contextlib.contextmanager
     def tracer(self, tracer: Optional[Callable] = None):
@@ -656,12 +681,14 @@ class Database:
         Sets ``journal_mode`` to ``'wal'`` to enable Write-Ahead Log mode.
         """
         if self.journal_mode != "wal":
-            self.execute("PRAGMA journal_mode=wal;")
+            with self.ensure_autocommit_off():
+                self.execute("PRAGMA journal_mode=wal;")
 
     def disable_wal(self):
         "Sets ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode."
         if self.journal_mode != "delete":
-            self.execute("PRAGMA journal_mode=delete;")
+            with self.ensure_autocommit_off():
+                self.execute("PRAGMA journal_mode=delete;")
 
     def _ensure_counts_table(self):
         with self.conn:
@@ -1148,6 +1175,18 @@ class Database:
         if name is not None:
             sql += " [{}]".format(name)
         self.execute(sql)
+
+    def iterdump(self) -> Generator[str, None, None]:
+        "A sequence of strings representing a SQL dump of the database"
+        if iterdump:
+            yield from iterdump(self.conn)
+        else:
+            try:
+                yield from self.conn.iterdump()
+            except AttributeError:
+                raise AttributeError(
+                    "conn.iterdump() not found - try pip install sqlite-dump"
+                )
 
     def init_spatialite(self, path: Optional[str] = None) -> bool:
         """

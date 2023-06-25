@@ -395,7 +395,7 @@ def dump(path, load_extension):
     """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
-    for line in db.conn.iterdump():
+    for line in db.iterdump():
         click.echo(line)
 
 
@@ -1893,7 +1893,7 @@ def memory(
         return
 
     if dump:
-        for line in db.conn.iterdump():
+        for line in db.iterdump():
             click.echo(line)
         return
 
@@ -1903,7 +1903,7 @@ def memory(
 
     if save:
         db2 = sqlite_utils.Database(save)
-        for line in db.conn.iterdump():
+        for line in db.iterdump():
             db2.execute(line)
         return
 
