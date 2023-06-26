@@ -4,6 +4,15 @@
  Changelog
 ===========
 
+.. _v3_33:
+
+3.33 (2023-06-25)
+-----------------
+
+- ``sqlite-utils`` will now use `sqlean.py <https://github.com/nalgeon/sqlean.py>`__ in place of ``sqlite3`` if it is installed in the same virtual environment. This is useful for Python environments with either an outdated version of SQLite or with restrictions on SQLite such as disabled extension loading or restrictions resulting in the ``sqlite3.OperationalError: table sqlite_master may not be modified`` error. (:issue:`559`)
+- New ``with db.ensure_autocommit_off()`` context manager, which ensures that the database is in autocommit mode for the duration of a block of code. This is used by ``db.enable_wal()`` and ``db.disable_wal()`` to ensure they work correctly with ``pysqlite3`` and ``sqlean.py``.
+- New ``db.iterdump()`` method, providing an iterator over SQL strings representing a dump of the database. This uses ``sqlite-dump`` if it is available, otherwise falling back on the ``conn.iterdump()`` method from ``sqlite3``. Both ``pysqlite3`` and ``sqlean.py`` omit support for ``iterdump()`` - this method helps paper over that difference.
+
 .. _v3_32_1:
 
 3.32.1 (2023-05-21)
