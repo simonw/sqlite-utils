@@ -276,6 +276,7 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --no-headers              CSV file has no header row
       --encoding TEXT           Character encoding for input, defaults to utf-8
       --batch-size INTEGER      Commit every X records
+      --stop-after INTEGER      Stop after X records
       --alter                   Alter existing table to add any missing columns
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column
@@ -330,6 +331,7 @@ See :ref:`cli_upsert`.
       --no-headers              CSV file has no header row
       --encoding TEXT           Character encoding for input, defaults to utf-8
       --batch-size INTEGER      Commit every X records
+      --stop-after INTEGER      Stop after X records
       --alter                   Alter existing table to add any missing columns
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column

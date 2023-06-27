@@ -1237,6 +1237,12 @@ Data is expected to be encoded as Unicode UTF-8. If your data is an another char
 
     sqlite-utils insert dogs.db dogs dogs.tsv --tsv --encoding=latin-1
 
+To stop inserting after a specified number of records - useful for getting a faster preview of a large file - use the ``--stop-after`` option:
+
+.. code-block:: bash
+
+    sqlite-utils insert dogs.db dogs dogs.csv --csv --stop-after=10
+
 A progress bar is displayed when inserting data from a file. You can hide the progress bar using the ``--silent`` option.
 
 By default every column inserted from a CSV or TSV file will be of type ``TEXT``. To automatically detect column types - resulting in a mix of ``TEXT``, ``INTEGER`` and ``FLOAT`` columns, use the ``--detect-types`` option (or its shortcut ``-d``).

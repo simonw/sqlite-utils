@@ -230,6 +230,31 @@ def test_insert_csv_tsv(content, options, db_path, tmpdir):
 
 
 @pytest.mark.parametrize(
+    "input,args",
+    (
+        (
+            json.dumps(
+                [{"name": "One"}, {"name": "Two"}, {"name": "Three"}, {"name": "Four"}]
+            ),
+            [],
+        ),
+        ("name\nOne\nTwo\nThree\nFour\n", ["--csv"]),
+    ),
+)
+def test_insert_stop_after(tmpdir, input, args):
+    db_path = str(tmpdir / "data.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "rows", "-", "--stop-after", "2"] + args,
+        input=input,
+    )
+    assert 0 == result.exit_code
+    assert [{"name": "One"}, {"name": "Two"}] == list(
+        Database(db_path).query("select * from rows")
+    )
+
+
+@pytest.mark.parametrize(
     "options",
     (
         ["--tsv", "--nl"],

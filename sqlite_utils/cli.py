@@ -868,6 +868,7 @@ def insert_upsert_options(*, require_pk=False):
                 click.option(
                     "--batch-size", type=int, default=100, help="Commit every X records"
                 ),
+                click.option("--stop-after", type=int, help="Stop after X records"),
                 click.option(
                     "--alter",
                     is_flag=True,
@@ -925,6 +926,7 @@ def insert_upsert_implementation(
     no_headers,
     encoding,
     batch_size,
+    stop_after,
     alter,
     upsert,
     ignore=False,
@@ -1011,6 +1013,9 @@ def insert_upsert_implementation(
                 )
             if flatten:
                 docs = (_flatten(doc) for doc in docs)
+
+    if stop_after:
+        docs = itertools.islice(docs, stop_after)
 
     if convert:
         variable = "row"
@@ -1146,6 +1151,7 @@ def insert(
     no_headers,
     encoding,
     batch_size,
+    stop_after,
     alter,
     detect_types,
     analyze,
@@ -1221,6 +1227,7 @@ def insert(
             no_headers,
             encoding,
             batch_size,
+            stop_after,
             alter=alter,
             upsert=False,
             ignore=ignore,
@@ -1253,6 +1260,7 @@ def upsert(
     convert,
     imports,
     batch_size,
+    stop_after,
     delimiter,
     quotechar,
     sniff,
@@ -1299,6 +1307,7 @@ def upsert(
             no_headers,
             encoding,
             batch_size,
+            stop_after,
             alter=alter,
             upsert=True,
             not_null=not_null,
@@ -1380,6 +1389,7 @@ def bulk(
             no_headers=no_headers,
             encoding=encoding,
             batch_size=batch_size,
+            stop_after=None,
             alter=False,
             upsert=False,
             not_null=set(),
