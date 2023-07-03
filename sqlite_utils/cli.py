@@ -810,6 +810,7 @@ _import_options = (
     click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
     click.option("-c", "--csv", is_flag=True, help="Expect CSV input"),
     click.option("--tsv", is_flag=True, help="Expect TSV input"),
+    click.option("--empty-null", is_flag=True, help="Treat empty strings as NULL"),
     click.option(
         "--lines",
         is_flag=True,
@@ -916,6 +917,7 @@ def insert_upsert_implementation(
     nl,
     csv,
     tsv,
+    empty_null,
     lines,
     text,
     convert,
@@ -951,6 +953,8 @@ def insert_upsert_implementation(
         raise click.ClickException("Use just one of --nl, --csv or --tsv")
     if (csv or tsv) and flatten:
         raise click.ClickException("--flatten cannot be used with --csv or --tsv")
+    if empty_null and not (csv or tsv):
+        raise click.ClickException("--empty-null can only be used with --csv or --tsv")
     if encoding and not (csv or tsv):
         raise click.ClickException("--encoding must be used with --csv or --tsv")
     if pk and len(pk) == 1:
@@ -989,7 +993,13 @@ def insert_upsert_implementation(
                 reader = itertools.chain([first_row], reader)
             else:
                 headers = first_row
-            docs = (dict(zip(headers, row)) for row in reader)
+            if empty_null:
+                docs = (
+                    dict(zip(headers, [None if cell == "" else cell for cell in row]))
+                    for row in reader
+                )
+            else:
+                docs = (dict(zip(headers, row)) for row in reader)
             if detect_types:
                 tracker = TypeTracker()
                 docs = tracker.wrap(docs)
@@ -1141,6 +1151,7 @@ def insert(
     nl,
     csv,
     tsv,
+    empty_null,
     lines,
     text,
     convert,
@@ -1217,6 +1228,7 @@ def insert(
             nl,
             csv,
             tsv,
+            empty_null,
             lines,
             text,
             convert,
@@ -1255,6 +1267,7 @@ def upsert(
     nl,
     csv,
     tsv,
+    empty_null,
     lines,
     text,
     convert,
@@ -1297,6 +1310,7 @@ def upsert(
             nl,
             csv,
             tsv,
+            empty_null,
             lines,
             text,
             convert,
@@ -1345,6 +1359,7 @@ def bulk(
     nl,
     csv,
     tsv,
+    empty_null,
     lines,
     text,
     convert,
@@ -1379,6 +1394,7 @@ def bulk(
             nl=nl,
             csv=csv,
             tsv=tsv,
+            empty_null=empty_null,
             lines=lines,
             text=text,
             convert=convert,

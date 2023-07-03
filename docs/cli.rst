@@ -1281,6 +1281,22 @@ You can set the ``SQLITE_UTILS_DETECT_TYPES`` environment variable if you want `
 
     export SQLITE_UTILS_DETECT_TYPES=1
 
+If a CSV or TSV file includes empty cells, like this one:
+
+.. code-block:: csv
+
+    name,age,weight
+    Cleo,6,
+    Dori,,3.5
+
+They will be imported into SQLite as empty string values, ``""``.
+
+To import them as ``NULL`` values instead, use the ``--empty-null`` option:
+
+.. code-block:: bash
+
+    sqlite-utils insert creatures.db creatures creatures.csv --csv --empty-null
+
 .. _cli_insert_csv_tsv_delimiter:
 
 Alternative delimiters and quote characters

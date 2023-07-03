@@ -229,6 +229,24 @@ def test_insert_csv_tsv(content, options, db_path, tmpdir):
     assert [{"foo": "1", "bar": "2", "baz": "cat,dog"}] == list(db["data"].rows)
 
 
+@pytest.mark.parametrize("empty_null", (True, False))
+def test_insert_csv_empty_null(db_path, empty_null):
+    options = ["--csv"]
+    if empty_null:
+        options.append("--empty-null")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "data", "-"] + options,
+        catch_exceptions=False,
+        input="foo,bar,baz\n1,,cat,dog",
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    assert [r for r in db["data"].rows] == [
+        {"foo": "1", "bar": None if empty_null else "", "baz": "cat"}
+    ]
+
+
 @pytest.mark.parametrize(
     "input,args",
     (

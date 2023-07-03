@@ -55,7 +55,7 @@ def test_help(options):
 
 
 def test_tables(db_path):
-    result = CliRunner().invoke(cli.cli, ["tables", db_path])
+    result = CliRunner().invoke(cli.cli, ["tables", db_path], catch_exceptions=False)
     assert '[{"table": "Gosh"},\n {"table": "Gosh2"}]' == result.output.strip()
 
 

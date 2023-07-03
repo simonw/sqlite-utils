@@ -266,6 +266,7 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --nl                      Expect newline-delimited JSON
       -c, --csv                 Expect CSV input
       --tsv                     Expect TSV input
+      --empty-null              Treat empty strings as NULL
       --lines                   Treat each line as a single value called 'line'
       --text                    Treat input as a single value called 'text'
       --convert TEXT            Python code to convert each item
@@ -321,6 +322,7 @@ See :ref:`cli_upsert`.
       --nl                      Expect newline-delimited JSON
       -c, --csv                 Expect CSV input
       --tsv                     Expect TSV input
+      --empty-null              Treat empty strings as NULL
       --lines                   Treat each line as a single value called 'line'
       --text                    Treat input as a single value called 'text'
       --convert TEXT            Python code to convert each item
@@ -372,6 +374,7 @@ See :ref:`cli_bulk`.
       --nl                   Expect newline-delimited JSON
       -c, --csv              Expect CSV input
       --tsv                  Expect TSV input
+      --empty-null           Treat empty strings as NULL
       --lines                Treat each line as a single value called 'line'
       --text                 Treat input as a single value called 'text'
       --convert TEXT         Python code to convert each item
