@@ -79,6 +79,8 @@ Now, running this should execute your new command:
 
 Your command will also be listed in the output of ``sqlite-utils --help``.
 
+See the `LLM plugin documentation <https://llm.datasette.io/en/stable/plugins/tutorial-model-plugin.html#distributing-your-plugin>`__ for tips on distributing your plugin.
+
 .. _plugins_hooks:
 
 Plugin hooks
