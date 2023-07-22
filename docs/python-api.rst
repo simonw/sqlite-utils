@@ -1376,6 +1376,12 @@ The ``.transform()`` method takes a number of parameters, all of which are optio
 
 As a bonus, calling ``.transform()`` will reformat the schema for the table that is stored in SQLite to make it more readable. This works even if you call it without any arguments.
 
+To keep the original table around instead of dropping it, pass the ``keep_table=`` option and specify the name of the table you would like it to be renamed to:
+
+.. code-block:: python
+
+    table.transform(types={"age": int}, keep_table="original_table")
+
 Altering column types
 ---------------------
 

@@ -86,6 +86,16 @@ import pytest
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
         ),
+        # Keeping the table
+        (
+            {"drop": ["age"], "keep_table": "kept_table"},
+            [
+                "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n);",
+                "INSERT INTO [dogs_new_suffix] ([id], [name])\n   SELECT [id], [name] FROM [dogs];",
+                "ALTER TABLE [dogs] RENAME TO [kept_table];",
+                "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
+            ],
+        ),
     ],
 )
 @pytest.mark.parametrize("use_pragma_foreign_keys", [False, True])

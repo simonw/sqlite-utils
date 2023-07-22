@@ -1702,6 +1702,7 @@ class Table(Queryable):
         defaults: Optional[Dict[str, Any]] = None,
         drop_foreign_keys: Optional[Iterable] = None,
         column_order: Optional[List[str]] = None,
+        keep_table: Optional[str] = None,
     ) -> "Table":
         """
         Apply an advanced alter table, including operations that are not supported by
@@ -1717,7 +1718,9 @@ class Table(Queryable):
         :param defaults: Default values for columns
         :param drop_foreign_keys: Names of columns that should have their foreign key constraints removed
         :param column_order: List of strings specifying a full or partial column order
-          to use when creating the table.
+          to use when creating the table
+        :param keep_table: If specified, the existing table will be renamed to this and will not be
+          dropped
         """
         assert self.exists(), "Cannot transform a table that doesn't exist yet"
         sqls = self.transform_sql(
@@ -1729,6 +1732,7 @@ class Table(Queryable):
             defaults=defaults,
             drop_foreign_keys=drop_foreign_keys,
             column_order=column_order,
+            keep_table=keep_table,
         )
         pragma_foreign_keys_was_on = self.db.execute("PRAGMA foreign_keys").fetchone()[
             0
@@ -1750,15 +1754,16 @@ class Table(Queryable):
     def transform_sql(
         self,
         *,
-        types=None,
-        rename=None,
-        drop=None,
-        pk=DEFAULT,
-        not_null=None,
-        defaults=None,
-        drop_foreign_keys=None,
-        column_order=None,
-        tmp_suffix=None,
+        types: Optional[dict] = None,
+        rename: Optional[dict] = None,
+        drop: Optional[Iterable] = None,
+        pk: Optional[Any] = DEFAULT,
+        not_null: Optional[Iterable[str]] = None,
+        defaults: Optional[Dict[str, Any]] = None,
+        drop_foreign_keys: Optional[Iterable] = None,
+        column_order: Optional[List[str]] = None,
+        tmp_suffix: Optional[str] = None,
+        keep_table: Optional[str] = None,
     ) -> List[str]:
         """
         Return a list of SQL statements that should be executed in order to apply this transformation.
@@ -1771,7 +1776,10 @@ class Table(Queryable):
         :param defaults: Default values for columns
         :param drop_foreign_keys: Names of columns that should have their foreign key constraints removed
         :param column_order: List of strings specifying a full or partial column order
-          to use when creating the table.
+          to use when creating the table
+        :param tmp_suffix: Suffix to use for the temporary table name
+        :param keep_table: If specified, the existing table will be renamed to this and will not be
+          dropped
         """
         types = types or {}
         rename = rename or {}
@@ -1872,8 +1880,13 @@ class Table(Queryable):
             new_cols=", ".join("[{}]".format(col) for col in new_cols),
         )
         sqls.append(copy_sql)
-        # Drop the old table
-        sqls.append("DROP TABLE [{}];".format(self.name))
+        # Drop (or keep) the old table
+        if keep_table:
+            sqls.append(
+                "ALTER TABLE [{}] RENAME TO [{}];".format(self.name, keep_table)
+            )
+        else:
+            sqls.append("DROP TABLE [{}];".format(self.name))
         # Rename the new one
         sqls.append(
             "ALTER TABLE [{}] RENAME TO [{}];".format(new_table_name, self.name)
