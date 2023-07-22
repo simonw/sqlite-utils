@@ -128,7 +128,7 @@ aggregates and collations. For example:
         )
 
 This registers a SQL function called ``hello`` which takes a single
-argument and can be called like this::
+argument and can be called like this:
 
 .. code-block:: sql
 
