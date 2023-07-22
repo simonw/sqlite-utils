@@ -36,6 +36,7 @@ Contents
    installation
    cli
    python-api
+   plugins
    reference
    cli-reference
    contributing

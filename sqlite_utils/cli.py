@@ -7,6 +7,7 @@ import pathlib
 from runpy import run_module
 import sqlite_utils
 from sqlite_utils.db import AlterError, BadMultiValues, DescIndex, NoTable
+from sqlite_utils.plugins import pm, get_plugins
 from sqlite_utils.utils import maximize_csv_field_size_limit
 from sqlite_utils import recipes
 import textwrap
@@ -3076,6 +3077,15 @@ def create_spatial_index(db_path, table, column_name, load_extension):
         )
 
     db[table].create_spatial_index(column_name)
+
+
+@cli.command(name="plugins")
+def plugins_list():
+    "List installed plugins"
+    click.echo(json.dumps(get_plugins(), indent=2))
+
+
+pm.hook.register_commands(cli=cli)
 
 
 def _render_common(title, values):

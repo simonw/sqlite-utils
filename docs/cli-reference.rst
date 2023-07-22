@@ -11,6 +11,8 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
 
 .. [[[cog
     from sqlite_utils import cli
+    import sys
+    sys._called_from_test = True
     from click.testing import CliRunner
     import textwrap
     commands = list(cli.cli.commands.keys())
@@ -1498,6 +1500,21 @@ See :ref:`cli_spatialite_indexes`.
     Options:
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
+
+
+.. _cli_ref_plugins:
+
+plugins
+=======
+
+::
+
+    Usage: sqlite-utils plugins [OPTIONS]
+
+      List installed plugins
+
+    Options:
+      -h, --help  Show this message and exit.
 
 
 .. [[[end]]]

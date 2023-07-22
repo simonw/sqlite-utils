@@ -29,6 +29,7 @@ setup(
         "click-default-group-wheel",
         "tabulate",
         "python-dateutil",
+        "pluggy",
     ],
     extras_require={
         "test": ["pytest", "black", "hypothesis", "cogapp"],
@@ -45,6 +46,7 @@ setup(
             "types-click",
             "types-tabulate",
             "types-python-dateutil",
+            "types-pluggy",
             "data-science-types",
         ],
         "flake8": ["flake8"],

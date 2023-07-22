@@ -11,7 +11,9 @@ recipes_re = re.compile(r"r\.(\w+)\(")
 
 @pytest.fixture(scope="session")
 def documented_commands():
-    rst = (docs_path / "cli.rst").read_text()
+    rst = ""
+    for doc in ("cli.rst", "plugins.rst"):
+        rst += (docs_path / doc).read_text()
     return {
         command
         for command in commands_re.findall(rst)

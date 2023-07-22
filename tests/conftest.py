@@ -8,6 +8,12 @@ create table Gosh2 (c1 text, c2 text, c3 text);
 """
 
 
+def pytest_configure(config):
+    import sys
+
+    sys._called_from_test = True
+
+
 @pytest.fixture
 def fresh_db():
     return Database(memory=True)
