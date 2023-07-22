@@ -49,10 +49,16 @@ def test_prepare_connection():
             conn.create_function("hello", 1, lambda name: f"Hello, {name}!")
 
     db = Database(memory=True)
-    functions = db.execute(
-        "select distinct name from pragma_function_list order by 1"
-    ).fetchall()
-    assert "hello" not in functions
+
+    def _functions(db):
+        return [
+            row[0]
+            for row in db.execute(
+                "select distinct name from pragma_function_list order by 1"
+            ).fetchall()
+        ]
+
+    assert "hello" not in _functions(db)
 
     try:
         plugins.pm.register(HelloFunctionPlugin(), name="HelloFunctionPlugin")
@@ -62,17 +68,13 @@ def test_prepare_connection():
         ]
 
         db = Database(memory=True)
-
-        functions = [
-            row[0]
-            for row in db.execute(
-                "select distinct name from pragma_function_list order by 1"
-            ).fetchall()
-        ]
-        assert "hello" in functions
-
+        assert "hello" in _functions(db)
         result = db.execute('select hello("world")').fetchone()[0]
         assert result == "Hello, world!"
+
+        # Test execute_plugins=False
+        db2 = Database(memory=True, execute_plugins=False)
+        assert "hello" not in _functions(db2)
 
     finally:
         plugins.pm.unregister(name="HelloFunctionPlugin")

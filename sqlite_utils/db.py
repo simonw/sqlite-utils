@@ -311,6 +311,7 @@ class Database:
         recursive_triggers: bool = True,
         tracer: Optional[Callable] = None,
         use_counts_table: bool = False,
+        execute_plugins: bool = True,
     ):
         assert (filename_or_conn is not None and (not memory and not memory_name)) or (
             filename_or_conn is None and (memory or memory_name)
@@ -342,8 +343,8 @@ class Database:
             self.execute("PRAGMA recursive_triggers=on;")
         self._registered_functions: set = set()
         self.use_counts_table = use_counts_table
-
-        pm.hook.prepare_connection(conn=self.conn)
+        if execute_plugins:
+            pm.hook.prepare_connection(conn=self.conn)
 
     def close(self):
         "Close the SQLite connection, and the underlying database file"

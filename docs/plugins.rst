@@ -20,6 +20,12 @@ You can see a JSON list of plugins that have been installed by running this:
 
     sqlite-utils plugins
 
+Plugin hooks such as :ref:`plugins_hooks_prepare_connection` affect each instance of the ``Database`` class. You can opt-out of these plugins by creating that class instance like so:
+
+.. code-block:: python
+
+    db = Database(memory=True, execute_plugins=False)
+
 .. _plugins_building:
 
 Building a plugin
