@@ -123,7 +123,7 @@ Example implementation:
     import sqlite_utils
 
     @sqlite_utils.hookimpl
-    def prepare_connection(self, conn):
+    def prepare_connection(conn):
         conn.create_function(
           "hello", 1, lambda name: f"Hello, {name}!"
         )
