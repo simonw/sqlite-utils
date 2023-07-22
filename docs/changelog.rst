@@ -9,10 +9,12 @@
 3.34 (2023-07-22)
 -----------------
 
-This release introduces a new :ref:`plugin system <plugins>`, with the ability to install plugins that add commands to the ``sqlite-utils`` CLI tool. (:issue:`567`)
+This release introduces a new :ref:`plugin system <plugins>`. (:issue:`567`)
 
 - Documentation describing :ref:`how to build a plugin <plugins_building>`.
-- First plugin hook: :ref:`plugins_hooks_register_commands`, for plugins to add extra commands to ``sqlite-utils``. (:issue:`569`)
+- Plugin hook: :ref:`plugins_hooks_register_commands`, for plugins to add extra commands to ``sqlite-utils``. (:issue:`569`)
+- Plugin hook: :ref:`plugins_hooks_prepare_connection`. Plugins can use this to help prepare the SQLite connection to do things like registering custom SQL functions. Thanks, `Alex Garcia <https://github.com/asg017>`__. (:issue:`574`)
+- ``sqlite_utils.Database(..., execute_plugins=False)`` option for disabling plugin execution. (:issue:`575`)
 - ``sqlite-utils install -e path-to-directory`` option for installing editable code. This option is useful during the development of a plugin. (:issue:`570`)
 - ``table.create(...)`` method now accepts ``replace=True`` to drop and replace an existing table with the same name, or ``ignore=True`` to silently do nothing if a table already exists with the same name. (:issue:`568`)
 - ``sqlite-utils insert ... --stop-after 10`` option for stopping the insert after a specified number of records. Works for the ``upsert`` command as well. (:issue:`561`)
