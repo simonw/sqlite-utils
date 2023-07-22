@@ -37,6 +37,7 @@ from typing import (
     Tuple,
 )
 import uuid
+from sqlite_utils.plugins import pm
 
 try:
     from sqlite_dump import iterdump
@@ -341,6 +342,8 @@ class Database:
             self.execute("PRAGMA recursive_triggers=on;")
         self._registered_functions: set = set()
         self.use_counts_table = use_counts_table
+
+        pm.hook.prepare_connection(conn=self.conn)
 
     def close(self):
         "Close the SQLite connection, and the underlying database file"
