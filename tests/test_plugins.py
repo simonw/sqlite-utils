@@ -1,7 +1,7 @@
 from click.testing import CliRunner
 import click
 import importlib
-from sqlite_utils import cli, hookimpl, plugins
+from sqlite_utils import cli, Database, hookimpl, plugins
 
 
 def test_register_commands():
@@ -34,4 +34,46 @@ def test_register_commands():
     finally:
         plugins.pm.unregister(name="HelloWorldPlugin")
         importlib.reload(cli)
+        assert plugins.get_plugins() == []
+
+
+def test_prepare_connection():
+    importlib.reload(cli)
+    assert plugins.get_plugins() == []
+
+    class HelloFunctionPlugin:
+        __name__ = "HelloFunctionPlugin"
+
+        @hookimpl
+        def prepare_connection(self, conn):
+            conn.create_function("hello", 1, lambda name: f"Hello, {name}!")
+
+    db = Database(memory=True)
+    functions = db.execute(
+        "select distinct name from pragma_function_list order by 1"
+    ).fetchall()
+    assert "hello" not in functions
+
+    try:
+        plugins.pm.register(HelloFunctionPlugin(), name="HelloFunctionPlugin")
+
+        assert plugins.get_plugins() == [
+            {"name": "HelloFunctionPlugin", "hooks": ["prepare_connection"]}
+        ]
+
+        db = Database(memory=True)
+
+        functions = [
+            row[0]
+            for row in db.execute(
+                "select distinct name from pragma_function_list order by 1"
+            ).fetchall()
+        ]
+        assert "hello" in functions
+
+        result = db.execute('select hello("world")').fetchone()[0]
+        assert result == "Hello, world!"
+
+    finally:
+        plugins.pm.unregister(name="HelloFunctionPlugin")
         assert plugins.get_plugins() == []

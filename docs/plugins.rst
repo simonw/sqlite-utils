@@ -84,7 +84,7 @@ Your command will also be listed in the output of ``sqlite-utils --help``.
 Plugin hooks
 ------------
 
-Plugin hooks allow ``sqlite-utils`` to be customized. There is currently one hook.
+Plugin hooks allow ``sqlite-utils`` to be customized.
 
 .. _plugins_hooks_register_commands:
 
@@ -107,3 +107,29 @@ Example implementation:
             "Say hello world"
             click.echo("Hello world!")
 
+prepare_connection(conncl)
+~~~~~~~~~~~~~~~~~~~~~~
+
+This hook is called when a new SQLite database connection is created. You can
+use it to `register custom SQL functions <https://docs.python.org/2/library/sqlite3.html#sqlite3.Connection.create_function>`_,
+aggregates and collations. For example:
+
+
+Example implementation:
+
+.. code-block:: python
+
+    import click
+    import sqlite_utils
+
+    @sqlite_utils.hookimpl
+    def prepare_connection(self, conn):
+        conn.create_function(
+          "hello", 1, lambda name: f"Hello, {name}!"
+        )
+
+This registers a SQL function called ``hello`` which takes a single
+argument and can be called like this::
+
+.. code-block:: sql
+    select hello("world"); -- "Hello, world!"
