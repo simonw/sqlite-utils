@@ -1543,7 +1543,7 @@ def create_table(
         coltypes[name] = ctype.upper()
     # Does table already exist?
     if table in db.table_names():
-        if (not ignore and not replace and not transform):
+        if not ignore and not replace and not transform:
             raise click.ClickException(
                 'Table "{}" already exists. Use --replace to delete and replace it.'.format(
                     table
