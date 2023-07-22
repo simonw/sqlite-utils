@@ -126,13 +126,12 @@ aggregates and collations. For example:
 
 .. code-block:: python
 
-    import click
     import sqlite_utils
 
     @sqlite_utils.hookimpl
     def prepare_connection(conn):
         conn.create_function(
-          "hello", 1, lambda name: f"Hello, {name}!"
+            "hello", 1, lambda name: f"Hello, {name}!"
         )
 
 This registers a SQL function called ``hello`` which takes a single
