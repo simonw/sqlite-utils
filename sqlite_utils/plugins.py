@@ -5,7 +5,7 @@ from . import hookspecs
 pm = pluggy.PluginManager("sqlite_utils")
 pm.add_hookspecs(hookspecs)
 
-if not hasattr(sys, "_called_from_test"):
+if not getattr(sys, "_called_from_test", False):
     # Only load plugins if not running tests
     pm.load_setuptools_entrypoints("sqlite_utils")
 
