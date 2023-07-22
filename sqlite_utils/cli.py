@@ -3106,8 +3106,7 @@ def plugins_list():
     click.echo(json.dumps(get_plugins(), indent=2))
 
 
-if not getattr(sys, "_called_from_test", False):
-    pm.hook.register_commands(cli=cli)
+pm.hook.register_commands(cli=cli)
 
 
 def _render_common(title, values):
