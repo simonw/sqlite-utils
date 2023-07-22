@@ -545,7 +545,7 @@ This method takes optional arguments ``pk=``, ``column_order=``, ``foreign_keys=
 
 A ``sqlite_utils.utils.sqlite3.OperationalError`` will be raised if a table of that name already exists.
 
-To do nothing if the table already exists, add ``if_not_exists=True``:
+You can pass ``ignore=True`` to ignore that error. You can also use ``if_not_exists=True`` to use the SQL ``CREATE TABLE IF NOT EXISTS`` pattern to achieve the same effect:
 
 .. code-block:: python
 
@@ -553,6 +553,8 @@ To do nothing if the table already exists, add ``if_not_exists=True``:
         "id": int,
         "name": str,
     }, pk="id", if_not_exists=True)
+
+To drop and replace any existing table of that name, pass ``replace=True``. This is a **dangerous operation** that will result in loss of existing data in the table.
 
 You can also pass ``transform=True`` to have any existing tables :ref:`transformed <python_api_transform>` to match your new table specification. This is a **dangerous operation** as it will drop columns that are no longer listed in your call to ``.create()``, so be careful when running this.
 
