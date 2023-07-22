@@ -107,8 +107,10 @@ Example implementation:
             "Say hello world"
             click.echo("Hello world!")
 
-prepare_connection(conncl)
-~~~~~~~~~~~~~~~~~~~~~~
+.. _plugins_hooks_prepare_connection:
+
+prepare_connection(conn)
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 This hook is called when a new SQLite database connection is created. You can
 use it to `register custom SQL functions <https://docs.python.org/2/library/sqlite3.html#sqlite3.Connection.create_function>`_,
