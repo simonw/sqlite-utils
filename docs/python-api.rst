@@ -638,7 +638,7 @@ You can leave off the third item in the tuple to have the referenced column auto
 .. _python_api_table_configuration:
 
 Table configuration options
-===========================
+---------------------------
 
 The ``.insert()``, ``.upsert()``, ``.insert_all()`` and ``.upsert_all()`` methods each take a number of keyword arguments, some of which influence what happens should they cause a table to be created and some of which affect the behavior of those methods.
 
@@ -660,7 +660,7 @@ The configuration options that can be specified in this way are ``pk``, ``foreig
 .. _python_api_defaults_not_null:
 
 Setting defaults and not null constraints
-=========================================
+-----------------------------------------
 
 Each of the methods that can cause a table to be created take optional arguments ``not_null=set()`` and ``defaults=dict()``. The methods that take these optional arguments are:
 
@@ -698,6 +698,24 @@ Here's an example that uses these features:
     #     [name] TEXT NOT NULL,
     #     [score] INTEGER NOT NULL DEFAULT 1
     # )
+
+
+.. _python_api_rename_table:
+
+Renaming a table
+================
+
+The ``db.rename_table(old_name, new_name)`` method can be used to rename a table:
+
+.. code-block:: python
+
+    db.rename_table("my_table", "new_name_for_my_table")
+
+This executes the following SQL:
+
+.. code-block:: sql
+
+    ALTER TABLE [my_table] RENAME TO [new_name_for_my_table]
 
 .. _python_api_duplicate:
 

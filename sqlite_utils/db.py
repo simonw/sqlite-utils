@@ -1040,6 +1040,19 @@ class Database:
         )
         return cast(Table, created_table)
 
+    def rename_table(self, name: str, new_name: str):
+        """
+        Rename a table.
+
+        :param name: Current table name
+        :param new_name: Name to rename it to
+        """
+        self.execute(
+            "ALTER TABLE [{name}] RENAME TO [{new_name}]".format(
+                name=name, new_name=new_name
+            )
+        )
+
     def create_view(
         self, name: str, sql: str, ignore: bool = False, replace: bool = False
     ):

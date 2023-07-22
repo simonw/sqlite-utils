@@ -1279,3 +1279,14 @@ def test_create_transform(fresh_db, cols, kwargs, expected_schema, should_transf
     new_schema = fresh_db["demo"].schema
     assert new_schema == expected_schema, repr(new_schema)
     assert fresh_db["demo"].count == 1
+
+
+def test_rename_table(fresh_db):
+    fresh_db["t"].insert({"foo": "bar"})
+    assert ["t"] == fresh_db.table_names()
+    fresh_db.rename_table("t", "renamed")
+    assert ["renamed"] == fresh_db.table_names()
+    assert [{"foo": "bar"}] == list(fresh_db["renamed"].rows)
+    # Should error if table does not exist:
+    with pytest.raises(sqlite3.OperationalError):
+        fresh_db.rename_table("does_not_exist", "renamed")
