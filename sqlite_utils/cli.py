@@ -1584,6 +1584,31 @@ def duplicate(path, table, new_table, ignore, load_extension):
             raise click.ClickException('Table "{}" does not exist'.format(table))
 
 
+@cli.command(name="rename-table")
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.argument("new_name")
+@click.option("--ignore", is_flag=True, help="If table does not exist, do nothing")
+@load_extension_option
+def rename_table(path, table, new_name, ignore, load_extension):
+    """
+    Rename this table.
+    """
+    db = sqlite_utils.Database(path)
+    _load_extensions(db, load_extension)
+    try:
+        db.rename_table(table, new_name)
+    except sqlite3.OperationalError as ex:
+        if not ignore:
+            raise click.ClickException(
+                'Table "{}" could not be renamed. {}'.format(table, str(ex))
+            )
+
+
 @cli.command(name="drop-table")
 @click.argument(
     "path",

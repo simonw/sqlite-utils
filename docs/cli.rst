@@ -1936,6 +1936,19 @@ If a table with the same name already exists, you will get an error. You can cho
 
 You can also pass ``--transform`` to transform the existing table to match the new schema. See :ref:`python_api_explicit_create` in the Python library documentation for details of how this option works.
 
+.. _cli_renaming_tables:
+
+Renaming a table
+================
+
+Yo ucan rename a table using the ``rename-table`` command:
+
+.. code-block:: bash
+
+    sqlite-utils rename-table mydb.db oldname newname
+
+Pass ``--ignore`` to ignore any errors caused by the table not existing, or the new name already being in use.
+
 .. _cli_duplicate_table:
 
 Duplicating tables

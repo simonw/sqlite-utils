@@ -40,6 +40,8 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         "vacuum": "cli_vacuum",
         "dump": "cli_dump",
         "add-column": "cli_add_column",
+        "rename-table": "cli_renaming_tables",
+        "duplicate": "cli_duplicate_table",
         "add-foreign-key": "cli_add_foreign_key",
         "add-foreign-keys": "cli_add_foreign_keys",
         "index-foreign-keys": "cli_index_foreign_keys",
@@ -1328,11 +1330,32 @@ reset-counts
 duplicate
 =========
 
+See :ref:`cli_duplicate_table`.
+
 ::
 
     Usage: sqlite-utils duplicate [OPTIONS] PATH TABLE NEW_TABLE
 
       Create a duplicate of this table, copying across the schema and all row data.
+
+    Options:
+      --ignore               If table does not exist, do nothing
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
+      -h, --help             Show this message and exit.
+
+
+.. _cli_ref_rename_table:
+
+rename-table
+============
+
+See :ref:`cli_renaming_tables`.
+
+::
+
+    Usage: sqlite-utils rename-table [OPTIONS] PATH TABLE NEW_NAME
+
+      Rename this table.
 
     Options:
       --ignore               If table does not exist, do nothing

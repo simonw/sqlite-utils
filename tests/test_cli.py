@@ -2274,6 +2274,38 @@ def test_analyze(tmpdir, options, expected):
     assert list(db["sqlite_stat1"].rows) == expected
 
 
+def test_rename_table(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    db["one"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    # First try a non-existent table
+    result_error = CliRunner().invoke(
+        cli.cli,
+        ["rename-table", db_path, "missing", "two"],
+        catch_exceptions=False,
+    )
+    assert result_error.exit_code == 1
+    assert result_error.output == (
+        'Error: Table "missing" could not be renamed. ' "no such table: missing\n"
+    )
+    # And check --ignore works
+    result_error2 = CliRunner().invoke(
+        cli.cli,
+        ["rename-table", db_path, "missing", "two", "--ignore"],
+        catch_exceptions=False,
+    )
+    assert result_error2.exit_code == 0
+    previous_columns = db["one"].columns_dict
+    # Now try for a table that exists
+    result = CliRunner().invoke(
+        cli.cli,
+        ["rename-table", db_path, "one", "two"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    assert db["two"].columns_dict == previous_columns
+
+
 def test_duplicate_table(tmpdir):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
