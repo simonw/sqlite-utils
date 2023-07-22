@@ -28,7 +28,10 @@ jobs:
           ${{ runner.os }}-pip-
     - name: Install dependencies
       run: |
-        pip install -e '.[test,mypy,flake8,tui]'
+        pip install -e '.[test,mypy,flake8]'
+    - name: Optionally install tui dependencies (not 3.7)
+      if: matrix.python-version != '3.7'
+      run: pip install -e '.[tui]'
     - name: Optionally install numpy
       if: matrix.numpy == 1
       run: pip install numpy
@@ -53,5 +56,6 @@ jobs:
     - name: Check formatting
       run: black . --check
     - name: Check if cog needs to be run
+      if: matrix.python-version != '3.7'
       run: |
         cog --check README.md docs/*.rst
