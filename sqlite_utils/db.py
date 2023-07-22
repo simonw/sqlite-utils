@@ -932,6 +932,8 @@ class Database:
         hash_id_columns: Optional[Iterable[str]] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
+        replace: bool = False,
+        ignore: bool = False,
         transform: bool = False,
     ) -> "Table":
         """
@@ -950,9 +952,16 @@ class Database:
         :param hash_id_columns: List of columns to be used when calculating the hash ID for a row
         :param extracts: List or dictionary of columns to be extracted during inserts, see :ref:`python_api_extracts`
         :param if_not_exists: Use ``CREATE TABLE IF NOT EXISTS``
+        :param replace: Drop and replace table if it already exists
+        :param ignore: Silently do nothing if table already exists
         :param transform: If table already exists transform it to fit the specified schema
         """
         # Transform table to match the new definition if table already exists:
+        if self[name].exists():
+            if ignore:
+                return self[name]
+            elif replace:
+                self[name].drop()
         if transform and self[name].exists():
             table = cast(Table, self[name])
             should_transform = False
@@ -1610,6 +1619,8 @@ class Table(Queryable):
         hash_id_columns: Optional[Iterable[str]] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
+        replace: bool = False,
+        ignore: bool = False,
         transform: bool = False,
     ) -> "Table":
         """
@@ -1627,6 +1638,9 @@ class Table(Queryable):
         :param hash_id_columns: List of columns to be used when calculating the hash ID for a row
         :param extracts: List or dictionary of columns to be extracted during inserts, see :ref:`python_api_extracts`
         :param if_not_exists: Use ``CREATE TABLE IF NOT EXISTS``
+        :param replace: Drop and replace table if it already exists
+        :param ignore: Silently do nothing if table already exists
+        :param transform: If table already exists transform it to fit the specified schema
         """
         columns = {name: value for (name, value) in columns.items()}
         with self.db.conn:
@@ -1642,6 +1656,8 @@ class Table(Queryable):
                 hash_id_columns=hash_id_columns,
                 extracts=extracts,
                 if_not_exists=if_not_exists,
+                replace=replace,
+                ignore=ignore,
                 transform=transform,
             )
         return self

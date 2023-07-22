@@ -1543,13 +1543,7 @@ def create_table(
         coltypes[name] = ctype.upper()
     # Does table already exist?
     if table in db.table_names():
-        if ignore:
-            return
-        elif replace:
-            db[table].drop()
-        elif transform:
-            pass
-        else:
+        if (not ignore and not replace and not transform):
             raise click.ClickException(
                 'Table "{}" already exists. Use --replace to delete and replace it.'.format(
                     table
@@ -1561,6 +1555,8 @@ def create_table(
         not_null=not_null,
         defaults=dict(default),
         foreign_keys=fk,
+        ignore=ignore,
+        replace=replace,
         transform=transform,
     )
 

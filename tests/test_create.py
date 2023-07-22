@@ -1186,6 +1186,25 @@ def test_create_if_no_columns(fresh_db):
     assert error.value.args[0] == "Tables must have at least one column"
 
 
+def test_create_ignore(fresh_db):
+    fresh_db["t"].create({"id": int})
+    # This should error
+    with pytest.raises(sqlite3.OperationalError):
+        fresh_db["t"].create({"id": int})
+    # This should not
+    fresh_db["t"].create({"id": int}, ignore=True)
+
+
+def test_create_replace(fresh_db):
+    fresh_db["t"].create({"id": int})
+    # This should error
+    with pytest.raises(sqlite3.OperationalError):
+        fresh_db["t"].create({"id": int})
+    # This should not
+    fresh_db["t"].create({"name": str}, replace=True)
+    assert fresh_db["t"].schema == ("CREATE TABLE [t] (\n" "   [name] TEXT\n" ")")
+
+
 @pytest.mark.parametrize(
     "cols,kwargs,expected_schema,should_transform",
     (
