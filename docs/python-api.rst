@@ -1374,6 +1374,8 @@ The ``table.transform()`` method can do all of these things, by implementing a m
 
 The ``.transform()`` method takes a number of parameters, all of which are optional.
 
+As a bonus, calling ``.transform()`` will reformat the schema for the table that is stored in SQLite to make it more readable. This works even if you call it without any arguments.
+
 Altering column types
 ---------------------
 
