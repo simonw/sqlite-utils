@@ -1268,3 +1268,19 @@ A few other changes:
 ----------------
 
 - ``enable_fts()``, ``populate_fts()`` and ``search()`` table methods
+
+0.3.1 (2018-07-31)
+------------------
+
+- Documented related projects
+- Added badges to the documentation
+
+0.3 (2018-07-31)
+----------------
+
+- New ``Table`` class representing a table in the SQLite database
+
+0.2 (2018-07-28)
+----------------
+
+- Initial release to PyPI
