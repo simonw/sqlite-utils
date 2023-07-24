@@ -9,7 +9,7 @@
 3.34 (2023-07-22)
 -----------------
 
-This release introduces a new :ref:`plugin system <plugins>`. (:issue:`567`)
+This release introduces a new :ref:`plugin system <plugins>`. Read more about this in `sqlite-utils now supports plugins <https://simonwillison.net/2023/Jul/24/sqlite-utils-plugins/>`__. (:issue:`567`)
 
 - Documentation describing :ref:`how to build a plugin <plugins_building>`.
 - Plugin hook: :ref:`plugins_hooks_register_commands`, for plugins to add extra commands to ``sqlite-utils``. (:issue:`569`)
