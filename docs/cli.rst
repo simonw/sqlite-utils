@@ -1734,10 +1734,12 @@ This supports nested imports as well, for example to use `ElementTree <https://d
 
 .. _cli_convert_complex:
 
-Using a convert() function to execute initialization
-----------------------------------------------------
+Defining a convert() function
+-----------------------------
 
-In some cases you may need to execute one-off initialization code at the start of the run. You can do that by providing code that runs before defining your ``convert(value)`` function.
+Instead of providing a single line of code to be executed against each value, you can define a function called ``convert(value)``.
+
+This mechanism can be used to execute one-off initialization code that runs once at the start of the conversion run.
 
 The following example adds a new ``score`` column, then updates it to list a random number - after first seeding the random number generator to ensure that multiple runs produce the same results:
 
