@@ -18,7 +18,7 @@ This release introduces a new :ref:`plugin system <plugins>`. Read more about th
 - ``sqlite-utils install -e path-to-directory`` option for installing editable code. This option is useful during the development of a plugin. (:issue:`570`)
 - ``table.create(...)`` method now accepts ``replace=True`` to drop and replace an existing table with the same name, or ``ignore=True`` to silently do nothing if a table already exists with the same name. (:issue:`568`)
 - ``sqlite-utils insert ... --stop-after 10`` option for stopping the insert after a specified number of records. Works for the ``upsert`` command as well. (:issue:`561`)
-- The ``--csv`` and ``--tsv`` modes for ``insert`` now accept a ``--empty-null`` option, which cases empty strings in the CSV file to be stored as ``null`` in the database. (:issue:`563`)
+- The ``--csv`` and ``--tsv`` modes for ``insert`` now accept a ``--empty-null`` option, which causes empty strings in the CSV file to be stored as ``null`` in the database. (:issue:`563`)
 - New ``db.rename_table(table_name, new_name)`` method for renaming tables. (:issue:`565`)
 - ``sqlite-utils rename-table my.db table_name new_name`` command for renaming tables. (:issue:`565`)
 - The ``table.transform(...)`` method now takes an optional ``keep_table=new_table_name`` parameter, which will cause the original table to be renamed to ``new_table_name`` rather than being dropped at the end of the transformation. (:issue:`571`)
