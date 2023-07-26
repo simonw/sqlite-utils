@@ -1732,6 +1732,44 @@ This supports nested imports as well, for example to use `ElementTree <https://d
         'xml.etree.ElementTree.fromstring(value).attrib["title"]' \
         --import=xml.etree.ElementTree
 
+.. _cli_convert_debugger:
+
+Using the debugger
+------------------
+
+If an error occurs while running your conversion operation you may see a message like this::
+
+    user-defined function raised exception
+
+Add the ``--pdb`` option to catch the error and open the Python debugger at that point. The conversion operation will exit after you type ``q`` in the debugger.
+
+Here's an example debugging session. First, create a ``articles`` table with invalid XML in the ``content`` column:
+
+.. code-block:: bash
+
+    echo '{"content": "This is not XML"}' | sqlite-utils insert content.db articles -
+
+Now run the conversion with the ``--pdb`` option:
+
+.. code-block:: bash
+
+    sqlite-utils convert content.db articles content \
+        'xml.etree.ElementTree.fromstring(value).attrib["title"]' \
+        --import=xml.etree.ElementTree \
+        --pdb
+
+When the error occurs the debugger will open::
+
+    Exception raised, dropping into pdb...: syntax error: line 1, column 0
+    > .../python3.11/xml/etree/ElementTree.py(1338)XML()
+    -> parser.feed(text)
+    (Pdb) args
+    text = 'This is not XML'
+    parser = <xml.etree.ElementTree.XMLParser object at 0x102c405e0>
+    (Pdb) q
+
+``args`` here shows the arguments to the current function in the stack. The Python `pdb documentation <https://docs.python.org/3/library/pdb.html#debugger-commands>`__ has full details on the other available commands.
+
 .. _cli_convert_complex:
 
 Defining a convert() function

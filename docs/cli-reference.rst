@@ -648,6 +648,7 @@ See :ref:`cli_convert`.
       --drop                          Drop original column afterwards
       --no-skip-false                 Don't skip falsey values
       -s, --silent                    Don't show a progress bar
+      --pdb                           Open pdb debugger on first error
       -h, --help                      Show this message and exit.
 
 

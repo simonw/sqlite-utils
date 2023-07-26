@@ -16,6 +16,7 @@ import io
 import itertools
 import json
 import os
+import pdb
 import sys
 import csv as csv_std
 import tabulate
@@ -2901,6 +2902,7 @@ def _generate_convert_help():
 @click.option("--drop", is_flag=True, help="Drop original column afterwards")
 @click.option("--no-skip-false", is_flag=True, help="Don't skip falsey values")
 @click.option("-s", "--silent", is_flag=True, help="Don't show a progress bar")
+@click.option("pdb_", "--pdb", is_flag=True, help="Open pdb debugger on first error")
 def convert(
     db_path,
     table,
@@ -2916,6 +2918,7 @@ def convert(
     drop,
     no_skip_false,
     silent,
+    pdb_,
 ):
     sqlite3.enable_callback_tracebacks(True)
     db = sqlite_utils.Database(db_path)
@@ -2968,6 +2971,19 @@ def convert(
         )
         click.echo("Would affect {} row{}".format(count, "" if count == 1 else "s"))
     else:
+        # Wrap fn with a thing that will catch errors and optionally drop into pdb
+        if pdb_:
+            fn_ = fn
+
+            def wrapped_fn(value):
+                try:
+                    return fn_(value)
+                except Exception as ex:
+                    print("\nException raised, dropping into pdb...:", ex)
+                    pdb.post_mortem(ex.__traceback__)
+                    sys.exit(1)
+
+            fn = wrapped_fn
         try:
             db[table].convert(
                 columns,
