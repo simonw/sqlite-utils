@@ -1448,9 +1448,9 @@ See :ref:`cli_install`.
       Install packages from PyPI into the same environment as sqlite-utils
 
     Options:
-      -U, --upgrade             Upgrade packages to latest version
-      -e, --editable DIRECTORY  Install a project in editable mode from this path
-      -h, --help                Show this message and exit.
+      -U, --upgrade        Upgrade packages to latest version
+      -e, --editable TEXT  Install a project in editable mode from this path
+      -h, --help           Show this message and exit.
 
 
 .. _cli_ref_uninstall:
