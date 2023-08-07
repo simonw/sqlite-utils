@@ -111,6 +111,12 @@ Connections use ``PRAGMA recursive_triggers=on`` by default. If you don't want t
 
     db = Database(memory=True, recursive_triggers=False)
 
+By default, any :ref:`sqlite-utils plugins <plugins>` that implement the :ref:`plugins_hooks_prepare_connection` hook will be executed against the connection when you create the ``Database`` object. You can opt out of executing plugins using ``execute_plugins=False`` like this:
+
+.. code-block:: python
+
+    db = Database(memory=True, execute_plugins=False)
+
 .. _python_api_attach:
 
 Attaching additional databases
