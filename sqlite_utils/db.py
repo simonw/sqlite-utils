@@ -778,10 +778,10 @@ class Database:
                 assert (
                     tuple_or_list[0] == name
                 ), "First item in {} should have been {}".format(tuple_or_list, name)
-                tuple_or_list = tuple(tuple_or_list[1:])
             assert len(tuple_or_list) in (
                 2,
                 3,
+                4,
             ), "foreign_keys= should be a list of tuple pairs or triples"
             if len(tuple_or_list) == 3:
                 tuple_or_list = cast(Tuple[str, str, str], tuple_or_list)
@@ -1161,12 +1161,12 @@ class Database:
                 )
 
         # Group them by table
-        by_table = {}
+        by_table: Dict[str, List] = {}
         for fk in foreign_keys_to_create:
             by_table.setdefault(fk[0], []).append(fk)
 
         for table, fks in by_table.items():
-            self[table].transform(add_foreign_keys=fks)
+            cast(Table, self[table]).transform(add_foreign_keys=fks)
 
         self.vacuum()
 
