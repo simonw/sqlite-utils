@@ -192,7 +192,7 @@ def test_output_table(db_path, options, expected):
             ]
         )
     result = CliRunner().invoke(cli.cli, ["rows", db_path, "rows"] + options)
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert expected == result.output.strip()
 
 
@@ -200,7 +200,7 @@ def test_create_index(db_path):
     db = Database(db_path)
     assert [] == db["Gosh"].indexes
     result = CliRunner().invoke(cli.cli, ["create-index", db_path, "Gosh", "c1"])
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert [
         Index(
             seq=0, name="idx_Gosh_c1", unique=0, origin="c", partial=0, columns=["c1"]
@@ -210,7 +210,7 @@ def test_create_index(db_path):
     result = CliRunner().invoke(
         cli.cli, ["create-index", db_path, "Gosh", "c2", "--name", "blah"]
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert [
         Index(seq=0, name="blah", unique=0, origin="c", partial=0, columns=["c2"]),
         Index(
@@ -227,7 +227,7 @@ def test_create_index(db_path):
         "--unique",
     ]
     result = CliRunner().invoke(cli.cli, create_index_unique_args)
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert [
         Index(
             seq=0,
@@ -366,7 +366,7 @@ def test_add_foreign_key(db_path, args, assert_message):
     result = CliRunner().invoke(
         cli.cli, ["add-foreign-key", db_path, "books", "author_id", "authors", "id"]
     )
-    assert 0 != result.exit_code
+    assert result.exit_code != 0
     assert (
         "Error: Foreign key already exists for author_id => authors.id"
         == result.output.strip()
@@ -377,13 +377,13 @@ def test_add_foreign_key(db_path, args, assert_message):
         cli.cli,
         ["add-foreign-key", db_path, "books", "author_id", "authors", "id", "--ignore"],
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
 
     # Error if we try against an invalid column
     result = CliRunner().invoke(
         cli.cli, ["add-foreign-key", db_path, "books", "author_id", "authors", "bad"]
     )
-    assert 0 != result.exit_code
+    assert result.exit_code != 0
     assert "Error: No such column: authors.bad" == result.output.strip()
 
 
@@ -395,10 +395,12 @@ def test_add_column_foreign_key(db_path):
     result = CliRunner().invoke(
         cli.cli, ["add-column", db_path, "books", "author_id", "--fk", "authors"]
     )
-    assert 0 == result.exit_code, result.output
-    assert (
-        "CREATE TABLE [books] ( [title] TEXT , [author_id] INTEGER, FOREIGN KEY([author_id]) REFERENCES [authors]([id]) )"
-        == collapse_whitespace(db["books"].schema)
+    assert result.exit_code == 0, result.output
+    assert db["books"].schema == (
+        'CREATE TABLE "books" (\n'
+        "   [title] TEXT,\n"
+        "   [author_id] INTEGER REFERENCES [authors]([id])\n"
+        ")"
     )
     # Try it again with a custom --fk-col
     result = CliRunner().invoke(
@@ -414,18 +416,19 @@ def test_add_column_foreign_key(db_path):
             "name",
         ],
     )
-    assert 0 == result.exit_code, result.output
-    assert (
-        "CREATE TABLE [books] ( [title] TEXT , [author_id] INTEGER, [author_name_ref] TEXT, "
-        "FOREIGN KEY([author_id]) REFERENCES [authors]([id]), "
-        "FOREIGN KEY([author_name_ref]) REFERENCES [authors]([name]) )"
-        == collapse_whitespace(db["books"].schema)
+    assert result.exit_code == 0, result.output
+    assert db["books"].schema == (
+        'CREATE TABLE "books" (\n'
+        "   [title] TEXT,\n"
+        "   [author_id] INTEGER REFERENCES [authors]([id]),\n"
+        "   [author_name_ref] TEXT REFERENCES [authors]([name])\n"
+        ")"
     )
     # Throw an error if the --fk table does not exist
     result = CliRunner().invoke(
         cli.cli, ["add-column", db_path, "books", "author_id", "--fk", "bobcats"]
     )
-    assert 0 != result.exit_code
+    assert result.exit_code != 0
     assert "table 'bobcats' does not exist" in str(result.exception)
 
 
@@ -449,7 +452,7 @@ def test_index_foreign_keys(db_path):
     db = Database(db_path)
     assert [] == db["books"].indexes
     result = CliRunner().invoke(cli.cli, ["index-foreign-keys", db_path])
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert [["author_id"], ["author_name_ref"]] == [
         i.columns for i in db["books"].indexes
     ]
@@ -461,7 +464,7 @@ def test_enable_fts(db_path):
     result = CliRunner().invoke(
         cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"]
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert "Gosh_fts" == db["Gosh"].detect_fts()
 
     # Table names with restricted chars are handled correctly.
@@ -480,7 +483,7 @@ def test_enable_fts(db_path):
             "porter",
         ],
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert "http://example.com_fts" == db["http://example.com"].detect_fts()
     # Check tokenize was set to porter
     assert (
@@ -528,7 +531,7 @@ def test_enable_fts_with_triggers(db_path):
         )
         .exit_code
     )
-    assert 0 == exit_code
+    assert exit_code == 0
 
     def search(q):
         return (
@@ -549,7 +552,7 @@ def test_populate_fts(db_path):
         .invoke(cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"])
         .exit_code
     )
-    assert 0 == exit_code
+    assert exit_code == 0
 
     def search(q):
         return (
@@ -564,7 +567,7 @@ def test_populate_fts(db_path):
     exit_code = (
         CliRunner().invoke(cli.cli, ["populate-fts", db_path, "Gosh", "c1"]).exit_code
     )
-    assert 0 == exit_code
+    assert exit_code == 0
     assert [("martha",)] == search("martha")
 
 
@@ -582,13 +585,13 @@ def test_disable_fts(db_path):
         "Gosh_fts_docsize",
     } == set(db.table_names())
     exit_code = CliRunner().invoke(cli.cli, ["disable-fts", db_path, "Gosh"]).exit_code
-    assert 0 == exit_code
+    assert exit_code == 0
     assert {"Gosh", "Gosh2"} == set(db.table_names())
 
 
 def test_vacuum(db_path):
     result = CliRunner().invoke(cli.cli, ["vacuum", db_path])
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
 
 
 def test_dump(db_path):
@@ -617,7 +620,7 @@ def test_optimize(db_path, tables):
         db["Gosh2"].enable_fts(["c1", "c2", "c3"], fts_version="FTS5")
     size_before_optimize = os.stat(db_path).st_size
     result = CliRunner().invoke(cli.cli, ["optimize", db_path] + tables)
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     size_after_optimize = os.stat(db_path).st_size
     # Weirdest thing: tests started failing because size after
     # ended up larger than size before in some cases. I think
@@ -625,7 +628,7 @@ def test_optimize(db_path, tables):
     assert size_after_optimize <= (size_before_optimize + 10000)
     # Soundness check that --no-vacuum doesn't throw errors:
     result = CliRunner().invoke(cli.cli, ["optimize", "--no-vacuum", db_path])
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
 
 
 def test_rebuild_fts_fixes_docsize_error(db_path):
@@ -653,7 +656,7 @@ def test_rebuild_fts_fixes_docsize_error(db_path):
     assert db["fts5_table_fts_docsize"].count == 20000
     # Running rebuild-fts should fix this
     result = CliRunner().invoke(cli.cli, ["rebuild-fts", db_path, "fts5_table"])
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert db["fts5_table_fts_docsize"].count == 10000
 
 
@@ -676,7 +679,7 @@ def test_query_csv(db_path, format, expected):
     result = CliRunner().invoke(
         cli.cli, [db_path, "select id, name, age from dogs", format]
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert result.output.replace("\r", "") == expected
     # Test the no-headers option:
     result = CliRunner().invoke(
@@ -1027,7 +1030,7 @@ def test_upsert(db_path, tmpdir):
         ["insert", db_path, "dogs", json_path, "--pk", "id"],
         catch_exceptions=False,
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert 2 == db["dogs"].count
     # Now run the upsert to update just their ages
     upsert_dogs = [
@@ -1040,7 +1043,7 @@ def test_upsert(db_path, tmpdir):
         ["upsert", db_path, "dogs", json_path, "--pk", "id"],
         catch_exceptions=False,
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert list(db.query("select * from dogs order by id")) == [
         {"id": 1, "name": "Cleo", "age": 5},
         {"id": 2, "name": "Nixie", "age": 5},
@@ -1073,7 +1076,7 @@ def test_upsert_analyze(db_path, tmpdir):
         ["upsert", db_path, "rows", "-", "--nl", "--analyze", "--pk", "id"],
         input='{"id": 2, "foo": "bar", "n": 1}',
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert "sqlite_stat1" in db.table_names()
 
 
@@ -1100,7 +1103,7 @@ def test_upsert_alter(db_path, tmpdir):
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     # Should fail with error code if no --alter
     upsert_dogs = [{"id": 1, "age": 5}]
     write_json(json_path, upsert_dogs)
@@ -1117,7 +1120,7 @@ def test_upsert_alter(db_path, tmpdir):
     result = CliRunner().invoke(
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id", "--alter"]
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert [
         {"id": 1, "name": "Cleo", "age": 5},
     ] == list(db.query("select * from dogs order by id"))
@@ -1187,7 +1190,7 @@ def test_create_table(args, schema):
             + args,
             catch_exceptions=False,
         )
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
         db = Database("test.db")
         assert schema == db["t"].schema
 
@@ -1217,7 +1220,7 @@ def test_create_table_foreign_key():
             result = runner.invoke(
                 cli.cli, ["create-table", "books.db"] + args, catch_exceptions=False
             )
-            assert 0 == result.exit_code
+            assert result.exit_code == 0
         db = Database("books.db")
         assert (
             "CREATE TABLE [authors] (\n"
@@ -1257,7 +1260,7 @@ def test_create_table_ignore():
         result = runner.invoke(
             cli.cli, ["create-table", "test.db", "dogs", "id", "integer", "--ignore"]
         )
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
         assert "CREATE TABLE [dogs] (\n   [name] TEXT\n)" == db["dogs"].schema
 
 
@@ -1269,7 +1272,7 @@ def test_create_table_replace():
         result = runner.invoke(
             cli.cli, ["create-table", "test.db", "dogs", "id", "integer", "--replace"]
         )
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
         assert "CREATE TABLE [dogs] (\n   [id] INTEGER\n)" == db["dogs"].schema
 
 
@@ -1280,7 +1283,7 @@ def test_create_view():
         result = runner.invoke(
             cli.cli, ["create-view", "test.db", "version", "select sqlite_version()"]
         )
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
         assert "CREATE VIEW version AS select sqlite_version()" == db["version"].schema
 
 
@@ -1314,7 +1317,7 @@ def test_create_view_ignore():
                 "--ignore",
             ],
         )
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
         assert (
             "CREATE VIEW version AS select sqlite_version() + 1" == db["version"].schema
         )
@@ -1335,7 +1338,7 @@ def test_create_view_replace():
                 "--replace",
             ],
         )
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
         assert "CREATE VIEW version AS select sqlite_version()" == db["version"].schema
 
 
@@ -1353,7 +1356,7 @@ def test_drop_table():
                 "t",
             ],
         )
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
         assert "t" not in db.table_names()
 
 
@@ -1377,7 +1380,7 @@ def test_drop_table_error():
             cli.cli,
             ["drop-table", "test.db", "t2", "--ignore"],
         )
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
 
 
 def test_drop_view():
@@ -1394,7 +1397,7 @@ def test_drop_view():
                 "hello",
             ],
         )
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
         assert "hello" not in db.view_names()
 
 
@@ -1418,7 +1421,7 @@ def test_drop_view_error():
             cli.cli,
             ["drop-view", "test.db", "t2", "--ignore"],
         )
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
 
 
 def test_enable_wal():
@@ -1430,7 +1433,7 @@ def test_enable_wal():
             db["t"].create({"pk": int}, pk="pk")
             assert db.journal_mode == "delete"
         result = runner.invoke(cli.cli, ["enable-wal"] + dbs, catch_exceptions=False)
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
         for dbname in dbs:
             db = Database(dbname)
             assert db.journal_mode == "wal"
@@ -1446,7 +1449,7 @@ def test_disable_wal():
             db.enable_wal()
             assert db.journal_mode == "wal"
         result = runner.invoke(cli.cli, ["disable-wal"] + dbs)
-        assert 0 == result.exit_code
+        assert result.exit_code == 0
         for dbname in dbs:
             db = Database(dbname)
             assert db.journal_mode == "delete"
@@ -1700,8 +1703,7 @@ _common_other_schema = (
                 'CREATE TABLE "trees" (\n'
                 "   [id] INTEGER PRIMARY KEY,\n"
                 "   [address] TEXT,\n"
-                "   [species_id] INTEGER,\n"
-                "   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n"
+                "   [species_id] INTEGER REFERENCES [species]([id])\n"
                 ")"
             ),
             _common_other_schema,
@@ -1712,8 +1714,7 @@ _common_other_schema = (
                 'CREATE TABLE "trees" (\n'
                 "   [id] INTEGER PRIMARY KEY,\n"
                 "   [address] TEXT,\n"
-                "   [custom_table_id] INTEGER,\n"
-                "   FOREIGN KEY([custom_table_id]) REFERENCES [custom_table]([id])\n"
+                "   [custom_table_id] INTEGER REFERENCES [custom_table]([id])\n"
                 ")"
             ),
             "CREATE TABLE [custom_table] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)",
@@ -1724,8 +1725,7 @@ _common_other_schema = (
                 'CREATE TABLE "trees" (\n'
                 "   [id] INTEGER PRIMARY KEY,\n"
                 "   [address] TEXT,\n"
-                "   [custom_fk] INTEGER,\n"
-                "   FOREIGN KEY([custom_fk]) REFERENCES [species]([id])\n"
+                "   [custom_fk] INTEGER REFERENCES [species]([id])\n"
                 ")"
             ),
             _common_other_schema,
@@ -1735,8 +1735,7 @@ _common_other_schema = (
             'CREATE TABLE "trees" (\n'
             "   [id] INTEGER PRIMARY KEY,\n"
             "   [address] TEXT,\n"
-            "   [species_id] INTEGER,\n"
-            "   FOREIGN KEY([species_id]) REFERENCES [species]([id])\n"
+            "   [species_id] INTEGER REFERENCES [species]([id])\n"
             ")",
             "CREATE TABLE [species] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)",
         ),

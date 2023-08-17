@@ -490,8 +490,8 @@ def test_add_foreign_key_guess_table(fresh_db):
     fresh_db["dogs"].add_column("breed_id", int)
     fresh_db["dogs"].add_foreign_key("breed_id")
     assert (
-        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, FOREIGN KEY([breed_id]) REFERENCES [breeds]([id]) )"
-        == collapse_whitespace(fresh_db["dogs"].schema)
+        collapse_whitespace(fresh_db["dogs"].schema)
+        == 'CREATE TABLE "dogs" ( [name] TEXT, [breed_id] INTEGER REFERENCES [breeds]([id]) )'
     )
 
 
