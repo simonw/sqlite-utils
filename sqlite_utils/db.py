@@ -783,8 +783,11 @@ class Database:
                 3,
                 4,
             ), "foreign_keys= should be a list of tuple pairs or triples"
-            if len(tuple_or_list) == 3:
-                tuple_or_list = cast(Tuple[str, str, str], tuple_or_list)
+            if len(tuple_or_list) in (3, 4):
+                if len(tuple_or_list) == 4:
+                    tuple_or_list = cast(Tuple[str, str, str], tuple_or_list[1:])
+                else:
+                    tuple_or_list = cast(Tuple[str, str, str], tuple_or_list)
                 fks.append(
                     ForeignKey(
                         name, tuple_or_list[0], tuple_or_list[1], tuple_or_list[2]
