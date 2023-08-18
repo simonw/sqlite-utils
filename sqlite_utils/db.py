@@ -156,13 +156,15 @@ XIndexColumn = namedtuple(
 Trigger = namedtuple("Trigger", ("name", "table", "sql"))
 
 
-ForeignKeysType = Union[
-    Iterable[str],
-    Iterable[ForeignKey],
-    Iterable[Tuple[str, str]],
-    Iterable[Tuple[str, str, str]],
-    Iterable[Tuple[str, str, str, str]],
+ForeignKeyIndicator = Union[
+    str,
+    ForeignKey,
+    Tuple[str, str],
+    Tuple[str, str, str],
+    Tuple[str, str, str, str],
 ]
+
+ForeignKeysType = Union[Iterable[ForeignKeyIndicator], List[ForeignKeyIndicator]]
 
 
 class Default:
@@ -1796,6 +1798,8 @@ class Table(Queryable):
         rename = rename or {}
         drop = drop or set()
 
+        create_table_foreign_keys: List[ForeignKeyIndicator] = []
+
         if foreign_keys is not None:
             if add_foreign_keys is not None:
                 raise ValueError(
@@ -1805,7 +1809,7 @@ class Table(Queryable):
                 raise ValueError(
                     "Cannot specify both foreign_keys and drop_foreign_keys"
                 )
-            create_table_foreign_keys = foreign_keys
+            create_table_foreign_keys.extend(foreign_keys)
         else:
             # Construct foreign_keys from current, plus add_foreign_keys, minus drop_foreign_keys
             create_table_foreign_keys = []
