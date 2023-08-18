@@ -1281,9 +1281,7 @@ Adding foreign key constraints
 
 The SQLite ``ALTER TABLE`` statement doesn't have the ability to add foreign key references to an existing column.
 
-It's possible to add these references through very careful manipulation of SQLite's ``sqlite_master`` table, using ``PRAGMA writable_schema``.
-
-``sqlite-utils`` can do this for you, though there is a significant risk of data corruption if something goes wrong so it is advisable to create a fresh copy of your database file before attempting this.
+The ``add_foreign_key()`` method here is a convenient wrapper around :ref:`table.transform() <python_api_transform>`.
 
 Here's an example of this mechanism in action:
 
@@ -1317,11 +1315,7 @@ To ignore the case where the key already exists, use ``ignore=True``:
 Adding multiple foreign key constraints at once
 -----------------------------------------------
 
-The final step in adding a new foreign key to a SQLite database is to run ``VACUUM``, to ensure the new foreign key is available in future introspection queries.
-
-``VACUUM`` against a large (multi-GB) database can take several minutes or longer. If you are adding multiple foreign keys using ``table.add_foreign_key(...)`` these can quickly add up.
-
-Instead, you can use ``db.add_foreign_keys(...)`` to add multiple foreign keys within a single transaction. This method takes a list of four-tuples, each one specifying a ``table``, ``column``, ``other_table`` and ``other_column``.
+You can use ``db.add_foreign_keys(...)`` to add multiple foreign keys in one go. This method takes a list of four-tuples, each one specifying a ``table``, ``column``, ``other_table`` and ``other_column``.
 
 Here's an example adding two foreign keys at once:
 
@@ -1388,6 +1382,8 @@ To keep the original table around instead of dropping it, pass the ``keep_table=
 
     table.transform(types={"age": int}, keep_table="original_table")
 
+.. _python_api_transform_alter_column_types:
+
 Altering column types
 ---------------------
 
@@ -1400,6 +1396,8 @@ To alter the type of a column, use the ``types=`` argument:
 
 See :ref:`python_api_add_column` for a list of available types.
 
+.. _python_api_transform_rename_columns:
+
 Renaming columns
 ----------------
 
@@ -1409,6 +1407,8 @@ The ``rename=`` parameter can rename columns:
 
     # Rename 'age' to 'initial_age':
     table.transform(rename={"age": "initial_age"})
+
+.. _python_api_transform_drop_columns:
 
 Dropping columns
 ----------------
@@ -1420,6 +1420,8 @@ To drop columns, pass them in the ``drop=`` set:
     # Drop the 'age' column:
     table.transform(drop={"age"})
 
+.. _python_api_transform_change_primary_keys:
+
 Changing primary keys
 ---------------------
 
@@ -1429,6 +1431,8 @@ To change the primary key for a table, use ``pk=``. This can be passed a single 
 
     # Make `user_id` the new primary key
     table.transform(pk="user_id")
+
+.. _python_api_transform_change_not_null:
 
 Changing not null status
 ------------------------
@@ -1450,6 +1454,8 @@ If you want to take existing ``NOT NULL`` columns and change them to allow null 
     # Make age allow NULL and switch weight to being NOT NULL:
     table.transform(not_null={"age": False, "weight": True})
 
+.. _python_api_transform_alter_column_defaults:
+
 Altering column defaults
 ------------------------
 
@@ -1463,6 +1469,8 @@ The ``defaults=`` parameter can be used to set or change the defaults for differ
     # Now remove the default from that column:
     table.transform(defaults={"age": None})
 
+.. _python_api_transform_change_column_order:
+
 Changing column order
 ---------------------
 
@@ -1472,6 +1480,45 @@ The ``column_order=`` parameter can be used to change the order of the columns. 
 
     # Change column order
     table.transform(column_order=("name", "age", "id")
+
+.. _python_api_transform_add_foreign_key_constraints:
+
+Adding foreign key constraints
+------------------------------
+
+You can add one or more foreign key constraints to a table using the ``add_foreign_keys=`` parameter:
+
+.. code-block:: python
+
+    db["places"].transform(
+        add_foreign_keys=(
+            ("country", "country", "id"),
+            ("continent", "continent", "id")
+        )
+    )
+
+This accepts the same arguments described in :ref:`specifying foreign keys <python_api_foreign_keys>` - so you can specify them as a full tuple of ``(column, other_table, other_column)``, or you can take a shortcut and pass just the name of the column, provided the table can be automatically derived from the column name:
+
+.. code-block:: python
+
+    db["places"].transform(
+        add_foreign_keys=(("country", "continent"))
+    )
+
+.. _python_api_transform_replace_foreign_key_constraints:
+
+Replacing foreign key constraints
+---------------------------------
+
+The ``foreign_keys=`` parameter is similar to  to ``add_foreign_keys=`` but can be be used to replace all foreign key constraints on a table, dropping any that are not explicitly mentioned:
+
+.. code-block:: python
+
+    db["places"].transform(
+        add_foreign_keys=(("continent",))
+    )
+
+.. _python_api_transform_drop_foreign_key_constraints:
 
 Dropping foreign key constraints
 --------------------------------

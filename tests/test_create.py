@@ -469,18 +469,21 @@ def test_add_column_foreign_key(fresh_db):
     fresh_db.create_table("dogs", {"name": str})
     fresh_db.create_table("breeds", {"name": str})
     fresh_db["dogs"].add_column("breed_id", fk="breeds")
-    assert (
-        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, FOREIGN KEY([breed_id]) REFERENCES [breeds]([rowid]) )"
-        == collapse_whitespace(fresh_db["dogs"].schema)
+    assert fresh_db["dogs"].schema == (
+        'CREATE TABLE "dogs" (\n'
+        "   [name] TEXT,\n"
+        "   [breed_id] INTEGER REFERENCES [breeds]([rowid])\n"
+        ")"
     )
     # And again with an explicit primary key column
     fresh_db.create_table("subbreeds", {"name": str, "primkey": str}, pk="primkey")
     fresh_db["dogs"].add_column("subbreed_id", fk="subbreeds")
-    assert (
-        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, [subbreed_id] TEXT, "
-        "FOREIGN KEY([breed_id]) REFERENCES [breeds]([rowid]), "
-        "FOREIGN KEY([subbreed_id]) REFERENCES [subbreeds]([primkey]) )"
-        == collapse_whitespace(fresh_db["dogs"].schema)
+    assert fresh_db["dogs"].schema == (
+        'CREATE TABLE "dogs" (\n'
+        "   [name] TEXT,\n"
+        "   [breed_id] INTEGER REFERENCES [breeds]([rowid]),\n"
+        "   [subbreed_id] TEXT REFERENCES [subbreeds]([primkey])\n"
+        ")"
     )
 
 
@@ -490,8 +493,8 @@ def test_add_foreign_key_guess_table(fresh_db):
     fresh_db["dogs"].add_column("breed_id", int)
     fresh_db["dogs"].add_foreign_key("breed_id")
     assert (
-        "CREATE TABLE [dogs] ( [name] TEXT , [breed_id] INTEGER, FOREIGN KEY([breed_id]) REFERENCES [breeds]([id]) )"
-        == collapse_whitespace(fresh_db["dogs"].schema)
+        collapse_whitespace(fresh_db["dogs"].schema)
+        == 'CREATE TABLE "dogs" ( [name] TEXT, [breed_id] INTEGER REFERENCES [breeds]([id]) )'
     )
 
 

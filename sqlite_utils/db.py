@@ -156,13 +156,15 @@ XIndexColumn = namedtuple(
 Trigger = namedtuple("Trigger", ("name", "table", "sql"))
 
 
-ForeignKeysType = Union[
-    Iterable[str],
-    Iterable[ForeignKey],
-    Iterable[Tuple[str, str]],
-    Iterable[Tuple[str, str, str]],
-    Iterable[Tuple[str, str, str, str]],
+ForeignKeyIndicator = Union[
+    str,
+    ForeignKey,
+    Tuple[str, str],
+    Tuple[str, str, str],
+    Tuple[str, str, str, str],
 ]
+
+ForeignKeysType = Union[Iterable[ForeignKeyIndicator], List[ForeignKeyIndicator]]
 
 
 class Default:
@@ -747,9 +749,16 @@ class Database:
     def resolve_foreign_keys(
         self, name: str, foreign_keys: ForeignKeysType
     ) -> List[ForeignKey]:
-        # foreign_keys may be a list of column names, a list of ForeignKey tuples,
-        # a list of tuple-pairs or a list of tuple-triples. We want to turn
-        # it into a list of ForeignKey tuples
+        """
+        Given a list of differing foreign_keys definitions, return a list of
+        fully resolved ForeignKey() named tuples.
+
+        :param name: Name of table that foreign keys are being defined for
+        :param foreign_keys: List of foreign keys, each of which can be a
+            string, a ForeignKey() named tuple, a tuple of (column, other_table),
+            or a tuple of (column, other_table, other_column), or a tuple of
+            (table, column, other_table, other_column)
+        """
         table = cast(Table, self[name])
         if all(isinstance(fk, ForeignKey) for fk in foreign_keys):
             return cast(List[ForeignKey], foreign_keys)
@@ -767,12 +776,20 @@ class Database:
         ), "foreign_keys= should be a list of tuples"
         fks = []
         for tuple_or_list in foreign_keys:
+            if len(tuple_or_list) == 4:
+                assert (
+                    tuple_or_list[0] == name
+                ), "First item in {} should have been {}".format(tuple_or_list, name)
             assert len(tuple_or_list) in (
                 2,
                 3,
+                4,
             ), "foreign_keys= should be a list of tuple pairs or triples"
-            if len(tuple_or_list) == 3:
-                tuple_or_list = cast(Tuple[str, str, str], tuple_or_list)
+            if len(tuple_or_list) in (3, 4):
+                if len(tuple_or_list) == 4:
+                    tuple_or_list = cast(Tuple[str, str, str], tuple_or_list[1:])
+                else:
+                    tuple_or_list = cast(Tuple[str, str, str], tuple_or_list)
                 fks.append(
                     ForeignKey(
                         name, tuple_or_list[0], tuple_or_list[1], tuple_or_list[2]
@@ -864,7 +881,7 @@ class Database:
         for fk in foreign_keys:
             if fk.other_table == name and columns.get(fk.other_column):
                 continue
-            if not any(
+            if fk.other_column != "rowid" and not any(
                 c for c in self[fk.other_table].columns if c.name == fk.other_column
             ):
                 raise AlterError(
@@ -1148,32 +1165,14 @@ class Database:
                     (table, column, other_table, other_column)
                 )
 
-        # Construct SQL for use with "UPDATE sqlite_master SET sql = ? WHERE name = ?"
-        table_sql: Dict[str, str] = {}
-        for table, column, other_table, other_column in foreign_keys_to_create:
-            old_sql = table_sql.get(table, self[table].schema)
-            extra_sql = ",\n   FOREIGN KEY([{column}]) REFERENCES [{other_table}]([{other_column}])\n".format(
-                column=column, other_table=other_table, other_column=other_column
-            )
-            # Stick that bit in at the very end just before the closing ')'
-            last_paren = old_sql.rindex(")")
-            new_sql = old_sql[:last_paren].strip() + extra_sql + old_sql[last_paren:]
-            table_sql[table] = new_sql
+        # Group them by table
+        by_table: Dict[str, List] = {}
+        for fk in foreign_keys_to_create:
+            by_table.setdefault(fk[0], []).append(fk)
 
-        # And execute it all within a single transaction
-        with self.conn:
-            cursor = self.conn.cursor()
-            schema_version = cursor.execute("PRAGMA schema_version").fetchone()[0]
-            cursor.execute("PRAGMA writable_schema = 1")
-            for table_name, new_sql in table_sql.items():
-                cursor.execute(
-                    "UPDATE sqlite_master SET sql = ? WHERE name = ?",
-                    (new_sql, table_name),
-                )
-            cursor.execute("PRAGMA schema_version = %d" % (schema_version + 1))
-            cursor.execute("PRAGMA writable_schema = 0")
-        # Have to VACUUM outside the transaction to ensure .foreign_keys property
-        # can see the newly created foreign key.
+        for table, fks in by_table.items():
+            cast(Table, self[table]).transform(add_foreign_keys=fks)
+
         self.vacuum()
 
     def index_foreign_keys(self):
@@ -1704,7 +1703,9 @@ class Table(Queryable):
         pk: Optional[Any] = DEFAULT,
         not_null: Optional[Iterable[str]] = None,
         defaults: Optional[Dict[str, Any]] = None,
-        drop_foreign_keys: Optional[Iterable] = None,
+        drop_foreign_keys: Optional[Iterable[str]] = None,
+        add_foreign_keys: Optional[ForeignKeysType] = None,
+        foreign_keys: Optional[ForeignKeysType] = None,
         column_order: Optional[List[str]] = None,
         keep_table: Optional[str] = None,
     ) -> "Table":
@@ -1721,6 +1722,8 @@ class Table(Queryable):
         :param not_null: Columns to set as ``NOT NULL``
         :param defaults: Default values for columns
         :param drop_foreign_keys: Names of columns that should have their foreign key constraints removed
+        :param add_foreign_keys: List of foreign keys to add to the table
+        :param foreign_keys: List of foreign keys to set for the table, replacing any existing foreign keys
         :param column_order: List of strings specifying a full or partial column order
           to use when creating the table
         :param keep_table: If specified, the existing table will be renamed to this and will not be
@@ -1735,6 +1738,8 @@ class Table(Queryable):
             not_null=not_null,
             defaults=defaults,
             drop_foreign_keys=drop_foreign_keys,
+            add_foreign_keys=add_foreign_keys,
+            foreign_keys=foreign_keys,
             column_order=column_order,
             keep_table=keep_table,
         )
@@ -1765,6 +1770,8 @@ class Table(Queryable):
         not_null: Optional[Iterable[str]] = None,
         defaults: Optional[Dict[str, Any]] = None,
         drop_foreign_keys: Optional[Iterable] = None,
+        add_foreign_keys: Optional[ForeignKeysType] = None,
+        foreign_keys: Optional[ForeignKeysType] = None,
         column_order: Optional[List[str]] = None,
         tmp_suffix: Optional[str] = None,
         keep_table: Optional[str] = None,
@@ -1779,6 +1786,8 @@ class Table(Queryable):
         :param not_null: Columns to set as ``NOT NULL``
         :param defaults: Default values for columns
         :param drop_foreign_keys: Names of columns that should have their foreign key constraints removed
+        :param add_foreign_keys: List of foreign keys to add to the table
+        :param foreign_keys: List of foreign keys to set for the table, replacing any existing foreign keys
         :param column_order: List of strings specifying a full or partial column order
           to use when creating the table
         :param tmp_suffix: Suffix to use for the temporary table name
@@ -1788,6 +1797,45 @@ class Table(Queryable):
         types = types or {}
         rename = rename or {}
         drop = drop or set()
+
+        create_table_foreign_keys: List[ForeignKeyIndicator] = []
+
+        if foreign_keys is not None:
+            if add_foreign_keys is not None:
+                raise ValueError(
+                    "Cannot specify both foreign_keys and add_foreign_keys"
+                )
+            if drop_foreign_keys is not None:
+                raise ValueError(
+                    "Cannot specify both foreign_keys and drop_foreign_keys"
+                )
+            create_table_foreign_keys.extend(foreign_keys)
+        else:
+            # Construct foreign_keys from current, plus add_foreign_keys, minus drop_foreign_keys
+            create_table_foreign_keys = []
+            for table, column, other_table, other_column in self.foreign_keys:
+                # Copy over old foreign keys, unless we are dropping them
+                if (drop_foreign_keys is None) or (column not in drop_foreign_keys):
+                    create_table_foreign_keys.append(
+                        ForeignKey(
+                            table,
+                            rename.get(column) or column,
+                            other_table,
+                            other_column,
+                        )
+                    )
+            # Add new foreign keys
+            if add_foreign_keys is not None:
+                for fk in self.db.resolve_foreign_keys(self.name, add_foreign_keys):
+                    create_table_foreign_keys.append(
+                        ForeignKey(
+                            self.name,
+                            rename.get(fk.column) or fk.column,
+                            fk.other_table,
+                            fk.other_column,
+                        )
+                    )
+
         new_table_name = "{}_new_{}".format(
             self.name, tmp_suffix or os.urandom(6).hex()
         )
@@ -1846,14 +1894,6 @@ class Table(Queryable):
             create_table_defaults.update(
                 {rename.get(c) or c: v for c, v in defaults.items()}
             )
-
-        # foreign_keys
-        create_table_foreign_keys = []
-        for table, column, other_table, other_column in self.foreign_keys:
-            if (drop_foreign_keys is None) or (column not in drop_foreign_keys):
-                create_table_foreign_keys.append(
-                    (rename.get(column) or column, other_table, other_column)
-                )
 
         if column_order is not None:
             column_order = [rename.get(col) or col for col in column_order]

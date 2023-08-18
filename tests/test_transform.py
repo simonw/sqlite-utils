@@ -329,22 +329,29 @@ def test_transform_foreign_keys_survive_renamed_column(
     ]
 
 
+def _add_country_city_continent(db):
+    db["country"].insert({"id": 1, "name": "France"}, pk="id")
+    db["continent"].insert({"id": 2, "name": "Europe"}, pk="id")
+    db["city"].insert({"id": 24, "name": "Paris"}, pk="id")
+
+
+_CAVEAU = {
+    "id": 32,
+    "name": "Caveau de la Huchette",
+    "country": 1,
+    "continent": 2,
+    "city": 24,
+}
+
+
 @pytest.mark.parametrize("use_pragma_foreign_keys", [False, True])
 def test_transform_drop_foreign_keys(fresh_db, use_pragma_foreign_keys):
     if use_pragma_foreign_keys:
         fresh_db.conn.execute("PRAGMA foreign_keys=ON")
     # Create table with three foreign keys so we can drop two of them
-    fresh_db["country"].insert({"id": 1, "name": "France"}, pk="id")
-    fresh_db["continent"].insert({"id": 2, "name": "Europe"}, pk="id")
-    fresh_db["city"].insert({"id": 24, "name": "Paris"}, pk="id")
+    _add_country_city_continent(fresh_db)
     fresh_db["places"].insert(
-        {
-            "id": 32,
-            "name": "Caveau de la Huchette",
-            "country": 1,
-            "continent": 2,
-            "city": 24,
-        },
+        _CAVEAU,
         foreign_keys=("country", "continent", "city"),
     )
     assert fresh_db["places"].foreign_keys == [
@@ -387,3 +394,107 @@ def test_transform_verify_foreign_keys(fresh_db):
         == "CREATE TABLE [authors] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n)"
     )
     assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
+
+
+def test_transform_add_foreign_keys_from_scratch(fresh_db):
+    _add_country_city_continent(fresh_db)
+    fresh_db["places"].insert(_CAVEAU)
+    # Should have no foreign keys
+    assert fresh_db["places"].foreign_keys == []
+    # Now add them using .transform()
+    fresh_db["places"].transform(add_foreign_keys=("country", "continent", "city"))
+    # Should now have all three:
+    assert fresh_db["places"].foreign_keys == [
+        ForeignKey(
+            table="places", column="city", other_table="city", other_column="id"
+        ),
+        ForeignKey(
+            table="places",
+            column="continent",
+            other_table="continent",
+            other_column="id",
+        ),
+        ForeignKey(
+            table="places", column="country", other_table="country", other_column="id"
+        ),
+    ]
+    assert fresh_db["places"].schema == (
+        'CREATE TABLE "places" (\n'
+        "   [id] INTEGER,\n"
+        "   [name] TEXT,\n"
+        "   [country] INTEGER REFERENCES [country]([id]),\n"
+        "   [continent] INTEGER REFERENCES [continent]([id]),\n"
+        "   [city] INTEGER REFERENCES [city]([id])\n"
+        ")"
+    )
+
+
+@pytest.mark.parametrize(
+    "add_foreign_keys",
+    (
+        ("country", "continent"),
+        # Fully specified
+        (
+            ("country", "country", "id"),
+            ("continent", "continent", "id"),
+        ),
+    ),
+)
+def test_transform_add_foreign_keys_from_partial(fresh_db, add_foreign_keys):
+    _add_country_city_continent(fresh_db)
+    fresh_db["places"].insert(
+        _CAVEAU,
+        foreign_keys=("city",),
+    )
+    # Should have one foreign keys
+    assert fresh_db["places"].foreign_keys == [
+        ForeignKey(table="places", column="city", other_table="city", other_column="id")
+    ]
+    # Now add three more using .transform()
+    fresh_db["places"].transform(add_foreign_keys=add_foreign_keys)
+    # Should now have all three:
+    assert fresh_db["places"].foreign_keys == [
+        ForeignKey(
+            table="places", column="city", other_table="city", other_column="id"
+        ),
+        ForeignKey(
+            table="places",
+            column="continent",
+            other_table="continent",
+            other_column="id",
+        ),
+        ForeignKey(
+            table="places", column="country", other_table="country", other_column="id"
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    "foreign_keys",
+    (
+        ("country", "continent"),
+        # Fully specified
+        (
+            ("country", "country", "id"),
+            ("continent", "continent", "id"),
+        ),
+    ),
+)
+def test_transform_replace_foreign_keys(fresh_db, foreign_keys):
+    _add_country_city_continent(fresh_db)
+    fresh_db["places"].insert(
+        _CAVEAU,
+        foreign_keys=("city",),
+    )
+    assert len(fresh_db["places"].foreign_keys) == 1
+    # Replace with two different ones
+    fresh_db["places"].transform(foreign_keys=foreign_keys)
+    assert fresh_db["places"].schema == (
+        'CREATE TABLE "places" (\n'
+        "   [id] INTEGER,\n"
+        "   [name] TEXT,\n"
+        "   [country] INTEGER REFERENCES [country]([id]),\n"
+        "   [continent] INTEGER REFERENCES [continent]([id]),\n"
+        "   [city] INTEGER\n"
+        ")"
+    )
