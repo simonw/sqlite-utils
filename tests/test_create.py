@@ -18,7 +18,6 @@ import pathlib
 import pytest
 import uuid
 
-from .utils import collapse_whitespace
 
 try:
     import pandas as pd  # type: ignore
@@ -329,46 +328,64 @@ def test_create_error_if_invalid_self_referential_foreign_keys(fresh_db):
 @pytest.mark.parametrize(
     "col_name,col_type,not_null_default,expected_schema",
     (
-        ("nickname", str, None, "CREATE TABLE [dogs] ( [name] TEXT , [nickname] TEXT)"),
-        ("dob", datetime.date, None, "CREATE TABLE [dogs] ( [name] TEXT , [dob] TEXT)"),
-        ("age", int, None, "CREATE TABLE [dogs] ( [name] TEXT , [age] INTEGER)"),
-        ("weight", float, None, "CREATE TABLE [dogs] ( [name] TEXT , [weight] FLOAT)"),
-        ("text", "TEXT", None, "CREATE TABLE [dogs] ( [name] TEXT , [text] TEXT)"),
+        (
+            "nickname",
+            str,
+            None,
+            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [nickname] TEXT)",
+        ),
+        (
+            "dob",
+            datetime.date,
+            None,
+            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [dob] TEXT)",
+        ),
+        ("age", int, None, "CREATE TABLE [dogs] (\n   [name] TEXT\n, [age] INTEGER)"),
+        (
+            "weight",
+            float,
+            None,
+            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [weight] FLOAT)",
+        ),
+        ("text", "TEXT", None, "CREATE TABLE [dogs] (\n   [name] TEXT\n, [text] TEXT)"),
         (
             "integer",
             "INTEGER",
             None,
-            "CREATE TABLE [dogs] ( [name] TEXT , [integer] INTEGER)",
+            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [integer] INTEGER)",
         ),
-        ("float", "FLOAT", None, "CREATE TABLE [dogs] ( [name] TEXT , [float] FLOAT)"),
-        ("blob", "blob", None, "CREATE TABLE [dogs] ( [name] TEXT , [blob] BLOB)"),
+        (
+            "float",
+            "FLOAT",
+            None,
+            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [float] FLOAT)",
+        ),
+        ("blob", "blob", None, "CREATE TABLE [dogs] (\n   [name] TEXT\n, [blob] BLOB)"),
         (
             "default_str",
             None,
             None,
-            "CREATE TABLE [dogs] ( [name] TEXT , [default_str] TEXT)",
+            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [default_str] TEXT)",
         ),
         (
             "nickname",
             str,
             "",
-            "CREATE TABLE [dogs] ( [name] TEXT , [nickname] TEXT NOT NULL DEFAULT '')",
+            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [nickname] TEXT NOT NULL DEFAULT '')",
         ),
         (
             "nickname",
             str,
             "dawg's dawg",
-            "CREATE TABLE [dogs] ( [name] TEXT , [nickname] TEXT NOT NULL DEFAULT 'dawg''s dawg')",
+            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [nickname] TEXT NOT NULL DEFAULT 'dawg''s dawg')",
         ),
     ),
 )
 def test_add_column(fresh_db, col_name, col_type, not_null_default, expected_schema):
     fresh_db.create_table("dogs", {"name": str})
-    assert "CREATE TABLE [dogs] ( [name] TEXT )" == collapse_whitespace(
-        fresh_db["dogs"].schema
-    )
+    assert fresh_db["dogs"].schema == "CREATE TABLE [dogs] (\n   [name] TEXT\n)"
     fresh_db["dogs"].add_column(col_name, col_type, not_null_default=not_null_default)
-    assert expected_schema == collapse_whitespace(fresh_db["dogs"].schema)
+    assert fresh_db["dogs"].schema == expected_schema
 
 
 def test_add_foreign_key(fresh_db):
@@ -492,9 +509,11 @@ def test_add_foreign_key_guess_table(fresh_db):
     fresh_db.create_table("breeds", {"name": str, "id": int}, pk="id")
     fresh_db["dogs"].add_column("breed_id", int)
     fresh_db["dogs"].add_foreign_key("breed_id")
-    assert (
-        collapse_whitespace(fresh_db["dogs"].schema)
-        == 'CREATE TABLE "dogs" ( [name] TEXT, [breed_id] INTEGER REFERENCES [breeds]([id]) )'
+    assert fresh_db["dogs"].schema == (
+        'CREATE TABLE "dogs" (\n'
+        "   [name] TEXT,\n"
+        "   [breed_id] INTEGER REFERENCES [breeds]([id])\n"
+        ")"
     )
 
 

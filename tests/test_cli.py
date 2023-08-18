@@ -10,8 +10,6 @@ import os
 import pytest
 import textwrap
 
-from .utils import collapse_whitespace
-
 
 def write_json(file_path, data):
     with open(file_path, "w") as fp:
@@ -273,28 +271,26 @@ def test_create_index_desc(db_path):
 @pytest.mark.parametrize(
     "col_name,col_type,expected_schema",
     (
-        ("text", "TEXT", "CREATE TABLE [dogs] ( [name] TEXT , [text] TEXT)"),
+        ("text", "TEXT", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [text] TEXT)"),
         (
             "integer",
             "INTEGER",
-            "CREATE TABLE [dogs] ( [name] TEXT , [integer] INTEGER)",
+            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [integer] INTEGER)",
         ),
-        ("float", "FLOAT", "CREATE TABLE [dogs] ( [name] TEXT , [float] FLOAT)"),
-        ("blob", "blob", "CREATE TABLE [dogs] ( [name] TEXT , [blob] BLOB)"),
-        ("default", None, "CREATE TABLE [dogs] ( [name] TEXT , [default] TEXT)"),
+        ("float", "FLOAT", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [float] FLOAT)"),
+        ("blob", "blob", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [blob] BLOB)"),
+        ("default", None, "CREATE TABLE [dogs] (\n   [name] TEXT\n, [default] TEXT)"),
     ),
 )
 def test_add_column(db_path, col_name, col_type, expected_schema):
     db = Database(db_path)
     db.create_table("dogs", {"name": str})
-    assert "CREATE TABLE [dogs] ( [name] TEXT )" == collapse_whitespace(
-        db["dogs"].schema
-    )
+    assert db["dogs"].schema == "CREATE TABLE [dogs] (\n   [name] TEXT\n)"
     args = ["add-column", db_path, "dogs", col_name]
     if col_type is not None:
         args.append(col_type)
-    assert 0 == CliRunner().invoke(cli.cli, args).exit_code
-    assert expected_schema == collapse_whitespace(db["dogs"].schema)
+    assert CliRunner().invoke(cli.cli, args).exit_code == 0
+    assert db["dogs"].schema == expected_schema
 
 
 @pytest.mark.parametrize("ignore", (True, False))
@@ -313,9 +309,7 @@ def test_add_column_ignore(db_path, ignore):
 def test_add_column_not_null_default(db_path):
     db = Database(db_path)
     db.create_table("dogs", {"name": str})
-    assert "CREATE TABLE [dogs] ( [name] TEXT )" == collapse_whitespace(
-        db["dogs"].schema
-    )
+    assert db["dogs"].schema == "CREATE TABLE [dogs] (\n   [name] TEXT\n)"
     args = [
         "add-column",
         db_path,
@@ -324,10 +318,11 @@ def test_add_column_not_null_default(db_path):
         "--not-null-default",
         "dogs'dawg",
     ]
-    assert 0 == CliRunner().invoke(cli.cli, args).exit_code
-    assert (
-        "CREATE TABLE [dogs] ( [name] TEXT , [nickname] TEXT NOT NULL DEFAULT 'dogs''dawg')"
-        == collapse_whitespace(db["dogs"].schema)
+    assert CliRunner().invoke(cli.cli, args).exit_code == 0
+    assert db["dogs"].schema == (
+        "CREATE TABLE [dogs] (\n"
+        "   [name] TEXT\n"
+        ", [nickname] TEXT NOT NULL DEFAULT 'dogs''dawg')"
     )
 
 
