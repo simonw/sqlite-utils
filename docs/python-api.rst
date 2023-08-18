@@ -1283,6 +1283,8 @@ The SQLite ``ALTER TABLE`` statement doesn't have the ability to add foreign key
 
 The ``add_foreign_key()`` method here is a convenient wrapper around :ref:`table.transform() <python_api_transform>`.
 
+It's also possible to add foreign keys by directly updating the `sqlite_master` table. The `sqlite-utils-fast-fks <https://github.com/simonw/sqlite-utils-fast-fks>`__ plugin implements this pattern, using code that was included with ``sqlite-utils`` prior to version 3.35.
+
 Here's an example of this mechanism in action:
 
 .. code-block:: python
