@@ -1281,9 +1281,7 @@ Adding foreign key constraints
 
 The SQLite ``ALTER TABLE`` statement doesn't have the ability to add foreign key references to an existing column.
 
-It's possible to add these references through very careful manipulation of SQLite's ``sqlite_master`` table, using ``PRAGMA writable_schema``.
-
-``sqlite-utils`` can do this for you, though there is a significant risk of data corruption if something goes wrong so it is advisable to create a fresh copy of your database file before attempting this.
+The ``add_foreign_key()`` method here is a convenient wrapper around :ref:`table.transform() <python_api_transform>`.
 
 Here's an example of this mechanism in action:
 
@@ -1317,11 +1315,7 @@ To ignore the case where the key already exists, use ``ignore=True``:
 Adding multiple foreign key constraints at once
 -----------------------------------------------
 
-The final step in adding a new foreign key to a SQLite database is to run ``VACUUM``, to ensure the new foreign key is available in future introspection queries.
-
-``VACUUM`` against a large (multi-GB) database can take several minutes or longer. If you are adding multiple foreign keys using ``table.add_foreign_key(...)`` these can quickly add up.
-
-Instead, you can use ``db.add_foreign_keys(...)`` to add multiple foreign keys within a single transaction. This method takes a list of four-tuples, each one specifying a ``table``, ``column``, ``other_table`` and ``other_column``.
+You can use ``db.add_foreign_keys(...)`` to add multiple foreign keys in one go. This method takes a list of four-tuples, each one specifying a ``table``, ``column``, ``other_table`` and ``other_column``.
 
 Here's an example adding two foreign keys at once:
 
