@@ -4,6 +4,22 @@
  Changelog
 ===========
 
+.. _v3_35:
+
+3.35 (2023-08-17)
+-----------------
+
+Adding foreign keys to a table no longer uses ``PRAGMA writable_schema = 1`` to directly manipulate the ``sqlite_master`` table. This was resulting in errors in some Python installations where the SQLite library was compiled in a way that prevented this from working, in particular on macOS. Foreign keys are now added using the :ref:`table transformation <python_api_transform>` mechanism instead. (:issue:`577`)
+
+This new mechanism creates a full copy of the table, so it is likely to be significantly slower for large tables, but will no longer trigger ``table sqlite_master may not be modified`` errors on platforms that do not support ``PRAGMA writable_schema = 1``.
+
+Other changes:
+
+- The :ref:`table.transform() method <python_api_transform>` has two new parameters: ``foreign_keys=`` allows you to replace the foreign key constraints defined fo a table, and ``add_foreign_keys=`` lets you specify new foreign keys to add. These complement the existing ``drop_foreign_keys=`` parameter. (:issue:`577`)
+- The :ref:`sqlite-utils transform <cli_transform_table>` command has a new ``--add-foreign-key`` option which can be called multiple times to add foreign keys to a table that is being transformed. (:issue:`585`)
+- :ref:`sqlite-utils convert <cli_convert>` now has a ``--pdb`` option for opening a debugger on the first encountered error in your conversion script. (:issue:`581`)
+- Fixed bug where ``sqlite-utils install -e '.[test]'`` option did not work correctly.
+
 .. _v3_34:
 
 3.34 (2023-07-22)
