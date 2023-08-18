@@ -93,11 +93,13 @@ def test_jsonsplit(fresh_db, delimiter):
         ],
         pk="id",
     )
-    fn = recipes.jsonsplit
     if delimiter is not None:
 
         def fn(value):
             return recipes.jsonsplit(value, delimiter=delimiter)
+
+    else:
+        fn = recipes.jsonsplit
 
     fresh_db["example"].convert("tags", fn)
     assert list(fresh_db["example"].rows) == [
@@ -121,11 +123,13 @@ def test_jsonsplit_type(fresh_db, type, expected):
         ],
         pk="id",
     )
-    fn = recipes.jsonsplit
     if type is not None:
 
         def fn(value):
             return recipes.jsonsplit(value, type=type)
+
+    else:
+        fn = recipes.jsonsplit
 
     fresh_db["example"].convert("records", fn)
     assert json.loads(fresh_db["example"].get(1)["records"]) == expected
