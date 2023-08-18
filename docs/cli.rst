@@ -2061,6 +2061,9 @@ Every option for this table (with the exception of ``--pk-none``) can be specifi
 ``--drop-foreign-key column``
     Drop the specified foreign key.
 
+``--add-foregn-key column other_table other_column``
+    Add a foreign key constraint to ``column`` pointing to ``other_table.other_column``.
+
 If you want to see the SQL that will be executed to make the change without actually executing it, add the ``--sql`` flag. For example:
 
 .. code-block:: bash

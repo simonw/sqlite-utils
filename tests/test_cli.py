@@ -1645,10 +1645,52 @@ def test_transform(db_path, args, expected_schema):
     assert schema == expected_schema
 
 
-def test_transform_drop_foreign_key(db_path):
+@pytest.mark.parametrize(
+    "extra_args,expected_schema",
+    (
+        (
+            ["--drop-foreign-key", "country"],
+            (
+                'CREATE TABLE "places" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [name] TEXT,\n"
+                "   [country] INTEGER,\n"
+                "   [city] INTEGER REFERENCES [city]([id]),\n"
+                "   [continent] INTEGER\n"
+                ")"
+            ),
+        ),
+        (
+            ["--drop-foreign-key", "country", "--drop-foreign-key", "city"],
+            (
+                'CREATE TABLE "places" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [name] TEXT,\n"
+                "   [country] INTEGER,\n"
+                "   [city] INTEGER,\n"
+                "   [continent] INTEGER\n"
+                ")"
+            ),
+        ),
+        (
+            ["--add-foreign-key", "continent", "continent", "id"],
+            (
+                'CREATE TABLE "places" (\n'
+                "   [id] INTEGER PRIMARY KEY,\n"
+                "   [name] TEXT,\n"
+                "   [country] INTEGER REFERENCES [country]([id]),\n"
+                "   [city] INTEGER REFERENCES [city]([id]),\n"
+                "   [continent] INTEGER REFERENCES [continent]([id])\n"
+                ")"
+            ),
+        ),
+    ),
+)
+def test_transform_add_or_drop_foreign_key(db_path, extra_args, expected_schema):
     db = Database(db_path)
     with db.conn:
         # Create table with three foreign keys so we can drop two of them
+        db["continent"].insert({"id": 1, "name": "Europe"}, pk="id")
         db["country"].insert({"id": 1, "name": "France"}, pk="id")
         db["city"].insert({"id": 24, "name": "Paris"}, pk="id")
         db["places"].insert(
@@ -1657,6 +1699,7 @@ def test_transform_drop_foreign_key(db_path):
                 "name": "Caveau de la Huchette",
                 "country": 1,
                 "city": 24,
+                "continent": 1,
             },
             foreign_keys=("country", "city"),
             pk="id",
@@ -1667,21 +1710,12 @@ def test_transform_drop_foreign_key(db_path):
             "transform",
             db_path,
             "places",
-            "--drop-foreign-key",
-            "country",
-        ],
+        ]
+        + extra_args,
     )
-    print(result.output)
     assert result.exit_code == 0
     schema = db["places"].schema
-    assert schema == (
-        'CREATE TABLE "places" (\n'
-        "   [id] INTEGER PRIMARY KEY,\n"
-        "   [name] TEXT,\n"
-        "   [country] INTEGER,\n"
-        "   [city] INTEGER REFERENCES [city]([id])\n"
-        ")"
-    )
+    assert schema == expected_schema
 
 
 _common_other_schema = (

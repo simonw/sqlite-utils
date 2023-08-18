@@ -455,20 +455,25 @@ See :ref:`cli_transform_table`.
               --rename column2 column_renamed
 
     Options:
-      --type <TEXT CHOICE>...   Change column type to INTEGER, TEXT, FLOAT or BLOB
-      --drop TEXT               Drop this column
-      --rename <TEXT TEXT>...   Rename this column to X
-      -o, --column-order TEXT   Reorder columns
-      --not-null TEXT           Set this column to NOT NULL
-      --not-null-false TEXT     Remove NOT NULL from this column
-      --pk TEXT                 Make this column the primary key
-      --pk-none                 Remove primary key (convert to rowid table)
-      --default <TEXT TEXT>...  Set default value for this column
-      --default-none TEXT       Remove default from this column
-      --drop-foreign-key TEXT   Drop foreign key constraint for this column
-      --sql                     Output SQL without executing it
-      --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
-      -h, --help                Show this message and exit.
+      --type <TEXT CHOICE>...         Change column type to INTEGER, TEXT, FLOAT or
+                                      BLOB
+      --drop TEXT                     Drop this column
+      --rename <TEXT TEXT>...         Rename this column to X
+      -o, --column-order TEXT         Reorder columns
+      --not-null TEXT                 Set this column to NOT NULL
+      --not-null-false TEXT           Remove NOT NULL from this column
+      --pk TEXT                       Make this column the primary key
+      --pk-none                       Remove primary key (convert to rowid table)
+      --default <TEXT TEXT>...        Set default value for this column
+      --default-none TEXT             Remove default from this column
+      --add-foreign-key <TEXT TEXT TEXT>...
+                                      Add a foreign key constraint from a column to
+                                      another table with another column
+      --drop-foreign-key TEXT         Drop foreign key constraint for this column
+      --sql                           Output SQL without executing it
+      --load-extension TEXT           Path to SQLite extension, with optional
+                                      :entrypoint
+      -h, --help                      Show this message and exit.
 
 
 .. _cli_ref_extract:

@@ -2406,6 +2406,14 @@ def schema(
     "--default-none", type=str, multiple=True, help="Remove default from this column"
 )
 @click.option(
+    "add_foreign_keys",
+    "--add-foreign-key",
+    type=(str, str, str),
+    multiple=True,
+    help="Add a foreign key constraint from a column to another table with another column",
+)
+@click.option(
+    "drop_foreign_keys",
     "--drop-foreign-key",
     type=str,
     multiple=True,
@@ -2426,7 +2434,8 @@ def transform(
     pk_none,
     default,
     default_none,
-    drop_foreign_key,
+    add_foreign_keys,
+    drop_foreign_keys,
     sql,
     load_extension,
 ):
@@ -2475,8 +2484,10 @@ def transform(
     elif pk_none:
         kwargs["pk"] = None
     kwargs["defaults"] = default_dict
-    if drop_foreign_key:
-        kwargs["drop_foreign_keys"] = drop_foreign_key
+    if drop_foreign_keys:
+        kwargs["drop_foreign_keys"] = drop_foreign_keys
+    if add_foreign_keys:
+        kwargs["add_foreign_keys"] = add_foreign_keys
 
     if sql:
         for line in db[table].transform_sql(**kwargs):
