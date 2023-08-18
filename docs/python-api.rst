@@ -1467,6 +1467,39 @@ The ``column_order=`` parameter can be used to change the order of the columns. 
     # Change column order
     table.transform(column_order=("name", "age", "id")
 
+Adding foreign key constraints
+------------------------------
+
+You can add one or more foreign key constraints to a table using the ``add_foreign_keys=`` parameter:
+
+.. code-block:: python
+
+    db["places"].transform(
+        add_foreign_keys=(
+            ("country", "country", "id"),
+            ("continent", "continent", "id")
+        )
+    )
+
+This accepts the same arguments described in :ref:`specifying foreign keys <python_api_foreign_keys>` - so you can specify them as a full tuple of ``(column, other_table, other_column)``, or you can take a shortcut and pass just the name of the column, provided the table can be automatically derived from the column name:
+
+.. code-block:: python
+
+    db["places"].transform(
+        add_foreign_keys=(("country", "continent"))
+    )
+
+Replacing foreign key constraints
+---------------------------------
+
+The ``foreign_keys=`` parameter is similar to  to ``add_foreign_keys=`` but can be be used to replace all foreign key constraints on a table, dropping any that are not explicitly mentioned:
+
+.. code-block:: python
+
+    db["places"].transform(
+        add_foreign_keys=(("continent",))
+    )
+
 Dropping foreign key constraints
 --------------------------------
 

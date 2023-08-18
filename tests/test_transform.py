@@ -429,7 +429,18 @@ def test_transform_add_foreign_keys_from_scratch(fresh_db):
     )
 
 
-def test_transform_add_foreign_keys_from_partial(fresh_db):
+@pytest.mark.parametrize(
+    "add_foreign_keys",
+    (
+        ("country", "continent"),
+        # Fully specified
+        (
+            ("country", "country", "id"),
+            ("continent", "continent", "id"),
+        ),
+    ),
+)
+def test_transform_add_foreign_keys_from_partial(fresh_db, add_foreign_keys):
     _add_country_city_continent(fresh_db)
     fresh_db["places"].insert(
         _CAVEAU,
@@ -440,7 +451,7 @@ def test_transform_add_foreign_keys_from_partial(fresh_db):
         ForeignKey(table="places", column="city", other_table="city", other_column="id")
     ]
     # Now add three more using .transform()
-    fresh_db["places"].transform(add_foreign_keys=("country", "continent"))
+    fresh_db["places"].transform(add_foreign_keys=add_foreign_keys)
     # Should now have all three:
     assert fresh_db["places"].foreign_keys == [
         ForeignKey(
@@ -458,7 +469,18 @@ def test_transform_add_foreign_keys_from_partial(fresh_db):
     ]
 
 
-def test_transform_replace_foreign_keys(fresh_db):
+@pytest.mark.parametrize(
+    "foreign_keys",
+    (
+        ("country", "continent"),
+        # Fully specified
+        (
+            ("country", "country", "id"),
+            ("continent", "continent", "id"),
+        ),
+    ),
+)
+def test_transform_replace_foreign_keys(fresh_db, foreign_keys):
     _add_country_city_continent(fresh_db)
     fresh_db["places"].insert(
         _CAVEAU,
@@ -466,9 +488,7 @@ def test_transform_replace_foreign_keys(fresh_db):
     )
     assert len(fresh_db["places"].foreign_keys) == 1
     # Replace with two different ones
-    fresh_db["places"].transform(
-        foreign_keys=("country", "continent"),
-    )
+    fresh_db["places"].transform(foreign_keys=foreign_keys)
     assert fresh_db["places"].schema == (
         'CREATE TABLE "places" (\n'
         "   [id] INTEGER,\n"
