@@ -1382,6 +1382,8 @@ To keep the original table around instead of dropping it, pass the ``keep_table=
 
     table.transform(types={"age": int}, keep_table="original_table")
 
+.. _python_api_transform_alter_column_types:
+
 Altering column types
 ---------------------
 
@@ -1394,6 +1396,8 @@ To alter the type of a column, use the ``types=`` argument:
 
 See :ref:`python_api_add_column` for a list of available types.
 
+.. _python_api_transform_rename_columns:
+
 Renaming columns
 ----------------
 
@@ -1403,6 +1407,8 @@ The ``rename=`` parameter can rename columns:
 
     # Rename 'age' to 'initial_age':
     table.transform(rename={"age": "initial_age"})
+
+.. _python_api_transform_drop_columns:
 
 Dropping columns
 ----------------
@@ -1414,6 +1420,8 @@ To drop columns, pass them in the ``drop=`` set:
     # Drop the 'age' column:
     table.transform(drop={"age"})
 
+.. _python_api_transform_change_primary_keys:
+
 Changing primary keys
 ---------------------
 
@@ -1423,6 +1431,8 @@ To change the primary key for a table, use ``pk=``. This can be passed a single 
 
     # Make `user_id` the new primary key
     table.transform(pk="user_id")
+
+.. _python_api_transform_change_not_null:
 
 Changing not null status
 ------------------------
@@ -1444,6 +1454,8 @@ If you want to take existing ``NOT NULL`` columns and change them to allow null 
     # Make age allow NULL and switch weight to being NOT NULL:
     table.transform(not_null={"age": False, "weight": True})
 
+.. _python_api_transform_alter_column_defaults:
+
 Altering column defaults
 ------------------------
 
@@ -1457,6 +1469,8 @@ The ``defaults=`` parameter can be used to set or change the defaults for differ
     # Now remove the default from that column:
     table.transform(defaults={"age": None})
 
+.. _python_api_transform_change_column_order:
+
 Changing column order
 ---------------------
 
@@ -1466,6 +1480,8 @@ The ``column_order=`` parameter can be used to change the order of the columns. 
 
     # Change column order
     table.transform(column_order=("name", "age", "id")
+
+.. _python_api_transform_add_foreign_key_constraints:
 
 Adding foreign key constraints
 ------------------------------
@@ -1489,6 +1505,8 @@ This accepts the same arguments described in :ref:`specifying foreign keys <pyth
         add_foreign_keys=(("country", "continent"))
     )
 
+.. _python_api_transform_replace_foreign_key_constraints:
+
 Replacing foreign key constraints
 ---------------------------------
 
@@ -1499,6 +1517,8 @@ The ``foreign_keys=`` parameter is similar to  to ``add_foreign_keys=`` but can 
     db["places"].transform(
         add_foreign_keys=(("continent",))
     )
+
+.. _python_api_transform_drop_foreign_key_constraints:
 
 Dropping foreign key constraints
 --------------------------------
