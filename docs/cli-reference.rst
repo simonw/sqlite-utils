@@ -1188,8 +1188,6 @@ See :ref:`cli_add_foreign_key`.
 
           sqlite-utils add-foreign-key my.db books author_id authors id
 
-      WARNING: Could corrupt your database! Back up your database file first.
-
     Options:
       --ignore               If foreign key already exists, do nothing
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint

@@ -491,8 +491,6 @@ def add_foreign_key(
     Example:
 
         sqlite-utils add-foreign-key my.db books author_id authors id
-
-    WARNING: Could corrupt your database! Back up your database file first.
     """
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
