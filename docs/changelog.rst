@@ -15,10 +15,10 @@ This new mechanism creates a full copy of the table, so it is likely to be signi
 
 Other changes:
 
-- The :ref:`table.transform() method <python_api_transform>` has two new parameters: ``foreign_keys=`` allows you to replace the foreign key constraints defined fo a table, and ``add_foreign_keys=`` lets you specify new foreign keys to add. These complement the existing ``drop_foreign_keys=`` parameter. (:issue:`577`)
+- The :ref:`table.transform() method <python_api_transform>` has two new parameters: ``foreign_keys=`` allows you to replace the foreign key constraints defined on a table, and ``add_foreign_keys=`` lets you specify new foreign keys to add. These complement the existing ``drop_foreign_keys=`` parameter. (:issue:`577`)
 - The :ref:`sqlite-utils transform <cli_transform_table>` command has a new ``--add-foreign-key`` option which can be called multiple times to add foreign keys to a table that is being transformed. (:issue:`585`)
 - :ref:`sqlite-utils convert <cli_convert>` now has a ``--pdb`` option for opening a debugger on the first encountered error in your conversion script. (:issue:`581`)
-- Fixed bug where ``sqlite-utils install -e '.[test]'`` option did not work correctly.
+- Fixed a bug where ``sqlite-utils install -e '.[test]'`` option did not work correctly.
 
 .. _v3_34:
 
