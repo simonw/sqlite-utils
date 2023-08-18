@@ -13,6 +13,8 @@ Adding foreign keys to a table no longer uses ``PRAGMA writable_schema = 1`` to 
 
 This new mechanism creates a full copy of the table, so it is likely to be significantly slower for large tables, but will no longer trigger ``table sqlite_master may not be modified`` errors on platforms that do not support ``PRAGMA writable_schema = 1``.
 
+A new plugin, `sqlite-utils-fast-fks <https://github.com/simonw/sqlite-utils-fast-fks>`__, is now available for developers who still want to use that faster but riskier implementation.
+
 Other changes:
 
 - The :ref:`table.transform() method <python_api_transform>` has two new parameters: ``foreign_keys=`` allows you to replace the foreign key constraints defined on a table, and ``add_foreign_keys=`` lets you specify new foreign keys to add. These complement the existing ``drop_foreign_keys=`` parameter. (:issue:`577`)
