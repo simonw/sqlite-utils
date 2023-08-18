@@ -127,7 +127,7 @@ def test_cli_create_spatialite(tmpdir):
         cli, ["create-database", str(db_path), "--init-spatialite"]
     )
 
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert db_path.exists()
     assert db_path.read_binary()[:16] == b"SQLite format 3\x00"
 
@@ -155,7 +155,7 @@ def test_cli_add_geometry_column(tmpdir):
         ],
     )
 
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
 
     assert db["geometry_columns"].get(["locations", "geometry"]) == {
         "f_table_name": "locations",
@@ -189,7 +189,7 @@ def test_cli_add_geometry_column_options(tmpdir):
         ],
     )
 
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
 
     assert db["geometry_columns"].get(["locations", "geometry"]) == {
         "f_table_name": "locations",
@@ -240,6 +240,6 @@ def test_cli_create_spatial_index(tmpdir):
         cli, ["create-spatial-index", str(db_path), table.name, "geometry"]
     )
 
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
 
     assert "idx_locations_geometry" in db.table_names()

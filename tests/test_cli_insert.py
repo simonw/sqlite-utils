@@ -13,7 +13,7 @@ def test_insert_simple(tmpdir):
     with open(json_path, "w") as fp:
         fp.write(json.dumps({"name": "Cleo", "age": 4}))
     result = CliRunner().invoke(cli.cli, ["insert", db_path, "dogs", json_path])
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert [{"age": 4, "name": "Cleo"}] == list(
         Database(db_path).query("select * from dogs")
     )
@@ -29,7 +29,7 @@ def test_insert_from_stdin(tmpdir):
         ["insert", db_path, "dogs", "-"],
         input=json.dumps({"name": "Cleo", "age": 4}),
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert [{"age": 4, "name": "Cleo"}] == list(
         Database(db_path).query("select * from dogs")
     )
@@ -84,7 +84,7 @@ def test_insert_with_primary_key(db_path, tmpdir):
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert [{"id": 1, "age": 4, "name": "Cleo"}] == list(
         Database(db_path).query("select * from dogs")
     )
@@ -100,7 +100,7 @@ def test_insert_multiple_with_primary_key(db_path, tmpdir):
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     db = Database(db_path)
     assert dogs == list(db.query("select * from dogs order by id"))
     assert ["id"] == db["dogs"].pks
@@ -117,7 +117,7 @@ def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id", "--pk", "breed"]
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     db = Database(db_path)
     assert dogs == list(db.query("select * from dogs order by breed, id"))
     assert {"breed", "id"} == set(db["dogs"].pks)
@@ -146,7 +146,7 @@ def test_insert_not_null_default(db_path, tmpdir):
         + ["--not-null", "name", "--not-null", "age"]
         + ["--default", "score", "5", "--default", "age", "1"],
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     db = Database(db_path)
     assert (
         "CREATE TABLE [dogs] (\n"
@@ -163,7 +163,7 @@ def test_insert_binary_base64(db_path):
         ["insert", db_path, "files", "-"],
         input=r'{"content": {"$base64": true, "encoded": "aGVsbG8="}}',
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     db = Database(db_path)
     actual = list(db.query("select content from files"))
     assert actual == [{"content": b"hello"}]
@@ -175,7 +175,7 @@ def test_insert_newline_delimited(db_path):
         ["insert", db_path, "from_json_nl", "-", "--nl"],
         input='{"foo": "bar", "n": 1}\n\n{"foo": "baz", "n": 2}',
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     db = Database(db_path)
     assert [
         {"foo": "bar", "n": 1},
@@ -193,12 +193,12 @@ def test_insert_ignore(db_path, tmpdir):
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
     )
-    assert 0 != result.exit_code, result.output
+    assert result.exit_code != 0, result.output
     # If we use --ignore it should run OK
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id", "--ignore"]
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     # ... but it should actually have no effect
     assert [{"id": 1, "name": "Cleo"}] == list(db.query("select * from dogs"))
 
@@ -225,7 +225,7 @@ def test_insert_csv_tsv(content, options, db_path, tmpdir):
         ["insert", db_path, "data", file_path] + options,
         catch_exceptions=False,
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert [{"foo": "1", "bar": "2", "baz": "cat,dog"}] == list(db["data"].rows)
 
 
@@ -266,7 +266,7 @@ def test_insert_stop_after(tmpdir, input, args):
         ["insert", db_path, "rows", "-", "--stop-after", "2"] + args,
         input=input,
     )
-    assert 0 == result.exit_code
+    assert result.exit_code == 0
     assert [{"name": "One"}, {"name": "Two"}] == list(
         Database(db_path).query("select * from rows")
     )
@@ -288,7 +288,7 @@ def test_only_allow_one_of_nl_tsv_csv(options, db_path, tmpdir):
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "data", file_path] + options
     )
-    assert 0 != result.exit_code
+    assert result.exit_code != 0
     assert "Error: Use just one of --nl, --csv or --tsv" == result.output.strip()
 
 
@@ -296,7 +296,7 @@ def test_insert_replace(db_path, tmpdir):
     test_insert_multiple_with_primary_key(db_path, tmpdir)
     json_path = str(tmpdir / "insert-replace.json")
     db = Database(db_path)
-    assert 20 == db["dogs"].count
+    assert db["dogs"].count == 20
     insert_replace_dogs = [
         {"id": 1, "name": "Insert replaced 1", "age": 4},
         {"id": 2, "name": "Insert replaced 2", "age": 4},
@@ -307,8 +307,8 @@ def test_insert_replace(db_path, tmpdir):
     result = CliRunner().invoke(
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id", "--replace"]
     )
-    assert 0 == result.exit_code, result.output
-    assert 21 == db["dogs"].count
+    assert result.exit_code == 0, result.output
+    assert db["dogs"].count == 21
     assert (
         list(db.query("select * from dogs where id in (1, 2, 21) order by id"))
         == insert_replace_dogs
@@ -321,7 +321,7 @@ def test_insert_truncate(db_path):
         ["insert", db_path, "from_json_nl", "-", "--nl", "--batch-size=1"],
         input='{"foo": "bar", "n": 1}\n{"foo": "baz", "n": 2}',
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     db = Database(db_path)
     assert [
         {"foo": "bar", "n": 1},
@@ -341,7 +341,7 @@ def test_insert_truncate(db_path):
         ],
         input='{"foo": "bam", "n": 3}\n{"foo": "bat", "n": 4}',
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert [
         {"foo": "bam", "n": 3},
         {"foo": "bat", "n": 4},
@@ -354,21 +354,21 @@ def test_insert_alter(db_path, tmpdir):
         ["insert", db_path, "from_json_nl", "-", "--nl"],
         input='{"foo": "bar", "n": 1}\n{"foo": "baz", "n": 2}',
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     # Should get an error with incorrect shaped additional data
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "from_json_nl", "-", "--nl"],
         input='{"foo": "bar", "baz": 5}',
     )
-    assert 0 != result.exit_code, result.output
+    assert result.exit_code != 0, result.output
     # If we run it again with --alter it should work correctly
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "from_json_nl", "-", "--nl", "--alter"],
         input='{"foo": "bar", "baz": 5}',
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     # Soundness check the database itself
     db = Database(db_path)
     assert {"foo": str, "n": int, "baz": int} == db["from_json_nl"].columns_dict
@@ -389,7 +389,7 @@ def test_insert_analyze(db_path):
         ["insert", db_path, "rows", "-", "--nl", "--analyze"],
         input='{"foo": "bar", "n": 1}\n{"foo": "baz", "n": 2}',
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert "sqlite_stat1" in db.table_names()
 
 
@@ -399,7 +399,7 @@ def test_insert_lines(db_path):
         ["insert", db_path, "from_lines", "-", "--lines"],
         input='First line\nSecond line\n{"foo": "baz"}',
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     db = Database(db_path)
     assert [
         {"line": "First line"},
@@ -414,7 +414,7 @@ def test_insert_text(db_path):
         ["insert", db_path, "from_text", "-", "--text"],
         input='First line\nSecond line\n{"foo": "baz"}',
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     db = Database(db_path)
     assert [{"text": 'First line\nSecond line\n{"foo": "baz"}'}] == list(
         db.query("select text from from_text")

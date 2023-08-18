@@ -81,9 +81,9 @@ def test_update_with_no_values_sets_last_pk(fresh_db):
     table = fresh_db.table("dogs", pk="id")
     table.insert_all([{"id": 1, "name": "Cleo"}, {"id": 2, "name": "Pancakes"}])
     table.update(1)
-    assert 1 == table.last_pk
+    assert table.last_pk == 1
     table.update(2)
-    assert 2 == table.last_pk
+    assert table.last_pk == 2
     with pytest.raises(NotFoundError):
         table.update(3)
 

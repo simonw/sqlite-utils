@@ -18,18 +18,18 @@ def test_delete_where(fresh_db):
     table = fresh_db["table"]
     for i in range(1, 11):
         table.insert({"id": i}, pk="id")
-    assert 10 == table.count
+    assert table.count == 10
     table.delete_where("id > ?", [5])
-    assert 5 == table.count
+    assert table.count == 5
 
 
 def test_delete_where_all(fresh_db):
     table = fresh_db["table"]
     for i in range(1, 11):
         table.insert({"id": i}, pk="id")
-    assert 10 == table.count
+    assert table.count == 10
     table.delete_where()
-    assert 0 == table.count
+    assert table.count == 0
 
 
 def test_delete_where_analyze(fresh_db):

@@ -49,7 +49,7 @@ def test_convert_code(fresh_db_and_path, code):
     result = CliRunner().invoke(
         cli.cli, ["convert", db_path, "t", "text", code], catch_exceptions=False
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     value = list(db["t"].rows)[0]["text"]
     assert value == "Spooktober"
 
@@ -67,7 +67,7 @@ def test_convert_code_errors(fresh_db_and_path, bad_code):
     result = CliRunner().invoke(
         cli.cli, ["convert", db_path, "t", "text", bad_code], catch_exceptions=False
     )
-    assert 1 == result.exit_code
+    assert result.exit_code == 1
     assert result.output == "Error: Could not compile code\n"
 
 
@@ -85,7 +85,7 @@ def test_convert_import(test_db_and_path):
             "re",
         ],
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert [
         {"id": 1, "dt": "5th OXXober 2019 12:04"},
         {"id": 2, "dt": "6th OXXober 2019 00:05:06"},
@@ -109,7 +109,7 @@ def test_convert_import_nested(fresh_db_and_path):
             "xml.etree.ElementTree",
         ],
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert [
         {"xml": "Cleo"},
     ] == list(db["example"].rows)
@@ -230,7 +230,7 @@ def test_convert_output_column(test_db_and_path, drop):
     if drop:
         args += ["--drop"]
     result = CliRunner().invoke(cli.cli, args)
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     expected = [
         {
             "id": 1,
@@ -277,7 +277,7 @@ def test_convert_output_column_output_type(test_db_and_path, output_type, expect
         cli.cli,
         args,
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert expected == list(db.execute("select id, new_id from example"))
 
 
@@ -428,7 +428,7 @@ def test_recipe_jsonsplit(tmpdir, delimiter):
         code = 'recipes.jsonsplit(value, delimiter="{}")'.format(delimiter)
     args = ["convert", db_path, "example", "tags", code]
     result = CliRunner().invoke(cli.cli, args)
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert list(db["example"].rows) == [
         {"id": 1, "tags": '["foo", "bar"]'},
         {"id": 2, "tags": '["bar", "baz"]'},
@@ -456,7 +456,7 @@ def test_recipe_jsonsplit_type(fresh_db_and_path, type, expected_array):
         code = "recipes.jsonsplit(value, type={})".format(type)
     args = ["convert", db_path, "example", "records", code]
     result = CliRunner().invoke(cli.cli, args)
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert json.loads(db["example"].get(1)["records"]) == expected_array
 
 
@@ -474,7 +474,7 @@ def test_recipe_jsonsplit_output(fresh_db_and_path, drop):
     if drop:
         args += ["--drop"]
     result = CliRunner().invoke(cli.cli, args)
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     expected = {
         "id": 1,
         "records": "1,2,3",
@@ -568,7 +568,7 @@ def test_convert_where_multi(fresh_db_and_path):
             "--multi",
         ],
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert list(db["names"].rows) == [
         {"id": 1, "name": "Cleo", "upper": None},
         {"id": 2, "name": "Bants", "upper": "BANTS"},
@@ -589,7 +589,7 @@ def test_convert_code_standard_input(fresh_db_and_path):
         ],
         input="value.upper()",
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert list(db["names"].rows) == [
         {"id": 1, "name": "CLEO"},
     ]
@@ -602,7 +602,7 @@ def test_convert_hyphen_workaround(fresh_db_and_path):
         cli.cli,
         ["convert", db_path, "names", "name", '"-"'],
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert list(db["names"].rows) == [
         {"id": 1, "name": "-"},
     ]
@@ -622,7 +622,7 @@ def test_convert_initialization_pattern(fresh_db_and_path):
         ],
         input="import random\nrandom.seed(1)\ndef convert(value):    return random.randint(0, 100)",
     )
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert list(db["names"].rows) == [
         {"id": 1, "name": "17"},
     ]
@@ -650,6 +650,6 @@ def test_convert_no_skip_false(fresh_db_and_path, no_skip_false, expected):
     assert db["t"].get(1)["x"] == 0
     assert db["t"].get(2)["x"] == 1
     result = CliRunner().invoke(cli.cli, args, input="value + 1")
-    assert 0 == result.exit_code, result.output
+    assert result.exit_code == 0, result.output
     assert db["t"].get(1)["x"] == expected
     assert db["t"].get(2)["x"] == 2

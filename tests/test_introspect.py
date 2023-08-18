@@ -54,18 +54,18 @@ def test_detect_fts_similar_tables(fresh_db, reverse_order):
 
 
 def test_tables(existing_db):
-    assert 1 == len(existing_db.tables)
-    assert "foo" == existing_db.tables[0].name
+    assert len(existing_db.tables) == 1
+    assert existing_db.tables[0].name == "foo"
 
 
 def test_views(fresh_db):
     fresh_db.create_view("foo_view", "select 1")
-    assert 1 == len(fresh_db.views)
+    assert len(fresh_db.views) == 1
     view = fresh_db.views[0]
     assert isinstance(view, View)
-    assert "foo_view" == view.name
-    assert "<View foo_view (1)>" == repr(view)
-    assert {"1": str} == view.columns_dict
+    assert view.name == "foo_view"
+    assert repr(view) == "<View foo_view (1)>"
+    assert view.columns_dict == {"1": str}
 
 
 def test_count(existing_db):

@@ -6,25 +6,25 @@ def test_upsert(fresh_db):
     table = fresh_db["table"]
     table.insert({"id": 1, "name": "Cleo"}, pk="id")
     table.upsert({"id": 1, "age": 5}, pk="id", alter=True)
-    assert [{"id": 1, "name": "Cleo", "age": 5}] == list(table.rows)
-    assert 1 == table.last_pk
+    assert list(table.rows) == [{"id": 1, "name": "Cleo", "age": 5}]
+    assert table.last_pk == 1
 
 
 def test_upsert_all(fresh_db):
     table = fresh_db["table"]
     table.upsert_all([{"id": 1, "name": "Cleo"}, {"id": 2, "name": "Nixie"}], pk="id")
     table.upsert_all([{"id": 1, "age": 5}, {"id": 2, "age": 5}], pk="id", alter=True)
-    assert [
+    assert list(table.rows) == [
         {"id": 1, "name": "Cleo", "age": 5},
         {"id": 2, "name": "Nixie", "age": 5},
-    ] == list(table.rows)
+    ]
     assert table.last_pk is None
 
 
 def test_upsert_all_single_column(fresh_db):
     table = fresh_db["table"]
     table.upsert_all([{"name": "Cleo"}], pk="name")
-    assert [{"name": "Cleo"}] == list(table.rows)
+    assert list(table.rows) == [{"name": "Cleo"}]
     assert table.pks == ["name"]
 
 

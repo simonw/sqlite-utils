@@ -151,8 +151,8 @@ def test_create_table_from_example(fresh_db, example, expected_columns):
     assert people_table.last_rowid is None
     assert people_table.last_pk is None
     people_table.insert(example)
-    assert 1 == people_table.last_rowid
-    assert 1 == people_table.last_pk
+    assert people_table.last_rowid == 1
+    assert people_table.last_pk == 1
     assert ["people"] == fresh_db.table_names()
     assert expected_columns == [
         {"name": col.name, "type": col.type} for col in fresh_db["people"].columns
@@ -680,7 +680,7 @@ def test_bulk_insert_more_than_999_values(fresh_db):
         ),
         pk="id",
     )
-    assert 100 == fresh_db["big"].count
+    assert fresh_db["big"].count == 100
 
 
 @pytest.mark.parametrize(
@@ -791,7 +791,7 @@ def test_create_index_if_not_exists(fresh_db):
     dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is_good_dog": True})
     assert [] == dogs.indexes
     dogs.create_index(["name"])
-    assert 1 == len(dogs.indexes)
+    assert len(dogs.indexes) == 1
     with pytest.raises(Exception, match="index idx_dogs_name already exists"):
         dogs.create_index(["name"])
     dogs.create_index(["name"], if_not_exists=True)
@@ -891,7 +891,7 @@ def test_insert_thousands_using_generator(fresh_db):
     assert [{"name": "i", "type": "INTEGER"}, {"name": "word", "type": "TEXT"}] == [
         {"name": col.name, "type": col.type} for col in fresh_db["test"].columns
     ]
-    assert 10000 == fresh_db["test"].count
+    assert fresh_db["test"].count == 10000
 
 
 def test_insert_thousands_raises_exception_with_extra_columns_after_first_100(fresh_db):
@@ -930,13 +930,13 @@ def test_insert_hash_id(fresh_db):
     dogs = fresh_db["dogs"]
     id = dogs.insert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id").last_pk
     assert "f501265970505d9825d8d9f590bfab3519fb20b1" == id
-    assert 1 == dogs.count
+    assert dogs.count == 1
     # Insert replacing a second time should not create a new row
     id2 = dogs.insert(
         {"name": "Cleo", "twitter": "cleopaws"}, hash_id="id", replace=True
     ).last_pk
     assert "f501265970505d9825d8d9f590bfab3519fb20b1" == id2
-    assert 1 == dogs.count
+    assert dogs.count == 1
 
 
 @pytest.mark.parametrize("use_table_factory", [True, False])
@@ -974,7 +974,7 @@ def test_works_with_pathlib_path(tmpdir):
     path = pathlib.Path(tmpdir / "test.db")
     db = Database(path)
     db["demo"].insert_all([{"foo": 1}])
-    assert 1 == db["demo"].count
+    assert db["demo"].count == 1
 
 
 @pytest.mark.skipif(pd is None, reason="pandas and numpy are not installed")
@@ -1091,11 +1091,11 @@ def test_drop_ignore(fresh_db):
 
 def test_insert_all_empty_list(fresh_db):
     fresh_db["t"].insert({"foo": 1})
-    assert 1 == fresh_db["t"].count
+    assert fresh_db["t"].count == 1
     fresh_db["t"].insert_all([])
-    assert 1 == fresh_db["t"].count
+    assert fresh_db["t"].count == 1
     fresh_db["t"].insert_all([], replace=True)
-    assert 1 == fresh_db["t"].count
+    assert fresh_db["t"].count == 1
 
 
 def test_insert_all_single_column(fresh_db):

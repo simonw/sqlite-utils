@@ -109,9 +109,9 @@ def test_m2m_with_table_objects(fresh_db):
     )
     expected_tables = {"dogs", "humans", "dogs_humans"}
     assert expected_tables == set(fresh_db.table_names())
-    assert 1 == dogs.count
-    assert 2 == humans.count
-    assert 2 == fresh_db["dogs_humans"].count
+    assert dogs.count == 1
+    assert humans.count == 2
+    assert fresh_db["dogs_humans"].count == 2
 
 
 def test_m2m_lookup(fresh_db):

@@ -237,7 +237,7 @@ def test_create_index(db_path):
         )
     ] == db["Gosh2"].indexes
     # Trying to create the same index should fail
-    assert 0 != CliRunner().invoke(cli.cli, create_index_unique_args).exit_code
+    assert CliRunner().invoke(cli.cli, create_index_unique_args).exit_code != 0
     # ... unless we use --if-not-exists or --ignore
     for option in ("--if-not-exists", "--ignore"):
         assert (
@@ -349,7 +349,7 @@ def test_add_foreign_key(db_path, args, assert_message):
         ]
     )
     assert (
-        0 == CliRunner().invoke(cli.cli, ["add-foreign-key", db_path] + args).exit_code
+        CliRunner().invoke(cli.cli, ["add-foreign-key", db_path] + args).exit_code == 0
     ), assert_message
     assert [
         ForeignKey(
@@ -1105,7 +1105,7 @@ def test_upsert_alter(db_path, tmpdir):
     result = CliRunner().invoke(
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id"]
     )
-    assert 1 == result.exit_code
+    assert result.exit_code == 1
     assert (
         "Error: no such column: age\n\n"
         "sql = UPDATE [dogs] SET [age] = ? WHERE [id] = ?\n"
@@ -1116,9 +1116,9 @@ def test_upsert_alter(db_path, tmpdir):
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id", "--alter"]
     )
     assert result.exit_code == 0
-    assert [
+    assert list(db.query("select * from dogs order by id")) == [
         {"id": 1, "name": "Cleo", "age": 5},
-    ] == list(db.query("select * from dogs order by id"))
+    ]
 
 
 @pytest.mark.parametrize(
@@ -1240,7 +1240,7 @@ def test_create_table_error_if_table_exists():
         result = runner.invoke(
             cli.cli, ["create-table", "test.db", "dogs", "id", "integer"]
         )
-        assert 1 == result.exit_code
+        assert result.exit_code == 1
         assert (
             'Error: Table "dogs" already exists. Use --replace to delete and replace it.'
             == result.output.strip()
@@ -1290,7 +1290,7 @@ def test_create_view_error_if_view_exists():
         result = runner.invoke(
             cli.cli, ["create-view", "test.db", "version", "select sqlite_version()"]
         )
-        assert 1 == result.exit_code
+        assert result.exit_code == 1
         assert (
             'Error: View "version" already exists. Use --replace to delete and replace it.'
             == result.output.strip()
@@ -1368,7 +1368,7 @@ def test_drop_table_error():
                 "t2",
             ],
         )
-        assert 1 == result.exit_code
+        assert result.exit_code == 1
         assert 'Error: Table "t2" does not exist' == result.output.strip()
         # Using --ignore suppresses that error
         result = runner.invoke(
@@ -1409,7 +1409,7 @@ def test_drop_view_error():
                 "t2",
             ],
         )
-        assert 1 == result.exit_code
+        assert result.exit_code == 1
         assert 'Error: View "t2" does not exist' == result.output.strip()
         # Using --ignore suppresses that error
         result = runner.invoke(
