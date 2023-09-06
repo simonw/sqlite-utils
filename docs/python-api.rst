@@ -1517,7 +1517,9 @@ The ``foreign_keys=`` parameter is similar to  to ``add_foreign_keys=`` but can 
 .. code-block:: python
 
     db["places"].transform(
-        add_foreign_keys=(("continent",))
+        foreign_keys=(
+            ("continent", "continent", "id"),
+        )
     )
 
 .. _python_api_transform_drop_foreign_key_constraints:
