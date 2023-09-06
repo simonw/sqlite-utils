@@ -26,7 +26,7 @@ setup(
     install_requires=[
         "sqlite-fts4",
         "click",
-        "click-default-group-wheel",
+        "click-default-group>=1.2.3",
         "tabulate",
         "python-dateutil",
         "pluggy",
