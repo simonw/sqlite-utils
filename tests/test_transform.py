@@ -11,7 +11,7 @@ import pytest
             {},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] TEXT\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name], [age])\n   SELECT [rowid], [id], [name], [age] FROM [dogs];",
                 "DROP TABLE [dogs];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -21,7 +21,7 @@ import pytest
             {"types": {"age": int}},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] INTEGER\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name], [age])\n   SELECT [rowid], [id], [name], [age] FROM [dogs];",
                 "DROP TABLE [dogs];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -31,7 +31,7 @@ import pytest
             {"rename": {"age": "dog_age"}},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [dog_age] TEXT\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [dog_age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name], [dog_age])\n   SELECT [rowid], [id], [name], [age] FROM [dogs];",
                 "DROP TABLE [dogs];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -41,7 +41,7 @@ import pytest
             {"drop": ["age"]},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name])\n   SELECT [id], [name] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name])\n   SELECT [rowid], [id], [name] FROM [dogs];",
                 "DROP TABLE [dogs];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -51,7 +51,7 @@ import pytest
             {"types": {"age": int}, "rename": {"age": "dog_age"}},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [dog_age] INTEGER\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [dog_age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name], [dog_age])\n   SELECT [rowid], [id], [name], [age] FROM [dogs];",
                 "DROP TABLE [dogs];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -61,7 +61,7 @@ import pytest
             {"pk": "age"},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] TEXT PRIMARY KEY\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name], [age])\n   SELECT [rowid], [id], [name], [age] FROM [dogs];",
                 "DROP TABLE [dogs];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -71,7 +71,7 @@ import pytest
             {"pk": ("age", "name")},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] TEXT,\n   PRIMARY KEY ([age], [name])\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name], [age])\n   SELECT [rowid], [id], [name], [age] FROM [dogs];",
                 "DROP TABLE [dogs];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -81,7 +81,7 @@ import pytest
             {"pk": None},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] TEXT\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name], [age])\n   SELECT [rowid], [id], [name], [age] FROM [dogs];",
                 "DROP TABLE [dogs];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -91,7 +91,7 @@ import pytest
             {"drop": ["age"], "keep_table": "kept_table"},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name])\n   SELECT [id], [name] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name])\n   SELECT [rowid], [id], [name] FROM [dogs];",
                 "ALTER TABLE [dogs] RENAME TO [kept_table];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -134,7 +134,7 @@ def test_transform_sql_table_with_primary_key(
             {},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] TEXT\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name], [age])\n   SELECT [rowid], [id], [name], [age] FROM [dogs];",
                 "DROP TABLE [dogs];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -144,7 +144,7 @@ def test_transform_sql_table_with_primary_key(
             {"types": {"age": int}},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [age] INTEGER\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name], [age])\n   SELECT [rowid], [id], [name], [age] FROM [dogs];",
                 "DROP TABLE [dogs];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -154,7 +154,7 @@ def test_transform_sql_table_with_primary_key(
             {"rename": {"age": "dog_age"}},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER,\n   [name] TEXT,\n   [dog_age] TEXT\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [dog_age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name], [dog_age])\n   SELECT [rowid], [id], [name], [age] FROM [dogs];",
                 "DROP TABLE [dogs];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -164,7 +164,7 @@ def test_transform_sql_table_with_primary_key(
             {"pk": "id"},
             [
                 "CREATE TABLE [dogs_new_suffix] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] TEXT\n);",
-                "INSERT INTO [dogs_new_suffix] ([id], [name], [age])\n   SELECT [id], [name], [age] FROM [dogs];",
+                "INSERT INTO [dogs_new_suffix] ([rowid], [id], [name], [age])\n   SELECT [rowid], [id], [name], [age] FROM [dogs];",
                 "DROP TABLE [dogs];",
                 "ALTER TABLE [dogs_new_suffix] RENAME TO [dogs];",
             ],
@@ -498,3 +498,27 @@ def test_transform_replace_foreign_keys(fresh_db, foreign_keys):
         "   [city] INTEGER\n"
         ")"
     )
+
+
+def test_transform_preserves_rowids(fresh_db):
+    fresh_db["places"].insert_all(
+        [
+            {"id": "1", "name": "Paris", "country": "France"},
+            {"id": "2", "name": "London", "country": "UK"},
+            {"id": "3", "name": "New York", "country": "USA"},
+        ],
+        pk="id",
+    )
+    # Now delete and insert a row to mix up the `rowid` sequence
+    fresh_db["places"].delete_where("id = ?", ["2"])
+    fresh_db["places"].insert({"id": "4", "name": "London", "country": "UK"})
+    previous_rows = list(
+        tuple(row) for row in fresh_db.execute("select rowid, id, name from places")
+    )
+    # Transform it
+    fresh_db["places"].transform(column_order=("country", "name"))
+    # Should be the same
+    next_rows = list(
+        tuple(row) for row in fresh_db.execute("select rowid, id, name from places")
+    )
+    assert previous_rows == next_rows
