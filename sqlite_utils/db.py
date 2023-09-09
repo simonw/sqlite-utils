@@ -1917,6 +1917,10 @@ class Table(Queryable):
         for from_, to_ in copy_from_to.items():
             old_cols.append(from_)
             new_cols.append(to_)
+        # Ensure rowid is copied too
+        if "rowid" not in new_cols:
+            new_cols.insert(0, "rowid")
+            old_cols.insert(0, "rowid")
         copy_sql = "INSERT INTO [{new_table}] ({new_cols})\n   SELECT {old_cols} FROM [{old_table}];".format(
             new_table=new_table_name,
             old_table=self.name,
