@@ -4,6 +4,13 @@
  Changelog
 ===========
 
+.. _v3_35_1:
+
+3.35.1 (2023-09-08)
+-------------------
+
+- Fixed a bug where :ref:`table.transform() <python_api_transform>` would sometimes re-assign the ``rowid`` values for a table rather than keeping them consistent across the operation. (:issue:`592`)
+
 .. _v3_35:
 
 3.35 (2023-08-17)
