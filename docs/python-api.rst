@@ -1852,7 +1852,7 @@ A more useful example: if you are working with `SpatiaLite <https://www.gaia-gis
         conversions={"geometry": "GeomFromText(?, 4326)"},
     )
 
-This example uses gographical data from [Who's On First](https://whosonfirst.org/) and depends on the [Shapely](https://shapely.readthedocs.io/en/stable/manual.html) and [HTTPX](https://www.python-httpx.org/) Python libraries.
+This example uses gographical data from `Who's On First <https://whosonfirst.org/>`__ and depends on the `Shapely <https://shapely.readthedocs.io/en/stable/manual.html>`__ and `HTTPX <https://www.python-httpx.org/>`__ Python libraries.
 
 .. _python_api_sqlite_version:
 
