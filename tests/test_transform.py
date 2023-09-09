@@ -500,14 +500,22 @@ def test_transform_replace_foreign_keys(fresh_db, foreign_keys):
     )
 
 
-def test_transform_preserves_rowids(fresh_db):
+@pytest.mark.parametrize("table_type", ("id_pk", "rowid", "compound_pk"))
+def test_transform_preserves_rowids(fresh_db, table_type):
+    pk = None
+    if table_type == "id_pk":
+        pk = "id"
+    elif table_type == "compound_pk":
+        pk = ("id", "name")
+    elif table_type == "rowid":
+        pk = None
     fresh_db["places"].insert_all(
         [
             {"id": "1", "name": "Paris", "country": "France"},
             {"id": "2", "name": "London", "country": "UK"},
             {"id": "3", "name": "New York", "country": "USA"},
         ],
-        pk="id",
+        pk=pk,
     )
     # Now delete and insert a row to mix up the `rowid` sequence
     fresh_db["places"].delete_where("id = ?", ["2"])
