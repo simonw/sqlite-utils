@@ -4,6 +4,13 @@
  Changelog
 ===========
 
+.. _v3_35_2:
+
+3.35.2 (2023-11-03)
+-------------------
+
+- The ``--load-extension=spatialite`` option and :ref:`find_spatialite() <python_api_gis_find_spatialite>` utility function now both work correctly on ``arm64`` Linux. Thanks, `Mike Coats <https://github.com/MikeCoats>`__. (:issue:`599`)
+
 .. _v3_35_1:
 
 3.35.1 (2023-09-08)
