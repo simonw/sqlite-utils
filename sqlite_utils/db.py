@@ -187,6 +187,7 @@ COLUMN_TYPE_MAPPING = {
     datetime.datetime: "TEXT",
     datetime.date: "TEXT",
     datetime.time: "TEXT",
+    datetime.timedelta: "TEXT",
     decimal.Decimal: "FLOAT",
     None.__class__: "TEXT",
     uuid.UUID: "TEXT",
@@ -3758,6 +3759,8 @@ def jsonify_if_needed(value):
         return json.dumps(value, default=repr, ensure_ascii=False)
     elif isinstance(value, (datetime.time, datetime.date, datetime.datetime)):
         return value.isoformat()
+    elif isinstance(value, datetime.timedelta):
+        return str(value)
     elif isinstance(value, uuid.UUID):
         return str(value)
     else:
