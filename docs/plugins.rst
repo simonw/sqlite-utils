@@ -49,7 +49,7 @@ In that folder create two files. The first is a ``pyproject.toml`` file describi
     [project.entry-points.sqlite_utils]
     hello_world = "sqlite_utils_hello_world"
 
-The ```[project.entry-points.sqlite_utils]`` section tells ``sqlite-tils`` which module to load when executing the plugin.
+The ``[project.entry-points.sqlite_utils]`` section tells ``sqlite-utils`` which module to load when executing the plugin.
 
 Then create ``sqlite_utils_hello_world.py`` with the following content:
 
@@ -75,7 +75,7 @@ Or pass the path to your plugin directory:
 
 .. code-block:: bash
 
-    sqlite-utils install -e `/dev/sqlite-utils-hello-world
+    sqlite-utils install -e /dev/sqlite-utils-hello-world
 
 Now, running this should execute your new command:
 
