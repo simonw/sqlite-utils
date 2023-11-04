@@ -538,7 +538,7 @@ class Database:
 
     def quote(self, value: str) -> str:
         """
-        Apply SQLite string quoting to a value, including wrappping it in single quotes.
+        Apply SQLite string quoting to a value, including wrapping it in single quotes.
 
         :param value: String to quote
         """
