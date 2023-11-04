@@ -10,6 +10,9 @@
 -------------------
 
 - The ``--load-extension=spatialite`` option and :ref:`find_spatialite() <python_api_gis_find_spatialite>` utility function now both work correctly on ``arm64`` Linux. Thanks, `Mike Coats <https://github.com/MikeCoats>`__. (:issue:`599`)
+- Fix for bug where ``sqlite-utils insert`` could cause your terminal cursor to disappear. Thanks, `Luke Plant <https://github.com/spookylukey>`__. (:issue:`433`)
+- ``datetime.timedelta`` values are now stored as ``TEXT`` columns. Thanks, `Harald Nezbeda <https://github.com/nezhar>`__. (:issue:`522`)
+- Test suite is now also run against Python 3.12.
 
 .. _v3_35_1:
 
