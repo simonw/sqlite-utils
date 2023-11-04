@@ -1217,6 +1217,7 @@ If you pass a Python type, it will be mapped to SQLite types as shown here::
     datetime.datetime: "TEXT"
     datetime.date: "TEXT"
     datetime.time: "TEXT"
+    datetime.timedelta: "TEXT"
 
     # If numpy is installed
     np.int8: "INTEGER"

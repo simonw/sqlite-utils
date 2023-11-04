@@ -144,6 +144,10 @@ def test_create_table_with_not_null(fresh_db):
         ),
         ({"uuid": uuid.uuid4()}, [{"name": "uuid", "type": "TEXT"}]),
         ({"foo[bar]": 1}, [{"name": "foo_bar_", "type": "INTEGER"}]),
+        (
+            {"timedelta": datetime.timedelta(hours=1)},
+            [{"name": "timedelta", "type": "TEXT"}],
+        ),
     ),
 )
 def test_create_table_from_example(fresh_db, example, expected_columns):
