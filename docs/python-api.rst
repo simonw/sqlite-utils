@@ -117,6 +117,12 @@ By default, any :ref:`sqlite-utils plugins <plugins>` that implement the :ref:`p
 
     db = Database(memory=True, execute_plugins=False)
 
+You can pass ``strict=True`` to enable ``STRICT`` mode for all tables created from a database object:
+
+.. code-block:: python
+
+    db = Database("my_database.db", strict=True)
+
 .. _python_api_attach:
 
 Attaching additional databases
@@ -581,6 +587,15 @@ The ``transform=True`` option will update the table schema if any of the followi
 
 Changes to ``foreign_keys=`` are not currently detected and applied by ``transform=True``.
 
+You can pass ``strict=True`` to create a table in ``STRICT`` mode:
+
+.. code-block:: python
+
+    db["cats"].create({
+        "id": int,
+        "name": str,
+    }, strict=True)
+
 .. _python_api_compound_primary_keys:
 
 Compound primary keys
@@ -661,7 +676,7 @@ You can set default values for these methods by accessing the table through the 
     # Now you can call .insert() like so:
     table.insert({"id": 1, "name": "Tracy", "score": 5})
 
-The configuration options that can be specified in this way are ``pk``, ``foreign_keys``, ``column_order``, ``not_null``, ``defaults``, ``batch_size``, ``hash_id``, ``hash_id_columns``, ``alter``, ``ignore``, ``replace``, ``extracts``, ``conversions``, ``columns``. These are all documented below.
+The configuration options that can be specified in this way are ``pk``, ``foreign_keys``, ``column_order``, ``not_null``, ``defaults``, ``batch_size``, ``hash_id``, ``hash_id_columns``, ``alter``, ``ignore``, ``replace``, ``extracts``, ``conversions``, ``columns``, ``strict``. These are all documented below.
 
 .. _python_api_defaults_not_null:
 
@@ -1011,6 +1026,7 @@ The first time this is called the record will be created for ``name="Palm"``. An
 - ``extracts``
 - ``conversions``
 - ``columns``
+- ``strict``
 
 .. _python_api_extracts:
 

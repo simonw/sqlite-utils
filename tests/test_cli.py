@@ -2391,3 +2391,32 @@ def test_load_extension(entrypoint, should_pass, should_fail):
             catch_exceptions=False,
         )
         assert result.exit_code == 1
+
+
+@pytest.mark.parametrize("strict", (False, True))
+def test_create_table_strict(strict):
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        result = runner.invoke(
+            cli.cli,
+            ["create-table", "test.db", "items", "id", "integer"]
+            + (["--strict"] if strict else []),
+        )
+        assert result.exit_code == 0
+        assert db["items"].strict == strict or not db.supports_strict
+
+
+@pytest.mark.parametrize("method", ("insert", "upsert"))
+@pytest.mark.parametrize("strict", (False, True))
+def test_insert_upsert_strict(tmpdir, method, strict):
+    db_path = str(tmpdir / "test.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        [method, db_path, "items", "-", "--csv", "--pk", "id"]
+        + (["--strict"] if strict else []),
+        input="id\n1",
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    assert db["items"].strict == strict or not db.supports_strict

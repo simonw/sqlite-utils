@@ -530,3 +530,12 @@ def test_transform_preserves_rowids(fresh_db, table_type):
         tuple(row) for row in fresh_db.execute("select rowid, id, name from places")
     )
     assert previous_rows == next_rows
+
+
+@pytest.mark.parametrize("strict", (False, True))
+def test_transform_strict(fresh_db, strict):
+    dogs = fresh_db.table("dogs", strict=strict)
+    dogs.insert({"id": 1, "name": "Cleo"})
+    assert dogs.strict == strict or not fresh_db.supports_strict
+    dogs.transform(not_null={"name"})
+    assert dogs.strict == strict or not fresh_db.supports_strict

@@ -1316,3 +1316,46 @@ def test_rename_table(fresh_db):
     # Should error if table does not exist:
     with pytest.raises(sqlite3.OperationalError):
         fresh_db.rename_table("does_not_exist", "renamed")
+
+
+@pytest.mark.parametrize("strict", (False, True))
+def test_database_strict(strict):
+    db = Database(memory=True, strict=strict)
+    table = db.table("t", columns={"id": int})
+    table.insert({"id": 1})
+    assert table.strict == strict or not db.supports_strict
+
+
+@pytest.mark.parametrize("strict", (False, True))
+def test_database_strict_override(strict):
+    db = Database(memory=True, strict=strict)
+    table = db.table("t", columns={"id": int}, strict=not strict)
+    table.insert({"id": 1})
+    assert table.strict != strict or not db.supports_strict
+
+
+@pytest.mark.parametrize(
+    "method_name", ("insert", "upsert", "insert_all", "upsert_all")
+)
+@pytest.mark.parametrize("strict", (False, True))
+def test_insert_upsert_strict(fresh_db, method_name, strict):
+    table = fresh_db["t"]
+    method = getattr(table, method_name)
+    record = {"id": 1}
+    if method_name.endswith("_all"):
+        record = [record]
+    method(record, pk="id", strict=strict)
+    assert table.strict == strict or not fresh_db.supports_strict
+
+
+@pytest.mark.parametrize("strict", (False, True))
+def test_create_table_strict(fresh_db, strict):
+    table = fresh_db.create_table("t", {"id": int}, strict=strict)
+    assert table.strict == strict or not fresh_db.supports_strict
+
+
+@pytest.mark.parametrize("strict", (False, True))
+def test_create_strict(fresh_db, strict):
+    table = fresh_db["t"]
+    table.create({"id": int}, strict=strict)
+    assert table.strict == strict or not fresh_db.supports_strict

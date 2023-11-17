@@ -900,6 +900,12 @@ def insert_upsert_options(*, require_pk=False):
                 ),
                 load_extension_option,
                 click.option("--silent", is_flag=True, help="Do not show progress bar"),
+                click.option(
+                    "--strict",
+                    is_flag=True,
+                    default=False,
+                    help="Apply STRICT mode to table",
+                ),
             )
         ):
             fn = decorator(fn)
@@ -942,6 +948,7 @@ def insert_upsert_implementation(
     silent=False,
     bulk_sql=None,
     functions=None,
+    strict=False,
 ):
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
@@ -1057,6 +1064,7 @@ def insert_upsert_implementation(
             "replace": replace,
             "truncate": truncate,
             "analyze": analyze,
+            "strict": strict,
         }
         if not_null:
             extra_kwargs["not_null"] = set(not_null)
@@ -1177,6 +1185,7 @@ def insert(
     truncate,
     not_null,
     default,
+    strict,
 ):
     """
     Insert records from FILE into a table, creating the table if it
@@ -1255,6 +1264,7 @@ def insert(
             silent=silent,
             not_null=not_null,
             default=default,
+            strict=strict,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
@@ -1290,6 +1300,7 @@ def upsert(
     analyze,
     load_extension,
     silent,
+    strict,
 ):
     """
     Upsert records based on their primary key. Works like 'insert' but if
@@ -1334,6 +1345,7 @@ def upsert(
             analyze=analyze,
             load_extension=load_extension,
             silent=silent,
+            strict=strict,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
@@ -1502,6 +1514,11 @@ def create_database(path, enable_wal, init_spatialite, load_extension):
     help="If table already exists, try to transform the schema",
 )
 @load_extension_option
+@click.option(
+    "--strict",
+    is_flag=True,
+    help="Apply STRICT mode to table",
+)
 def create_table(
     path,
     table,
@@ -1514,6 +1531,7 @@ def create_table(
     replace,
     transform,
     load_extension,
+    strict,
 ):
     """
     Add a table with the specified columns. Columns should be specified using
@@ -1561,6 +1579,7 @@ def create_table(
         ignore=ignore,
         replace=replace,
         transform=transform,
+        strict=strict,
     )
 
 
