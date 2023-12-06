@@ -60,6 +60,14 @@ It's often worth trying: --encoding=latin-1
 maximize_csv_field_size_limit()
 
 
+class CaseInsensitiveChoice(click.Choice):
+    def __init__(self, choices):
+        super().__init__([choice.lower() for choice in choices])
+
+    def convert(self, value, param, ctx):
+        return super().convert(value.lower(), param, ctx)
+
+
 def output_options(fn):
     for decorator in reversed(
         (
@@ -412,7 +420,8 @@ def dump(path, load_extension):
 @click.argument(
     "col_type",
     type=click.Choice(
-        ["integer", "float", "blob", "text", "INTEGER", "FLOAT", "BLOB", "TEXT"]
+        ["integer", "int", "float", "text", "str", "blob", "bytes"],
+        case_sensitive=False,
     ),
     required=False,
 )

@@ -197,9 +197,12 @@ COLUMN_TYPE_MAPPING = {
     "FLOAT": "FLOAT",
     "BLOB": "BLOB",
     "text": "TEXT",
+    "str": "TEXT",
     "integer": "INTEGER",
+    "int": "INTEGER",
     "float": "FLOAT",
     "blob": "BLOB",
+    "bytes": "BLOB",
 }
 # If numpy is available, add more types
 if np:

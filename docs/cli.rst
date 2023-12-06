@@ -2310,7 +2310,14 @@ You can add a column using the ``add-column`` command:
 
     sqlite-utils add-column mydb.db mytable nameofcolumn text
 
-The last argument here is the type of the column to be created. You can use one of ``text``, ``integer``, ``float`` or ``blob``. If you leave it off, ``text`` will be used.
+The last argument here is the type of the column to be created. This can be one of:
+
+- ``text`` or ``str``
+- ``integer`` or ``int``
+- ``float``
+- ``blob`` or ``bytes``
+
+This argument is optional and defaults to ``text``.
 
 You can add a column that is a foreign key reference to another table using the ``--fk`` option:
 

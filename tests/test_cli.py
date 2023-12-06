@@ -272,13 +272,23 @@ def test_create_index_desc(db_path):
     "col_name,col_type,expected_schema",
     (
         ("text", "TEXT", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [text] TEXT)"),
+        ("text", "str", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [text] TEXT)"),
+        ("text", "STR", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [text] TEXT)"),
         (
             "integer",
             "INTEGER",
             "CREATE TABLE [dogs] (\n   [name] TEXT\n, [integer] INTEGER)",
         ),
+        (
+            "integer",
+            "int",
+            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [integer] INTEGER)",
+        ),
         ("float", "FLOAT", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [float] FLOAT)"),
         ("blob", "blob", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [blob] BLOB)"),
+        ("blob", "BLOB", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [blob] BLOB)"),
+        ("blob", "bytes", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [blob] BLOB)"),
+        ("blob", "BYTES", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [blob] BLOB)"),
         ("default", None, "CREATE TABLE [dogs] (\n   [name] TEXT\n, [default] TEXT)"),
     ),
 )
