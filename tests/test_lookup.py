@@ -154,6 +154,6 @@ def test_lookup_with_extra_insert_parameters(fresh_db):
 
 
 @pytest.mark.parametrize("strict", (False, True))
-def test_lookup_new_table(fresh_db, strict):
+def test_lookup_new_table_strict(fresh_db, strict):
     fresh_db["species"].lookup({"name": "Palm"}, strict=strict)
     assert fresh_db["species"].strict == strict or not fresh_db.supports_strict

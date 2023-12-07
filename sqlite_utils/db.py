@@ -538,11 +538,10 @@ class Database:
         :param table_name: Name of the table
         """
         if table_name in self.view_names():
-            klass = View
+            return View(self, table_name, **kwargs)
         else:
-            klass = Table
             kwargs.setdefault("strict", self.strict)
-        return klass(self, table_name, **kwargs)
+            return Table(self, table_name, **kwargs)
 
     def quote(self, value: str) -> str:
         """
