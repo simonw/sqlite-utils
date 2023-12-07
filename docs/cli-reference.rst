@@ -289,11 +289,11 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       --silent                  Do not show progress bar
+      --strict                  Apply STRICT mode to table
       --ignore                  Ignore records if pk already exists
       --replace                 Replace records if pk already exists
       --truncate                Truncate table before inserting records, if table
                                 already exists
-      --strict                  Apply STRICT mode to table
       -h, --help                Show this message and exit.
 
 
