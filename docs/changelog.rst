@@ -4,6 +4,17 @@
  Changelog
 ===========
 
+.. _v3_36:
+
+3.36 (2023-12-07)
+-----------------
+
+- Support for creating tables in `SQLite STRICT mode <https://www.sqlite.org/stricttables.html>`__. Thanks, `Taj Khattra <https://github.com/tkhattra>`__. (:issue:`344`)
+    - CLI commands ``create-table``, ``insert`` and ``upsert`` all now accept a ``--strict`` option.
+    - Python methods that can create a table - ``table.create()`` and ``insert/upsert/insert_all/upsert_all`` all now accept an optional ``strict=True`` parameter.
+    - The ``transform`` command and ``table.transform()`` method preserve strict mode when transforming a table.
+- The ``sqlite-utils create-table`` command now accepts ``str``, ``int`` and ``bytes`` as aliases for ``text``, ``integer`` and ``blob`` respectively. (:issue:`606`)
+
 .. _v3_35_2:
 
 3.35.2 (2023-11-03)
