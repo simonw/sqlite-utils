@@ -2177,6 +2177,18 @@ The ``.has_counts_triggers`` property shows if a table has been configured with 
     >>> db["authors"].has_counts_triggers
     True
 
+.. _python_api_introspection_supports_strict
+
+db.supports_strict
+------------------
+
+This property on the database object returns ``True`` if the available SQLite version supports `STRICT mode <https://www.sqlite.org/stricttables.html>`__, which was added in SQLite 3.37.0 (on 2021-11-27).
+
+::
+
+    >>> db.supports_strict
+    True
+
 .. _python_api_fts:
 
 Full-text search
