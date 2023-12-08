@@ -1972,7 +1972,7 @@ You can specify foreign key relationships between the tables you are creating us
                 [author_id] INTEGER REFERENCES [authors]([id])
              )
 
-You can create a table in STRICT mode using ``--strict``:
+You can create a table in `SQLite STRICT mode <https://www.sqlite.org/stricttables.html>`__ using ``--strict``:
 
 .. code-block:: bash
 

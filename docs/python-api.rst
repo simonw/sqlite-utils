@@ -117,7 +117,7 @@ By default, any :ref:`sqlite-utils plugins <plugins>` that implement the :ref:`p
 
     db = Database(memory=True, execute_plugins=False)
 
-You can pass ``strict=True`` to enable ``STRICT`` mode for all tables created from a database object:
+You can pass ``strict=True`` to enable `SQLite STRICT mode <https://www.sqlite.org/stricttables.html>`__ for all tables created using this database object:
 
 .. code-block:: python
 
