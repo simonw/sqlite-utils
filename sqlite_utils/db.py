@@ -303,6 +303,7 @@ class Database:
       ``sql, parameters`` every time a SQL query is executed
     :param use_counts_table: set to ``True`` to use a cached counts table, if available. See
       :ref:`python_api_cached_table_counts`
+    :param strict: Apply STRICT mode to all created tables (unless overridden)
     """
 
     _counts_table_name = "_counts"
@@ -318,6 +319,7 @@ class Database:
         tracer: Optional[Callable] = None,
         use_counts_table: bool = False,
         execute_plugins: bool = True,
+        strict: bool = False,
     ):
         assert (filename_or_conn is not None and (not memory and not memory_name)) or (
             filename_or_conn is None and (memory or memory_name)
@@ -351,6 +353,7 @@ class Database:
         self.use_counts_table = use_counts_table
         if execute_plugins:
             pm.hook.prepare_connection(conn=self.conn)
+        self.strict = strict
 
     def close(self):
         "Close the SQLite connection, and the underlying database file"
@@ -537,8 +540,11 @@ class Database:
 
         :param table_name: Name of the table
         """
-        klass = View if table_name in self.view_names() else Table
-        return klass(self, table_name, **kwargs)
+        if table_name in self.view_names():
+            return View(self, table_name, **kwargs)
+        else:
+            kwargs.setdefault("strict", self.strict)
+            return Table(self, table_name, **kwargs)
 
     def quote(self, value: str) -> str:
         """
@@ -824,6 +830,7 @@ class Database:
         hash_id_columns: Optional[Iterable[str]] = None,
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
+        strict: bool = False,
     ) -> str:
         """
         Returns the SQL ``CREATE TABLE`` statement for creating the specified table.
@@ -839,6 +846,7 @@ class Database:
         :param hash_id_columns: List of columns to be used when calculating the hash ID for a row
         :param extracts: List or dictionary of columns to be extracted during inserts, see :ref:`python_api_extracts`
         :param if_not_exists: Use ``CREATE TABLE IF NOT EXISTS``
+        :param strict: Apply STRICT mode to table
         """
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
@@ -935,12 +943,13 @@ class Database:
         columns_sql = ",\n".join(column_defs)
         sql = """CREATE TABLE {if_not_exists}[{table}] (
 {columns_sql}{extra_pk}
-);
+){strict};
         """.format(
             if_not_exists="IF NOT EXISTS " if if_not_exists else "",
             table=name,
             columns_sql=columns_sql,
             extra_pk=extra_pk,
+            strict=" STRICT" if strict and self.supports_strict else "",
         )
         return sql
 
@@ -960,6 +969,7 @@ class Database:
         replace: bool = False,
         ignore: bool = False,
         transform: bool = False,
+        strict: bool = False,
     ) -> "Table":
         """
         Create a table with the specified name and the specified ``{column_name: type}`` columns.
@@ -980,6 +990,7 @@ class Database:
         :param replace: Drop and replace table if it already exists
         :param ignore: Silently do nothing if table already exists
         :param transform: If table already exists transform it to fit the specified schema
+        :param strict: Apply STRICT mode to table
         """
         # Transform table to match the new definition if table already exists:
         if self[name].exists():
@@ -1051,6 +1062,7 @@ class Database:
             hash_id_columns=hash_id_columns,
             extracts=extracts,
             if_not_exists=if_not_exists,
+            strict=strict,
         )
         self.execute(sql)
         created_table = self.table(
@@ -1419,6 +1431,7 @@ class Table(Queryable):
     :param extracts: Dictionary or list of column names to extract into a separate table on inserts
     :param conversions: Dictionary of column names and conversion functions
     :param columns: Dictionary of column names to column types
+    :param strict: If True, apply STRICT mode to table
     """
 
     #: The ``rowid`` of the last inserted, updated or selected row.
@@ -1444,6 +1457,7 @@ class Table(Queryable):
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         conversions: Optional[dict] = None,
         columns: Optional[Dict[str, Any]] = None,
+        strict: bool = False,
     ):
         super().__init__(db, name)
         self._defaults = dict(
@@ -1461,6 +1475,7 @@ class Table(Queryable):
             extracts=extracts,
             conversions=conversions or {},
             columns=columns,
+            strict=strict,
         )
 
     def __repr__(self) -> str:
@@ -1642,6 +1657,7 @@ class Table(Queryable):
         replace: bool = False,
         ignore: bool = False,
         transform: bool = False,
+        strict: bool = False,
     ) -> "Table":
         """
         Create a table with the specified columns.
@@ -1661,6 +1677,7 @@ class Table(Queryable):
         :param replace: Drop and replace table if it already exists
         :param ignore: Silently do nothing if table already exists
         :param transform: If table already exists transform it to fit the specified schema
+        :param strict: Apply STRICT mode to table
         """
         columns = {name: value for (name, value) in columns.items()}
         with self.db.conn:
@@ -1679,6 +1696,7 @@ class Table(Queryable):
                 replace=replace,
                 ignore=ignore,
                 transform=transform,
+                strict=strict,
             )
         return self
 
@@ -1912,6 +1930,7 @@ class Table(Queryable):
                 defaults=create_table_defaults,
                 foreign_keys=create_table_foreign_keys,
                 column_order=column_order,
+                strict=self.strict,
             ).strip()
         )
 
@@ -3114,6 +3133,7 @@ class Table(Queryable):
         extracts: Optional[Union[Dict[str, str], List[str], Default]] = DEFAULT,
         conversions: Optional[Union[Dict[str, str], Default]] = DEFAULT,
         columns: Optional[Union[Dict[str, Any], Default]] = DEFAULT,
+        strict: Optional[Union[bool, Default]] = DEFAULT,
     ) -> "Table":
         """
         Insert a single record into the table. The table will be created with a schema that matches
@@ -3146,6 +3166,7 @@ class Table(Queryable):
           is being inserted, for example ``{"name": "upper(?)"}``. See :ref:`python_api_conversions`.
         :param columns: Dictionary over-riding the detected types used for the columns, for example
           ``{"age": int, "weight": float}``.
+        :param strict: Boolean, apply STRICT mode if creating the table.
         """
         return self.insert_all(
             [record],
@@ -3162,6 +3183,7 @@ class Table(Queryable):
             extracts=extracts,
             conversions=conversions,
             columns=columns,
+            strict=strict,
         )
 
     def insert_all(
@@ -3184,6 +3206,7 @@ class Table(Queryable):
         columns=DEFAULT,
         upsert=False,
         analyze=False,
+        strict=DEFAULT,
     ) -> "Table":
         """
         Like ``.insert()`` but takes a list of records and ensures that the table
@@ -3205,6 +3228,7 @@ class Table(Queryable):
         extracts = self.value_or_default("extracts", extracts)
         conversions = self.value_or_default("conversions", conversions) or {}
         columns = self.value_or_default("columns", columns)
+        strict = self.value_or_default("strict", strict)
 
         if hash_id_columns and hash_id is None:
             hash_id = "id"
@@ -3260,6 +3284,7 @@ class Table(Queryable):
                         hash_id=hash_id,
                         hash_id_columns=hash_id_columns,
                         extracts=extracts,
+                        strict=strict,
                     )
                 all_columns_set = set()
                 for record in chunk:
@@ -3310,6 +3335,7 @@ class Table(Queryable):
         extracts=DEFAULT,
         conversions=DEFAULT,
         columns=DEFAULT,
+        strict=DEFAULT,
     ) -> "Table":
         """
         Like ``.insert()`` but performs an ``UPSERT``, where records are inserted if they do
@@ -3330,6 +3356,7 @@ class Table(Queryable):
             extracts=extracts,
             conversions=conversions,
             columns=columns,
+            strict=strict,
         )
 
     def upsert_all(
@@ -3348,6 +3375,7 @@ class Table(Queryable):
         conversions=DEFAULT,
         columns=DEFAULT,
         analyze=False,
+        strict=DEFAULT,
     ) -> "Table":
         """
         Like ``.upsert()`` but can be applied to a list of records.
@@ -3368,6 +3396,7 @@ class Table(Queryable):
             columns=columns,
             upsert=True,
             analyze=analyze,
+            strict=strict,
         )
 
     def add_missing_columns(self, records: Iterable[Dict[str, Any]]) -> "Table":
@@ -3390,6 +3419,7 @@ class Table(Queryable):
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         conversions: Optional[Dict[str, str]] = None,
         columns: Optional[Dict[str, Any]] = None,
+        strict: Optional[bool] = False,
     ):
         """
         Create or populate a lookup table with the specified values.
@@ -3412,6 +3442,7 @@ class Table(Queryable):
 
         :param lookup_values: Dictionary specifying column names and values to use for the lookup
         :param extra_values: Additional column values to be used only if creating a new record
+        :param strict: Boolean, apply STRICT mode if creating the table.
         """
         assert isinstance(lookup_values, dict)
         if extra_values is not None:
@@ -3443,6 +3474,7 @@ class Table(Queryable):
                     extracts=extracts,
                     conversions=conversions,
                     columns=columns,
+                    strict=strict,
                 ).last_pk
         else:
             pk = self.insert(
@@ -3455,6 +3487,7 @@ class Table(Queryable):
                 extracts=extracts,
                 conversions=conversions,
                 columns=columns,
+                strict=strict,
             ).last_pk
             self.create_index(lookup_values.keys(), unique=True)
             return pk

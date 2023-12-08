@@ -289,6 +289,7 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       --silent                  Do not show progress bar
+      --strict                  Apply STRICT mode to created table
       --ignore                  Ignore records if pk already exists
       --replace                 Replace records if pk already exists
       --truncate                Truncate table before inserting records, if table
@@ -345,6 +346,7 @@ See :ref:`cli_upsert`.
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       --silent                  Do not show progress bar
+      --strict                  Apply STRICT mode to created table
       -h, --help                Show this message and exit.
 
 
@@ -920,6 +922,7 @@ See :ref:`cli_create_table`.
       --replace                 If table already exists, replace it
       --transform               If table already exists, try to transform the schema
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
+      --strict                  Apply STRICT mode to created table
       -h, --help                Show this message and exit.
 
 

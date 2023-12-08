@@ -1972,6 +1972,25 @@ You can specify foreign key relationships between the tables you are creating us
                 [author_id] INTEGER REFERENCES [authors]([id])
              )
 
+You can create a table in `SQLite STRICT mode <https://www.sqlite.org/stricttables.html>`__ using ``--strict``:
+
+.. code-block:: bash
+
+   sqlite-utils create-table mydb.db mytable id integer name text --strict
+
+.. code-block:: bash
+
+   sqlite-utils tables mydb.db --schema -t
+
+.. code-block:: output
+
+   table    schema
+   -------  ------------------------
+   mytable  CREATE TABLE [mytable] (
+               [id] INTEGER,
+               [name] TEXT
+            ) STRICT
+
 If a table with the same name already exists, you will get an error. You can choose to silently ignore this error with ``--ignore``, or you can replace the existing table with a new, empty table using ``--replace``.
 
 You can also pass ``--transform`` to transform the existing table to match the new schema. See :ref:`python_api_explicit_create` in the Python library documentation for details of how this option works.
@@ -2018,7 +2037,7 @@ Use ``--ignore`` to ignore the error if the table does not exist.
 Transforming tables
 ===================
 
-The ``transform`` command allows you to apply complex transformations to a table that cannot be implemented using a regular SQLite ``ALTER TABLE`` command. See :ref:`python_api_transform` for details of how this works.
+The ``transform`` command allows you to apply complex transformations to a table that cannot be implemented using a regular SQLite ``ALTER TABLE`` command. See :ref:`python_api_transform` for details of how this works. The ``transform`` command preserves a table's ``STRICT`` mode.
 
 .. code-block:: bash
 
