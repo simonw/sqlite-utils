@@ -904,7 +904,7 @@ def insert_upsert_options(*, require_pk=False):
                     "--strict",
                     is_flag=True,
                     default=False,
-                    help="Apply STRICT mode to table",
+                    help="Apply STRICT mode to created table",
                 ),
             )
         ):
@@ -1517,7 +1517,7 @@ def create_database(path, enable_wal, init_spatialite, load_extension):
 @click.option(
     "--strict",
     is_flag=True,
-    help="Apply STRICT mode to table",
+    help="Apply STRICT mode to created table",
 )
 def create_table(
     path,
