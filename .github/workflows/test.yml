@@ -10,16 +10,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         numpy: [0, 1]
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - uses: actions/cache@v3
+    - uses: actions/cache@v4
       name: Configure pip caching
       with:
         path: ~/.cache/pip
@@ -29,8 +29,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -e '.[test,mypy,flake8]'
-    - name: Optionally install tui dependencies (not 3.7)
-      if: matrix.python-version != '3.7'
+    - name: Optionally install tui dependencies
       run: pip install -e '.[tui]'
     - name: Optionally install numpy
       if: matrix.numpy == 1
@@ -50,12 +49,10 @@ jobs:
         pytest -v
     - name: run mypy
       run: mypy sqlite_utils tests
-    - name: run flake8 if Python 3.8 or higher
-      if: matrix.python-version >= 3.8
+    - name: run flake8
       run: flake8
     - name: Check formatting
       run: black . --check
     - name: Check if cog needs to be run
-      if: matrix.python-version != '3.7'
       run: |
         cog --check README.md docs/*.rst
