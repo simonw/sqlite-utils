@@ -32,7 +32,7 @@ setup(
         "pluggy",
     ],
     extras_require={
-        "test": ["pytest", "black", "hypothesis", "cogapp"],
+        "test": ["pytest", "black>=24.1.1", "hypothesis", "cogapp"],
         "docs": [
             "furo",
             "sphinx-autobuild",
