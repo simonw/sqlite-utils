@@ -930,9 +930,9 @@ class Database:
                 "   [{column_name}] {column_type}{column_extras}".format(
                     column_name=column_name,
                     column_type=COLUMN_TYPE_MAPPING[column_type],
-                    column_extras=(" " + " ".join(column_extras))
-                    if column_extras
-                    else "",
+                    column_extras=(
+                        (" " + " ".join(column_extras)) if column_extras else ""
+                    ),
                 )
             )
         extra_pk = ""
@@ -1481,9 +1481,11 @@ class Table(Queryable):
     def __repr__(self) -> str:
         return "<Table {}{}>".format(
             self.name,
-            " (does not exist yet)"
-            if not self.exists()
-            else " ({})".format(", ".join(c.name for c in self.columns)),
+            (
+                " (does not exist yet)"
+                if not self.exists()
+                else " ({})".format(", ".join(c.name for c in self.columns))
+            ),
         )
 
     @property
@@ -2940,9 +2942,11 @@ class Table(Queryable):
                 value = jsonify_if_needed(
                     record.get(
                         key,
-                        None
-                        if key != hash_id
-                        else hash_record(record, hash_id_columns),
+                        (
+                            None
+                            if key != hash_id
+                            else hash_record(record, hash_id_columns)
+                        ),
                     )
                 )
                 if key in extracts:
