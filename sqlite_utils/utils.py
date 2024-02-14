@@ -304,10 +304,7 @@ def rows_from_file(
         rows = rows_from_file(
             fp, format=Format.CSV, dialect=csv.excel_tab, encoding=encoding
         )[0]
-        return (
-            _extra_key_strategy(rows, ignore_extras, extras_key),
-            Format.TSV,
-        )
+        return _extra_key_strategy(rows, ignore_extras, extras_key), Format.TSV
     elif format is None:
         # Detect the format, then call this recursively
         buffered = io.BufferedReader(cast(io.RawIOBase, fp), buffer_size=4096)

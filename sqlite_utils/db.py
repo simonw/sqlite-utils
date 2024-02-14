@@ -457,8 +457,7 @@ class Database:
                         fn_name, arity, fn, **dict(kwargs, deterministic=True)
                     )
                     registered = True
-                except (sqlite3.NotSupportedError, TypeError):
-                    # TypeError is Python 3.7 "function takes at most 3 arguments"
+                except sqlite3.NotSupportedError:
                     pass
             if not registered:
                 self.conn.create_function(fn_name, arity, fn, **kwargs)
@@ -951,9 +950,9 @@ class Database:
                 "   [{column_name}] {column_type}{column_extras}".format(
                     column_name=column_name,
                     column_type=COLUMN_TYPE_MAPPING[column_type],
-                    column_extras=(" " + " ".join(column_extras))
-                    if column_extras
-                    else "",
+                    column_extras=(
+                        (" " + " ".join(column_extras)) if column_extras else ""
+                    ),
                 )
             )
         extra_pk = ""
@@ -1527,9 +1526,11 @@ class Table(Queryable):
     def __repr__(self) -> str:
         return "<Table {}{}>".format(
             self.name,
-            " (does not exist yet)"
-            if not self.exists()
-            else " ({})".format(", ".join(c.name for c in self.columns)),
+            (
+                " (does not exist yet)"
+                if not self.exists()
+                else " ({})".format(", ".join(c.name for c in self.columns))
+            ),
         )
 
     @property
@@ -3001,9 +3002,11 @@ class Table(Queryable):
                 value = jsonify_if_needed(
                     record.get(
                         key,
-                        None
-                        if key != hash_id
-                        else hash_record(record, hash_id_columns),
+                        (
+                            None
+                            if key != hash_id
+                            else hash_record(record, hash_id_columns)
+                        ),
                     )
                 )
                 if key in extracts:
