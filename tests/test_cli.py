@@ -2082,11 +2082,10 @@ def test_schema(tmpdir, options, expected):
 def test_long_csv_column_value(tmpdir):
     db_path = str(tmpdir / "test.db")
     csv_path = str(tmpdir / "test.csv")
-    csv_file = open(csv_path, "w")
-    long_string = "a" * 131073
-    csv_file.write("id,text\n")
-    csv_file.write("1,{}\n".format(long_string))
-    csv_file.close()
+    with open(csv_path, "w") as csv_file:
+        long_string = "a" * 131073
+        csv_file.write("id,text\n")
+        csv_file.write("1,{}\n".format(long_string))
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "bigtable", csv_path, "--csv"],
@@ -2110,11 +2109,10 @@ def test_long_csv_column_value(tmpdir):
 def test_import_no_headers(tmpdir, args, tsv):
     db_path = str(tmpdir / "test.db")
     csv_path = str(tmpdir / "test.csv")
-    csv_file = open(csv_path, "w")
-    sep = "\t" if tsv else ","
-    csv_file.write("Cleo{sep}Dog{sep}5\n".format(sep=sep))
-    csv_file.write("Tracy{sep}Spider{sep}7\n".format(sep=sep))
-    csv_file.close()
+    with open(csv_path, "w") as csv_file:
+        sep = "\t" if tsv else ","
+        csv_file.write("Cleo{sep}Dog{sep}5\n".format(sep=sep))
+        csv_file.write("Tracy{sep}Spider{sep}7\n".format(sep=sep))
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "creatures", csv_path] + args,
