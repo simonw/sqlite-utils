@@ -85,6 +85,7 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         cog.out("::\n\n")
         result = CliRunner().invoke(cli.cli, [command, "--help"])
         output = result.output.replace("Usage: cli ", "Usage: sqlite-utils ")
+        output = output.replace('\b', '')
         cog.out(textwrap.indent(output, '    '))
         cog.out("\n\n")
 .. ]]]
@@ -620,7 +621,7 @@ See :ref:`cli_convert`.
       r.parsedate(value, dayfirst=False, yearfirst=False, errors=None)
 
       Parse a date and convert it to ISO date format: yyyy-mm-dd
-      
+  
       - dayfirst=True: treat xx as the day in xx/yy/zz
       - yearfirst=True: treat xx as the year in xx/yy/zz
       - errors=r.IGNORE to ignore values that cannot be parsed
@@ -629,7 +630,7 @@ See :ref:`cli_convert`.
       r.parsedatetime(value, dayfirst=False, yearfirst=False, errors=None)
 
       Parse a datetime and convert it to ISO datetime format: yyyy-mm-ddTHH:MM:SS
-      
+  
       - dayfirst=True: treat xx as the day in xx/yy/zz
       - yearfirst=True: treat xx as the year in xx/yy/zz
       - errors=r.IGNORE to ignore values that cannot be parsed
