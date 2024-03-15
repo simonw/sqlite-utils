@@ -2871,9 +2871,9 @@ def _generate_convert_help():
     Convert columns using Python code you supply. For example:
 
     \b
-        sqlite-utils convert my.db mytable mycolumn \\
-            '"\\n".join(textwrap.wrap(value, 10))' \\
-            --import=textwrap
+    sqlite-utils convert my.db mytable mycolumn \\
+        '"\\n".join(textwrap.wrap(value, 10))' \\
+        --import=textwrap
 
     "value" is a variable with the column value to be converted.
 
@@ -2892,7 +2892,7 @@ def _generate_convert_help():
     for name in recipe_names:
         fn = getattr(recipes, name)
         help += "\n\nr.{}{}\n\n\b{}".format(
-            name, str(inspect.signature(fn)), fn.__doc__.rstrip()
+            name, str(inspect.signature(fn)), textwrap.dedent(fn.__doc__.rstrip())
         )
     help += "\n\n"
     help += textwrap.dedent(
@@ -2900,8 +2900,8 @@ def _generate_convert_help():
     You can use these recipes like so:
 
     \b
-        sqlite-utils convert my.db mytable mycolumn \\
-            'r.jsonsplit(value, delimiter=":")'
+    sqlite-utils convert my.db mytable mycolumn \\
+        'r.jsonsplit(value, delimiter=":")'
     """
     ).strip()
     return help
