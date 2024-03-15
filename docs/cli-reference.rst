@@ -85,6 +85,7 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         cog.out("::\n\n")
         result = CliRunner().invoke(cli.cli, [command, "--help"])
         output = result.output.replace("Usage: cli ", "Usage: sqlite-utils ")
+        output = output.replace('\b', '')
         cog.out(textwrap.indent(output, '    '))
         cog.out("\n\n")
 .. ]]]
@@ -603,9 +604,9 @@ See :ref:`cli_convert`.
 
       Convert columns using Python code you supply. For example:
 
-          sqlite-utils convert my.db mytable mycolumn \
-              '"\n".join(textwrap.wrap(value, 10))' \
-              --import=textwrap
+      sqlite-utils convert my.db mytable mycolumn \
+          '"\n".join(textwrap.wrap(value, 10))' \
+          --import=textwrap
 
       "value" is a variable with the column value to be converted.
 
@@ -615,30 +616,30 @@ See :ref:`cli_convert`.
 
       r.jsonsplit(value, delimiter=',', type=<class 'str'>)
 
-          Convert a string like a,b,c into a JSON array ["a", "b", "c"]
+      Convert a string like a,b,c into a JSON array ["a", "b", "c"]
 
       r.parsedate(value, dayfirst=False, yearfirst=False, errors=None)
 
-          Parse a date and convert it to ISO date format: yyyy-mm-dd
-          
-          - dayfirst=True: treat xx as the day in xx/yy/zz
-          - yearfirst=True: treat xx as the year in xx/yy/zz
-          - errors=r.IGNORE to ignore values that cannot be parsed
-          - errors=r.SET_NULL to set values that cannot be parsed to null
+      Parse a date and convert it to ISO date format: yyyy-mm-dd
+  
+      - dayfirst=True: treat xx as the day in xx/yy/zz
+      - yearfirst=True: treat xx as the year in xx/yy/zz
+      - errors=r.IGNORE to ignore values that cannot be parsed
+      - errors=r.SET_NULL to set values that cannot be parsed to null
 
       r.parsedatetime(value, dayfirst=False, yearfirst=False, errors=None)
 
-          Parse a datetime and convert it to ISO datetime format: yyyy-mm-ddTHH:MM:SS
-          
-          - dayfirst=True: treat xx as the day in xx/yy/zz
-          - yearfirst=True: treat xx as the year in xx/yy/zz
-          - errors=r.IGNORE to ignore values that cannot be parsed
-          - errors=r.SET_NULL to set values that cannot be parsed to null
+      Parse a datetime and convert it to ISO datetime format: yyyy-mm-ddTHH:MM:SS
+  
+      - dayfirst=True: treat xx as the day in xx/yy/zz
+      - yearfirst=True: treat xx as the year in xx/yy/zz
+      - errors=r.IGNORE to ignore values that cannot be parsed
+      - errors=r.SET_NULL to set values that cannot be parsed to null
 
       You can use these recipes like so:
 
-          sqlite-utils convert my.db mytable mycolumn \
-              'r.jsonsplit(value, delimiter=":")'
+      sqlite-utils convert my.db mytable mycolumn \
+          'r.jsonsplit(value, delimiter=":")'
 
     Options:
       --import TEXT                   Python modules to import
