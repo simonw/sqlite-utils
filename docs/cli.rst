@@ -1909,6 +1909,8 @@ This will create a table called ``mytable`` with two columns - an integer ``id``
 
 You can pass as many column-name column-type pairs as you like. Valid types are ``integer``, ``text``, ``float`` and ``blob``.
 
+Pass ``--pk`` more than once for a compound primary key that covers multiple columns.
+
 You can specify columns that should be NOT NULL using ``--not-null colname``. You can specify default values for columns using ``--default colname defaultvalue``.
 
 .. code-block:: bash

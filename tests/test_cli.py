@@ -1180,6 +1180,14 @@ def test_upsert_alter(db_path, tmpdir):
             ["age", "integer", "--default", "age", "3"],
             ("CREATE TABLE [t] (\n" "   [age] INTEGER DEFAULT '3'\n" ")"),
         ),
+        # Compound primary key
+        (
+            ["category", "text", "name", "text", "--pk", "category", "--pk", "name"],
+            (
+                "CREATE TABLE [t] (\n   [category] TEXT,\n   [name] TEXT,\n"
+                "   PRIMARY KEY ([category], [name])\n)"
+            ),
+        ),
     ],
 )
 def test_create_table(args, schema):

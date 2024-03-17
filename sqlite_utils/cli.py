@@ -1489,7 +1489,7 @@ def create_database(path, enable_wal, init_spatialite, load_extension):
 )
 @click.argument("table")
 @click.argument("columns", nargs=-1, required=True)
-@click.option("--pk", help="Column to use as primary key")
+@click.option("pks", "--pk", help="Column to use as primary key", multiple=True)
 @click.option(
     "--not-null",
     multiple=True,
@@ -1532,7 +1532,7 @@ def create_table(
     path,
     table,
     columns,
-    pk,
+    pks,
     not_null,
     default,
     fk,
@@ -1581,7 +1581,7 @@ def create_table(
             )
     db[table].create(
         coltypes,
-        pk=pk,
+        pk=pks[0] if len(pks) == 1 else pks,
         not_null=not_null,
         defaults=dict(default),
         foreign_keys=fk,
