@@ -77,19 +77,24 @@ def test_insert_json_flatten_nl(tmpdir):
     ]
 
 
-def test_insert_with_primary_key(db_path, tmpdir):
+@pytest.mark.parametrize(
+    "args,expected_pks",
+    (
+        (["--pk", "id"], ["id"]),
+        (["--pk", "id", "--pk", "name"], ["id", "name"]),
+    ),
+)
+def test_insert_with_primary_keys(db_path, tmpdir, args, expected_pks):
     json_path = str(tmpdir / "dog.json")
     with open(json_path, "w") as fp:
         fp.write(json.dumps({"id": 1, "name": "Cleo", "age": 4}))
-    result = CliRunner().invoke(
-        cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id"]
-    )
+    result = CliRunner().invoke(cli.cli, ["insert", db_path, "dogs", json_path] + args)
     assert result.exit_code == 0
     assert [{"id": 1, "age": 4, "name": "Cleo"}] == list(
         Database(db_path).query("select * from dogs")
     )
     db = Database(db_path)
-    assert ["id"] == db["dogs"].pks
+    assert db["dogs"].pks == expected_pks
 
 
 def test_insert_multiple_with_primary_key(db_path, tmpdir):
