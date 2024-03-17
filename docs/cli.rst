@@ -1088,11 +1088,13 @@ You can import all three records into an automatically created ``dogs`` table an
 
     sqlite-utils insert dogs.db dogs dogs.json --pk=id
 
+Pass ``--pk`` multiple times to define a compound primary key.
+
 You can skip inserting any records that have a primary key that already exists using ``--ignore``:
 
 .. code-block:: bash
 
-    sqlite-utils insert dogs.db dogs dogs.json --ignore
+    sqlite-utils insert dogs.db dogs dogs.json --pk=id --ignore
 
 You can delete all the existing rows in the table before inserting the new records using ``--truncate``:
 
