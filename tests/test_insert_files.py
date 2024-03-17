@@ -7,7 +7,14 @@ import sys
 
 
 @pytest.mark.parametrize("silent", (False, True))
-def test_insert_files(silent):
+@pytest.mark.parametrize(
+    "pk_args,expected_pks",
+    (
+        (["--pk", "path"], ["path"]),
+        (["--pk", "path", "--pk", "name"], ["path", "name"]),
+    ),
+)
+def test_insert_files(silent, pk_args, expected_pks):
     runner = CliRunner()
     with runner.isolated_filesystem():
         tmpdir = pathlib.Path(".")
@@ -42,7 +49,7 @@ def test_insert_files(silent):
             cli.cli,
             ["insert-files", db_path, "files", str(tmpdir)]
             + cols
-            + ["--pk", "path"]
+            + pk_args
             + (["--silent"] if silent else []),
             catch_exceptions=False,
         )
@@ -105,6 +112,7 @@ def test_insert_files(silent):
         for colname, expected_type in expected_types.items():
             for row in (one, two, three):
                 assert isinstance(row[colname], expected_type)
+        assert set(db["files"].pks) == set(expected_pks)
 
 
 @pytest.mark.parametrize(

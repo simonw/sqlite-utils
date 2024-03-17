@@ -2594,7 +2594,7 @@ def extract(
     multiple=True,
     help="Column definitions for the table",
 )
-@click.option("--pk", type=str, help="Column to use as primary key")
+@click.option("pks", "--pk", help="Column to use as primary key", multiple=True)
 @click.option("--alter", is_flag=True, help="Alter table to add missing columns")
 @click.option("--replace", is_flag=True, help="Replace files with matching primary key")
 @click.option("--upsert", is_flag=True, help="Upsert files with matching primary key")
@@ -2611,7 +2611,7 @@ def insert_files(
     table,
     file_or_dir,
     column,
-    pk,
+    pks,
     alter,
     replace,
     upsert,
@@ -2641,8 +2641,8 @@ def insert_files(
             column = ["path:path", "content_text:content_text", "size:size"]
         else:
             column = ["path:path", "content:content", "size:size"]
-        if not pk:
-            pk = "path"
+        if not pks:
+            pks = ["path"]
 
     def yield_paths_and_relative_paths():
         for f_or_d in file_or_dir:
@@ -2712,7 +2712,11 @@ def insert_files(
         try:
             with db.conn:
                 db[table].insert_all(
-                    to_insert(), pk=pk, alter=alter, replace=replace, upsert=upsert
+                    to_insert(),
+                    pk=pks[0] if len(pks) == 1 else pks,
+                    alter=alter,
+                    replace=replace,
+                    upsert=upsert,
                 )
         except UnicodeDecodeErrorForPath as e:
             raise click.ClickException(
