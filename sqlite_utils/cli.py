@@ -865,7 +865,7 @@ def insert_upsert_options(*, require_pk=False):
                     required=True,
                 ),
                 click.argument("table"),
-                click.argument("file", type=click.File("rb"), required=True),
+                click.argument("file", type=click.File("rb", lazy=True), required=True),
                 click.option(
                     "--pk",
                     help="Columns to use as the primary key, e.g. id",
