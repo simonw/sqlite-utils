@@ -1,7 +1,7 @@
 import base64
 import click
 from click_default_group import DefaultGroup  # type: ignore
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import pathlib
 from runpy import run_module
@@ -3200,8 +3200,12 @@ FILE_COLUMNS = {
     "ctime": lambda p: p.stat().st_ctime,
     "mtime_int": lambda p: int(p.stat().st_mtime),
     "ctime_int": lambda p: int(p.stat().st_ctime),
-    "mtime_iso": lambda p: datetime.utcfromtimestamp(p.stat().st_mtime).isoformat(),
-    "ctime_iso": lambda p: datetime.utcfromtimestamp(p.stat().st_ctime).isoformat(),
+    "mtime_iso": lambda p: datetime.fromtimestamp(p.stat().st_mtime, timezone.utc)
+    .isoformat()
+    .rstrip("+00:00"),
+    "ctime_iso": lambda p: datetime.fromtimestamp(p.stat().st_mtime, timezone.utc)
+    .isoformat()
+    .rstrip("+00:00"),
     "size": lambda p: p.stat().st_size,
     "stem": lambda p: p.stem,
     "suffix": lambda p: p.suffix,
