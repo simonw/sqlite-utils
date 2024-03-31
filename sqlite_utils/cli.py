@@ -1949,12 +1949,16 @@ def memory(
             fp = file_path.open("rb")
         rows, format_used = rows_from_file(fp, format=format, encoding=encoding)
         tracker = None
-        if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
-            tracker = TypeTracker()
-            rows = tracker.wrap(rows)
-        if flatten:
-            rows = (_flatten(row) for row in rows)
-        db[file_table].insert_all(rows, alter=True)
+        try:
+            if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
+                tracker = TypeTracker()
+                rows = tracker.wrap(rows)
+            if flatten:
+                rows = (_flatten(row) for row in rows)
+            db[file_table].insert_all(rows, alter=True)
+        except UnicodeDecodeError as e:
+            fp.close()
+            raise e
         if tracker is not None:
             db[file_table].transform(types=tracker.types)
         # Add convenient t / t1 / t2 views
