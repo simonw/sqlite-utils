@@ -14,3 +14,7 @@ python:
     path: .
     extra_requirements:
     - docs
+
+formats:
+- pdf
+- epub
