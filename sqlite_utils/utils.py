@@ -212,6 +212,7 @@ def _extra_key_strategy(
     reader: Iterable[dict],
     ignore_extras: Optional[bool] = False,
     extras_key: Optional[str] = None,
+    buffer: Optional[io.TextIOWrapper] = None,
 ) -> Iterable[dict]:
     # Logic for handling CSV rows with more values than there are headings
     for row in reader:
@@ -231,6 +232,8 @@ def _extra_key_strategy(
         else:
             row[extras_key] = row.pop(None)  # type: ignore
             yield row
+    if buffer:
+        buffer.close()
 
 
 def rows_from_file(
@@ -299,7 +302,10 @@ def rows_from_file(
             reader = csv.DictReader(decoded_fp, dialect=dialect)
         else:
             reader = csv.DictReader(decoded_fp)
-        return _extra_key_strategy(reader, ignore_extras, extras_key), Format.CSV
+        return (
+            _extra_key_strategy(reader, ignore_extras, extras_key, decoded_fp),
+            Format.CSV,
+        )
     elif format == Format.TSV:
         rows = rows_from_file(
             fp, format=Format.CSV, dialect=csv.excel_tab, encoding=encoding
