@@ -2641,6 +2641,7 @@ class Table(Queryable):
         offset: Optional[int] = None,
         where: Optional[str] = None,
         where_args: Optional[Union[Iterable, dict]] = None,
+        include_rank: bool = False,
         quote: bool = False,
     ) -> Generator[dict, None, None]:
         """
@@ -2654,6 +2655,7 @@ class Table(Queryable):
         :param offset: Optional integer SQL offset.
         :param where: Extra SQL fragment for the WHERE clause
         :param where_args: Arguments to use for :param placeholders in the extra WHERE clause
+        :param include_rank: Select the search rank column in the final query
         :param quote: Apply quoting to disable any special characters in the search query
 
         See :ref:`python_api_fts_search`.
@@ -2673,6 +2675,7 @@ class Table(Queryable):
                 limit=limit,
                 offset=offset,
                 where=where,
+                include_rank=include_rank,
             ),
             args,
         )
