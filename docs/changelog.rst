@@ -4,6 +4,15 @@
  Changelog
 ===========
 
+.. _v3_37:
+
+3.37 (2024-07-18)
+-----------------
+
+- The ``create-table`` and ``insert-files`` commands all now accept multiple ``--pk`` options for compound primary keys. (:issue:`620`)
+- Now tested against Python 3.13 pre-release. (`#619 <https://github.com/simonw/sqlite-utils/pull/619>`__)
+- Fixed a crash that can occur in environments with a broken ``numpy`` installation, producing a ``module 'numpy' has no attribute 'int8'``. (:issue:`632`)
+
 .. _v3_36:
 
 3.36 (2023-12-07)
