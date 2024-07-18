@@ -890,7 +890,8 @@ You can delete all records in a table that match a specific WHERE statement usin
 
     >>> db = sqlite_utils.Database("dogs.db")
     >>> # Delete every dog with age less than 3
-    >>> db["dogs"].delete_where("age < ?", [3])
+    >>> with db.conn:
+    >>>     db["dogs"].delete_where("age < ?", [3])
 
 Calling ``table.delete_where()`` with no other arguments will delete every row in the table.
 
