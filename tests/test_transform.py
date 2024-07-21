@@ -539,3 +539,94 @@ def test_transform_strict(fresh_db, strict):
     assert dogs.strict == strict or not fresh_db.supports_strict
     dogs.transform(not_null={"name"})
     assert dogs.strict == strict or not fresh_db.supports_strict
+
+
+@pytest.mark.parametrize(
+    "indexes, transform_params",
+    [
+        ([["name"]], {"types": {"age": str}}),
+        ([["name"], ["age", "breed"]], {"types": {"age": str}}),
+        ([], {"types": {"age": str}}),
+        ([["name"]], {"types": {"age": str}, "keep_table": "old_dogs"}),
+    ],
+)
+def test_transform_indexes(fresh_db, indexes, transform_params):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": 5, "breed": "Labrador"}, pk="id")
+
+    for index in indexes:
+        dogs.create_index(index)
+
+    indexes_before_transform = dogs.indexes
+
+    dogs.transform(**transform_params)
+
+    assert sorted(
+        [
+            {k: v for k, v in idx._asdict().items() if k != "seq"}
+            for idx in dogs.indexes
+        ],
+        key=lambda x: x["name"],
+    ) == sorted(
+        [
+            {k: v for k, v in idx._asdict().items() if k != "seq"}
+            for idx in indexes_before_transform
+        ],
+        key=lambda x: x["name"],
+    ), f"Indexes before transform: {indexes_before_transform}\nIndexes after transform: {dogs.indexes}"
+    if "keep_table" in transform_params:
+        assert all(
+            index.origin == "pk"
+            for index in fresh_db[transform_params["keep_table"]].indexes
+        )
+
+
+def test_transform_retains_indexes_with_foreign_keys(fresh_db):
+    dogs = fresh_db["dogs"]
+    owners = fresh_db["owners"]
+
+    dogs.insert({"id": 1, "name": "Cleo", "owner_id": 1}, pk="id")
+    owners.insert({"id": 1, "name": "Alice"}, pk="id")
+
+    dogs.create_index(["name"])
+
+    indexes_before_transform = dogs.indexes
+
+    fresh_db.add_foreign_keys([("dogs", "owner_id", "owners", "id")])  # calls transform
+
+    assert sorted(
+        [
+            {k: v for k, v in idx._asdict().items() if k != "seq"}
+            for idx in dogs.indexes
+        ],
+        key=lambda x: x["name"],
+    ) == sorted(
+        [
+            {k: v for k, v in idx._asdict().items() if k != "seq"}
+            for idx in indexes_before_transform
+        ],
+        key=lambda x: x["name"],
+    ), f"Indexes before transform: {indexes_before_transform}\nIndexes after transform: {dogs.indexes}"
+
+
+@pytest.mark.parametrize(
+    "transform_params",
+    [
+        {"rename": {"age": "dog_age"}},
+        {"drop": ["age"]},
+    ],
+)
+def test_transform_with_indexes_errors(fresh_db, transform_params):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
+
+    dogs.create_index(["name", "age"])
+
+    with pytest.raises(AssertionError) as excinfo:
+        dogs.transform(**transform_params)
+
+    assert (
+        "Index 'idx_dogs_name_age' column 'age' is not in updated table 'dogs'. "
+        "You must manually drop this index prior to running this transformation"
+        in str(excinfo.value)
+    )
