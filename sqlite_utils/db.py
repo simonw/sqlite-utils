@@ -1967,6 +1967,28 @@ class Table(Queryable):
         sqls.append(
             "ALTER TABLE [{}] RENAME TO [{}];".format(new_table_name, self.name)
         )
+        # Re-add existing indexes
+        for index in self.indexes:
+            if index.origin not in ("pk"):
+                index_sql = self.db.execute(
+                    """SELECT sql FROM sqlite_master WHERE type = 'index' AND name = :index_name;""",
+                    {"index_name": index.name},
+                ).fetchall()[0][0]
+                assert index_sql is not None, (
+                    f"Index '{index}' on table '{self.name}' does not have a "
+                    "CREATE INDEX statement. You must manually drop this index prior to running this "
+                    "transformation and manually recreate the new index after running this transformation."
+                )
+                if keep_table:
+                    sqls.append(f"DROP INDEX IF EXISTS [{index.name}];")
+                for col in index.columns:
+                    assert col not in rename.keys() and col not in drop, (
+                        f"Index '{index.name}' column '{col}' is not in updated table '{self.name}'. "
+                        f"You must manually drop this index prior to running this transformation "
+                        f"and manually recreate the new index after running this transformation. "
+                        f"The original index sql statement is: `{index_sql}`. No changes have been applied to this table."
+                    )
+                sqls.append(index_sql)
         return sqls
 
     def extract(
