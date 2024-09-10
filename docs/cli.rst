@@ -2796,7 +2796,7 @@ To enable this feature you will need to install the ``trogon`` dependency. You c
 
 .. code-block:: bash
 
-    sqite-utils install trogon
+    sqlite-utils install trogon
 
 Once installed, running the ``sqlite-utils tui`` command will launch the TUI interface:
 
