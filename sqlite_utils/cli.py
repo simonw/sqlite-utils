@@ -1,7 +1,7 @@
 import base64
 import click
 from click_default_group import DefaultGroup  # type: ignore
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import pathlib
 from runpy import run_module
@@ -865,7 +865,7 @@ def insert_upsert_options(*, require_pk=False):
                     required=True,
                 ),
                 click.argument("table"),
-                click.argument("file", type=click.File("rb"), required=True),
+                click.argument("file", type=click.File("rb", lazy=True), required=True),
                 click.option(
                     "--pk",
                     help="Columns to use as the primary key, e.g. id",
@@ -1949,12 +1949,16 @@ def memory(
             fp = file_path.open("rb")
         rows, format_used = rows_from_file(fp, format=format, encoding=encoding)
         tracker = None
-        if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
-            tracker = TypeTracker()
-            rows = tracker.wrap(rows)
-        if flatten:
-            rows = (_flatten(row) for row in rows)
-        db[file_table].insert_all(rows, alter=True)
+        try:
+            if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
+                tracker = TypeTracker()
+                rows = tracker.wrap(rows)
+            if flatten:
+                rows = (_flatten(row) for row in rows)
+            db[file_table].insert_all(rows, alter=True)
+        except UnicodeDecodeError as e:
+            fp.close()
+            raise e
         if tracker is not None:
             db[file_table].transform(types=tracker.types)
         # Add convenient t / t1 / t2 views
@@ -3196,8 +3200,12 @@ FILE_COLUMNS = {
     "ctime": lambda p: p.stat().st_ctime,
     "mtime_int": lambda p: int(p.stat().st_mtime),
     "ctime_int": lambda p: int(p.stat().st_ctime),
-    "mtime_iso": lambda p: datetime.utcfromtimestamp(p.stat().st_mtime).isoformat(),
-    "ctime_iso": lambda p: datetime.utcfromtimestamp(p.stat().st_ctime).isoformat(),
+    "mtime_iso": lambda p: datetime.fromtimestamp(p.stat().st_mtime, timezone.utc)
+    .isoformat()
+    .rstrip("+00:00"),
+    "ctime_iso": lambda p: datetime.fromtimestamp(p.stat().st_mtime, timezone.utc)
+    .isoformat()
+    .rstrip("+00:00"),
     "size": lambda p: p.stat().st_size,
     "stem": lambda p: p.stem,
     "suffix": lambda p: p.suffix,
