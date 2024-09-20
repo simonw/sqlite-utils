@@ -15,7 +15,7 @@ def get_long_description():
 
 setup(
     name="sqlite-utils",
-    description="CLI tool and Python library for manipulating SQLite databases",
+    description="CLI tool and Python library for creating and manipulating SQLite databases",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
     author="Simon Willison",
