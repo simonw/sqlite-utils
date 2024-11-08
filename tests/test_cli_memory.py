@@ -1,6 +1,6 @@
 import json
-
 import pytest
+import sys
 from click.testing import CliRunner
 
 from sqlite_utils import Database, cli
@@ -305,3 +305,23 @@ def test_memory_functions():
     )
     assert result.exit_code == 0
     assert result.output.strip() == '[{"hello()": "Hello"}]'
+
+
+@pytest.mark.parametrize("enabled", (False, True))
+def test_memory_named_database_hack(enabled):
+    # https://github.com/simonw/sqlite-utils/issues/643
+    sys._sqlite_utils_memory_test = enabled
+    try:
+        result = CliRunner().invoke(
+            cli.cli,
+            ["memory", "-", "--analyze"],
+            input="id,name\n1,Cleo\n2,Bants",
+        )
+        assert result.exit_code == 0
+        db = Database(memory_name="sqlite_utils_memory")
+        if enabled:
+            assert db.table_names() == ["stdin"]
+        else:
+            assert db.table_names() == []
+    finally:
+        sys._sqlite_utils_memory_test = False

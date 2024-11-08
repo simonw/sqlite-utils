@@ -115,6 +115,31 @@ Example implementation:
             "Say hello world"
             click.echo("Hello world!")
 
+New commands implemented by plugins can invoke existing commands using the `context.invoke <https://click.palletsprojects.com/en/stable/api/#click.Context.invoke>`__ mechanism.
+
+As a special niche feature, if your plugin needs to import some files and then act against an in-memory database containing those files you can forward to the :ref:`sqlite-utils memory command <cli_memory>` and then access a named in-memory database called ``sqlite_utils_memory`` like this:
+
+.. code-block:: python
+
+    from contextlib import redirect_stdout
+    import io
+
+    @cli.command()
+    @click.pass_context
+    @click.argument(
+        "paths",
+        type=click.Path(file_okay=True, dir_okay=False, allow_dash=True),
+        required=False,
+        nargs=-1,
+    )
+    def show_schema_for_files(ctx, paths):
+        from sqlite_utils.cli import memory
+        with redirect_stdout(io.StringIO()):
+            ctx.invoke(memory, paths=paths, sql="select 1")
+        db = sqlite_utils.Database(memory_name="sqlite_utils_memory")
+        # Now do something with that database
+        click.echo(db.schema)
+
 .. _plugins_hooks_prepare_connection:
 
 prepare_connection(conn)

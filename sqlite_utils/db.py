@@ -325,6 +325,8 @@ class Database:
         execute_plugins: bool = True,
         strict: bool = False,
     ):
+        self.memory_name = None
+        self.memory = False
         assert (filename_or_conn is not None and (not memory and not memory_name)) or (
             filename_or_conn is None and (memory or memory_name)
         ), "Either specify a filename_or_conn or pass memory=True"
@@ -335,8 +337,11 @@ class Database:
                 uri=True,
                 check_same_thread=False,
             )
+            self.memory = True
+            self.memory_name = memory_name
         elif memory or filename_or_conn == ":memory:":
             self.conn = sqlite3.connect(":memory:")
+            self.memory = True
         elif isinstance(filename_or_conn, (str, pathlib.Path)):
             if recreate and os.path.exists(filename_or_conn):
                 try:

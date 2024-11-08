@@ -1815,6 +1815,10 @@ def query(
     )
 
 
+# So named memory db "sqlite_utils_memory" isn't dropped when it goes out of scope
+_sqlite_utils_memory_db = []
+
+
 @cli.command()
 @click.argument(
     "paths",
@@ -1921,7 +1925,14 @@ def memory(
     \b
         sqlite-utils memory animals.csv --schema
     """
-    db = sqlite_utils.Database(memory=True)
+    if getattr(sys, "_sqlite_utils_memory_test", False) or not getattr(
+        sys, "_called_from_test", False
+    ):
+        db = sqlite_utils.Database(memory_name="sqlite_utils_memory")
+        _sqlite_utils_memory_db.append(db)
+    else:
+        db = sqlite_utils.Database(memory=True)
+
     # If --dump or --save or --analyze used but no paths detected, assume SQL query is a path:
     if (dump or save or schema or analyze) and not paths:
         paths = [sql]
@@ -1954,6 +1965,7 @@ def memory(
             rows = tracker.wrap(rows)
         if flatten:
             rows = (_flatten(row) for row in rows)
+
         db[file_table].insert_all(rows, alter=True)
         if tracker is not None:
             db[file_table].transform(types=tracker.types)
@@ -1964,6 +1976,7 @@ def memory(
         for view_name in view_names:
             if not db[view_name].exists():
                 db.create_view(view_name, "select * from [{}]".format(file_table))
+
         if fp:
             fp.close()
 
