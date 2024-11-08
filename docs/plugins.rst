@@ -117,12 +117,9 @@ Example implementation:
 
 New commands implemented by plugins can invoke existing commands using the `context.invoke <https://click.palletsprojects.com/en/stable/api/#click.Context.invoke>`__ mechanism.
 
-As a special niche feature, if your plugin needs to import some files and then act against an in-memory database containing those files you can forward to the :ref:`sqlite-utils memory command <cli_memory>` and then access a named in-memory database called ``sqlite_utils_memory`` like this:
+As a special niche feature, if your plugin needs to import some files and then act against an in-memory database containing those files you can forward to the :ref:`sqlite-utils memory command <cli_memory>` and pass it ``return_db=True``:
 
 .. code-block:: python
-
-    from contextlib import redirect_stdout
-    import io
 
     @cli.command()
     @click.pass_context
@@ -134,9 +131,7 @@ As a special niche feature, if your plugin needs to import some files and then a
     )
     def show_schema_for_files(ctx, paths):
         from sqlite_utils.cli import memory
-        with redirect_stdout(io.StringIO()):
-            ctx.invoke(memory, paths=paths, sql="select 1")
-        db = sqlite_utils.Database(memory_name="sqlite_utils_memory")
+        db = ctx.invoke(memory, paths=paths, _return_db=True)
         # Now do something with that database
         click.echo(db.schema)
 
