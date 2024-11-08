@@ -131,7 +131,7 @@ As a special niche feature, if your plugin needs to import some files and then a
     )
     def show_schema_for_files(ctx, paths):
         from sqlite_utils.cli import memory
-        db = ctx.invoke(memory, paths=paths, _return_db=True)
+        db = ctx.invoke(memory, paths=paths, return_db=True)
         # Now do something with that database
         click.echo(db.schema)
 
