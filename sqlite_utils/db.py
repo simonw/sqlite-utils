@@ -1969,7 +1969,7 @@ class Table(Queryable):
         )
         # Re-add existing indexes
         for index in self.indexes:
-            if index.origin not in ("pk"):
+            if index.origin != "pk":
                 index_sql = self.db.execute(
                     """SELECT sql FROM sqlite_master WHERE type = 'index' AND name = :index_name;""",
                     {"index_name": index.name},

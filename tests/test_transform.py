@@ -551,6 +551,8 @@ def test_transform_strict(fresh_db, strict):
     ],
 )
 def test_transform_indexes(fresh_db, indexes, transform_params):
+    # https://github.com/simonw/sqlite-utils/issues/633
+    # New table should have same indexes as old table after transformation
     dogs = fresh_db["dogs"]
     dogs.insert({"id": 1, "name": "Cleo", "age": 5, "breed": "Labrador"}, pk="id")
 
@@ -617,6 +619,7 @@ def test_transform_retains_indexes_with_foreign_keys(fresh_db):
     ],
 )
 def test_transform_with_indexes_errors(fresh_db, transform_params):
+    # Should error with a compound (name, age) index if age is renamed or dropped
     dogs = fresh_db["dogs"]
     dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
 
