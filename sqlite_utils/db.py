@@ -1975,7 +1975,7 @@ class Table(Queryable):
                     {"index_name": index.name},
                 ).fetchall()[0][0]
                 assert index_sql is not None, (
-                    f"Index '{index}' on table '{self.name}' does not have a "
+                    f"Index '{index.name}' on table '{self.name}' does not have a "
                     "CREATE INDEX statement. You must manually drop this index prior to running this "
                     "transformation and manually recreate the new index after running this transformation."
                 )

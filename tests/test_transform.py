@@ -633,3 +633,31 @@ def test_transform_with_indexes_errors(fresh_db, transform_params):
         "You must manually drop this index prior to running this transformation"
         in str(excinfo.value)
     )
+
+
+def test_transform_with_unique_constraint_implicit_index(fresh_db):
+    dogs = fresh_db["dogs"]
+    # Create a table with a UNIQUE constraint on 'name', which creates an implicit index
+    fresh_db.execute(
+        """
+        CREATE TABLE dogs (
+            id INTEGER PRIMARY KEY,
+            name TEXT UNIQUE,
+            age INTEGER
+        );
+    """
+    )
+    dogs.insert({"id": 1, "name": "Cleo", "age": 5})
+
+    # Attempt to transform the table without modifying 'name'
+    with pytest.raises(AssertionError) as excinfo:
+        dogs.transform(types={"age": str})
+
+    assert (
+        "Index 'sqlite_autoindex_dogs_1' on table 'dogs' does not have a CREATE INDEX statement."
+        in str(excinfo.value)
+    )
+    assert (
+        "You must manually drop this index prior to running this transformation and manually recreate the new index after running this transformation."
+        in str(excinfo.value)
+    )
