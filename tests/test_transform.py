@@ -1,4 +1,4 @@
-from sqlite_utils.db import ForeignKey
+from sqlite_utils.db import ForeignKey, TransformError
 from sqlite_utils.utils import OperationalError
 import pytest
 
@@ -625,7 +625,7 @@ def test_transform_with_indexes_errors(fresh_db, transform_params):
 
     dogs.create_index(["name", "age"])
 
-    with pytest.raises(AssertionError) as excinfo:
+    with pytest.raises(TransformError) as excinfo:
         dogs.transform(**transform_params)
 
     assert (
@@ -650,7 +650,7 @@ def test_transform_with_unique_constraint_implicit_index(fresh_db):
     dogs.insert({"id": 1, "name": "Cleo", "age": 5})
 
     # Attempt to transform the table without modifying 'name'
-    with pytest.raises(AssertionError) as excinfo:
+    with pytest.raises(TransformError) as excinfo:
         dogs.transform(types={"age": str})
 
     assert (

@@ -156,6 +156,10 @@ XIndexColumn = namedtuple(
 Trigger = namedtuple("Trigger", ("name", "table", "sql"))
 
 
+class TransformError(Exception):
+    pass
+
+
 ForeignKeyIndicator = Union[
     str,
     ForeignKey,
@@ -1974,20 +1978,22 @@ class Table(Queryable):
                     """SELECT sql FROM sqlite_master WHERE type = 'index' AND name = :index_name;""",
                     {"index_name": index.name},
                 ).fetchall()[0][0]
-                assert index_sql is not None, (
-                    f"Index '{index.name}' on table '{self.name}' does not have a "
-                    "CREATE INDEX statement. You must manually drop this index prior to running this "
-                    "transformation and manually recreate the new index after running this transformation."
-                )
+                if index_sql is None:
+                    raise TransformError(
+                        f"Index '{index.name}' on table '{self.name}' does not have a "
+                        "CREATE INDEX statement. You must manually drop this index prior to running this "
+                        "transformation and manually recreate the new index after running this transformation."
+                    )
                 if keep_table:
                     sqls.append(f"DROP INDEX IF EXISTS [{index.name}];")
                 for col in index.columns:
-                    assert col not in rename.keys() and col not in drop, (
-                        f"Index '{index.name}' column '{col}' is not in updated table '{self.name}'. "
-                        f"You must manually drop this index prior to running this transformation "
-                        f"and manually recreate the new index after running this transformation. "
-                        f"The original index sql statement is: `{index_sql}`. No changes have been applied to this table."
-                    )
+                    if col in rename.keys() or col in drop:
+                        raise TransformError(
+                            f"Index '{index.name}' column '{col}' is not in updated table '{self.name}'. "
+                            f"You must manually drop this index prior to running this transformation "
+                            f"and manually recreate the new index after running this transformation. "
+                            f"The original index sql statement is: `{index_sql}`. No changes have been applied to this table."
+                        )
                 sqls.append(index_sql)
         return sqls
 
