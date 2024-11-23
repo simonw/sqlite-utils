@@ -10,17 +10,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         numpy: [0, 1]
         os: [ubuntu-latest, macos-latest, windows-latest, macos-14]
-        # Skip 3.8 and 3.9 on macos-14 - it only has 3.10+
+        # Skip 3.9 on macos-14 - it only has 3.10+
         exclude:
-        - python-version: "3.8"
-          os: macos-14
         - python-version: "3.9"
           os: macos-14
-        - python-version: "3.13"
-          numpy: 1
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
