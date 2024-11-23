@@ -938,10 +938,15 @@ class Database:
                         other_column=foreign_keys_by_column[column_name].other_column,
                     )
                 )
+            column_type_str = COLUMN_TYPE_MAPPING[column_type]
+            # Special case for strict tables to map FLOAT to REAL
+            # Refs https://github.com/simonw/sqlite-utils/issues/644
+            if strict and column_type_str == "FLOAT":
+                column_type_str = "REAL"
             column_defs.append(
                 "   [{column_name}] {column_type}{column_extras}".format(
                     column_name=column_name,
-                    column_type=COLUMN_TYPE_MAPPING[column_type],
+                    column_type=column_type_str,
                     column_extras=(
                         (" " + " ".join(column_extras)) if column_extras else ""
                     ),

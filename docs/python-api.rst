@@ -1249,6 +1249,9 @@ If you pass a Python type, it will be mapped to SQLite types as shown here::
     np.float32: "FLOAT"
     np.float64: "FLOAT"
 
+.. note::
+    In sqlite-utils 3.x ``FLOAT`` is used for floating point columns when the correct column type is actually ``REAL``. If you specify ``strict=True`` tables created in strict mode will use the correct column type of ``REAL`` instead. We plan to change this behavior in ``sqlite-utils`` 4.x to always use ``REAL``, but this will represent a minor breaking change and so is being held for the next major release, see issue :issue:`645`.
+
 You can also add a column that is a foreign key reference to another table using the ``fk`` parameter:
 
 .. code-block:: python

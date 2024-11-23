@@ -2416,11 +2416,13 @@ def test_create_table_strict(strict):
         db = Database("test.db")
         result = runner.invoke(
             cli.cli,
-            ["create-table", "test.db", "items", "id", "integer"]
+            ["create-table", "test.db", "items", "id", "integer", "w", "float"]
             + (["--strict"] if strict else []),
         )
         assert result.exit_code == 0
         assert db["items"].strict == strict or not db.supports_strict
+        # Should have a floating point column
+        assert db["items"].columns_dict == {"id": int, "w": float}
 
 
 @pytest.mark.parametrize("method", ("insert", "upsert"))
