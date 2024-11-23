@@ -4,6 +4,16 @@
  Changelog
 ===========
 
+.. _v3_38:
+
+3.38 (2024-11-23)
+-----------------
+
+- Plugins can now reuse the implementation of the ``sqlite-utils memory`` CLI command with the new ``return_db=True`` parameter. (:issue:`643`)
+- ``table.transform()`` now recreates indexes after transforming a table. A new ``sqlite_utils.db.TransformError`` exception is raised if these indexes cannot be recreated due to conflicting changes to the table such as a column rename. Thanks, `Mat Miller <https://github.com/matdmiller>`__. (:issue:`633`)
+- ``table.search()`` now accepts a ``include_rank=True`` parameter, causing the resulting rows to have a ``rank`` column showing the calculated relevance score. Thanks, `liunux4odoo <https://github.com/liunux4odoo>`__. (`#628 <https://github.com/simonw/sqlite-utils/pull/628>`__)
+- Fixed an error that occurred when creating a strict table with at least one floating point column. These ``FLOAT`` columns are now correctly created as ``REAL`` as well, but only for strict tables. (:issue:`644`)
+
 .. _v3_37:
 
 3.37 (2024-07-18)
