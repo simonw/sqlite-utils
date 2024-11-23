@@ -2711,15 +2711,13 @@ By default, the name of the Python function will be used as the name of the SQL 
 
     print(db.execute('select rev("hello")').fetchone()[0])
 
-Python 3.8 added the ability to register `deterministic SQLite functions <https://sqlite.org/deterministic.html>`__, allowing you to indicate that a function will return the exact same result for any given inputs and hence allowing SQLite to apply some performance optimizations. You can mark a function as deterministic using ``deterministic=True``, like this:
+If a function will return the exact same result for any given inputs you can register it as a `deterministic SQLite function <https://sqlite.org/deterministic.html>`__ allowing SQLite to apply some performance optimizations:
 
 .. code-block:: python
 
     @db.register_function(deterministic=True)
     def reverse_string(s):
         return "".join(reversed(list(s)))
-
-If you run this on a version of Python prior to 3.8 your code will still work, but the ``deterministic=True`` parameter will be ignored.
 
 By default registering a function with the same name and number of arguments will have no effect - the ``Database`` instance keeps track of functions that have already been registered and skips registering them if ``@db.register_function`` is called a second time.
 
