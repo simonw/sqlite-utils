@@ -1402,6 +1402,8 @@ To keep the original table around instead of dropping it, pass the ``keep_table=
 
     table.transform(types={"age": int}, keep_table="original_table")
 
+This method raises a ``sqlite_utils.db.TransformError`` exception if the table cannot be transformed, usually because there are existing constraints or indexes that are incompatible with modifications to the columns.
+
 .. _python_api_transform_alter_column_types:
 
 Altering column types
