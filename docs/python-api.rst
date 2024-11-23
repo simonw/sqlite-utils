@@ -2311,6 +2311,9 @@ The ``.search()`` method also accepts the following optional parameters:
 ``where_args`` dictionary
     Arguments to use for ``:param`` placeholders in the extra WHERE clause
 
+``include_rank`` bool
+    If set a ``rank`` column will be included with the BM25 ranking score - for FTS5 tables only.
+
 ``quote`` bool
     Apply :ref:`FTS quoting rules <python_api_quote_fts>` to the search query, disabling advanced query syntax in a way that avoids surprising errors.
 

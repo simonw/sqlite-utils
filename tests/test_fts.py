@@ -1,6 +1,7 @@
 import pytest
 from sqlite_utils import Database
 from sqlite_utils.utils import sqlite3
+from unittest.mock import ANY
 
 search_records = [
     {
@@ -124,6 +125,32 @@ def test_search_where_args_disallows_query(fresh_db):
         ex.value.args[0]
         == "'query' is a reserved key and cannot be passed to where_args for .search()"
     )
+
+
+def test_search_include_rank(fresh_db):
+    table = fresh_db["t"]
+    table.insert_all(search_records)
+    table.enable_fts(["text", "country"], fts_version="FTS5")
+    results = list(table.search("are", include_rank=True))
+    assert results == [
+        {
+            "rowid": 1,
+            "text": "tanuki are running tricksters",
+            "country": "Japan",
+            "not_searchable": "foo",
+            "rank": ANY,
+        },
+        {
+            "rowid": 2,
+            "text": "racoons are biting trash pandas",
+            "country": "USA",
+            "not_searchable": "bar",
+            "rank": ANY,
+        },
+    ]
+    assert isinstance(results[0]["rank"], float)
+    assert isinstance(results[1]["rank"], float)
+    assert results[0]["rank"] < results[1]["rank"]
 
 
 def test_enable_fts_table_names_containing_spaces(fresh_db):
