@@ -1353,6 +1353,8 @@ def test_create_table_strict(fresh_db, strict):
     table = fresh_db.create_table("t", {"id": int, "f": float}, strict=strict)
     assert table.strict == strict or not fresh_db.supports_strict
     expected_schema = "CREATE TABLE [t] (\n" "   [id] INTEGER,\n" "   [f] FLOAT\n" ")"
+    if strict and not fresh_db.supports_strict:
+        return
     if strict:
         expected_schema = "CREATE TABLE [t] (\n   [id] INTEGER,\n   [f] REAL\n) STRICT"
     assert table.schema == expected_schema
