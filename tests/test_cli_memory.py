@@ -28,7 +28,7 @@ def test_memory_csv(tmpdir, sql_from, use_stdin):
             fp.write(content)
     result = CliRunner().invoke(
         cli.cli,
-        ["memory", csv_path, "select * from {}".format(sql_from), "--nl"],
+        ["memory", csv_path, f"select * from {sql_from}", "--nl"],
         input=input,
     )
     assert result.exit_code == 0
@@ -53,7 +53,7 @@ def test_memory_tsv(tmpdir, use_stdin):
         sql_from = "chickens"
     result = CliRunner().invoke(
         cli.cli,
-        ["memory", path, "select * from {}".format(sql_from)],
+        ["memory", path, f"select * from {sql_from}"],
         input=input,
     )
     assert result.exit_code == 0, result.output
@@ -79,7 +79,7 @@ def test_memory_json(tmpdir, use_stdin):
         sql_from = "chickens"
     result = CliRunner().invoke(
         cli.cli,
-        ["memory", path, "select * from {}".format(sql_from)],
+        ["memory", path, f"select * from {sql_from}"],
         input=input,
     )
     assert result.exit_code == 0, result.output
@@ -105,7 +105,7 @@ def test_memory_json_nl(tmpdir, use_stdin):
         sql_from = "chickens"
     result = CliRunner().invoke(
         cli.cli,
-        ["memory", path, "select * from {}".format(sql_from)],
+        ["memory", path, f"select * from {sql_from}"],
         input=input,
     )
     assert result.exit_code == 0, result.output
@@ -118,7 +118,7 @@ def test_memory_json_nl(tmpdir, use_stdin):
 @pytest.mark.parametrize("use_stdin", (True, False))
 def test_memory_csv_encoding(tmpdir, use_stdin):
     latin1_csv = (
-        b"date,name,latitude,longitude\n" b"2020-03-04,S\xe3o Paulo,-23.561,-46.645\n"
+        b"date,name,latitude,longitude\n2020-03-04,S\xe3o Paulo,-23.561,-46.645\n"
     )
     input = None
     if use_stdin:
@@ -135,7 +135,7 @@ def test_memory_csv_encoding(tmpdir, use_stdin):
         CliRunner()
         .invoke(
             cli.cli,
-            ["memory", csv_path, "select * from {}".format(sql_from), "--nl"],
+            ["memory", csv_path, f"select * from {sql_from}", "--nl"],
             input=input,
         )
         .exit_code

@@ -113,7 +113,7 @@ def test_query_load_extension(use_spatialite_shortcut):
         [
             ":memory:",
             "select spatialite_version()",
-            "--load-extension={}".format(load_extension),
+            f"--load-extension={load_extension}",
         ],
     )
     assert result.exit_code == 0, result.stdout

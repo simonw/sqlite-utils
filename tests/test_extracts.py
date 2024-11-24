@@ -25,7 +25,7 @@ def test_extracts(fresh_db, kwargs, expected_table, use_table_factory):
             {"id": 2, "species_id": "Oak"},
             {"id": 3, "species_id": "Palm"},
         ],
-        **insert_kwargs
+        **insert_kwargs,
     )
     # Should now have two tables: Trees and Species
     assert {expected_table, "Trees"} == set(fresh_db.table_names())
@@ -51,7 +51,7 @@ def test_extracts(fresh_db, kwargs, expected_table, use_table_factory):
     assert [
         Index(
             seq=0,
-            name="idx_{}_value".format(expected_table),
+            name=f"idx_{expected_table}_value",
             unique=1,
             origin="c",
             partial=0,

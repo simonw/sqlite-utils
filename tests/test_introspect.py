@@ -49,8 +49,8 @@ def test_detect_fts_similar_tables(fresh_db, reverse_order):
     fresh_db[table2].insert({"title": "Hello"}).enable_fts(
         ["title"], fts_version="FTS4"
     )
-    assert fresh_db[table1].detect_fts() == "{}_fts".format(table1)
-    assert fresh_db[table2].detect_fts() == "{}_fts".format(table2)
+    assert fresh_db[table1].detect_fts() == f"{table1}_fts"
+    assert fresh_db[table2].detect_fts() == f"{table2}_fts"
 
 
 def test_tables(existing_db):

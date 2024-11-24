@@ -209,20 +209,20 @@ def test_populate_fts_escape_table_names(fresh_db):
 
 @pytest.mark.parametrize("fts_version", ("4", "5"))
 def test_fts_tokenize(fresh_db, fts_version):
-    table_name = "searchable_{}".format(fts_version)
+    table_name = f"searchable_{fts_version}"
     table = fresh_db[table_name]
     table.insert_all(search_records)
     # Test without porter stemming
     table.enable_fts(
         ["text", "country"],
-        fts_version="FTS{}".format(fts_version),
+        fts_version=f"FTS{fts_version}",
     )
     assert [] == list(table.search("bite"))
     # Test WITH stemming
     table.disable_fts()
     table.enable_fts(
         ["text", "country"],
-        fts_version="FTS{}".format(fts_version),
+        fts_version=f"FTS{fts_version}",
         tokenize="porter",
     )
     rows = list(table.search("bite", order_by="rowid"))
@@ -237,10 +237,10 @@ def test_fts_tokenize(fresh_db, fts_version):
 
 def test_optimize_fts(fresh_db):
     for fts_version in ("4", "5"):
-        table_name = "searchable_{}".format(fts_version)
+        table_name = f"searchable_{fts_version}"
         table = fresh_db[table_name]
         table.insert_all(search_records)
-        table.enable_fts(["text", "country"], fts_version="FTS{}".format(fts_version))
+        table.enable_fts(["text", "country"], fts_version=f"FTS{fts_version}")
     # You can call optimize successfully against the tables OR their _fts equivalents:
     for table_name in (
         "searchable_4",
@@ -296,12 +296,12 @@ def test_disable_fts(fresh_db, create_triggers):
         expected_triggers = {"searchable_ai", "searchable_ad", "searchable_au"}
     else:
         expected_triggers = set()
-    assert expected_triggers == set(
+    assert expected_triggers == {
         r[0]
         for r in fresh_db.execute(
             "select name from sqlite_master where type = 'trigger'"
         ).fetchall()
-    )
+    }
     # Now run .disable_fts() and confirm it worked
     table.disable_fts()
     assert (
@@ -392,7 +392,7 @@ def test_enable_fts_replace(kwargs):
     db["books"].enable_fts(**kwargs, replace=True)
     # Check that the new configuration is correct
     if should_have_changed_columns:
-        assert db["books_fts"].columns_dict.keys() == set(["title"])
+        assert db["books_fts"].columns_dict.keys() == {"title"}
     if "create_triggers" in kwargs:
         assert db["books"].triggers
     if "fts_version" in kwargs:

@@ -65,8 +65,7 @@ def test_insert_m2m_iterable(fresh_db):
     iterable_records = ({"id": 1, "name": "Phineas"}, {"id": 2, "name": "Ferb"})
 
     def iterable():
-        for record in iterable_records:
-            yield record
+        yield from iterable_records
 
     platypuses = fresh_db["platypuses"]
     platypuses.insert({"id": 1, "name": "Perry"}, pk="id").m2m(
