@@ -2137,9 +2137,7 @@ def search(
         table_columns = table_obj.columns_dict
         for c in column:
             if c not in table_columns:
-                raise click.ClickException(
-                    f"Table '{dbtable}' has no column '{c}"
-                )
+                raise click.ClickException(f"Table '{dbtable}' has no column '{c}")
     sql = table_obj.search_sql(columns=column, order_by=order, limit=limit)
     if show_sql:
         click.echo(sql)

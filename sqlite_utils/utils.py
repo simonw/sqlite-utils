@@ -9,7 +9,7 @@ import json
 import os
 import sys
 from . import recipes
-from typing import Dict, cast, BinaryIO, Optional, Tuple, Type
+from typing import cast, BinaryIO, Optional
 from collections.abc import Iterable
 
 import click
@@ -226,9 +226,7 @@ def _extra_key_strategy(
             yield row
         elif not extras_key:
             extras = row.pop(None)  # type: ignore
-            raise RowError(
-                f"Row {row} contained these extra values: {extras}"
-            )
+            raise RowError(f"Row {row} contained these extra values: {extras}")
         else:
             row[extras_key] = row.pop(None)  # type: ignore
             yield row

@@ -140,8 +140,7 @@ def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
 def test_insert_not_null_default(db_path, tmpdir):
     json_path = str(tmpdir / "dogs.json")
     dogs = [
-        {"id": i, "name": f"Cleo {i}", "age": i + 3, "score": 10}
-        for i in range(1, 21)
+        {"id": i, "name": f"Cleo {i}", "age": i + 3, "score": 10} for i in range(1, 21)
     ]
     with open(json_path, "w") as fp:
         fp.write(json.dumps(dogs))

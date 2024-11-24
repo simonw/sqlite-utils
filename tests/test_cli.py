@@ -845,14 +845,14 @@ def test_query_json_binary(db_path):
             "data": {
                 "$base64": True,
                 "encoded": (
-                        "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH"
-                        "8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+"
-                        "DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I"
-                        "/K+5Au3S/9lNQRh0k4Gq/RUz8GiKfsQm+7JLsJ6fTo5JhVG00ZU76kZZkxePx49uI"
-                        "jnpNoJyYlWUsoaSl/CcVATje/Kxu13RANnrHweaH3V5Jh4jvGyKCnxJLiXPKhmW3f"
-                        "iCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8"
-                        "IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984A"
-                        "Mf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9"
+                    "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH"
+                    "8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+"
+                    "DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I"
+                    "/K+5Au3S/9lNQRh0k4Gq/RUz8GiKfsQm+7JLsJ6fTo5JhVG00ZU76kZZkxePx49uI"
+                    "jnpNoJyYlWUsoaSl/CcVATje/Kxu13RANnrHweaH3V5Jh4jvGyKCnxJLiXPKhmW3f"
+                    "iCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8"
+                    "IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984A"
+                    "Mf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9"
                 ),
             },
         }
@@ -1171,12 +1171,12 @@ def test_upsert_alter(db_path, tmpdir):
         # Not null:
         (
             ["name", "text", "--not-null", "name"],
-            ("CREATE TABLE [t] (\n" "   [name] TEXT NOT NULL\n" ")"),
+            ("CREATE TABLE [t] (\n   [name] TEXT NOT NULL\n)"),
         ),
         # Default:
         (
             ["age", "integer", "--default", "age", "3"],
-            ("CREATE TABLE [t] (\n" "   [age] INTEGER DEFAULT '3'\n" ")"),
+            ("CREATE TABLE [t] (\n   [age] INTEGER DEFAULT '3'\n)"),
         ),
         # Compound primary key
         (
@@ -2052,7 +2052,7 @@ def test_triggers(tmpdir, extra_args, expected):
         ),
         (
             ["dogs"],
-            ("CREATE TABLE [dogs] (\n" "   [id] INTEGER,\n" "   [name] TEXT\n" ")\n"),
+            ("CREATE TABLE [dogs] (\n   [id] INTEGER,\n   [name] TEXT\n)\n"),
         ),
         (
             ["chickens", "dogs"],
@@ -2328,7 +2328,7 @@ def test_rename_table(tmpdir):
     )
     assert result_error.exit_code == 1
     assert result_error.output == (
-        'Error: Table "missing" could not be renamed. ' "no such table: missing\n"
+        'Error: Table "missing" could not be renamed. no such table: missing\n'
     )
     # And check --ignore works
     result_error2 = CliRunner().invoke(

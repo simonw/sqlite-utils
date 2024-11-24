@@ -28,11 +28,8 @@ from typing import (
     cast,
     Any,
     Callable,
-    Dict,
     Union,
     Optional,
-    List,
-    Tuple,
 )
 from collections.abc import Generator, Iterable
 import uuid
@@ -590,9 +587,7 @@ class Database:
             query += '"'
         bits = _quote_fts_re.split(query)
         bits = [b for b in bits if b and b != '""']
-        return " ".join(
-            f'"{bit}"' if not bit.startswith('"') else bit for bit in bits
-        )
+        return " ".join(f'"{bit}"' if not bit.startswith('"') else bit for bit in bits)
 
     def quote_default_value(self, value: str) -> str:
         if any(
@@ -680,9 +675,7 @@ class Database:
         try:
             table_name = f"t{secrets.token_hex(16)}"
             with self.conn:
-                self.conn.execute(
-                    f"create table {table_name} (name text) strict"
-                )
+                self.conn.execute(f"create table {table_name} (name text) strict")
                 self.conn.execute(f"drop table {table_name}")
             return True
         except Exception:
@@ -907,9 +900,7 @@ class Database:
             if fk.other_column != "rowid" and not any(
                 c for c in self[fk.other_table].columns if c.name == fk.other_column
             ):
-                raise AlterError(
-                    f"No such column: {fk.other_table}.{fk.other_column}"
-                )
+                raise AlterError(f"No such column: {fk.other_table}.{fk.other_column}")
 
         column_defs = []
         # ensure pk is a tuple
@@ -1592,9 +1583,7 @@ class Table(Queryable):
         for row in self.db.execute_returning_dicts(sql):
             index_name = row["name"]
             index_name_quoted = (
-                f'"{index_name}"'
-                if not index_name.startswith('"')
-                else index_name
+                f'"{index_name}"' if not index_name.startswith('"') else index_name
             )
             column_sql = f"PRAGMA index_info({index_name_quoted})"
             columns = []
@@ -1616,9 +1605,7 @@ class Table(Queryable):
         for row in self.db.execute_returning_dicts(sql):
             index_name = row["name"]
             index_name_quoted = (
-                f'"{index_name}"'
-                if not index_name.startswith('"')
-                else index_name
+                f'"{index_name}"' if not index_name.startswith('"') else index_name
             )
             column_sql = f"PRAGMA index_xinfo({index_name_quoted})"
             index_columns = []
@@ -1971,15 +1958,11 @@ class Table(Queryable):
         sqls.append(copy_sql)
         # Drop (or keep) the old table
         if keep_table:
-            sqls.append(
-                f"ALTER TABLE [{self.name}] RENAME TO [{keep_table}];"
-            )
+            sqls.append(f"ALTER TABLE [{self.name}] RENAME TO [{keep_table}];")
         else:
             sqls.append(f"DROP TABLE [{self.name}];")
         # Rename the new one
-        sqls.append(
-            f"ALTER TABLE [{new_table_name}] RENAME TO [{self.name}];"
-        )
+        sqls.append(f"ALTER TABLE [{new_table_name}] RENAME TO [{self.name}];")
         # Re-add existing indexes
         for index in self.indexes:
             if index.origin != "pk":
@@ -2152,9 +2135,7 @@ class Table(Queryable):
         suffix = None
         created_index_name = None
         while True:
-            created_index_name = (
-                f"{index_name}_{suffix}" if suffix else index_name
-            )
+            created_index_name = f"{index_name}_{suffix}" if suffix else index_name
             sql = (
                 textwrap.dedent(
                     """
@@ -2510,9 +2491,7 @@ class Table(Queryable):
         """
             )
             .strip()
-            .format(
-                table=self.name, columns=", ".join(f"[{c}]" for c in columns)
-            )
+            .format(table=self.name, columns=", ".join(f"[{c}]" for c in columns))
         )
         self.db.executescript(sql)
         return self
@@ -3677,9 +3656,9 @@ class Table(Queryable):
         most_common_results = None
         least_common_results = None
         if num_distinct == 1:
-            value = db.execute(
-                f"select [{column}] from [{table}] limit 1"
-            ).fetchone()[0]
+            value = db.execute(f"select [{column}] from [{table}] limit 1").fetchone()[
+                0
+            ]
             most_common_results = [(truncate(value), total_rows)]
         elif num_distinct != total_rows:
             if most_common:

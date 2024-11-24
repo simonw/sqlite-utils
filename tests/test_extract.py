@@ -31,8 +31,7 @@ def test_extract_single_column(fresh_db, table, fk_column):
         + ")"
     )
     assert fresh_db[expected_table].schema == (
-        f"CREATE TABLE [{expected_table}] (\n"
-        + "   [id] INTEGER PRIMARY KEY,\n"
+        f"CREATE TABLE [{expected_table}] (\n   [id] INTEGER PRIMARY KEY,\n"
         "   [species] TEXT\n"
         ")"
     )

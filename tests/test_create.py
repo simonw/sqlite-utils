@@ -710,10 +710,7 @@ def test_columns_not_in_first_record_should_not_cause_batch_to_be_too_large(fres
     records = [
         {"c0": "first record"},  # one column in first record -> batch size = 999
         # fill out the batch with 99 records with enough columns to exceed THRESHOLD
-        *[
-            {f"c{i}": j for i in range(extra_columns)}
-            for j in range(batch_size - 1)
-        ],
+        *[{f"c{i}": j for i in range(extra_columns)} for j in range(batch_size - 1)],
     ]
     try:
         fresh_db["too_many_columns"].insert_all(
@@ -810,7 +807,7 @@ def test_create_index_desc(fresh_db):
         "select sql from sqlite_master where name='idx_dogs_age_name'"
     ).fetchone()[0]
     assert sql == (
-        "CREATE INDEX [idx_dogs_age_name]\n" "    ON [dogs] ([age] desc, [name])"
+        "CREATE INDEX [idx_dogs_age_name]\n    ON [dogs] ([age] desc, [name])"
     )
 
 
@@ -889,9 +886,7 @@ def test_insert_memoryview(fresh_db):
 
 
 def test_insert_thousands_using_generator(fresh_db):
-    fresh_db["test"].insert_all(
-        {"i": i, "word": f"word_{i}"} for i in range(10000)
-    )
+    fresh_db["test"].insert_all({"i": i, "word": f"word_{i}"} for i in range(10000))
     assert [{"name": "i", "type": "INTEGER"}, {"name": "word", "type": "TEXT"}] == [
         {"name": col.name, "type": col.type} for col in fresh_db["test"].columns
     ]
@@ -1228,7 +1223,7 @@ def test_create_replace(fresh_db):
         fresh_db["t"].create({"id": int})
     # This should not
     fresh_db["t"].create({"name": str}, replace=True)
-    assert fresh_db["t"].schema == ("CREATE TABLE [t] (\n" "   [name] TEXT\n" ")")
+    assert fresh_db["t"].schema == ("CREATE TABLE [t] (\n   [name] TEXT\n)")
 
 
 @pytest.mark.parametrize(
@@ -1352,7 +1347,7 @@ def test_insert_upsert_strict(fresh_db, method_name, strict):
 def test_create_table_strict(fresh_db, strict):
     table = fresh_db.create_table("t", {"id": int, "f": float}, strict=strict)
     assert table.strict == strict or not fresh_db.supports_strict
-    expected_schema = "CREATE TABLE [t] (\n" "   [id] INTEGER,\n" "   [f] FLOAT\n" ")"
+    expected_schema = "CREATE TABLE [t] (\n   [id] INTEGER,\n   [f] FLOAT\n)"
     if strict and not fresh_db.supports_strict:
         return
     if strict:
