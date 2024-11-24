@@ -34,7 +34,7 @@ def test_commands_are_documented(documented_commands, command):
 
 @pytest.mark.parametrize("command", cli.cli.commands.values())
 def test_commands_have_help(command):
-    assert command.help, "{} is missing its help".format(command)
+    assert command.help, f"{command} is missing its help"
 
 
 def test_convert_help():

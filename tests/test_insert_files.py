@@ -44,7 +44,7 @@ def test_insert_files(silent, pk_args, expected_pks):
         )
         cols = []
         for coltype in coltypes:
-            cols += ["-c", "{}:{}".format(coltype, coltype)]
+            cols += ["-c", f"{coltype}:{coltype}"]
         result = runner.invoke(
             cli.cli,
             ["insert-files", db_path, "files", str(tmpdir)]
@@ -167,5 +167,5 @@ def test_insert_files_bad_text_encoding_error():
         )
         assert result.exit_code == 1, result.output
         assert result.output.strip().startswith(
-            "Error: Could not read file '{}' as text".format(str(latin.resolve()))
+            f"Error: Could not read file '{str(latin.resolve())}' as text"
         )

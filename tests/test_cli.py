@@ -182,9 +182,9 @@ def test_output_table(db_path, options, expected):
         db["rows"].insert_all(
             [
                 {
-                    "c1": "verb{}".format(i),
-                    "c2": "noun{}".format(i),
-                    "c3": "adjective{}".format(i),
+                    "c1": f"verb{i}",
+                    "c2": f"noun{i}",
+                    "c3": f"adjective{i}",
                 }
                 for i in range(4)
             ]
@@ -614,9 +614,9 @@ def test_optimize(db_path, tables):
             db[table].insert_all(
                 [
                     {
-                        "c1": "verb{}".format(i),
-                        "c2": "noun{}".format(i),
-                        "c3": "adjective{}".format(i),
+                        "c1": f"verb{i}",
+                        "c2": f"noun{i}",
+                        "c3": f"adjective{i}",
                     }
                     for i in range(10000)
                 ]
@@ -640,9 +640,9 @@ def test_rebuild_fts_fixes_docsize_error(db_path):
     db = Database(db_path, recursive_triggers=False)
     records = [
         {
-            "c1": "verb{}".format(i),
-            "c2": "noun{}".format(i),
-            "c3": "adjective{}".format(i),
+            "c1": f"verb{i}",
+            "c2": f"noun{i}",
+            "c3": f"adjective{i}",
         }
         for i in range(10000)
     ]
@@ -845,7 +845,6 @@ def test_query_json_binary(db_path):
             "data": {
                 "$base64": True,
                 "encoded": (
-                    (
                         "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH"
                         "8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+"
                         "DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I"
@@ -854,7 +853,6 @@ def test_query_json_binary(db_path):
                         "iCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8"
                         "IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984A"
                         "Mf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9"
-                    )
                 ),
             },
         }
@@ -2093,7 +2091,7 @@ def test_long_csv_column_value(tmpdir):
     with open(csv_path, "w") as csv_file:
         long_string = "a" * 131073
         csv_file.write("id,text\n")
-        csv_file.write("1,{}\n".format(long_string))
+        csv_file.write(f"1,{long_string}\n")
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "bigtable", csv_path, "--csv"],
@@ -2396,14 +2394,14 @@ def test_load_extension(entrypoint, should_pass, should_fail):
     for func in should_pass:
         result = CliRunner().invoke(
             cli.cli,
-            ["memory", "select {}()".format(func), "--load-extension", ext],
+            ["memory", f"select {func}()", "--load-extension", ext],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
     for func in should_fail:
         result = CliRunner().invoke(
             cli.cli,
-            ["memory", "select {}()".format(func), "--load-extension", ext],
+            ["memory", f"select {func}()", "--load-extension", ext],
             catch_exceptions=False,
         )
         assert result.exit_code == 1

@@ -785,7 +785,7 @@ def enable_counts(path, tables, load_extension):
         # Check all tables exist
         bad_tables = [table for table in tables if not db[table].exists()]
         if bad_tables:
-            raise click.ClickException("Invalid tables: {}".format(bad_tables))
+            raise click.ClickException(f"Invalid tables: {bad_tables}")
         for table in tables:
             db[table].enable_counts()
 
@@ -1005,7 +1005,7 @@ def insert_upsert_implementation(
             reader = csv_std.reader(decoded, **csv_reader_args)
             first_row = next(reader)
             if no_headers:
-                headers = ["untitled_{}".format(i + 1) for i in range(len(first_row))]
+                headers = [f"untitled_{i + 1}" for i in range(len(first_row))]
                 reader = itertools.chain([first_row], reader)
             else:
                 headers = first_row
@@ -1568,7 +1568,7 @@ def create_table(
         ctype = columns.pop(0)
         if ctype.upper() not in VALID_COLUMN_TYPES:
             raise click.ClickException(
-                "column types must be one of {}".format(VALID_COLUMN_TYPES)
+                f"column types must be one of {VALID_COLUMN_TYPES}"
             )
         coltypes[name] = ctype.upper()
     # Does table already exist?
@@ -1612,7 +1612,7 @@ def duplicate(path, table, new_table, ignore, load_extension):
         db[table].duplicate(new_table)
     except NoTable:
         if not ignore:
-            raise click.ClickException('Table "{}" does not exist'.format(table))
+            raise click.ClickException(f'Table "{table}" does not exist')
 
 
 @cli.command(name="rename-table")
@@ -1636,7 +1636,7 @@ def rename_table(path, table, new_name, ignore, load_extension):
     except sqlite3.OperationalError as ex:
         if not ignore:
             raise click.ClickException(
-                'Table "{}" could not be renamed. {}'.format(table, str(ex))
+                f'Table "{table}" could not be renamed. {str(ex)}'
             )
 
 
@@ -1662,7 +1662,7 @@ def drop_table(path, table, ignore, load_extension):
     try:
         db[table].drop(ignore=ignore)
     except OperationalError:
-        raise click.ClickException('Table "{}" does not exist'.format(table))
+        raise click.ClickException(f'Table "{table}" does not exist')
 
 
 @cli.command(name="create-view")
@@ -1732,7 +1732,7 @@ def drop_view(path, view, ignore, load_extension):
     try:
         db[view].drop(ignore=ignore)
     except OperationalError:
-        raise click.ClickException('View "{}" does not exist'.format(view))
+        raise click.ClickException(f'View "{view}" does not exist')
 
 
 @cli.command()
@@ -1944,7 +1944,7 @@ def memory(
             file_path = pathlib.Path(path)
             stem = file_path.stem
             if stem_counts.get(stem):
-                file_table = "{}_{}".format(stem, stem_counts[stem])
+                file_table = f"{stem}_{stem_counts[stem]}"
             else:
                 file_table = stem
             stem_counts[stem] = stem_counts.get(stem, 1) + 1
@@ -1961,12 +1961,12 @@ def memory(
         if tracker is not None:
             db[file_table].transform(types=tracker.types)
         # Add convenient t / t1 / t2 views
-        view_names = ["t{}".format(i + 1)]
+        view_names = [f"t{i + 1}"]
         if i == 0:
             view_names.append("t")
         for view_name in view_names:
             if not db[view_name].exists():
-                db.create_view(view_name, "select * from [{}]".format(file_table))
+                db.create_view(view_name, f"select * from [{file_table}]")
 
         if fp:
             fp.close()
@@ -2127,10 +2127,10 @@ def search(
     # Check table exists
     table_obj = db[dbtable]
     if not table_obj.exists():
-        raise click.ClickException("Table '{}' does not exist".format(dbtable))
+        raise click.ClickException(f"Table '{dbtable}' does not exist")
     if not table_obj.detect_fts():
         raise click.ClickException(
-            "Table '{}' is not configured for full-text search".format(dbtable)
+            f"Table '{dbtable}' is not configured for full-text search"
         )
     if column:
         # Check they all exist
@@ -2138,7 +2138,7 @@ def search(
         for c in column:
             if c not in table_columns:
                 raise click.ClickException(
-                    "Table '{}' has no column '{}".format(dbtable, c)
+                    f"Table '{dbtable}' has no column '{c}"
                 )
     sql = table_obj.search_sql(columns=column, order_by=order, limit=limit)
     if show_sql:
@@ -2165,7 +2165,7 @@ def search(
     except click.ClickException as e:
         if "malformed MATCH expression" in str(e) or "unterminated string" in str(e):
             raise click.ClickException(
-                "{}\n\nTry running this again with the --quote option".format(str(e))
+                f"{str(e)}\n\nTry running this again with the --quote option"
             )
         else:
             raise
@@ -2230,16 +2230,16 @@ def rows(
     """
     columns = "*"
     if column:
-        columns = ", ".join("[{}]".format(c) for c in column)
-    sql = "select {} from [{}]".format(columns, dbtable)
+        columns = ", ".join(f"[{c}]" for c in column)
+    sql = f"select {columns} from [{dbtable}]"
     if where:
         sql += " where " + where
     if order:
         sql += " order by " + order
     if limit:
-        sql += " limit {}".format(limit)
+        sql += f" limit {limit}"
     if offset:
-        sql += " offset {}".format(offset)
+        sql += f" offset {offset}"
     ctx.invoke(
         query,
         path=path,
@@ -2494,7 +2494,7 @@ def transform(
     for column, ctype in type:
         if ctype.upper() not in VALID_COLUMN_TYPES:
             raise click.ClickException(
-                "column types must be one of {}".format(VALID_COLUMN_TYPES)
+                f"column types must be one of {VALID_COLUMN_TYPES}"
             )
         types[column] = ctype.upper()
 
@@ -2728,7 +2728,7 @@ def insert_files(
         except UnicodeDecodeErrorForPath as e:
             raise click.ClickException(
                 UNICODE_ERROR.format(
-                    "Could not read file '{}' as text\n\n{}".format(e.path, e.exception)
+                    f"Could not read file '{e.path}' as text\n\n{e.exception}"
                 )
             )
 
@@ -3010,7 +3010,7 @@ def convert(
         """.format(
             column=columns[0],
             table=table,
-            where=" where {}".format(where) if where is not None else "",
+            where=f" where {where}" if where is not None else "",
         )
         for row in db.conn.execute(sql, where_args).fetchall():
             click.echo(str(row[0]))
@@ -3181,7 +3181,7 @@ def _render_common(title, values):
         return ""
     lines = [title]
     for value, count in values:
-        lines.append("    {}: {}".format(count, value))
+        lines.append(f"    {count}: {value}")
     return "\n".join(lines)
 
 
@@ -3261,7 +3261,7 @@ def json_binary(value):
 def verify_is_dict(doc):
     if not isinstance(doc, dict):
         raise click.ClickException(
-            "Rows must all be dictionaries, got: {}".format(repr(doc)[:1000])
+            f"Rows must all be dictionaries, got: {repr(doc)[:1000]}"
         )
     return doc
 
@@ -3286,7 +3286,7 @@ def _register_functions(db, functions):
     try:
         exec(functions, globals)
     except SyntaxError as ex:
-        raise click.ClickException("Error in functions definition: {}".format(ex))
+        raise click.ClickException(f"Error in functions definition: {ex}")
     # Register all callables in the locals dict:
     for name, value in globals.items():
         if callable(value) and not name.startswith("_"):

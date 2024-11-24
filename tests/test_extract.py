@@ -7,13 +7,13 @@ import pytest
 @pytest.mark.parametrize("fk_column", [None, "species"])
 def test_extract_single_column(fresh_db, table, fk_column):
     expected_table = table or "species"
-    expected_fk = fk_column or "{}_id".format(expected_table)
+    expected_fk = fk_column or f"{expected_table}_id"
     iter_species = itertools.cycle(["Palm", "Spruce", "Mangrove", "Oak"])
     fresh_db["tree"].insert_all(
         (
             {
                 "id": i,
-                "name": "Tree {}".format(i),
+                "name": f"Tree {i}",
                 "species": next(iter_species),
                 "end": 1,
             }
@@ -31,7 +31,7 @@ def test_extract_single_column(fresh_db, table, fk_column):
         + ")"
     )
     assert fresh_db[expected_table].schema == (
-        "CREATE TABLE [{}] (\n".format(expected_table)
+        f"CREATE TABLE [{expected_table}] (\n"
         + "   [id] INTEGER PRIMARY KEY,\n"
         "   [species] TEXT\n"
         ")"
@@ -57,7 +57,7 @@ def test_extract_multiple_columns_with_rename(fresh_db):
         (
             {
                 "id": i,
-                "name": "Tree {}".format(i),
+                "name": f"Tree {i}",
                 "common_name": next(iter_common),
                 "latin_name": next(iter_latin),
             }

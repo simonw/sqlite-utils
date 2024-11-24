@@ -691,7 +691,7 @@ def test_bulk_insert_more_than_999_values(fresh_db):
     "num_columns,should_error", ((900, False), (999, False), (1000, True))
 )
 def test_error_if_more_than_999_columns(fresh_db, num_columns, should_error):
-    record = dict([("c{}".format(i), i) for i in range(num_columns)])
+    record = {f"c{i}": i for i in range(num_columns)}
     if should_error:
         with pytest.raises(AssertionError):
             fresh_db["big"].insert(record)
@@ -711,7 +711,7 @@ def test_columns_not_in_first_record_should_not_cause_batch_to_be_too_large(fres
         {"c0": "first record"},  # one column in first record -> batch size = 999
         # fill out the batch with 99 records with enough columns to exceed THRESHOLD
         *[
-            dict([("c{}".format(i), j) for i in range(extra_columns)])
+            {f"c{i}": j for i in range(extra_columns)}
             for j in range(batch_size - 1)
         ],
     ]
@@ -890,7 +890,7 @@ def test_insert_memoryview(fresh_db):
 
 def test_insert_thousands_using_generator(fresh_db):
     fresh_db["test"].insert_all(
-        {"i": i, "word": "word_{}".format(i)} for i in range(10000)
+        {"i": i, "word": f"word_{i}"} for i in range(10000)
     )
     assert [{"name": "i", "type": "INTEGER"}, {"name": "word", "type": "TEXT"}] == [
         {"name": col.name, "type": col.type} for col in fresh_db["test"].columns
@@ -902,7 +902,7 @@ def test_insert_thousands_raises_exception_with_extra_columns_after_first_100(fr
     # https://github.com/simonw/sqlite-utils/issues/139
     with pytest.raises(Exception, match="table test has no column named extra"):
         fresh_db["test"].insert_all(
-            [{"i": i, "word": "word_{}".format(i)} for i in range(100)]
+            [{"i": i, "word": f"word_{i}"} for i in range(100)]
             + [{"i": 101, "extra": "This extra column should cause an exception"}],
         )
 
@@ -910,7 +910,7 @@ def test_insert_thousands_raises_exception_with_extra_columns_after_first_100(fr
 def test_insert_thousands_adds_extra_columns_after_first_100_with_alter(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/139
     fresh_db["test"].insert_all(
-        [{"i": i, "word": "word_{}".format(i)} for i in range(100)]
+        [{"i": i, "word": f"word_{i}"} for i in range(100)]
         + [{"i": 101, "extra": "Should trigger ALTER"}],
         alter=True,
     )

@@ -27,7 +27,7 @@ EXAMPLES = [
 
 @pytest.mark.parametrize("column_def,initial_value,expected_value", EXAMPLES)
 def test_quote_default_value(fresh_db, column_def, initial_value, expected_value):
-    fresh_db.execute("create table foo (col {})".format(column_def))
+    fresh_db.execute(f"create table foo (col {column_def})")
     assert initial_value == fresh_db["foo"].columns[0].default_value
     assert expected_value == fresh_db.quote_default_value(
         fresh_db["foo"].columns[0].default_value

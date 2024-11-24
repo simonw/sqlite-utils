@@ -9,7 +9,8 @@ import json
 import os
 import sys
 from . import recipes
-from typing import Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type
+from typing import Dict, cast, BinaryIO, Optional, Tuple, Type
+from collections.abc import Iterable
 
 import click
 
@@ -226,7 +227,7 @@ def _extra_key_strategy(
         elif not extras_key:
             extras = row.pop(None)  # type: ignore
             raise RowError(
-                "Row {} contained these extra values: {}".format(row, extras)
+                f"Row {row} contained these extra values: {extras}"
             )
         else:
             row[extras_key] = row.pop(None)  # type: ignore
@@ -236,11 +237,11 @@ def _extra_key_strategy(
 def rows_from_file(
     fp: BinaryIO,
     format: Optional[Format] = None,
-    dialect: Optional[Type[csv.Dialect]] = None,
+    dialect: Optional[type[csv.Dialect]] = None,
     encoding: Optional[str] = None,
     ignore_extras: Optional[bool] = False,
     extras_key: Optional[str] = None,
-) -> Tuple[Iterable[dict], Format]:
+) -> tuple[Iterable[dict], Format]:
     """
     Load a sequence of dictionaries from a file-like object containing one of four different formats.
 
@@ -370,7 +371,7 @@ class TypeTracker:
             yield row
 
     @property
-    def types(self) -> Dict[str, str]:
+    def types(self) -> dict[str, str]:
         """
         A dictionary mapping column names to their detected types. This can be passed
         to the ``db[table_name].transform(types=tracker.types)`` method.
@@ -461,13 +462,13 @@ def _compile_code(code, imports, variable="value"):
     body_variants = [code]
     # If single line and no 'return', try adding the return
     if "\n" not in code and not code.strip().startswith("return "):
-        body_variants.insert(0, "return {}".format(code))
+        body_variants.insert(0, f"return {code}")
 
     code_o = None
     for variant in body_variants:
-        new_code = ["def fn({}):".format(variable)]
+        new_code = [f"def fn({variable}):"]
         for line in variant.split("\n"):
-            new_code.append("    {}".format(line))
+            new_code.append(f"    {line}")
         try:
             code_o = compile("\n".join(new_code), "<string>", "exec")
             break
@@ -496,7 +497,7 @@ def chunks(sequence: Iterable, size: int) -> Iterable[Iterable]:
         yield itertools.chain([item], itertools.islice(iterator, size - 1))
 
 
-def hash_record(record: Dict, keys: Optional[Iterable[str]] = None):
+def hash_record(record: dict, keys: Optional[Iterable[str]] = None):
     """
     ``record`` should be a Python dictionary. Returns a sha1 hash of the
     keys and values in that record.

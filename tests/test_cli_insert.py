@@ -99,7 +99,7 @@ def test_insert_with_primary_keys(db_path, tmpdir, args, expected_pks):
 
 def test_insert_multiple_with_primary_key(db_path, tmpdir):
     json_path = str(tmpdir / "dogs.json")
-    dogs = [{"id": i, "name": "Cleo {}".format(i), "age": i + 3} for i in range(1, 21)]
+    dogs = [{"id": i, "name": f"Cleo {i}", "age": i + 3} for i in range(1, 21)]
     with open(json_path, "w") as fp:
         fp.write(json.dumps(dogs))
     result = CliRunner().invoke(
@@ -114,7 +114,7 @@ def test_insert_multiple_with_primary_key(db_path, tmpdir):
 def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
     json_path = str(tmpdir / "dogs.json")
     dogs = [
-        {"breed": "mixed", "id": i, "name": "Cleo {}".format(i), "age": i + 3}
+        {"breed": "mixed", "id": i, "name": f"Cleo {i}", "age": i + 3}
         for i in range(1, 21)
     ]
     with open(json_path, "w") as fp:
@@ -140,7 +140,7 @@ def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
 def test_insert_not_null_default(db_path, tmpdir):
     json_path = str(tmpdir / "dogs.json")
     dogs = [
-        {"id": i, "name": "Cleo {}".format(i), "age": i + 3, "score": 10}
+        {"id": i, "name": f"Cleo {i}", "age": i + 3, "score": 10}
         for i in range(1, 21)
     ]
     with open(json_path, "w") as fp:
@@ -587,7 +587,7 @@ def test_insert_streaming_batch_size_1(db_path):
                 return
             tries += 1
             if tries > 10:
-                assert False, "Expected {}, got {}".format(expected, rows)
+                assert False, f"Expected {expected}, got {rows}"
             time.sleep(tries * 0.1)
 
     try_until([{"name": "Azi"}])

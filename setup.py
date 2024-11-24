@@ -6,7 +6,7 @@ VERSION = "3.38"
 
 
 def get_long_description():
-    with io.open(
+    with open(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "README.md"),
         encoding="utf8",
     ) as fp:
