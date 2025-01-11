@@ -8,7 +8,7 @@ def test_enable_counts_specific_table(fresh_db):
     foo = fresh_db["foo"]
     assert fresh_db.table_names() == []
     for i in range(10):
-        foo.insert({"name": "item {}".format(i)})
+        foo.insert({"name": f"item {i}"})
     assert fresh_db.table_names() == ["foo"]
     assert foo.count == 10
     # Now enable counts
@@ -44,7 +44,7 @@ def test_enable_counts_specific_table(fresh_db):
     assert list(fresh_db["_counts"].rows) == [{"count": 10, "table": "foo"}]
     # Add some items to test the triggers
     for i in range(5):
-        foo.insert({"name": "item {}".format(10 + i)})
+        foo.insert({"name": f"item {10 + i}"})
     assert foo.count == 15
     assert list(fresh_db["_counts"].rows) == [{"count": 15, "table": "foo"}]
     # Delete some items
