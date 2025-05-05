@@ -1128,7 +1128,7 @@ You can insert binary data into a BLOB column by first encoding it using base64 
 Inserting newline-delimited JSON
 --------------------------------
 
-You can also import `newline-delimited JSON <http://ndjson.org/>`__ using the ``--nl`` option:
+You can also import newline-delimited JSON (see `JSON Lines <https://jsonlines.org/>`__) using the ``--nl`` option:
 
 .. code-block:: bash
 
