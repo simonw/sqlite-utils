@@ -111,7 +111,7 @@ This release introduces a new :ref:`plugin system <plugins>`. Read more about th
 3.32 (2023-05-21)
 -----------------
 
-- New experimental ``sqlite-utils tui`` interface for interactively building command-line invocations, powered by `Trogon <https://github.com/Textualize/trogon>`__. This requires an optional dependency, installed using ``sqlite-utils install trogon``. There is a screenshot :ref:`in the documentation <cli_tui>`. (:issue:`545`)
+- New experimental ``sqlite-utils tui`` interface for interactively building command-line invocations, powered by `Trogon <https://github.com/Textualize/trogon>`__. This requires an optional dependency, installed using ``sqlite-utils install trogon``. (:issue:`545`)
 - ``sqlite-utils analyze-tables`` command (:ref:`documentation <cli_analyze_tables>`) now has a ``--common-limit 20`` option for changing the number of common/least-common values shown for each column. (:issue:`544`)
 - ``sqlite-utils analyze-tables --no-most`` and ``--no-least`` options for disabling calculation of most-common and least-common values.
 - If a column contains only ``null`` values, ``analyze-tables`` will no longer attempt to calculate the most common and least common values for that column. (:issue:`547`)
