@@ -671,16 +671,18 @@ class Database:
     @property
     def supports_strict(self) -> bool:
         "Does this database support STRICT mode?"
-        try:
-            table_name = "t{}".format(secrets.token_hex(16))
-            with self.conn:
-                self.conn.execute(
-                    "create table {} (name text) strict".format(table_name)
-                )
-                self.conn.execute("drop table {}".format(table_name))
-            return True
-        except Exception:
-            return False
+        if not hasattr(self, "_supports_strict"):
+            try:
+                table_name = "t{}".format(secrets.token_hex(16))
+                with self.conn:
+                    self.conn.execute(
+                        "create table {} (name text) strict".format(table_name)
+                    )
+                    self.conn.execute("drop table {}".format(table_name))
+                self._supports_strict = True
+            except Exception:
+                self._supports_strict = False
+        return self._supports_strict
 
     @property
     def sqlite_version(self) -> Tuple[int, ...]:
