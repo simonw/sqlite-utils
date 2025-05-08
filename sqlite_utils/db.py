@@ -237,37 +237,30 @@ if pd:
 
 class AlterError(Exception):
     "Error altering table"
-    pass
 
 
 class NoObviousTable(Exception):
     "Could not tell which table this operation refers to"
-    pass
 
 
 class NoTable(Exception):
     "Specified table does not exist"
-    pass
 
 
 class BadPrimaryKey(Exception):
     "Table does not have a single obvious primary key"
-    pass
 
 
 class NotFoundError(Exception):
     "Record not found"
-    pass
 
 
 class PrimaryKeyRequired(Exception):
     "Primary key needs to be specified"
-    pass
 
 
 class InvalidColumns(Exception):
     "Specified columns do not exist"
-    pass
 
 
 class DescIndex(str):
@@ -3852,7 +3845,7 @@ def jsonify_if_needed(value):
 
 
 def resolve_extracts(
-    extracts: Optional[Union[Dict[str, str], List[str], Tuple[str]]]
+    extracts: Optional[Union[Dict[str, str], List[str], Tuple[str]]],
 ) -> dict:
     if extracts is None:
         extracts = {}
