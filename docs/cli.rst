@@ -1285,7 +1285,7 @@ You can set the ``SQLITE_UTILS_DETECT_TYPES`` environment variable if you want `
 
 If a CSV or TSV file includes empty cells, like this one:
 
-.. code-block:: csv
+::
 
     name,age,weight
     Cleo,6,

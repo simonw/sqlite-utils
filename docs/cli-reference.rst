@@ -65,7 +65,6 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         "create-spatial-index": "cli_spatialite_indexes",
         "install": "cli_install",
         "uninstall": "cli_uninstall",
-        "tui": "cli_tui",
     }
     commands.sort(key = lambda command: go_first.index(command) if command in go_first else 999)
     cog.out("\n")
