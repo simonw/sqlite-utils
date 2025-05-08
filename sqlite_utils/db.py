@@ -3203,7 +3203,7 @@ class Table(Queryable):
         :param not_null: Set of strings specifying columns that should be ``NOT NULL``.
         :param defaults: Dictionary specifying default values for specific columns.
         :param hash_id: Name of a column to create and use as a primary key, where the
-          value of thet primary key will be derived as a SHA1 hash of the other column values
+          value of that primary key will be derived as a SHA1 hash of the other column values
           in the record. ``hash_id="id"`` is a common column name used for this.
         :param alter: Boolean, should any missing columns be added automatically?
         :param ignore: Boolean, if a record already exists with this primary key, ignore this insert.
