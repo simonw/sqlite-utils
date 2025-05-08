@@ -916,7 +916,7 @@ def test_query_json_with_json_cols(db_path):
 
 @pytest.mark.parametrize(
     "content,is_binary",
-    [(b"\x00\x0Fbinary", True), ("this is text", False), (1, False), (1.5, False)],
+    [(b"\x00\x0fbinary", True), ("this is text", False), (1, False), (1.5, False)],
 )
 def test_query_raw(db_path, content, is_binary):
     Database(db_path)["files"].insert({"content": content})
@@ -931,7 +931,7 @@ def test_query_raw(db_path, content, is_binary):
 
 @pytest.mark.parametrize(
     "content,is_binary",
-    [(b"\x00\x0Fbinary", True), ("this is text", False), (1, False), (1.5, False)],
+    [(b"\x00\x0fbinary", True), ("this is text", False), (1, False), (1.5, False)],
 )
 def test_query_raw_lines(db_path, content, is_binary):
     Database(db_path)["files"].insert_all({"content": content} for _ in range(3))

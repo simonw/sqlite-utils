@@ -237,37 +237,30 @@ if pd:
 
 class AlterError(Exception):
     "Error altering table"
-    pass
 
 
 class NoObviousTable(Exception):
     "Could not tell which table this operation refers to"
-    pass
 
 
 class NoTable(Exception):
     "Specified table does not exist"
-    pass
 
 
 class BadPrimaryKey(Exception):
     "Table does not have a single obvious primary key"
-    pass
 
 
 class NotFoundError(Exception):
     "Record not found"
-    pass
 
 
 class PrimaryKeyRequired(Exception):
     "Primary key needs to be specified"
-    pass
 
 
 class InvalidColumns(Exception):
     "Specified columns do not exist"
-    pass
 
 
 class DescIndex(str):
@@ -3203,7 +3196,7 @@ class Table(Queryable):
         :param not_null: Set of strings specifying columns that should be ``NOT NULL``.
         :param defaults: Dictionary specifying default values for specific columns.
         :param hash_id: Name of a column to create and use as a primary key, where the
-          value of thet primary key will be derived as a SHA1 hash of the other column values
+          value of that primary key will be derived as a SHA1 hash of the other column values
           in the record. ``hash_id="id"`` is a common column name used for this.
         :param alter: Boolean, should any missing columns be added automatically?
         :param ignore: Boolean, if a record already exists with this primary key, ignore this insert.
@@ -3852,7 +3845,7 @@ def jsonify_if_needed(value):
 
 
 def resolve_extracts(
-    extracts: Optional[Union[Dict[str, str], List[str], Tuple[str]]]
+    extracts: Optional[Union[Dict[str, str], List[str], Tuple[str]]],
 ) -> dict:
     if extracts is None:
         extracts = {}

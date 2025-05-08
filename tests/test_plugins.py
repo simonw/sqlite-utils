@@ -1,7 +1,17 @@
 from click.testing import CliRunner
 import click
 import importlib
+import pytest
 from sqlite_utils import cli, Database, hookimpl, plugins
+
+
+def _supports_pragma_function_list():
+    db = Database(memory=True)
+    try:
+        db.execute("select * from pragma_function_list()")
+    except Exception:
+        return False
+    return True
 
 
 def test_register_commands():
@@ -37,6 +47,10 @@ def test_register_commands():
         assert plugins.get_plugins() == []
 
 
+@pytest.mark.skipif(
+    not _supports_pragma_function_list(),
+    reason="Needs SQLite version that supports pragma_function_list()",
+)
 def test_prepare_connection():
     importlib.reload(cli)
     assert plugins.get_plugins() == []
@@ -54,7 +68,7 @@ def test_prepare_connection():
         return [
             row[0]
             for row in db.execute(
-                "select distinct name from pragma_function_list order by 1"
+                "select distinct name from pragma_function_list() order by 1"
             ).fetchall()
         ]
 

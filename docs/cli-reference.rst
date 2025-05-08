@@ -1045,23 +1045,6 @@ disable-fts
       -h, --help             Show this message and exit.
 
 
-.. _cli_ref_tui:
-
-tui
-===
-
-See :ref:`cli_tui`.
-
-::
-
-    Usage: sqlite-utils tui [OPTIONS]
-
-      Open Textual TUI.
-
-    Options:
-      -h, --help  Show this message and exit.
-
-
 .. _cli_ref_optimize:
 
 optimize
