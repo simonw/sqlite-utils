@@ -54,7 +54,7 @@ def test_prepare_connection():
         return [
             row[0]
             for row in db.execute(
-                "select distinct name from pragma_function_list order by 1"
+                "select distinct name from pragma_function_list() order by 1"
             ).fetchall()
         ]
 
