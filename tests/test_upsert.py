@@ -1,9 +1,12 @@
 from sqlite_utils.db import PrimaryKeyRequired
+from sqlite_utils import Database
 import pytest
 
 
-def test_upsert(fresh_db):
-    table = fresh_db["table"]
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert(use_old_upsert):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db["table"]
     table.insert({"id": 1, "name": "Cleo"}, pk="id")
     table.upsert({"id": 1, "age": 5}, pk="id", alter=True)
     assert list(table.rows) == [{"id": 1, "name": "Cleo", "age": 5}]

@@ -3086,45 +3086,48 @@ class Table(Queryable):
         # At this point we need compatibility UPSERT for SQLite < 3.24.0
         # (INSERT OR IGNORE + second UPDATE stage)
         queries_and_params = []
-
-        insert_sql = (
-            f"INSERT OR IGNORE INTO [{self.name}] "
-            f"({columns_sql}) VALUES {row_placeholders_sql}"
-        )
-        queries_and_params.append((insert_sql, flat_params))
-
-        # If there is nothing to update we are done.
-        if not non_pk_cols:
-            return queries_and_params
-
-        # We can use UPDATE … FROM (VALUES …) on SQLite ≥ 3.33.0
-        # Older SQLite versions will run this as one UPDATE per row
-        # – which is what sqlite-utils did prior to this refactor.
-        alias_cols_sql = ", ".join(pk_cols + non_pk_cols)
-
-        assignments = []
-        for c in non_pk_cols:
-            if c in conversions:
-                assignments.append(f"[{c}] = {conversions[c].replace('?', f'v.[{c}]')}")
-            else:
-                assignments.append(f"[{c}] = v.[{c}]")
-        assignments_sql = ", ".join(assignments)
-
-        update_sql = (
-            f"UPDATE [{self.name}] AS m SET {assignments_sql} "
-            f"FROM (VALUES {row_placeholders_sql}) "
-            f"AS v({alias_cols_sql}) "
-            f"WHERE " + " AND ".join(f"m.[{c}] = v.[{c}]" for c in pk_cols)
-        )
-
-        # Parameters for the UPDATE – pk cols first then non-pk cols
-        update_params = []
-        for row in values:
-            row_dict = dict(zip(all_columns, row))
-            ordered = [row_dict[c] for c in pk_cols + non_pk_cols]
-            update_params.extend(ordered)
-
-        queries_and_params.append((update_sql, update_params))
+        if isinstance(pk, str):
+            pks = [pk]
+        else:
+            pks = pk
+        self.last_pk = None
+        for record_values in values:
+            record = dict(zip(all_columns, record_values))
+            placeholders = list(pks)
+            # Need to populate not-null columns too, or INSERT OR IGNORE ignores
+            # them since it ignores the resulting integrity errors
+            if not_null:
+                placeholders.extend(not_null)
+            sql = "INSERT OR IGNORE INTO [{table}]({cols}) VALUES({placeholders});".format(
+                table=self.name,
+                cols=", ".join(["[{}]".format(p) for p in placeholders]),
+                placeholders=", ".join(["?" for p in placeholders]),
+            )
+            queries_and_params.append(
+                (sql, [record[col] for col in pks] + ["" for _ in (not_null or [])])
+            )
+            # UPDATE [book] SET [name] = 'Programming' WHERE [id] = 1001;
+            set_cols = [col for col in all_columns if col not in pks]
+            if set_cols:
+                sql2 = "UPDATE [{table}] SET {pairs} WHERE {wheres}".format(
+                    table=self.name,
+                    pairs=", ".join(
+                        "[{}] = {}".format(col, conversions.get(col, "?"))
+                        for col in set_cols
+                    ),
+                    wheres=" AND ".join("[{}] = ?".format(pk) for pk in pks),
+                )
+                queries_and_params.append(
+                    (
+                        sql2,
+                        [record[col] for col in set_cols] + [record[pk] for pk in pks],
+                    )
+                )
+            # We can populate .last_pk right here
+            if num_records_processed == 1:
+                self.last_pk = tuple(record[pk] for pk in pks)
+                if len(self.last_pk) == 1:
+                    self.last_pk = self.last_pk[0]
         return queries_and_params
 
     def insert_chunk(
