@@ -251,21 +251,36 @@ In this example ``next()`` is used to retrieve the first result in the iterator 
 Accessing tables
 ================
 
-Tables are accessed using the indexing operator, like so:
-
-.. code-block:: python
-
-    table = db["my_table"]
-
-If the table does not yet exist, it will be created the first time you attempt to insert or upsert data into it.
-
-You can also access tables using the ``.table()`` method like so:
+Tables are accessed using the ``db.table()`` method, like so:
 
 .. code-block:: python
 
     table = db.table("my_table")
 
-Using this factory function allows you to set :ref:`python_api_table_configuration`.
+Using this factory function allows you to set :ref:`python_api_table_configuration`. Additional keyword arguments to ``db.table()`` will be used if a further method call causes the table to be created.
+
+The ``db.table()`` method  will always return a :ref:`reference_db_table` instance, or raise a ``sqlite_utils.db.NoTable`` exception if the table name is actually a SQL view.
+
+You can also access tables or views using dictionary-style syntax, like this:
+
+.. code-block:: python
+
+    table = db["my_table"]
+
+If a table accessed using either of these methods does not yet exist, it will be created the first time you attempt to insert or upsert data into it.
+
+.. _python_api_view:
+
+Accessing views
+===============
+
+SQL views can be accessed using the ``db.view()`` method, like so:
+
+.. code-block:: python
+
+    view = db.view("my_view")
+
+This will return a  :ref:`reference_db_view` instance, or raise a ``sqlite_utils.db.NoView`` exception if the view does not exist.
 
 .. _python_api_tables:
 

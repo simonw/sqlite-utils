@@ -129,7 +129,7 @@ def test_uses_counts_after_enable_counts(counts_db_path):
     db = Database(counts_db_path)
     logged = []
     with db.tracer(lambda sql, parameters: logged.append((sql, parameters))):
-        assert db["foo"].count == 1
+        assert db.table("foo").count == 1
         assert logged == [
             ("select name from sqlite_master where type = 'view'", None),
             ("select count(*) from [foo]", []),
@@ -138,7 +138,7 @@ def test_uses_counts_after_enable_counts(counts_db_path):
         assert not db.use_counts_table
         db.enable_counts()
         assert db.use_counts_table
-        assert db["foo"].count == 1
+        assert db.table("foo").count == 1
     assert logged == [
         (
             "CREATE TABLE IF NOT EXISTS [_counts](\n   [table] TEXT PRIMARY KEY,\n   count INTEGER DEFAULT 0\n);",
