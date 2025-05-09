@@ -1394,6 +1394,10 @@ You can drop a table or view using the ``.drop()`` method:
 .. code-block:: python
 
     db.table("my_table").drop()
+    # Or for a view:
+    db.view("my_view").drop()
+    # Or for either:
+    db["table_or_view_name"].drop()
 
 Pass ``ignore=True`` if you want to ignore the error caused by the table or view not existing.
 
@@ -1937,6 +1941,8 @@ If you have loaded an existing table or view, you can use introspection to find 
 
     >>> db.table("PlantType")
     <Table PlantType (id, value)>
+    ### db.view("NameOfView")
+    <View NameOfView (id, value)>
 
 .. _python_api_introspection_exists:
 
@@ -1948,6 +1954,8 @@ The ``.exists()`` method can be used to find out if a table exists or not::
     >>> db.table("PlantType").exists()
     True
     >>> db.table("PlantType2").exists()
+    False
+    >>> db["table_or_view_name"].exists()
     False
 
 .. _python_api_introspection_count:
