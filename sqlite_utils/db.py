@@ -3666,7 +3666,7 @@ class Table(Queryable):
           already exists.
         """
         if isinstance(other_table, str):
-            other_table = self.db.table(other_table, pk=pk)
+            other_table = cast(Table, self.db.table(other_table, pk=pk))
         our_id = self.last_pk
         if lookup is not None:
             assert record_or_iterable is None, "Provide lookup= or record, not both"
