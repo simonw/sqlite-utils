@@ -3010,7 +3010,7 @@ class Table(Queryable):
         extracts = resolve_extracts(extracts)
 
         # Build a row-list ready for executemany-style flattening
-        values: List[list] = []
+        values = []
 
         for record in chunk:
             record_values = []
@@ -3085,7 +3085,7 @@ class Table(Queryable):
 
         # At this point we need compatibility UPSERT for SQLite < 3.24.0
         # (INSERT OR IGNORE + second UPDATE stage)
-        queries_and_params: list[tuple[str, list]] = []
+        queries_and_params = []
 
         insert_sql = (
             f"INSERT OR IGNORE INTO [{self.name}] "
@@ -3118,7 +3118,7 @@ class Table(Queryable):
         )
 
         # Parameters for the UPDATE – pk cols first then non-pk cols
-        update_params: list = []
+        update_params = []
         for row in values:
             row_dict = dict(zip(all_columns, row))
             ordered = [row_dict[c] for c in pk_cols + non_pk_cols]
@@ -3417,7 +3417,7 @@ class Table(Queryable):
         # If we only handled a single row populate self.last_pk
         if num_records_processed == 1:
             # For an insert we need to use result.lastrowid
-            if not upsert:
+            if not upsert and result is not None:
                 self.last_rowid = result.lastrowid
                 if (hash_id or pk) and self.last_rowid:
                     # Set self.last_pk to the pk(s) for that rowid
