@@ -4,6 +4,17 @@
  Changelog
 ===========
 
+.. _v4_0a0:
+
+4.0a0 (2025-05-08)
+-----------------
+
+- Upsert operations now use SQLite's ``INSERT ... ON CONFLICT SET`` syntax on all SQLite versions later than 3.23.1. This is a very slight breaking change for apps that depend on the previous ``INSERT OR IGNORE`` followed by ``UPDATE`` behavior. (:issue:`652`)
+- Python library users can opt-in to the previous implementation by passing ``use_old_upsert=True`` to the ``Database()`` constructor, see :ref:`python_api_old_upsert`.
+- Dropped support for Python 3.8, added support for Python 3.13. (:issue:`646`)
+- ``sqlite-utils tui`` is now provided by the `sqlite-utils-tui <https://github.com/simonw/sqlite-utils-tui>`__ plugin. (:issue:`648`)
+- Test suite now also runs against SQLite 3.23.1, the last version (from 2018-04-10) before the new ``INSERT ... ON CONFLICT SET`` syntax was added. (:issue:`654`)
+
 .. _v3_38:
 
 3.38 (2024-11-23)
