@@ -247,6 +247,10 @@ class NoTable(Exception):
     "Specified table does not exist"
 
 
+class NoView(Exception):
+    "Specified view does not exist"
+
+
 class BadPrimaryKey(Exception):
     "Table does not have a single obvious primary key"
 
@@ -419,6 +423,8 @@ class Database:
 
         :param table_name: The name of the table
         """
+        if table_name in self.view_names():
+            return self.view(table_name)
         return self.table(table_name)
 
     def __repr__(self) -> str:
@@ -541,7 +547,7 @@ class Database:
             self._tracer(sql, None)
         return self.conn.executescript(sql)
 
-    def table(self, table_name: str, **kwargs) -> Union["Table", "View"]:
+    def table(self, table_name: str, **kwargs) -> "Table":
         """
         Return a table object, optionally configured with default options.
 
@@ -550,10 +556,19 @@ class Database:
         :param table_name: Name of the table
         """
         if table_name in self.view_names():
-            return View(self, table_name, **kwargs)
-        else:
-            kwargs.setdefault("strict", self.strict)
-            return Table(self, table_name, **kwargs)
+            raise NoTable("Table {} is actually a view".format(table_name))
+        kwargs.setdefault("strict", self.strict)
+        return Table(self, table_name, **kwargs)
+
+    def view(self, view_name: str) -> "View":
+        """
+        Return a view object.
+
+        :param view_name: Name of the view
+        """
+        if view_name not in self.view_names():
+            raise NoView("View {} does not exist".format(view_name))
+        return View(self, view_name)
 
     def quote(self, value: str) -> str:
         """
@@ -637,12 +652,12 @@ class Database:
     @property
     def tables(self) -> List["Table"]:
         "List of Table objects in this database."
-        return cast(List["Table"], [self[name] for name in self.table_names()])
+        return [self.table(name) for name in self.table_names()]
 
     @property
     def views(self) -> List["View"]:
         "List of View objects in this database."
-        return cast(List["View"], [self[name] for name in self.view_names()])
+        return [self.view(name) for name in self.view_names()]
 
     @property
     def triggers(self) -> List[Trigger]:
@@ -808,7 +823,7 @@ class Database:
             or a tuple of (column, other_table, other_column), or a tuple of
             (table, column, other_table, other_column)
         """
-        table = cast(Table, self[name])
+        table = self.table(name)
         if all(isinstance(fk, ForeignKey) for fk in foreign_keys):
             return cast(List[ForeignKey], foreign_keys)
         if all(isinstance(fk, str) for fk in foreign_keys):
@@ -1039,11 +1054,11 @@ class Database:
         # Transform table to match the new definition if table already exists:
         if self[name].exists():
             if ignore:
-                return cast(Table, self[name])
+                return self.table(name)
             elif replace:
                 self[name].drop()
         if transform and self[name].exists():
-            table = cast(Table, self[name])
+            table = self.table(name)
             should_transform = False
             # First add missing columns and figure out columns to drop
             existing_columns = table.columns_dict
@@ -1109,7 +1124,7 @@ class Database:
             strict=strict,
         )
         self.execute(sql)
-        created_table = self.table(
+        return self.table(
             name,
             pk=pk,
             foreign_keys=foreign_keys,
@@ -1119,7 +1134,6 @@ class Database:
             hash_id=hash_id,
             hash_id_columns=hash_id_columns,
         )
-        return cast(Table, created_table)
 
     def rename_table(self, name: str, new_name: str):
         """
@@ -1196,12 +1210,9 @@ class Database:
 
         # Verify that all tables and columns exist
         for table, column, other_table, other_column in foreign_keys:
-            if not self[table].exists():
+            if not self.table(table).exists():
                 raise AlterError("No such table: {}".format(table))
-            table_obj = self[table]
-            if not isinstance(table_obj, Table):
-                raise AlterError("Must be a table, not a view: {}".format(table))
-            table_obj = cast(Table, table_obj)
+            table_obj = self.table(table)
             if column not in table_obj.columns_dict:
                 raise AlterError("No such column: {} in {}".format(column, table))
             if not self[other_table].exists():
@@ -1231,7 +1242,7 @@ class Database:
             by_table.setdefault(fk[0], []).append(fk)
 
         for table, fks in by_table.items():
-            cast(Table, self[table]).transform(add_foreign_keys=fks)
+            self.table(table).transform(add_foreign_keys=fks)
 
         self.vacuum()
 

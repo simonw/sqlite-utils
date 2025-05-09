@@ -8,6 +8,8 @@ from sqlite_utils.db import (
     ForeignKey,
     Table,
     View,
+    NoTable,
+    NoView,
 )
 from sqlite_utils.utils import hash_record, sqlite3
 import collections
@@ -1367,3 +1369,14 @@ def test_create_strict(fresh_db, strict):
     table = fresh_db["t"]
     table.create({"id": int}, strict=strict)
     assert table.strict == strict or not fresh_db.supports_strict
+
+
+def test_bad_table_and_view_exceptions(fresh_db):
+    fresh_db.table("t").insert({"id": 1}, pk="id")
+    fresh_db.create_view("v", "select * from t")
+    with pytest.raises(NoTable) as ex:
+        fresh_db.table("v")
+    assert ex.value.args[0] == "Table v is actually a view"
+    with pytest.raises(NoView) as ex2:
+        fresh_db.view("t")
+    assert ex2.value.args[0] == "View t does not exist"

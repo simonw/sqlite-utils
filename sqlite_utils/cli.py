@@ -186,6 +186,8 @@ def tables(
     if schema:
         headers.append("schema")
 
+    method = db.view if views else db.table
+
     def _iter():
         if views:
             items = db.view_names()
@@ -194,15 +196,15 @@ def tables(
         for name in items:
             row = [name]
             if counts:
-                row.append(db[name].count)
+                row.append(method(name).count)
             if columns:
-                cols = [c.name for c in db[name].columns]
+                cols = [c.name for c in method(name).columns]
                 if csv:
                     row.append("\n".join(cols))
                 else:
                     row.append(cols)
             if schema:
-                row.append(db[name].schema)
+                row.append(method(name).schema)
             yield row
 
     if table or fmt:
@@ -1693,7 +1695,7 @@ def create_view(path, view, select, ignore, replace, load_extension):
         if ignore:
             return
         elif replace:
-            db[view].drop()
+            db.view(view).drop()
         else:
             raise click.ClickException(
                 'View "{}" already exists. Use --replace to delete and replace it.'.format(
