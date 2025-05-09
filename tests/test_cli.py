@@ -1116,11 +1116,8 @@ def test_upsert_alter(db_path, tmpdir):
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id"]
     )
     assert result.exit_code == 1
-    assert (
-        "Error: no such column: age\n\n"
-        "sql = UPDATE [dogs] SET [age] = ? WHERE [id] = ?\n"
-        "parameters = [5, 1]"
-    ) == result.output.strip()
+    # Could be one of two errors depending on SQLite version
+    assert ("Try using --alter to add additional columns") in result.output.strip()
     # Should succeed with --alter
     result = CliRunner().invoke(
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id", "--alter"]
@@ -2248,7 +2245,7 @@ def test_integer_overflow_error(tmpdir):
     assert result.exit_code == 1
     assert result.output == (
         "Error: Python int too large to convert to SQLite INTEGER\n\n"
-        "sql = INSERT INTO [items] ([bignumber]) VALUES (?);\n"
+        "sql = INSERT INTO [items] ([bignumber]) VALUES (?)\n"
         "parameters = [34223049823094832094802398430298048240]\n"
     )
 

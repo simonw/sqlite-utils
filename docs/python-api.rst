@@ -927,6 +927,13 @@ An ``upsert_all()`` method is also available, which behaves like ``insert_all()`
 .. note::
     ``.upsert()`` and ``.upsert_all()`` in sqlite-utils 1.x worked like ``.insert(..., replace=True)`` and ``.insert_all(..., replace=True)`` do in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
 
+.. _python_api_old_upsert:
+
+Alternative upserts using INSERT OR IGNORE
+------------------------------------------
+
+Upserts use ``INSERT INTO ... ON CONFLICT SET``. Prior to ``sqlite-utils 4.0`` these used a sequence of ``INSERT OR IGNORE`` followed by an ``UPDATE``. This older method is still used for SQLite 3.23.1 and earlier. You can force the older implementation by passing ``use_old_upsert=True`` to the ``Database()`` constructor.
+
 .. _python_api_convert:
 
 Converting data in columns

@@ -18,7 +18,7 @@ def test_tracer():
         ("select name from sqlite_master where type = 'view'", None),
         ("CREATE TABLE [dogs] (\n   [name] TEXT\n);\n        ", None),
         ("select name from sqlite_master where type = 'view'", None),
-        ("INSERT INTO [dogs] ([name]) VALUES (?);", ["Cleopaws"]),
+        ("INSERT INTO [dogs] ([name]) VALUES (?)", ["Cleopaws"]),
         ("select name from sqlite_master where type = 'view'", None),
         (
             "CREATE VIRTUAL TABLE [dogs_fts] USING FTS5 (\n    [name],\n    content=[dogs]\n)",

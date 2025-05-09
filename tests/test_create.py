@@ -173,14 +173,16 @@ def test_create_table_from_example_with_compound_primary_keys(fresh_db):
 @pytest.mark.parametrize(
     "method_name", ("insert", "upsert", "insert_all", "upsert_all")
 )
-def test_create_table_with_custom_columns(fresh_db, method_name):
-    table = fresh_db["dogs"]
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_create_table_with_custom_columns(method_name, use_old_upsert):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db["dogs"]
     method = getattr(table, method_name)
     record = {"id": 1, "name": "Cleo", "age": "5"}
     if method_name.endswith("_all"):
         record = [record]
     method(record, pk="id", columns={"age": int, "weight": float})
-    assert ["dogs"] == fresh_db.table_names()
+    assert ["dogs"] == db.table_names()
     expected_columns = [
         {"name": "id", "type": "INTEGER"},
         {"name": "name", "type": "TEXT"},

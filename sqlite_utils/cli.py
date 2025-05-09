@@ -1098,7 +1098,9 @@ def insert_upsert_implementation(
             if (
                 isinstance(e, OperationalError)
                 and e.args
-                and "has no column named" in e.args[0]
+                and (
+                    "has no column named" in e.args[0] or "no such column" in e.args[0]
+                )
             ):
                 raise click.ClickException(
                     "{}\n\nTry using --alter to add additional columns".format(
