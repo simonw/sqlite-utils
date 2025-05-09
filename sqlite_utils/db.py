@@ -692,8 +692,8 @@ class Database:
     def supports_on_conflict(self) -> bool:
         # SQLite's upsert is implemented as INSERT INTO ... ON CONFLICT DO ...
         if not hasattr(self, "_supports_on_conflict"):
+            table_name = "t{}".format(secrets.token_hex(16))
             try:
-                table_name = "t{}".format(secrets.token_hex(16))
                 with self.conn:
                     self.conn.execute(
                         "create table {} (id integer primary key, name text)".format(
@@ -709,10 +709,11 @@ class Database:
                             "on conflict do update set name = 'two'"
                         ).format(table_name)
                     )
-                    self.conn.execute("drop table {}".format(table_name))
-                self._supports_on_conflict = True
+                    self._supports_on_conflict = True
             except Exception:
                 self._supports_on_conflict = False
+            finally:
+                self.conn.execute("drop table {}".format(table_name))
         return self._supports_on_conflict
 
     @property
