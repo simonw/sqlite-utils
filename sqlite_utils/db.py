@@ -713,7 +713,7 @@ class Database:
             except Exception:
                 self._supports_on_conflict = False
             finally:
-                self.conn.execute("drop table {}".format(table_name))
+                self.conn.execute("drop table if exists {}".format(table_name))
         return self._supports_on_conflict
 
     @property
