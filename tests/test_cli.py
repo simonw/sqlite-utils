@@ -1116,10 +1116,8 @@ def test_upsert_alter(db_path, tmpdir):
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id"]
     )
     assert result.exit_code == 1
-    assert (
-        "Error: table dogs has no column named age\n\n"
-        "Try using --alter to add additional columns"
-    ) == result.output.strip()
+    # Could be one of two errors depending on SQLite version
+    assert ("Try using --alter to add additional columns") in result.output.strip()
     # Should succeed with --alter
     result = CliRunner().invoke(
         cli.cli, ["upsert", db_path, "dogs", json_path, "--pk", "id", "--alter"]
