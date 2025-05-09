@@ -3316,6 +3316,9 @@ class Table(Queryable):
         if hash_id_columns and hash_id is None:
             hash_id = "id"
 
+        if upsert and (not pk and not hash_id):
+            raise PrimaryKeyRequired("upsert() requires a pk")
+
         assert not (hash_id and pk), "Use either pk= or hash_id="
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
