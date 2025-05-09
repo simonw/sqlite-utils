@@ -3004,9 +3004,6 @@ class Table(Queryable):
         return a list of ``(sql, parameters)`` 2-tuples which, when executed in
         order, perform the desired INSERT / UPSERT / REPLACE operation.
         """
-        if (upsert or replace) and not pk:
-            raise PrimaryKeyRequired("UPSERT / REPLACE needs a primary key")
-
         if hash_id_columns and hash_id is None:
             hash_id = "id"
 
@@ -3319,8 +3316,6 @@ class Table(Queryable):
         if hash_id_columns and hash_id is None:
             hash_id = "id"
 
-        if upsert and (not pk and not hash_id):
-            raise PrimaryKeyRequired("upsert() requires a pk")
         assert not (hash_id and pk), "Use either pk= or hash_id="
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
