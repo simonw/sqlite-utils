@@ -19,7 +19,7 @@ Here's how to create a new SQLite database file containing a new ``chickens`` ta
     from sqlite_utils import Database
 
     db = Database("chickens.db")
-    db["chickens"].insert_all([{
+    db.table("chickens").insert_all([{
         "name": "Azi",
         "color": "blue",
     }, {
@@ -37,7 +37,7 @@ You can loop through those rows like this:
 
 .. code-block:: python
 
-    for row in db["chickens"].rows:
+    for row in db.table("chickens").rows:
         print(row)
 
 Which outputs the following::
@@ -170,7 +170,7 @@ You can also turn on a tracer function temporarily for a block of code using the
     db = Database(memory=True)
     # ... later
     with db.tracer(print):
-        db["dogs"].insert({"name": "Cleo"})
+        db.table("dogs").insert({"name": "Cleo"})
 
 This example will print queries only for the duration of the ``with`` block.
 
@@ -191,7 +191,7 @@ The ``db.query(sql)`` function executes a SQL query and returns an iterator over
 .. code-block:: python
 
     db = Database(memory=True)
-    db["dogs"].insert_all([{"name": "Cleo"}, {"name": "Pancakes"}])
+    db.table("dogs").insert_all([{"name": "Cleo"}, {"name": "Pancakes"}])
     for row in db.query("select * from dogs"):
         print(row)
     # Outputs:
@@ -210,7 +210,7 @@ The ``db.execute()`` and ``db.executescript()`` methods provide wrappers around 
 .. code-block:: python
 
     db = Database(memory=True)
-    db["dogs"].insert({"name": "Cleo"})
+    db.table("dogs").insert({"name": "Cleo"})
     cursor = db.execute("update dogs set name = 'Cleopaws'")
     print(cursor.rowcount)
     # Outputs the number of rows affected by the update
@@ -265,7 +265,7 @@ You can also access tables or views using dictionary-style syntax, like this:
 
 .. code-block:: python
 
-    table = db["my_table"]
+    table_or_view = db["my_table_or_view_name"]
 
 If a table accessed using either of these methods does not yet exist, it will be created the first time you attempt to insert or upsert data into it.
 
@@ -332,7 +332,7 @@ Listing rows
 To iterate through dictionaries for each of the rows in a table, use ``.rows``::
 
     >>> db = sqlite_utils.Database("dogs.db")
-    >>> for row in db["dogs"].rows:
+    >>> for row in db.table("dogs").rows:
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
     {'id': 2, 'age': 2, 'name': 'Pancakes'}
@@ -340,26 +340,26 @@ To iterate through dictionaries for each of the rows in a table, use ``.rows``::
 You can filter rows by a WHERE clause using ``.rows_where(where, where_args)``::
 
     >>> db = sqlite_utils.Database("dogs.db")
-    >>> for row in db["dogs"].rows_where("age > ?", [3]):
+    >>> for row in db.table("dogs").rows_where("age > ?", [3]):
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
 
 The first argument is a fragment of SQL. The second, optional argument is values to be passed to that fragment - you can use ``?`` placeholders and pass an array, or you can use ``:named`` parameters and pass a dictionary, like this::
 
-    >>> for row in db["dogs"].rows_where("age > :age", {"age": 3}):
+    >>> for row in db.table("dogs").rows_where("age > :age", {"age": 3}):
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
 
 To return custom columns (instead of the default that uses ``select *``) pass ``select="column1, column2"``::
 
     >>> db = sqlite_utils.Database("dogs.db")
-    >>> for row in db["dogs"].rows_where(select='name, age'):
+    >>> for row in db.table("dogs").rows_where(select='name, age'):
     ...     print(row)
     {'name': 'Cleo', 'age': 4}
 
 To specify an order, use the ``order_by=`` argument::
 
-    >>> for row in db["dogs"].rows_where("age > 1", order_by="age"):
+    >>> for row in db.table("dogs").rows_where("age > 1", order_by="age"):
     ...     print(row)
     {'id': 2, 'age': 2, 'name': 'Pancakes'}
     {'id': 1, 'age': 4, 'name': 'Cleo'}
@@ -368,14 +368,14 @@ You can use ``order_by="age desc"`` for descending order.
 
 You can order all records in the table by excluding the ``where`` argument::
 
-    >>> for row in db["dogs"].rows_where(order_by="age desc"):
+    >>> for row in db.table("dogs").rows_where(order_by="age desc"):
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
     {'id': 2, 'age': 2, 'name': 'Pancakes'}
 
 This method also accepts ``offset=`` and ``limit=`` arguments, for specifying an OFFSET and a LIMIT for the SQL query::
 
-    >>> for row in db["dogs"].rows_where(order_by="age desc", limit=1):
+    >>> for row in db.table("dogs").rows_where(order_by="age desc", limit=1):
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
 
@@ -386,7 +386,7 @@ Counting rows
 
 To count the number of rows that would be returned by a where filter, use ``.count_where(where, where_args)``:
 
-    >>> db["dogs"].count_where("age > ?", [1])
+    >>> db.table("dogs").count_where("age > ?", [1])
     2
 
 .. _python_api_pks_and_rows_where:
@@ -405,21 +405,21 @@ If the table is a ``rowid`` table (with no explicit primary key column) then tha
 ::
 
     >>> db = sqlite_utils.Database(memory=True)
-    >>> db["dogs"].insert({"name": "Cleo"})
-    >>> for pk, row in db["dogs"].pks_and_rows_where():
+    >>> db.table("dogs").insert({"name": "Cleo"})
+    >>> for pk, row in db.table("dogs").pks_and_rows_where():
     ...     print(pk, row)
     1 {'rowid': 1, 'name': 'Cleo'}
 
-    >>> db["dogs_with_pk"].insert({"id": 5, "name": "Cleo"}, pk="id")
-    >>> for pk, row in db["dogs_with_pk"].pks_and_rows_where():
+    >>> db.table("dogs_with_pk").insert({"id": 5, "name": "Cleo"}, pk="id")
+    >>> for pk, row in db.table("dogs_with_pk").pks_and_rows_where():
     ...     print(pk, row)
     5 {'id': 5, 'name': 'Cleo'}
 
-    >>> db["dogs_with_compound_pk"].insert(
+    >>> db.table("dogs_with_compound_pk").insert(
     ...     {"species": "dog", "id": 3, "name": "Cleo"},
     ...     pk=("species", "id")
     ... )
-    >>> for pk, row in db["dogs_with_compound_pk"].pks_and_rows_where():
+    >>> for pk, row in db.table("dogs_with_compound_pk").pks_and_rows_where():
     ...     print(pk, row)
     ('dog', 3) {'species': 'dog', 'id': 3, 'name': 'Cleo'}
 
@@ -431,12 +431,12 @@ Retrieving a specific record
 You can retrieve a record by its primary key using ``table.get()``::
 
     >>> db = sqlite_utils.Database("dogs.db")
-    >>> print(db["dogs"].get(1))
+    >>> print(db.table("dogs").get(1))
     {'id': 1, 'age': 4, 'name': 'Cleo'}
 
 If the table has a compound primary key you can pass in the primary key values as a tuple::
 
-    >>> db["compound_dogs"].get(("mixed", 3))
+    >>> db.table("compound_dogs").get(("mixed", 3))
 
 If the record does not exist a ``NotFoundError`` will be raised:
 
@@ -445,7 +445,7 @@ If the record does not exist a ``NotFoundError`` will be raised:
     from sqlite_utils.db import NotFoundError
 
     try:
-        row = db["dogs"].get(5)
+        row = db.table("dogs").get(5)
     except NotFoundError:
         print("Dog not found")
 
@@ -476,7 +476,7 @@ The easiest way to create a new table is to insert a record into it:
     import sqlite3
 
     db = Database("dogs.db")
-    dogs = db["dogs"]
+    dogs = db.table("dogs")
     dogs.insert({
         "name": "Cleo",
         "twitter": "cleopaws",
@@ -520,7 +520,7 @@ If you want to explicitly set the order of the columns you can do so using the `
 
 .. code-block:: python
 
-    db["dogs"].insert({
+    db.table("dogs").insert({
         "id": 1,
         "name": "Cleo",
         "twitter": "cleopaws",
@@ -534,7 +534,7 @@ Column types are detected based on the example data provided. Sometimes you may 
 
 .. code-block:: python
 
-    db["dogs"].insert({
+    db.table("dogs").insert({
         "id": 1,
         "name": "Cleo",
         "age": "5",
@@ -560,7 +560,7 @@ You can directly create a new table without inserting any data into it using the
 
 .. code-block:: python
 
-    db["cats"].create({
+    db.table("cats").create({
         "id": int,
         "name": str,
         "weight": float,
@@ -576,7 +576,7 @@ You can pass ``ignore=True`` to ignore that error. You can also use ``if_not_exi
 
 .. code-block:: python
 
-    db["cats"].create({
+    db.table("cats").create({
         "id": int,
         "name": str,
     }, pk="id", if_not_exists=True)
@@ -587,7 +587,7 @@ You can also pass ``transform=True`` to have any existing tables :ref:`transform
 
 .. code-block:: python
 
-    db["cats"].create({
+    db.table("cats").create({
         "id": int,
         "name": str,
         "weight": float,
@@ -606,7 +606,7 @@ You can pass ``strict=True`` to create a table in ``STRICT`` mode:
 
 .. code-block:: python
 
-    db["cats"].create({
+    db.table("cats").create({
         "id": int,
         "name": str,
     }, strict=True)
@@ -620,7 +620,7 @@ If you want to create a table with a compound primary key that spans multiple co
 
 .. code-block:: python
 
-    db["cats"].create({
+    db.table("cats").create({
         "id": int,
         "breed": str,
         "name": str,
@@ -660,11 +660,11 @@ You can leave off the third item in the tuple to have the referenced column auto
 
 .. code-block:: python
 
-    db["authors"].insert_all([
+    db.table("authors").insert_all([
         {"id": 1, "name": "Sally"},
         {"id": 2, "name": "Asheesh"}
     ], pk="id")
-    db["books"].insert_all([
+    db.table("books").insert_all([
         {"title": "Hedgehogs of the world", "author_id": 1},
         {"title": "How to train your wolf", "author_id": 2},
     ], foreign_keys=[
@@ -678,7 +678,7 @@ Table configuration options
 
 The ``.insert()``, ``.upsert()``, ``.insert_all()`` and ``.upsert_all()`` methods each take a number of keyword arguments, some of which influence what happens should they cause a table to be created and some of which affect the behavior of those methods.
 
-You can set default values for these methods by accessing the table through the ``db.table(...)`` method (instead of using ``db["table_name"]``), like so:
+You can set default values for these methods by accessing the table through the ``db.table(...)`` method (instead of using ``db.table("table_name")``), like so:
 
 .. code-block:: python
 
@@ -715,19 +715,19 @@ Here's an example that uses these features:
 
 .. code-block:: python
 
-    db["authors"].insert_all(
+    db.table("authors").insert_all(
         [{"id": 1, "name": "Sally", "score": 2}],
         pk="id",
         not_null={"name", "score"},
         defaults={"score": 1},
     )
-    db["authors"].insert({"name": "Dharma"})
+    db.table("authors").insert({"name": "Dharma"})
 
-    list(db["authors"].rows)
+    list(db.table("authors").rows)
     # Outputs:
     # [{'id': 1, 'name': 'Sally', 'score': 2},
     #  {'id': 3, 'name': 'Dharma', 'score': 1}]
-    print(db["authors"].schema)
+    print(db.table("authors").schema)
     # Outputs:
     # CREATE TABLE [authors] (
     #     [id] INTEGER PRIMARY KEY,
@@ -762,7 +762,7 @@ The ``table.duplicate()`` method creates a copy of the table, copying both the t
 
 .. code-block:: python
 
-    db["authors"].duplicate("authors_copy")
+    db.table("authors").duplicate("authors_copy")
 
 The new ``authors_copy`` table will now contain a duplicate copy of the data from ``authors``.
 
@@ -779,7 +779,7 @@ Use it like this:
 
 .. code-block:: python
 
-    db["dogs"].insert_all([{
+    db.table("dogs").insert_all([{
         "id": 1,
         "name": "Cleo",
         "twitter": "cleopaws",
@@ -799,7 +799,7 @@ The function can accept an iterator or generator of rows and will commit them ac
 
 .. code-block:: python
 
-    db["big_table"].insert_all(({
+    db.table("big_table").insert_all(({
         "id": 1,
         "name": "Name {}".format(i),
     } for i in range(10000)), batch_size=1000)
@@ -824,7 +824,7 @@ This example that catches that exception:
     from sqlite_utils.utils import sqlite3
 
     try:
-        db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
+        db.table("dogs").insert({"id": 1, "name": "Cleo"}, pk="id")
     except sqlite3.IntegrityError:
         print("Record already exists with that primary key")
 
@@ -835,13 +835,13 @@ Use the ``ignore=True`` parameter to ignore this error:
 .. code-block:: python
 
     # This fails silently if a record with id=1 already exists
-    db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id", ignore=True)
+    db.table("dogs").insert({"id": 1, "name": "Cleo"}, pk="id", ignore=True)
 
 To replace any existing records that have a matching primary key, use the ``replace=True`` parameter to ``.insert()`` or ``.insert_all()``:
 
 .. code-block:: python
 
-    db["dogs"].insert_all([{
+    db.table("dogs").insert_all([{
         "id": 1,
         "name": "Cleo",
         "twitter": "cleopaws",
@@ -866,21 +866,21 @@ Updating a specific record
 You can update a record by its primary key using ``table.update()``::
 
     >>> db = sqlite_utils.Database("dogs.db")
-    >>> print(db["dogs"].get(1))
+    >>> print(db.table("dogs").get(1))
     {'id': 1, 'age': 4, 'name': 'Cleo'}
-    >>> db["dogs"].update(1, {"age": 5})
-    >>> print(db["dogs"].get(1))
+    >>> db.table("dogs").update(1, {"age": 5})
+    >>> print(db.table("dogs").get(1))
     {'id': 1, 'age': 5, 'name': 'Cleo'}
 
 The first argument to ``update()`` is the primary key. This can be a single value, or a tuple if that table has a compound primary key::
 
-    >>> db["compound_dogs"].update((5, 3), {"name": "Updated"})
+    >>> db.table("compound_dogs").update((5, 3), {"name": "Updated"})
 
 The second argument is a dictionary of columns that should be updated, along with their new values.
 
 You can cause any missing columns to be added automatically using ``alter=True``::
 
-    >>> db["dogs"].update(1, {"breed": "Mutt"}, alter=True)
+    >>> db.table("dogs").update(1, {"breed": "Mutt"}, alter=True)
 
 .. _python_api_delete:
 
@@ -890,11 +890,11 @@ Deleting a specific record
 You can delete a record using ``table.delete()``::
 
     >>> db = sqlite_utils.Database("dogs.db")
-    >>> db["dogs"].delete(1)
+    >>> db.table("dogs").delete(1)
 
 The ``delete()`` method takes the primary key of the record. This can be a tuple of values if the row has a compound primary key::
 
-    >>> db["compound_dogs"].delete((5, 3))
+    >>> db.table("compound_dogs").delete((5, 3))
 
 .. _python_api_delete_where:
 
@@ -906,7 +906,7 @@ You can delete all records in a table that match a specific WHERE statement usin
     >>> db = sqlite_utils.Database("dogs.db")
     >>> # Delete every dog with age less than 3
     >>> with db.conn:
-    >>>     db["dogs"].delete_where("age < ?", [3])
+    >>>     db.table("dogs").delete_where("age < ?", [3])
 
 Calling ``table.delete_where()`` with no other arguments will delete every row in the table.
 
@@ -923,7 +923,7 @@ For example, given the dogs database you could upsert the record for Cleo like s
 
 .. code-block:: python
 
-    db["dogs"].upsert({
+    db.table("dogs").upsert({
         "id": 1,
         "name": "Cleo",
         "twitter": "cleopaws",
@@ -962,19 +962,19 @@ To transform a specific column to uppercase, you would use the following:
 
 .. code-block:: python
 
-    db["dogs"].convert("name", lambda value: value.upper())
+    db.table("dogs").convert("name", lambda value: value.upper())
 
 You can pass a list of columns, in which case the transformation will be applied to each one:
 
 .. code-block:: python
 
-    db["dogs"].convert(["name", "twitter"], lambda value: value.upper())
+    db.table("dogs").convert(["name", "twitter"], lambda value: value.upper())
 
 To save the output to of the transformation to a different column, use the ``output=`` parameter:
 
 .. code-block:: python
 
-    db["dogs"].convert("name", lambda value: value.upper(), output="name_upper")
+    db.table("dogs").convert("name", lambda value: value.upper(), output="name_upper")
 
 This will add the new column, if it does not already exist. You can pass ``output_type=int`` or some other type to control the type of the new column - otherwise it will default to text.
 
@@ -1010,7 +1010,7 @@ A useful pattern when populating large tables in to break common values out into
 Creating lookup tables explicitly
 ---------------------------------
 
-Calling ``db["Species"].lookup({"name": "Palm"})`` creates a table called ``Species`` (if one does not already exist) with two columns: ``id`` and ``name``. It sets up a unique constraint on the ``name`` column to guarantee it will not contain duplicate rows. It then inserts a new row with the ``name`` set to ``Palm`` and returns the new integer primary key value.
+Calling ``db.table("Species").lookup({"name": "Palm"})`` creates a table called ``Species`` (if one does not already exist) with two columns: ``id`` and ``name``. It sets up a unique constraint on the ``name`` column to guarantee it will not contain duplicate rows. It then inserts a new row with the ``name`` set to ``Palm`` and returns the new integer primary key value.
 
 If the ``Species`` table already exists, it will insert the new row and return the primary key. If a row with that ``name`` already exists, it will return the corresponding primary key value directly.
 
@@ -1020,10 +1020,10 @@ If you pass in a dictionary with multiple values, both values will be used to in
 
 .. code-block:: python
 
-    db["Trees"].insert({
+    db.table("Trees").insert({
         "latitude": 49.1265976,
         "longitude": 2.5496218,
-        "species": db["Species"].lookup({
+        "species": db.table("Species").lookup({
             "common_name": "Common Juniper",
             "latin_name": "Juniperus communis"
         })
@@ -1035,7 +1035,7 @@ To create a species record with a note on when it was first seen, you can use th
 
 .. code-block:: python
 
-    db["Species"].lookup({"name": "Palm"}, {"first_seen": "2021-03-04"})
+    db.table("Species").lookup({"name": "Palm"}, {"first_seen": "2021-03-04"})
 
 The first time this is called the record will be created for ``name="Palm"``. Any subsequent calls with that name will ignore the second argument, even if it includes different values.
 
@@ -1078,7 +1078,7 @@ To extract the ``species`` column out to a separate ``Species`` table, you can d
     trees = db.table("Trees", extracts=["species"])
 
     # Using .insert() directly
-    db["Trees"].insert({
+    db.table("Trees").insert({
         "latitude": 49.1265976,
         "longitude": 2.5496218,
         "species": "Common Juniper"
@@ -1095,7 +1095,7 @@ Here's how to create two new records and connect them via a many-to-many table i
 
 .. code-block:: python
 
-    db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id").m2m(
+    db.table("dogs").insert({"id": 1, "name": "Cleo"}, pk="id").m2m(
         "humans", {"id": 1, "name": "Natalie"}, pk="id"
     )
 
@@ -1105,7 +1105,7 @@ The ``.m2m()`` method executes against the last record that was affected by ``.i
 
 .. code-block:: python
 
-    db["dogs"].update(1).m2m(
+    db.table("dogs").update(1).m2m(
         "humans", {"id": 2, "name": "Simon"}, pk="id"
     )
 
@@ -1162,13 +1162,13 @@ You can inspect the database to see the results like this::
 
     >>> db.table_names()
     ['dogs', 'characteristics', 'characteristics_dogs']
-    >>> list(db["dogs"].rows)
+    >>> list(db.table("dogs").rows)
     [{'id': 1, 'name': 'Cleo'}]
-    >>> list(db["characteristics"].rows)
+    >>> list(db.table("characteristics").rows)
     [{'id': 1, 'name': 'Playful'}, {'id': 2, 'name': 'Opinionated'}]
-    >>> list(db["characteristics_dogs"].rows)
+    >>> list(db.table("characteristics_dogs").rows)
     [{'characteristics_id': 1, 'dogs_id': 1}, {'characteristics_id': 2, 'dogs_id': 1}]
-    >>> print(db["characteristics_dogs"].schema)
+    >>> print(db.table("characteristics_dogs").schema)
     CREATE TABLE [characteristics_dogs] (
         [characteristics_id] INTEGER REFERENCES [characteristics]([id]),
         [dogs_id] INTEGER REFERENCES [dogs]([id]),
@@ -1234,11 +1234,11 @@ You can add a new column to a table using the ``.add_column(col_name, col_type)`
 
 .. code-block:: python
 
-    db["dogs"].add_column("instagram", str)
-    db["dogs"].add_column("weight", float)
-    db["dogs"].add_column("dob", datetime.date)
-    db["dogs"].add_column("image", "BLOB")
-    db["dogs"].add_column("website") # str by default
+    db.table("dogs").add_column("instagram", str)
+    db.table("dogs").add_column("weight", float)
+    db.table("dogs").add_column("dob", datetime.date)
+    db.table("dogs").add_column("image", "BLOB")
+    db.table("dogs").add_column("website") # str by default
 
 You can specify the ``col_type`` argument either using a SQLite type as a string, or by directly passing a Python type e.g. ``str`` or ``float``.
 
@@ -1278,7 +1278,7 @@ You can also add a column that is a foreign key reference to another table using
 
 .. code-block:: python
 
-    db["dogs"].add_column("species_id", fk="species")
+    db.table("dogs").add_column("species_id", fk="species")
 
 This will automatically detect the name of the primary key on the species table and use that (and its type) for the new column.
 
@@ -1286,13 +1286,13 @@ You can explicitly specify the column you wish to reference using ``fk_col``:
 
 .. code-block:: python
 
-    db["dogs"].add_column("species_id", fk="species", fk_col="ref")
+    db.table("dogs").add_column("species_id", fk="species", fk_col="ref")
 
 You can set a ``NOT NULL DEFAULT 'x'`` constraint on the new column using ``not_null_default``:
 
 .. code-block:: python
 
-    db["dogs"].add_column("friends_count", int, not_null_default=0)
+    db.table("dogs").add_column("friends_count", int, not_null_default=0)
 
 .. _python_api_add_column_alter:
 
@@ -1303,13 +1303,13 @@ You can insert or update data that includes new columns and have the table autom
 
 .. code-block:: python
 
-    db["new_table"].insert({"name": "Gareth"})
+    db.table("new_table").insert({"name": "Gareth"})
     # This will throw an exception:
-    db["new_table"].insert({"name": "Gareth", "age": 32})
+    db.table("new_table").insert({"name": "Gareth", "age": 32})
     # This will succeed and add a new "age" integer column:
-    db["new_table"].insert({"name": "Gareth", "age": 32}, alter=True)
+    db.table("new_table").insert({"name": "Gareth", "age": 32}, alter=True)
     # You can see confirm the new column like so:
-    print(db["new_table"].columns_dict)
+    print(db.table("new_table").columns_dict)
     # Outputs this:
     # {'name': <class 'str'>, 'age': <class 'int'>}
 
@@ -1332,15 +1332,15 @@ Here's an example of this mechanism in action:
 
 .. code-block:: python
 
-    db["authors"].insert_all([
+    db.table("authors").insert_all([
         {"id": 1, "name": "Sally"},
         {"id": 2, "name": "Asheesh"}
     ], pk="id")
-    db["books"].insert_all([
+    db.table("books").insert_all([
         {"title": "Hedgehogs of the world", "author_id": 1},
         {"title": "How to train your wolf", "author_id": 2},
     ])
-    db["books"].add_foreign_key("author_id", "authors", "id")
+    db.table("books").add_foreign_key("author_id", "authors", "id")
 
 The ``table.add_foreign_key(column, other_table, other_column)`` method takes the name of the column, the table that is being referenced and the key column within that other table. If you omit the ``other_column`` argument the primary key from that table will be used automatically. If you omit the ``other_table`` argument the table will be guessed based on some simple rules:
 
@@ -1353,7 +1353,7 @@ To ignore the case where the key already exists, use ``ignore=True``:
 
 .. code-block:: python
 
-    db["books"].add_foreign_key("author_id", "authors", "id", ignore=True)
+    db.table("books").add_foreign_key("author_id", "authors", "id", ignore=True)
 
 .. _python_api_add_foreign_keys:
 
@@ -1393,13 +1393,13 @@ You can drop a table or view using the ``.drop()`` method:
 
 .. code-block:: python
 
-    db["my_table"].drop()
+    db.table("my_table").drop()
 
 Pass ``ignore=True`` if you want to ignore the error caused by the table or view not existing.
 
 .. code-block:: python
 
-    db["my_table"].drop(ignore=True)
+    db.table("my_table").drop(ignore=True)
 
 .. _python_api_transform:
 
@@ -1537,7 +1537,7 @@ You can add one or more foreign key constraints to a table using the ``add_forei
 
 .. code-block:: python
 
-    db["places"].transform(
+    db.table("places").transform(
         add_foreign_keys=(
             ("country", "country", "id"),
             ("continent", "continent", "id")
@@ -1548,7 +1548,7 @@ This accepts the same arguments described in :ref:`specifying foreign keys <pyth
 
 .. code-block:: python
 
-    db["places"].transform(
+    db.table("places").transform(
         add_foreign_keys=(("country", "continent"))
     )
 
@@ -1561,7 +1561,7 @@ The ``foreign_keys=`` parameter is similar to  to ``add_foreign_keys=`` but can 
 
 .. code-block:: python
 
-    db["places"].transform(
+    db.table("places").transform(
         foreign_keys=(
             ("continent", "continent", "id"),
         )
@@ -1578,7 +1578,7 @@ This example drops two foreign keys - the one from ``places.country`` to ``count
 
 .. code-block:: python
 
-    db["places"].transform(
+    db.table("places").transform(
         drop_foreign_keys=("country", "continent")
     )
 
@@ -1627,7 +1627,7 @@ Here's how to extract the ``Species`` column using ``.extract()``:
 
 .. code-block:: python
 
-    db["Trees"].extract("Species")
+    db.table("Trees").extract("Species")
 
 After running this code the table schema now looks like this:
 
@@ -1655,7 +1655,7 @@ You can specify a custom table name using ``table=``, and a custom foreign key n
 
 .. code-block:: python
 
-    db["Trees"].extract("Species", table="tree_species", fk_column="tree_species_id")
+    db.table("Trees").extract("Species", table="tree_species", fk_column="tree_species_id")
 
 The resulting schema looks like this:
 
@@ -1688,7 +1688,7 @@ You can pass ``["CommonName", "LatinName"]`` to ``.extract()`` to extract both o
 
 .. code-block:: python
 
-    db["Trees"].extract(["CommonName", "LatinName"])
+    db.table("Trees").extract(["CommonName", "LatinName"])
 
 This produces the following schema:
 
@@ -1710,7 +1710,7 @@ The table name ``CommonName_LatinName`` is derived from the extract columns. You
 
 .. code-block:: python
 
-    db["Trees"].extract(["CommonName", "LatinName"], table="Species", fk_column="species_id")
+    db.table("Trees").extract(["CommonName", "LatinName"], table="Species", fk_column="species_id")
 
 This produces the following schema:
 
@@ -1732,7 +1732,7 @@ You can use the ``rename=`` argument to rename columns in the lookup table. To c
 
 .. code-block:: python
 
-    db["Trees"].extract(
+    db.table("Trees").extract(
         ["CommonName", "LatinName"],
         table="Species",
         fk_column="species_id",
@@ -1761,7 +1761,7 @@ In these cases, a useful technique is to create an ID that is derived from the s
 ``sqlite-utils`` can do this for you using the ``hash_id=`` option. For example::
 
     db = sqlite_utils.Database("dogs.db")
-    db["dogs"].upsert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id")
+    db.table("dogs").upsert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id")
     print(list(db["dogs]))
 
 Outputs::
@@ -1770,7 +1770,7 @@ Outputs::
 
 If you are going to use that ID straight away, you can access it using ``last_pk``::
 
-    dog_id = db["dogs"].upsert({
+    dog_id = db.table("dogs").upsert({
         "name": "Cleo",
         "twitter": "cleopaws"
     }, hash_id="id").last_pk
@@ -1778,7 +1778,7 @@ If you are going to use that ID straight away, you can access it using ``last_pk
 
 The hash will be created using all of the column values. To create a hash using a subset of the columns, pass the ``hash_id_columns=`` parameter::
 
-    db["dogs"].upsert(
+    db.table("dogs").upsert(
         {"name": "Cleo", "twitter": "cleopaws", "age": 7},
         hash_id_columns=("name", "twitter")
     )
@@ -1819,7 +1819,7 @@ For example:
 
 .. code-block:: python
 
-    db["niche_museums"].insert({
+    db.table("niche_museums").insert({
         "name": "The Bigfoot Discovery Museum",
         "url": "http://bigfootdiscoveryproject.com/"
         "hours": {
@@ -1855,11 +1855,11 @@ You can specify an upper case conversion for a specific column like so:
 
 .. code-block:: python
 
-    db["example"].insert({
+    db.table("example").insert({
         "name": "The Bigfoot Discovery Museum"
     }, conversions={"name": "upper(?)"})
 
-    # list(db["example"].rows) now returns:
+    # list(db.table("example").rows) now returns:
     # [{'name': 'THE BIGFOOT DISCOVERY MUSEUM'}]
 
 The dictionary key is the column name to be converted. The value is the SQL fragment to use, with a ``?`` placeholder for the original value.
@@ -1877,7 +1877,7 @@ A more useful example: if you are working with `SpatiaLite <https://www.gaia-gis
     # Initialize SpatiaLite
     db.init_spatialite()
     # Use sqlite-utils to create a places table
-    places = db["places"].create({"id": int, "name": str})
+    places = db.table("places").create({"id": int, "name": str})
 
     # Add a SpatiaLite 'geometry' column
     places.add_geometry_column("geometry", "MULTIPOLYGON")
@@ -1892,7 +1892,7 @@ A more useful example: if you are working with `SpatiaLite <https://www.gaia-gis
     wkt = shape(geojson["geometry"]).wkt
 
     # Insert the record, converting the WKT to a SpatiaLite geometry:
-    db["places"].insert(
+    db.table("places").insert(
         {"name": "Wales", "geometry": wkt},
         conversions={"geometry": "GeomFromText(?, 4326)"},
     )
@@ -1935,7 +1935,7 @@ Introspecting tables and views
 
 If you have loaded an existing table or view, you can use introspection to find out more about it::
 
-    >>> db["PlantType"]
+    >>> db.table("PlantType")
     <Table PlantType (id, value)>
 
 .. _python_api_introspection_exists:
@@ -1945,9 +1945,9 @@ If you have loaded an existing table or view, you can use introspection to find 
 
 The ``.exists()`` method can be used to find out if a table exists or not::
 
-    >>> db["PlantType"].exists()
+    >>> db.table("PlantType").exists()
     True
-    >>> db["PlantType2"].exists()
+    >>> db.table("PlantType2").exists()
     False
 
 .. _python_api_introspection_count:
@@ -1957,9 +1957,9 @@ The ``.exists()`` method can be used to find out if a table exists or not::
 
 The ``.count`` property shows the current number of rows (``select count(*) from table``)::
 
-    >>> db["PlantType"].count
+    >>> db.table("PlantType").count
     3
-    >>> db["Street_Tree_List"].count
+    >>> db.table("Street_Tree_List").count
     189144
 
 This property will take advantage of :ref:`python_api_cached_table_counts` if the ``use_counts_table`` property is set on the database. You can avoid that optimization entirely by calling ``table.count_where()`` instead of accessing the property.
@@ -1973,7 +1973,7 @@ The ``.columns`` property shows the columns in the table or view. It returns a l
 
 ::
 
-    >>> db["PlantType"].columns
+    >>> db.table("PlantType").columns
     [Column(cid=0, name='id', type='INTEGER', notnull=0, default_value=None, is_pk=1),
      Column(cid=1, name='value', type='TEXT', notnull=0, default_value=None, is_pk=0)]
 
@@ -1984,7 +1984,7 @@ The ``.columns`` property shows the columns in the table or view. It returns a l
 
 The ``.columns_dict`` property returns a dictionary version of the columns with just the names and Python types::
 
-    >>> db["PlantType"].columns_dict
+    >>> db.table("PlantType").columns_dict
     {'id': <class 'int'>, 'value': <class 'str'>}
 
 .. _python_api_introspection_default_values:
@@ -1994,7 +1994,7 @@ The ``.columns_dict`` property returns a dictionary version of the columns with 
 
 The ``.default_values`` property returns a dictionary of default values for each column that has a default::
 
-    >>> db["table_with_defaults"].default_values
+    >>> db.table("table_with_defaults").default_values
     {'score': 5}
 
 .. _python_api_introspection_pks:
@@ -2004,7 +2004,7 @@ The ``.default_values`` property returns a dictionary of default values for each
 
 The ``.pks`` property returns a list of strings naming the primary key columns for the table::
 
-    >>> db["PlantType"].pks
+    >>> db.table("PlantType").pks
     ['id']
 
 If a table has no primary keys but is a `rowid table <https://www.sqlite.org/rowidtable.html>`__, this property will return ``['rowid']``.
@@ -2016,7 +2016,7 @@ If a table has no primary keys but is a `rowid table <https://www.sqlite.org/row
 
 Almost all SQLite tables have a ``rowid`` column, but a table with no explicitly defined primary keys must use that ``rowid`` as the primary key for identifying individual rows. The ``.use_rowid`` property checks to see if a table needs to use the ``rowid`` in this way - it returns ``True`` if the table has no explicitly defined primary keys and ``False`` otherwise.
 
-    >>> db["PlantType"].use_rowid
+    >>> db.table("PlantType").use_rowid
     False
 
 
@@ -2029,7 +2029,7 @@ The ``.foreign_keys`` property returns any foreign key relationships for the tab
 
 ::
 
-    >>> db["Street_Tree_List"].foreign_keys
+    >>> db.table("Street_Tree_List").foreign_keys
     [ForeignKey(table='Street_Tree_List', column='qLegalStatus', other_table='qLegalStatus', other_column='id'),
      ForeignKey(table='Street_Tree_List', column='qCareAssistant', other_table='qCareAssistant', other_column='id'),
      ForeignKey(table='Street_Tree_List', column='qSiteInfo', other_table='qSiteInfo', other_column='id'),
@@ -2044,7 +2044,7 @@ The ``.foreign_keys`` property returns any foreign key relationships for the tab
 
 The ``.schema`` property outputs the table's schema as a SQL string::
 
-    >>> print(db["Street_Tree_List"].schema)
+    >>> print(db.table("Street_Tree_List").schema)
     CREATE TABLE "Street_Tree_List" (
     "TreeID" INTEGER,
       "qLegalStatus" INTEGER,
@@ -2081,7 +2081,7 @@ The ``.strict`` property identifies if the table is a `SQLite STRICT table <http
 
 ::
 
-    >>> db["ny_times_us_counties"].strict
+    >>> db.table("ny_times_us_counties").strict
     False
 
 .. _python_api_introspection_indexes:
@@ -2093,7 +2093,7 @@ The ``.indexes`` property returns all indexes created for a table, as a list of 
 
 ::
 
-    >>> db["Street_Tree_List"].indexes
+    >>> db.table("Street_Tree_List").indexes
     [Index(seq=0, name='"Street_Tree_List_qLegalStatus"', unique=0, origin='c', partial=0, columns=['qLegalStatus']),
      Index(seq=1, name='"Street_Tree_List_qCareAssistant"', unique=0, origin='c', partial=0, columns=['qCareAssistant']),
      Index(seq=2, name='"Street_Tree_List_qSiteInfo"', unique=0, origin='c', partial=0, columns=['qSiteInfo']),
@@ -2110,7 +2110,7 @@ The ``.xindexes`` property returns more detailed information about the indexes o
 
 ::
 
-    >>> db["ny_times_us_counties"].xindexes
+    >>> db.table("ny_times_us_counties").xindexes
     [
         XIndex(
             name='idx_ny_times_us_counties_date',
@@ -2137,12 +2137,12 @@ The ``.triggers`` property lists database triggers. It can be used on both datab
 
 ::
 
-    >>> db["authors"].triggers
+    >>> db.table("authors").triggers
     [Trigger(name='authors_ai', table='authors', sql='CREATE TRIGGER [authors_ai] AFTER INSERT...'),
      Trigger(name='authors_ad', table='authors', sql="CREATE TRIGGER [authors_ad] AFTER DELETE..."),
      Trigger(name='authors_au', table='authors', sql="CREATE TRIGGER [authors_au] AFTER UPDATE")]
     >>> db.triggers
-    ... similar output to db["authors"].triggers
+    ... similar output to db.table("authors").triggers
 
 .. _python_api_introspection_triggers_dict:
 
@@ -2153,7 +2153,7 @@ The ``.triggers_dict`` property returns the triggers for that table as a diction
 
 ::
 
-    >>> db["authors"].triggers_dict
+    >>> db.table("authors").triggers_dict
     {'authors_ai': 'CREATE TRIGGER [authors_ai] AFTER INSERT...',
      'authors_ad': 'CREATE TRIGGER [authors_ad] AFTER DELETE...',
      'authors_au': 'CREATE TRIGGER [authors_au] AFTER UPDATE'}
@@ -2176,7 +2176,7 @@ The ``detect_fts()`` method returns the associated SQLite FTS table name, if one
 
 ::
 
-    >>> db["authors"].detect_fts()
+    >>> db.table("authors").detect_fts()
     "authors_fts"
 
 .. _python_api_introspection_virtual_table_using:
@@ -2186,8 +2186,8 @@ The ``detect_fts()`` method returns the associated SQLite FTS table name, if one
 
 The ``.virtual_table_using`` property reveals if a table is a virtual table. It returns ``None`` for regular tables and the upper case version of the type of virtual table otherwise. For example::
 
-    >>> db["authors"].enable_fts(["name"])
-    >>> db["authors_fts"].virtual_table_using
+    >>> db.table("authors").enable_fts(["name"])
+    >>> db.table("authors_fts").virtual_table_using
     "FTS5"
 
 .. _python_api_introspection_has_counts_triggers:
@@ -2199,10 +2199,10 @@ The ``.has_counts_triggers`` property shows if a table has been configured with 
 
 ::
 
-    >>> db["authors"].has_counts_triggers
+    >>> db.table("authors").has_counts_triggers
     False
-    >>> db["authors"].enable_counts()
-    >>> db["authors"].has_counts_triggers
+    >>> db.table("authors").enable_counts()
+    >>> db.table("authors").has_counts_triggers
     True
 
 .. _python_api_introspection_supports_strict:
@@ -2233,13 +2233,13 @@ You can enable full-text search on a table using ``.enable_fts(columns)``:
 
 .. code-block:: python
 
-    db["dogs"].enable_fts(["name", "twitter"])
+    db.table("dogs").enable_fts(["name", "twitter"])
 
 You can then run searches using the ``.search()`` method:
 
 .. code-block:: python
 
-    rows = list(db["dogs"].search("cleo"))
+    rows = list(db.table("dogs").search("cleo"))
 
 This method returns a generator that can be looped over to get dictionaries for each row, similar to :ref:`python_api_rows`.
 
@@ -2247,32 +2247,32 @@ If you insert additional records into the table you will need to refresh the sea
 
 .. code-block:: python
 
-    db["dogs"].insert({
+    db.table("dogs").insert({
         "id": 2,
         "name": "Marnie",
         "twitter": "MarnieTheDog",
         "age": 16,
         "is_good_dog": True,
     }, pk="id")
-    db["dogs"].populate_fts(["name", "twitter"])
+    db.table("dogs").populate_fts(["name", "twitter"])
 
 A better solution is to use database triggers. You can set up database triggers to automatically update the full-text index using ``create_triggers=True``:
 
 .. code-block:: python
 
-    db["dogs"].enable_fts(["name", "twitter"], create_triggers=True)
+    db.table("dogs").enable_fts(["name", "twitter"], create_triggers=True)
 
 ``.enable_fts()`` defaults to using `FTS5 <https://www.sqlite.org/fts5.html>`__. If you wish to use `FTS4 <https://www.sqlite.org/fts3.html>`__ instead, use the following:
 
 .. code-block:: python
 
-    db["dogs"].enable_fts(["name", "twitter"], fts_version="FTS4")
+    db.table("dogs").enable_fts(["name", "twitter"], fts_version="FTS4")
 
 You can customize the tokenizer configured for the table using the ``tokenize=`` parameter. For example, to enable Porter stemming, where English words like "running" will match stemmed alternatives such as "run", use ``tokenize="porter"``:
 
 .. code-block:: python
 
-    db["articles"].enable_fts(["headline", "body"], tokenize="porter")
+    db.table("articles").enable_fts(["headline", "body"], tokenize="porter")
 
 The SQLite documentation has more on `FTS5 tokenizers <https://www.sqlite.org/fts5.html#tokenizers>`__ and `FTS4 tokenizers <https://www.sqlite.org/fts3.html#tokenizer>`__. ``porter`` is a valid option for both.
 
@@ -2282,7 +2282,7 @@ You can replace the existing table with a new configuration using ``replace=True
 
 .. code-block:: python
 
-    db["articles"].enable_fts(["headline"], tokenize="porter", replace=True)
+    db.table("articles").enable_fts(["headline"], tokenize="porter", replace=True)
 
 This will have no effect if the FTS table already exists, otherwise it will drop and recreate the table with the new settings. This takes into consideration the columns, the tokenizer, the FTS version used and whether or not the table has triggers.
 
@@ -2290,7 +2290,7 @@ To remove the FTS tables and triggers you created, use the ``disable_fts()`` tab
 
 .. code-block:: python
 
-    db["dogs"].disable_fts()
+    db.table("dogs").disable_fts()
 
 .. _python_api_quote_fts:
 
@@ -2313,7 +2313,7 @@ The ``table.search(q)`` method returns a generator over Python dictionaries repr
 
 .. code-block:: python
 
-    for article in db["articles"].search("jquery"):
+    for article in db.table("articles").search("jquery"):
         print(article)
 
 The ``.search()`` method also accepts the following optional parameters:
@@ -2346,7 +2346,7 @@ To return just the title and published columns for three matches for ``"dog"`` w
 
 .. code-block:: python
 
-    for article in db["articles"].search(
+    for article in db.table("articles").search(
         "dog",
         order_by="published desc",
         limit=3,
@@ -2365,7 +2365,7 @@ You can generate the SQL query that would be used for a search using the ``table
 
 .. code-block:: python
 
-    print(db["articles"].search_sql(columns=["title", "author"]))
+    print(db.table("articles").search_sql(columns=["title", "author"]))
 
 Outputs:
 
@@ -2428,13 +2428,13 @@ You can rebuild a table using the ``table.rebuild_fts()`` method. This is useful
 
 .. code-block:: python
 
-    db["dogs"].rebuild_fts()
+    db.table("dogs").rebuild_fts()
 
 This method can be called on a table that has been configured for full-text search - ``dogs`` in this instance -  or directly on a ``_fts`` table:
 
 .. code-block:: python
 
-    db["dogs_fts"].rebuild_fts()
+    db.table("dogs_fts").rebuild_fts()
 
 This runs the following SQL::
 
@@ -2449,7 +2449,7 @@ Once you have populated a FTS table you can optimize it to dramatically reduce i
 
 .. code-block:: python
 
-    db["dogs"].optimize()
+    db.table("dogs").optimize()
 
 This runs the following SQL::
 
@@ -2466,7 +2466,7 @@ The ``table.enable_counts()`` method can be used to configure triggers to contin
 
 .. code-block:: python
 
-    db["dogs"].enable_counts()
+    db.table("dogs").enable_counts()
 
 This will create the ``_counts`` table if it does not already exist, with the following schema:
 
@@ -2526,7 +2526,7 @@ You can create an index on a table using the ``.create_index(columns)`` method. 
 
 .. code-block:: python
 
-    db["dogs"].create_index(["is_good_dog"])
+    db.table("dogs").create_index(["is_good_dog"])
 
 By default the index will be named ``idx_{table-name}_{columns}``. If you pass ``find_unique_name=True`` and the automatically derived name already exists, an available name will be found by incrementing a suffix number, for example ``idx_items_title_2``.
 
@@ -2534,7 +2534,7 @@ You can customize the name of the created index by passing the ``index_name`` pa
 
 .. code-block:: python
 
-    db["dogs"].create_index(
+    db.table("dogs").create_index(
         ["is_good_dog", "age"],
         index_name="good_dogs_by_age"
     )
@@ -2545,7 +2545,7 @@ To create an index in descending order for a column, wrap the column name in ``d
 
     from sqlite_utils.db import DescIndex
 
-    db["dogs"].create_index(
+    db.table("dogs").create_index(
         ["is_good_dog", DescIndex("age")],
         index_name="good_dogs_by_age"
     )
@@ -2554,7 +2554,7 @@ You can create a unique index by passing ``unique=True``:
 
 .. code-block:: python
 
-    db["dogs"].create_index(["name"], unique=True)
+    db.table("dogs").create_index(["name"], unique=True)
 
 Use ``if_not_exists=True`` to do nothing if an index with that name already exists.
 
@@ -2585,7 +2585,7 @@ To run against all indexes attached to a specific table, you can either pass the
 
 .. code-block:: python
 
-    db["dogs"].analyze()
+    db.table("dogs").analyze()
 
 .. _python_api_vacuum:
 
@@ -2636,7 +2636,7 @@ That table ``.create()`` method takes a dictionary mapping column names to the P
 
 .. code-block:: python
 
-    db["cats"].create({
+    db.table("cats").create({
         "id": int,
         "name": str,
         "weight": float,
@@ -2674,16 +2674,16 @@ For example:
 
     # Create the table
     db = Database("cats.db")
-    db["cats"].create(types, pk="id")
+    db.table("cats").create(types, pk="id")
     # Insert the records
-    db["cats"].insert_all(cats)
+    db.table("cats").insert_all(cats)
 
-    # list(db["cats"].rows) now returns:
+    # list(db.table("cats").rows) now returns:
     # [{"id": 1, "name": "Snowflake", "age": None, "thumbnail": None}
     #  {"id": 2, "name": "Crabtree", "age": 4, "thumbnail": None}]
 
     # The table schema looks like this:
-    # print(db["cats"].schema)
+    # print(db.table("cats").schema)
     # CREATE TABLE [cats] (
     #    [id] INTEGER PRIMARY KEY,
     #    [name] TEXT,
@@ -2849,7 +2849,7 @@ If we insert this data directly into a table we will get a schema that is entire
     from sqlite_utils import Database
 
     db = Database(memory=True)
-    db["creatures"].insert_all(rows)
+    db.table("creatures").insert_all(rows)
     print(db.schema)
     # Outputs:
     # CREATE TABLE [creatures] (
@@ -2864,7 +2864,7 @@ We can detect the best column types using a ``TypeTracker`` instance:
     from sqlite_utils.utils import TypeTracker
 
     tracker = TypeTracker()
-    db["creatures2"].insert_all(tracker.wrap(rows))
+    db.table("creatures2").insert_all(tracker.wrap(rows))
     print(tracker.types)
     # Outputs {'id': 'integer', 'name': 'text'}
 
@@ -2872,8 +2872,8 @@ We can then apply those types to our new table using the :ref:`table.transform()
 
 .. code-block:: python
 
-    db["creatures2"].transform(types=tracker.types)
-    print(db["creatures2"].schema)
+    db.table("creatures2").transform(types=tracker.types)
+    print(db.table("creatures2").schema)
     # Outputs:
     # CREATE TABLE [creatures2] (
     #    [id] INTEGER,
