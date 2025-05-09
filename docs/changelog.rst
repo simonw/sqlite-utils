@@ -7,7 +7,7 @@
 .. _v4_0a0:
 
 4.0a0 (2025-05-08)
------------------
+------------------
 
 - Upsert operations now use SQLite's ``INSERT ... ON CONFLICT SET`` syntax on all SQLite versions later than 3.23.1. This is a very slight breaking change for apps that depend on the previous ``INSERT OR IGNORE`` followed by ``UPDATE`` behavior. (:issue:`652`)
 - Python library users can opt-in to the previous implementation by passing ``use_old_upsert=True`` to the ``Database()`` constructor, see :ref:`python_api_old_upsert`.
