@@ -932,7 +932,7 @@ An ``upsert_all()`` method is also available, which behaves like ``insert_all()`
 Alternative upserts using INSERT OR IGNORE
 ------------------------------------------
 
-Upserts use ``INSERT INTO ... ON CONFLICT SET``. Prior to ``sqlite-utils 3.x`` (TODO: fill in version) these used a sequence of ``INSERT OR IGNORE`` followed by an ``UPDATE``. This older method is still used for SQLite 3.23.1 and earlier. You can force the older implementation by passing ``use_old_upsert=True`` to the ``Database()`` constructor.
+Upserts use ``INSERT INTO ... ON CONFLICT SET``. Prior to ``sqlite-utils 4.0`` these used a sequence of ``INSERT OR IGNORE`` followed by an ``UPDATE``. This older method is still used for SQLite 3.23.1 and earlier. You can force the older implementation by passing ``use_old_upsert=True`` to the ``Database()`` constructor.
 
 .. _python_api_convert:
 
