@@ -3010,19 +3010,26 @@ class Table(Queryable):
         extracts = resolve_extracts(extracts)
 
         # Build a row-list ready for executemany-style flattening
-        values: list[list] = []
-        for record in chunk:
-            row_vals = []
-            for col in all_columns:
-                if col == hash_id:
-                    row_vals.append(hash_record(record, hash_id_columns))
-                    continue
+        values: List[list] = []
 
-                val = record.get(col)
-                if val is None and not_null and col in not_null:
-                    val = ""
-                row_vals.append(jsonify_if_needed(val))
-            values.append(row_vals)
+        for record in chunk:
+            record_values = []
+            for key in all_columns:
+                value = jsonify_if_needed(
+                    record.get(
+                        key,
+                        (
+                            None
+                            if key != hash_id
+                            else hash_record(record, hash_id_columns)
+                        ),
+                    )
+                )
+                if key in extracts:
+                    extract_table = extracts[key]
+                    value = self.db[extract_table].lookup({"value": value})
+                record_values.append(value)
+            values.append(record_values)
 
         columns_sql = ", ".join(f"[{c}]" for c in all_columns)
         placeholder_expr = ", ".join(conversions.get(c, "?") for c in all_columns)
