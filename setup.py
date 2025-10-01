@@ -63,7 +63,7 @@ setup(
         "Issues": "https://github.com/simonw/sqlite-utils/issues",
         "CI": "https://github.com/simonw/sqlite-utils/actions",
     },
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
@@ -71,7 +71,6 @@ setup(
         "Intended Audience :: End Users/Desktop",
         "Topic :: Database",
         "License :: OSI Approved :: Apache Software License",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
