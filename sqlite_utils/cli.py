@@ -952,10 +952,14 @@ def insert_upsert_implementation(
     functions=None,
     strict=False,
 ):
+    convert = _value_or_none(convert)
+    delimiter = _value_or_none(delimiter)
+    quotechar = _value_or_none(quotechar)
+    encoding = _value_or_none(encoding)
+    bulk_sql = _value_or_none(bulk_sql)
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
-    if functions:
-        _register_functions(db, functions)
+    _maybe_register_functions(db, functions)
     if (delimiter or quotechar or sniff or no_headers) and not tsv:
         csv = True
     if (nl + csv + tsv) >= 2:
@@ -1790,8 +1794,7 @@ def query(
     _load_extensions(db, load_extension)
     db.register_fts4_bm25()
 
-    if functions:
-        _register_functions(db, functions)
+    _maybe_register_functions(db, functions)
 
     _execute_query(
         db,
@@ -1917,6 +1920,9 @@ def memory(
     \b
         sqlite-utils memory animals.csv --schema
     """
+    sql = _value_or_none(sql)
+    save = _value_or_none(save)
+    encoding = _value_or_none(encoding)
     db = sqlite_utils.Database(memory=True)
 
     # If --dump or --save or --analyze used but no paths detected, assume SQL query is a path:
@@ -1990,8 +1996,7 @@ def memory(
     _load_extensions(db, load_extension)
     db.register_fts4_bm25()
 
-    if functions:
-        _register_functions(db, functions)
+    _maybe_register_functions(db, functions)
 
     if return_db:
         return db
@@ -3286,3 +3291,17 @@ def _register_functions(db, functions):
     for name, value in globals.items():
         if callable(value) and not name.startswith("_"):
             db.register_function(value, name=name)
+
+
+def _value_or_none(value):
+    if getattr(value, "__class__", None).__name__ == "Sentinel":
+        return None
+    return value
+
+
+def _maybe_register_functions(db, functions):
+    functions = _value_or_none(functions)
+    if isinstance(functions, (bytes, bytearray)):
+        functions = functions.decode("utf-8")
+    if isinstance(functions, str) and functions.strip():
+        _register_functions(db, functions)
