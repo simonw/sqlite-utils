@@ -1479,7 +1479,7 @@ See :ref:`cli_spatialite`.
       paths. To load it from a specific path, use --load-extension.
 
     Options:
-      -t, --type [POINT|LINESTRING|POLYGON|MULTIPOINT|MULTILINESTRING|MULTIPOLYGON|GEOMETRYCOLLECTION|GEOMETRY]
+      -t, --type [point|linestring|polygon|multipoint|multilinestring|multipolygon|geometrycollection|geometry]
                                       Specify a geometry type for this column.
                                       [default: GEOMETRY]
       --srid INTEGER                  Spatial Reference ID. See
