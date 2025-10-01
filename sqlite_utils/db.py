@@ -368,7 +368,7 @@ class Database:
             pm.hook.prepare_connection(conn=self.conn)
         self.strict = strict
 
-    def close(self):
+    def close(self) -> None:
         "Close the SQLite connection, and the underlying database file"
         self.conn.close()
 
