@@ -20,7 +20,10 @@ setup(
     long_description_content_type="text/markdown",
     author="Simon Willison",
     version=VERSION,
-    license="Apache License, Version 2.0",
+    license="Apache-2.0",
+    license_files=[
+        "LICENSE",
+    ],
     packages=find_packages(exclude=["tests", "tests.*"]),
     package_data={"sqlite_utils": ["py.typed"]},
     install_requires=[
@@ -70,7 +73,6 @@ setup(
         "Intended Audience :: Science/Research",
         "Intended Audience :: End Users/Desktop",
         "Topic :: Database",
-        "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
