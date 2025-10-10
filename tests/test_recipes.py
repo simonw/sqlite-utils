@@ -64,6 +64,7 @@ def test_dayfirst_yearfirst(fresh_db, recipe, kwargs, expected):
 
 @pytest.mark.parametrize("fn", ("parsedate", "parsedatetime"))
 @pytest.mark.parametrize("errors", (None, recipes.SET_NULL, recipes.IGNORE))
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")
 def test_dateparse_errors(fresh_db, fn, errors):
     fresh_db["example"].insert_all(
         [
