@@ -348,7 +348,10 @@ class Database:
             self.conn = sqlite3.connect(":memory:")
             self.memory = True
         elif isinstance(filename_or_conn, (str, pathlib.Path)):
-            if recreate and os.path.exists(filename_or_conn):
+            filename_str = str(filename_or_conn)
+            # Check if this is a URI filename (starts with "file:")
+            is_uri = filename_str.startswith("file:")
+            if recreate and not is_uri and os.path.exists(filename_or_conn):
                 try:
                     os.remove(filename_or_conn)
                 except OSError:
@@ -356,7 +359,11 @@ class Database:
                     # https://github.com/simonw/sqlite-utils/issues/503
                     self.conn = sqlite3.connect(":memory:")
                     raise
-            self.conn = sqlite3.connect(str(filename_or_conn))
+            if is_uri:
+                # URI filenames need uri=True parameter
+                self.conn = sqlite3.connect(filename_str, uri=True)
+            else:
+                self.conn = sqlite3.connect(filename_str)
         else:
             assert not recreate, "recreate cannot be used with connections, only paths"
             self.conn = filename_or_conn

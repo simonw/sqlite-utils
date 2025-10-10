@@ -93,6 +93,16 @@ Instead of a file path you can pass in an existing SQLite connection:
 
     db = Database(sqlite3.connect("my_database.db"))
 
+You can also use `SQLite URI filenames <https://www.sqlite.org/uri.html>`__ to open databases with special parameters:
+
+.. code-block:: python
+
+    # Open database in read-only mode
+    db = Database("file:data.db?mode=ro")
+
+    # Open as read-only and immutable
+    db = Database("file:data.db?mode=ro&immutable=1")
+
 If you want to create an in-memory database, you can do so like this:
 
 .. code-block:: python

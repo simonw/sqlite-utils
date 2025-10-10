@@ -55,6 +55,37 @@ It's often worth trying: --encoding=latin-1
 maximize_csv_field_size_limit()
 
 
+class DatabasePath(click.Path):
+    """
+    Custom Click parameter type for database paths that supports SQLite URI filenames.
+
+    URIs (starting with 'file:') skip file existence validation and are passed
+    directly to sqlite3.connect() with uri=True.
+
+    See: https://www.sqlite.org/uri.html
+    """
+    def __init__(self, exists=False, **kwargs):
+        # Store original exists parameter for URI detection
+        self._check_exists = exists
+        # Always pass exists=False to parent to skip validation
+        # We'll do our own validation for non-URI paths
+        super().__init__(exists=False, **kwargs)
+
+    def convert(self, value, param, ctx):
+        # If it's a URI (starts with "file:"), skip existence check
+        if isinstance(value, str) and value.startswith("file:"):
+            return value
+
+        # For non-URI paths, do normal path validation
+        if self._check_exists:
+            # Create a temporary Path validator with exists=True
+            validator = click.Path(exists=True, file_okay=self.file_okay,
+                                  dir_okay=self.dir_okay, allow_dash=self.allow_dash)
+            return validator.convert(value, param, ctx)
+
+        return super().convert(value, param, ctx)
+
+
 class CaseInsensitiveChoice(click.Choice):
     def __init__(self, choices):
         super().__init__([choice.lower() for choice in choices])
@@ -125,7 +156,7 @@ def cli():
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.option(
@@ -223,7 +254,7 @@ def tables(
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.option(
@@ -288,7 +319,7 @@ def views(
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("tables", nargs=-1)
@@ -316,7 +347,7 @@ def optimize(path, tables, no_vacuum, load_extension):
 @cli.command(name="rebuild-fts")
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("tables", nargs=-1)
@@ -341,7 +372,7 @@ def rebuild_fts(path, tables, load_extension):
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("names", nargs=-1)
@@ -367,7 +398,7 @@ def analyze(path, names):
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 def vacuum(path):
@@ -384,7 +415,7 @@ def vacuum(path):
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @load_extension_option
@@ -405,7 +436,7 @@ def dump(path, load_extension):
 @cli.command(name="add-column")
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -471,7 +502,7 @@ def add_column(
 @cli.command(name="add-foreign-key")
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -505,7 +536,7 @@ def add_foreign_key(
 @cli.command(name="add-foreign-keys")
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("foreign_key", nargs=-1)
@@ -539,7 +570,7 @@ def add_foreign_keys(path, foreign_key, load_extension):
 @cli.command(name="index-foreign-keys")
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @load_extension_option
@@ -560,7 +591,7 @@ def index_foreign_keys(path, load_extension):
 @cli.command(name="create-index")
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -616,7 +647,7 @@ def create_index(
 @cli.command(name="enable-fts")
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -670,7 +701,7 @@ def enable_fts(
 @cli.command(name="populate-fts")
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -692,7 +723,7 @@ def populate_fts(path, table, column, load_extension):
 @cli.command(name="disable-fts")
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -714,7 +745,7 @@ def disable_fts(path, table, load_extension):
 @click.argument(
     "path",
     nargs=-1,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @load_extension_option
@@ -736,7 +767,7 @@ def enable_wal(path, load_extension):
 @click.argument(
     "path",
     nargs=-1,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @load_extension_option
@@ -757,7 +788,7 @@ def disable_wal(path, load_extension):
 @cli.command(name="enable-counts")
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("tables", nargs=-1)
@@ -786,7 +817,7 @@ def enable_counts(path, tables, load_extension):
 @cli.command(name="reset-counts")
 @click.argument(
     "path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @load_extension_option
@@ -854,7 +885,7 @@ def insert_upsert_options(*, require_pk=False):
             (
                 click.argument(
                     "path",
-                    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+                    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
                     required=True,
                 ),
                 click.argument("table"),
@@ -1362,7 +1393,7 @@ def upsert(
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("sql")
@@ -1447,7 +1478,7 @@ def bulk(
 @cli.command(name="create-database")
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.option(
@@ -1483,7 +1514,7 @@ def create_database(path, enable_wal, init_spatialite, load_extension):
 @cli.command(name="create-table")
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -1594,7 +1625,7 @@ def create_table(
 @cli.command(name="duplicate")
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -1617,7 +1648,7 @@ def duplicate(path, table, new_table, ignore, load_extension):
 @cli.command(name="rename-table")
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -1642,7 +1673,7 @@ def rename_table(path, table, new_name, ignore, load_extension):
 @cli.command(name="drop-table")
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -1667,7 +1698,7 @@ def drop_table(path, table, ignore, load_extension):
 @cli.command(name="create-view")
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("view")
@@ -1712,7 +1743,7 @@ def create_view(path, view, select, ignore, replace, load_extension):
 @cli.command(name="drop-view")
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("view")
@@ -1737,13 +1768,13 @@ def drop_view(path, view, ignore, load_extension):
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("sql")
 @click.option(
     "--attach",
-    type=(str, click.Path(file_okay=True, dir_okay=False, allow_dash=False)),
+    type=(str, DatabasePath(file_okay=True, dir_okay=False, allow_dash=False)),
     multiple=True,
     help="Additional databases to attach - specify alias and filepath",
 )
@@ -1826,7 +1857,7 @@ def query(
 )
 @click.option(
     "--attach",
-    type=(str, click.Path(file_okay=True, dir_okay=False, allow_dash=False)),
+    type=(str, DatabasePath(file_okay=True, dir_okay=False, allow_dash=False)),
     multiple=True,
     help="Additional databases to attach - specify alias and filepath",
 )
@@ -1859,7 +1890,7 @@ def query(
 @click.option("--dump", is_flag=True, help="Dump SQL for in-memory database")
 @click.option(
     "--save",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     help="Save in-memory database to this file",
 )
 @click.option(
@@ -2077,7 +2108,7 @@ def _execute_query(
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("dbtable")
@@ -2174,7 +2205,7 @@ def search(
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("dbtable")
@@ -2260,7 +2291,7 @@ def rows(
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("tables", nargs=-1)
@@ -2313,7 +2344,7 @@ def triggers(
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("tables", nargs=-1)
@@ -2380,7 +2411,7 @@ def indexes(
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("tables", nargs=-1, required=False)
@@ -2409,7 +2440,7 @@ def schema(
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -2538,7 +2569,7 @@ def transform(
 @cli.command()
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -2584,7 +2615,7 @@ def extract(
 @cli.command(name="insert-files")
 @click.argument(
     "path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table")
@@ -2921,7 +2952,7 @@ def _generate_convert_help():
 @cli.command(help=_generate_convert_help())
 @click.argument(
     "db_path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table", type=str)
@@ -3060,7 +3091,7 @@ def convert(
 @cli.command("add-geometry-column")
 @click.argument(
     "db_path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table", type=str)
@@ -3136,7 +3167,7 @@ def add_geometry_column(
 @cli.command("create-spatial-index")
 @click.argument(
     "db_path",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=DatabasePath(file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
 @click.argument("table", type=str)
