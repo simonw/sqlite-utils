@@ -11,6 +11,41 @@ Once :ref:`installed <installation>` the tool should be available as ``sqlite-ut
 .. contents:: :local:
    :class: this-will-duplicate-information-and-it-is-still-useful-here
 
+.. _cli_uri_filenames:
+
+URI filenames
+=============
+
+``sqlite-utils`` supports `SQLite URI filenames <https://www.sqlite.org/uri.html>`__, which allow you to open databases with special parameters.
+
+A URI filename starts with ``file:`` and can include query parameters to control database behavior:
+
+.. code-block:: bash
+
+    sqlite-utils tables 'file:data.db?mode=ro'
+
+Common URI parameters include:
+
+- ``mode=ro`` - Open database read-only
+- ``mode=rw`` - Open read-write (default)
+- ``mode=rwc`` - Open read-write and create if it doesn't exist
+- ``mode=memory`` - Open as an in-memory database
+- ``immutable=1`` - Open as immutable (SQLite will not try to modify the file)
+
+Example opening a database as read-only and immutable:
+
+.. code-block:: bash
+
+    sqlite-utils query 'file:data.db?mode=ro&immutable=1' "select * from items"
+
+This is particularly useful for:
+
+- Safely querying databases without risk of modification
+- Opening databases on read-only filesystems
+- Sharing databases between multiple processes with ``immutable=1``
+
+URI filenames work with all ``sqlite-utils`` commands that accept database paths.
+
 .. _cli_query:
 
 Running SQL queries
@@ -504,7 +539,7 @@ By default, ``sqlite-utils memory`` will attempt to detect the incoming data for
 You can instead specify an explicit format by adding a ``:csv``, ``:tsv``, ``:json`` or ``:nl`` (for newline-delimited JSON) suffix to the filename. For example:
 
 .. code-block:: bash
-    
+
     sqlite-utils memory one.dat:csv two.dat:nl \
       "select * from one union select * from two"
 
@@ -1153,7 +1188,7 @@ You can also pipe ``sqlite-utils`` together to create a new SQLite database file
     sqlite-utils sf-trees.db \
         "select TreeID, qAddress, Latitude, Longitude from Street_Tree_List" --nl \
       | sqlite-utils insert saved.db trees - --nl
-    
+
 .. code-block:: bash
 
     sqlite-utils saved.db "select * from trees limit 5" --csv
@@ -2729,7 +2764,7 @@ You can convert an existing table to a geographic table by adding a geometry col
 
 The table (``locations`` in the example above) must already exist before adding a geometry column. Use ``sqlite-utils create-table`` first, then ``add-geometry-column``.
 
-Use the ``--type`` option to specify a geometry type. By default, ``add-geometry-column`` uses a generic ``GEOMETRY``, which will work with any type, though it may not be supported by some desktop GIS applications. 
+Use the ``--type`` option to specify a geometry type. By default, ``add-geometry-column`` uses a generic ``GEOMETRY``, which will work with any type, though it may not be supported by some desktop GIS applications.
 
 Eight (case-insensitive) types are allowed:
 
