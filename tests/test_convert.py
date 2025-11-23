@@ -50,12 +50,13 @@ def test_convert_where(fresh_db, where, where_args):
     assert list(table.rows) == [{"id": 1, "title": "One"}, {"id": 2, "title": "TWO"}]
 
 
-def test_convert_skip_false(fresh_db):
+def test_convert_handles_falsey_values(fresh_db):
+    # Falsey values like 0 should be converted (issue #527)
     table = fresh_db["table"]
     table.insert_all([{"x": 0}, {"x": 1}])
     assert table.get(1)["x"] == 0
     assert table.get(2)["x"] == 1
-    table.convert("x", lambda x: x + 1, skip_false=False)
+    table.convert("x", lambda x: x + 1)
     assert table.get(1)["x"] == 1
     assert table.get(2)["x"] == 2
 

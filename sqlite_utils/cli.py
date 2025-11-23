@@ -2952,7 +2952,6 @@ def _generate_convert_help():
     type=click.Choice(["integer", "float", "blob", "text"]),
 )
 @click.option("--drop", is_flag=True, help="Drop original column afterwards")
-@click.option("--no-skip-false", is_flag=True, help="Don't skip falsey values")
 @click.option("-s", "--silent", is_flag=True, help="Don't show a progress bar")
 @click.option("pdb_", "--pdb", is_flag=True, help="Open pdb debugger on first error")
 def convert(
@@ -2968,7 +2967,6 @@ def convert(
     output,
     output_type,
     drop,
-    no_skip_false,
     silent,
     pdb_,
 ):
@@ -3045,7 +3043,6 @@ def convert(
                 output=output,
                 output_type=output_type,
                 drop=drop,
-                skip_false=not no_skip_false,
                 multi=multi,
                 show_progress=not silent,
             )

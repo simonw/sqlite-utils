@@ -80,7 +80,7 @@ def test_convert_import(test_db_and_path):
             db_path,
             "example",
             "dt",
-            "return re.sub('O..', 'OXX', value)",
+            "return re.sub('O..', 'OXX', value) if value else value",
             "--import",
             "re",
         ],
@@ -223,7 +223,7 @@ def test_convert_output_column(test_db_and_path, drop):
         db_path,
         "example",
         "dt",
-        "value.replace('October', 'Spooktober')",
+        "value.replace('October', 'Spooktober') if value else value",
         "--output",
         "newcol",
     ]
@@ -628,14 +628,8 @@ def test_convert_initialization_pattern(fresh_db_and_path):
     ]
 
 
-@pytest.mark.parametrize(
-    "no_skip_false,expected",
-    (
-        (True, 1),
-        (False, 0),
-    ),
-)
-def test_convert_no_skip_false(fresh_db_and_path, no_skip_false, expected):
+def test_convert_handles_falsey_values(fresh_db_and_path):
+    # Falsey values like 0 should be converted (issue #527)
     db, db_path = fresh_db_and_path
     args = [
         "convert",
@@ -644,12 +638,10 @@ def test_convert_no_skip_false(fresh_db_and_path, no_skip_false, expected):
         "x",
         "-",
     ]
-    if no_skip_false:
-        args.append("--no-skip-false")
     db["t"].insert_all([{"x": 0}, {"x": 1}])
     assert db["t"].get(1)["x"] == 0
     assert db["t"].get(2)["x"] == 1
     result = CliRunner().invoke(cli.cli, args, input="value + 1")
     assert result.exit_code == 0, result.output
-    assert db["t"].get(1)["x"] == expected
+    assert db["t"].get(1)["x"] == 1
     assert db["t"].get(2)["x"] == 2

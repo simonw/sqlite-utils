@@ -653,7 +653,6 @@ See :ref:`cli_convert`.
       --output-type [integer|float|blob|text]
                                       Column type to use for the output column
       --drop                          Drop original column afterwards
-      --no-skip-false                 Don't skip falsey values
       -s, --silent                    Don't show a progress bar
       --pdb                           Open pdb debugger on first error
       -h, --help                      Show this message and exit.
