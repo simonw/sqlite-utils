@@ -17,13 +17,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - uses: actions/cache@v4
-      name: Configure pip caching
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+        cache: pip
     - name: Install dependencies
       run: |
         pip install -e '.[test]'
@@ -39,13 +33,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.13'
-    - uses: actions/cache@v4
-      name: Configure pip caching
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-publish-pip-${{ hashFiles('**/setup.py') }}
-        restore-keys: |
-          ${{ runner.os }}-publish-pip-
+        cache: pip
     - name: Install dependencies
       run: |
         pip install setuptools wheel twine

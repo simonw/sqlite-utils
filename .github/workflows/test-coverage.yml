@@ -17,13 +17,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: "3.11"
-    - uses: actions/cache@v4
-      name: Configure pip caching
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+        cache: pip
     - name: Install SpatiaLite
       run: sudo apt-get install libsqlite3-mod-spatialite
     - name: Install Python dependencies
