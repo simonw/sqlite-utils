@@ -144,7 +144,7 @@ We increment ``minor`` for new features.
 
 We increment ``patch`` for bugfix releass.
 
-To release a new version, first create a commit that updates the version number in ``setup.py`` and the :ref:`the changelog <changelog>` with highlights of the new version. An example `commit can be seen here <https://github.com/simonw/sqlite-utils/commit/b491f22d817836829965516983a3f4c3c72c05fc>`__::
+To release a new version, first create a commit that updates the version number in ``pyproject.toml`` and the :ref:`the changelog <changelog>` with highlights of the new version. An example `commit can be seen here <https://github.com/simonw/sqlite-utils/commit/b491f22d817836829965516983a3f4c3c72c05fc>`__::
 
     # Update changelog
     git commit -m " Release 3.29

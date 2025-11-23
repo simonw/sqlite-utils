@@ -1,0 +1,81 @@
+[project]
+name = "sqlite-utils"
+version = "4.0a0"
+description = "CLI tool and Python library for manipulating SQLite databases"
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [
+    { name = "Simon Willison" },
+]
+license = "Apache-2.0"
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Database",
+]
+
+dependencies = [
+    "click",
+    "click-default-group>=1.2.3",
+    "pluggy",
+    "python-dateutil",
+    "sqlite-fts4",
+    "tabulate",
+]
+
+[project.urls]
+Homepage = "https://github.com/simonw/sqlite-utils"
+Documentation = "https://sqlite-utils.datasette.io/en/stable/"
+Changelog = "https://sqlite-utils.datasette.io/en/stable/changelog.html"
+Issues = "https://github.com/simonw/sqlite-utils/issues"
+CI = "https://github.com/simonw/sqlite-utils/actions"
+
+[project.scripts]
+sqlite-utils = "sqlite_utils.cli:cli"
+
+[project.optional-dependencies]
+test = [
+    "black>=24.1.1",
+    "cogapp",
+    "hypothesis",
+    "pytest",
+]
+docs = [
+    "beanbag-docutils>=2.0",
+    "codespell",
+    "furo",
+    "pygments-csv-lexer",
+    "sphinx-autobuild",
+    "sphinx-copybutton",
+]
+mypy = [
+    "data-science-types",
+    "mypy",
+    "types-click",
+    "types-pluggy",
+    "types-python-dateutil",
+    "types-tabulate",
+]
+flake8 = [
+    "flake8",
+    "flake8-pyproject",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.flake8]
+max-line-length = 160
+# Black compatibility, E203 whitespace before ':':
+extend-ignore = ["E203"]
+
+[tool.setuptools.package-data]
+sqlite_utils = ["py.typed"]

@@ -21,7 +21,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
         cache: pip
-        cache-dependency-path: setup.py
+        cache-dependency-path: pyproject.toml
     - name: Install dependencies
       run: |
         pip install -e '.[test,mypy,flake8]'
