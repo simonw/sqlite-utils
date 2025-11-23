@@ -4,6 +4,13 @@
  Changelog
 ===========
 
+.. _unreleased:
+
+Unreleased
+----------
+
+- The ``table.insert_all()`` and ``table.upsert_all()`` methods can now accept an iterator of lists or tuples as an alternative to dictionaries. The first item should be a list/tuple of column names. See :ref:`python_api_insert_lists` for details. (:issue:`672`)
+
 .. _v4_0a0:
 
 4.0a0 (2025-05-08)

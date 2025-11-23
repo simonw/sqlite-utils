@@ -62,27 +62,37 @@ def test_dayfirst_yearfirst(fresh_db, recipe, kwargs, expected):
     ]
 
 
-@pytest.mark.parametrize("fn", ("parsedate", "parsedatetime"))
-@pytest.mark.parametrize("errors", (None, recipes.SET_NULL, recipes.IGNORE))
 @pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")
-def test_dateparse_errors(fresh_db, fn, errors):
+@pytest.mark.parametrize("fn", ("parsedate", "parsedatetime"))
+def test_dateparse_errors_raises(fresh_db, fn):
+    """Test that invalid dates raise errors when errors=None"""
     fresh_db["example"].insert_all(
         [
             {"id": 1, "dt": "invalid"},
         ],
         pk="id",
     )
-    if errors is None:
-        # Should raise an error
-        with pytest.raises(sqlite3.OperationalError):
-            fresh_db["example"].convert("dt", lambda value: getattr(recipes, fn)(value))
-    else:
-        fresh_db["example"].convert(
-            "dt", lambda value: getattr(recipes, fn)(value, errors=errors)
-        )
-        rows = list(fresh_db["example"].rows)
-        expected = [{"id": 1, "dt": None if errors is recipes.SET_NULL else "invalid"}]
-        assert rows == expected
+    # Exception in SQLite callback surfaces as OperationalError
+    with pytest.raises(sqlite3.OperationalError):
+        fresh_db["example"].convert("dt", lambda value: getattr(recipes, fn)(value))
+
+
+@pytest.mark.parametrize("fn", ("parsedate", "parsedatetime"))
+@pytest.mark.parametrize("errors", (recipes.SET_NULL, recipes.IGNORE))
+def test_dateparse_errors_handled(fresh_db, fn, errors):
+    """Test error handling modes for invalid dates"""
+    fresh_db["example"].insert_all(
+        [
+            {"id": 1, "dt": "invalid"},
+        ],
+        pk="id",
+    )
+    fresh_db["example"].convert(
+        "dt", lambda value: getattr(recipes, fn)(value, errors=errors)
+    )
+    rows = list(fresh_db["example"].rows)
+    expected = [{"id": 1, "dt": None if errors is recipes.SET_NULL else "invalid"}]
+    assert rows == expected
 
 
 @pytest.mark.parametrize("delimiter", [None, ";", "-"])
