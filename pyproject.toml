@@ -65,6 +65,7 @@ mypy = [
 ]
 flake8 = [
     "flake8",
+    "flake8-pyproject",
 ]
 
 [build-system]
