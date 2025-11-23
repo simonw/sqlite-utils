@@ -31,6 +31,7 @@ from typing import (
     Dict,
     Generator,
     Iterable,
+    Sequence,
     Union,
     Optional,
     List,
@@ -3321,7 +3322,10 @@ class Table(Queryable):
 
     def insert_all(
         self,
-        records,
+        records: Union[
+            Iterable[Dict[str, Any]],
+            Iterable[Sequence[Any]],
+        ],
         pk=DEFAULT,
         foreign_keys=DEFAULT,
         column_order=DEFAULT,
@@ -3576,7 +3580,10 @@ class Table(Queryable):
 
     def upsert_all(
         self,
-        records,
+        records: Union[
+            Iterable[Dict[str, Any]],
+            Iterable[Sequence[Any]],
+        ],
         pk=DEFAULT,
         foreign_keys=DEFAULT,
         column_order=DEFAULT,
