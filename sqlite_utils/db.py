@@ -1703,19 +1703,19 @@ class Table(Queryable):
     def create(
         self,
         columns: Dict[str, Any],
-        pk: Optional[Any] = None,
-        foreign_keys: Optional[ForeignKeysType] = None,
-        column_order: Optional[List[str]] = None,
-        not_null: Optional[Iterable[str]] = None,
-        defaults: Optional[Dict[str, Any]] = None,
-        hash_id: Optional[str] = None,
-        hash_id_columns: Optional[Iterable[str]] = None,
-        extracts: Optional[Union[Dict[str, str], List[str]]] = None,
+        pk: Optional[Any] = DEFAULT,
+        foreign_keys: Optional[ForeignKeysType] = DEFAULT,
+        column_order: Optional[List[str]] = DEFAULT,
+        not_null: Optional[Iterable[str]] = DEFAULT,
+        defaults: Optional[Dict[str, Any]] = DEFAULT,
+        hash_id: Optional[str] = DEFAULT,
+        hash_id_columns: Optional[Iterable[str]] = DEFAULT,
+        extracts: Optional[Union[Dict[str, str], List[str]]] = DEFAULT,
         if_not_exists: bool = False,
         replace: bool = False,
         ignore: bool = False,
         transform: bool = False,
-        strict: bool = False,
+        strict: bool = DEFAULT,
     ) -> "Table":
         """
         Create a table with the specified columns.
@@ -1737,6 +1737,38 @@ class Table(Queryable):
         :param transform: If table already exists transform it to fit the specified schema
         :param strict: Apply STRICT mode to table
         """
+        # Resolve defaults from _defaults (issue #655)
+        pk = self.value_or_default("pk", pk)
+        foreign_keys = self.value_or_default("foreign_keys", foreign_keys)
+        column_order = self.value_or_default("column_order", column_order)
+        not_null = self.value_or_default("not_null", not_null)
+        defaults = self.value_or_default("defaults", defaults)
+        hash_id = self.value_or_default("hash_id", hash_id)
+        hash_id_columns = self.value_or_default("hash_id_columns", hash_id_columns)
+        extracts = self.value_or_default("extracts", extracts)
+        strict = self.value_or_default("strict", strict)
+
+        # Store configuration in _defaults for subsequent operations (issue #655)
+        # Don't store pk if hash_id is set, since pk is derived from hash_id in that case
+        if pk is not None and hash_id is None:
+            self._defaults["pk"] = pk
+        if foreign_keys is not None:
+            self._defaults["foreign_keys"] = foreign_keys
+        if column_order is not None:
+            self._defaults["column_order"] = column_order
+        if not_null is not None:
+            self._defaults["not_null"] = not_null
+        if defaults is not None:
+            self._defaults["defaults"] = defaults
+        if hash_id is not None:
+            self._defaults["hash_id"] = hash_id
+        if hash_id_columns is not None:
+            self._defaults["hash_id_columns"] = hash_id_columns
+        if extracts is not None:
+            self._defaults["extracts"] = extracts
+        if strict:
+            self._defaults["strict"] = strict
+
         columns = {name: value for (name, value) in columns.items()}
         with self.db.conn:
             self.db.create_table(

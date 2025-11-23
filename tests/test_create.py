@@ -1380,3 +1380,101 @@ def test_bad_table_and_view_exceptions(fresh_db):
     with pytest.raises(NoView) as ex2:
         fresh_db.view("t")
     assert ex2.value.args[0] == "View t does not exist"
+
+
+# Tests for issue #655: Table configuration should be stored in _defaults
+# after table creation, so subsequent operations use the same settings.
+
+
+def test_pk_persists_after_insert_655(fresh_db):
+    """When pk is passed to insert(), subsequent inserts should use it."""
+    table = fresh_db["users"]
+    table.insert({"id": 1, "name": "Alice"}, pk="id")
+    # Second insert should use pk="id" from _defaults
+    table.insert({"id": 2, "name": "Bob"})
+    assert table.pks == ["id"]
+    # Verify both rows exist (not overwritten due to missing pk)
+    assert table.count == 2
+
+
+def test_pk_persists_after_insert_all_655(fresh_db):
+    """When pk is passed to insert_all(), subsequent inserts should use it."""
+    table = fresh_db["users"]
+    table.insert_all([{"id": 1, "name": "Alice"}], pk="id")
+    # Second insert_all should use pk="id" from _defaults
+    table.insert_all([{"id": 2, "name": "Bob"}])
+    assert table.pks == ["id"]
+    assert table.count == 2
+
+
+def test_pk_persists_after_create_655(fresh_db):
+    """When pk is passed to create(), it should be stored in _defaults."""
+    table = fresh_db["users"]
+    table.create({"id": int, "name": str}, pk="id")
+    assert table._defaults["pk"] == "id"
+    # Subsequent insert should use the pk
+    table.insert({"id": 1, "name": "Alice"})
+    table.insert({"id": 2, "name": "Bob"})
+    assert table.count == 2
+
+
+def test_foreign_keys_persist_after_create_655(fresh_db):
+    """When foreign_keys is passed to create(), it should be stored in _defaults."""
+    fresh_db["authors"].insert({"id": 1, "name": "Alice"}, pk="id")
+    table = fresh_db["books"]
+    table.create(
+        {"id": int, "title": str, "author_id": int},
+        pk="id",
+        foreign_keys=[("author_id", "authors", "id")],
+    )
+    assert table._defaults["pk"] == "id"
+    assert table._defaults["foreign_keys"] == [("author_id", "authors", "id")]
+
+
+def test_not_null_persists_after_create_655(fresh_db):
+    """When not_null is passed to create(), it should be stored in _defaults."""
+    table = fresh_db["users"]
+    table.create({"id": int, "name": str}, pk="id", not_null=["name"])
+    assert table._defaults["not_null"] == ["name"]
+
+
+def test_defaults_persist_after_create_655(fresh_db):
+    """When defaults is passed to create(), it should be stored in _defaults."""
+    table = fresh_db["users"]
+    table.create({"id": int, "score": int}, pk="id", defaults={"score": 0})
+    assert table._defaults["defaults"] == {"score": 0}
+
+
+def test_strict_persists_after_create_655(fresh_db):
+    """When strict is passed to create(), it should be stored in _defaults."""
+    table = fresh_db["users"]
+    table.create({"id": int, "name": str}, pk="id", strict=True)
+    assert table._defaults["strict"] == True
+
+
+def test_upsert_uses_pk_from_prior_insert_655(fresh_db):
+    """After insert with pk, upsert should use the same pk."""
+    table = fresh_db["users"]
+    table.insert({"id": 1, "name": "Alice"}, pk="id")
+    # Upsert should work without specifying pk again
+    table.upsert({"id": 1, "name": "Alice Updated"})
+    assert table.count == 1
+    assert list(table.rows)[0]["name"] == "Alice Updated"
+
+
+def test_upsert_all_uses_pk_from_prior_insert_655(fresh_db):
+    """After insert with pk, upsert_all should use the same pk."""
+    table = fresh_db["users"]
+    table.insert({"id": 1, "name": "Alice"}, pk="id")
+    # Upsert_all should work without specifying pk again
+    table.upsert_all([{"id": 1, "name": "Alice Updated"}, {"id": 2, "name": "Bob"}])
+    assert table.count == 2
+    rows = {row["id"]: row["name"] for row in table.rows}
+    assert rows == {1: "Alice Updated", 2: "Bob"}
+
+
+def test_chained_create_sets_pks(fresh_db):
+    table = fresh_db.table("dogs3", pk="id").create(
+        {"id": int, "name": str, "color": str}
+    )
+    assert table.pks == ["id"]
