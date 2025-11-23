@@ -3388,7 +3388,7 @@ class Table(Queryable):
 
         # Detect if we're using list-based iteration or dict-based iteration
         list_mode = False
-        column_names = None
+        column_names: List[str] = []
 
         # Fix up any records with square braces in the column names (only for dict mode)
         # We'll handle this differently for list mode
@@ -3423,11 +3423,14 @@ class Table(Queryable):
         else:
             # Dict mode: traditional behavior
             records_iter = itertools.chain([first_record], records_iter)
-            records_iter = fix_square_braces(records_iter)
+            records_iter = fix_square_braces(
+                cast(Iterable[Dict[str, Any]], records_iter)
+            )
             try:
                 first_record = next(records_iter)
             except StopIteration:
                 return self
+            first_record = cast(Dict[str, Any], first_record)
             num_columns = len(first_record.keys())
 
         assert (
@@ -3526,13 +3529,16 @@ class Table(Queryable):
                     self.last_pk = self.last_rowid
             else:
                 # For an upsert use first_record from earlier
+                # Note: This code path assumes dict mode; list mode upserts
+                # with single records don't populate last_pk correctly yet
+                first_record_dict = cast(Dict[str, Any], first_record)
                 if hash_id:
-                    self.last_pk = hash_record(first_record, hash_id_columns)
+                    self.last_pk = hash_record(first_record_dict, hash_id_columns)
                 else:
                     self.last_pk = (
-                        first_record[pk]
+                        first_record_dict[pk]
                         if isinstance(pk, str)
-                        else tuple(first_record[p] for p in pk)
+                        else tuple(first_record_dict[p] for p in pk)
                     )
 
         if analyze:
