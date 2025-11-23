@@ -3529,17 +3529,29 @@ class Table(Queryable):
                     self.last_pk = self.last_rowid
             else:
                 # For an upsert use first_record from earlier
-                # Note: This code path assumes dict mode; list mode upserts
-                # with single records don't populate last_pk correctly yet
-                first_record_dict = cast(Dict[str, Any], first_record)
-                if hash_id:
-                    self.last_pk = hash_record(first_record_dict, hash_id_columns)
+                if list_mode:
+                    # In list mode, look up pk value by column index
+                    first_record_list = cast(Sequence[Any], first_record)
+                    if hash_id:
+                        # hash_id not supported in list mode for last_pk
+                        pass
+                    elif isinstance(pk, str):
+                        pk_index = column_names.index(pk)
+                        self.last_pk = first_record_list[pk_index]
+                    else:
+                        self.last_pk = tuple(
+                            first_record_list[column_names.index(p)] for p in pk
+                        )
                 else:
-                    self.last_pk = (
-                        first_record_dict[pk]
-                        if isinstance(pk, str)
-                        else tuple(first_record_dict[p] for p in pk)
-                    )
+                    first_record_dict = cast(Dict[str, Any], first_record)
+                    if hash_id:
+                        self.last_pk = hash_record(first_record_dict, hash_id_columns)
+                    else:
+                        self.last_pk = (
+                            first_record_dict[pk]
+                            if isinstance(pk, str)
+                            else tuple(first_record_dict[p] for p in pk)
+                        )
 
         if analyze:
             self.analyze()

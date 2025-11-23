@@ -263,3 +263,26 @@ def test_tuple_mode_shorter_rows():
     assert rows[0] == {"id": 1, "name": "Alice", "age": 30, "city": "NYC"}
     assert rows[1] == {"id": 2, "name": "Bob", "age": None, "city": None}
     assert rows[2] == {"id": 3, "name": "Charlie", "age": 35, "city": None}
+
+
+def test_list_mode_single_record_upsert_last_pk():
+    """Test that last_pk is populated correctly for single-record upserts in list mode"""
+    db = Database(memory=True)
+
+    # Create table first
+    db["data"].insert({"id": 1, "name": "Alice", "value": 100}, pk="id")
+
+    # Now upsert a single record using list mode
+    def upsert_data():
+        yield ["id", "name", "value"]
+        yield [1, "Alice", 150]  # Update existing
+
+    table = db["data"]
+    table.upsert_all(upsert_data(), pk="id")
+
+    # Verify the data was updated
+    rows = list(db["data"].rows)
+    assert rows == [{"id": 1, "name": "Alice", "value": 150}]
+
+    # Verify last_pk is populated correctly
+    assert table.last_pk == 1
