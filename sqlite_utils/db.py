@@ -3027,17 +3027,20 @@ class Table(Queryable):
 
         if list_mode:
             # In list mode, records are already lists of values
+            num_columns = len(all_columns)
+            has_extracts = bool(extracts)
             for record in chunk:
-                record_values = []
-                for i, key in enumerate(all_columns):
-                    if i < len(record):
-                        value = jsonify_if_needed(record[i])
-                    else:
-                        value = None
-                    if key in extracts:
-                        extract_table = extracts[key]
-                        value = self.db[extract_table].lookup({"value": value})
-                    record_values.append(value)
+                # Pad short records with None, truncate long ones
+                record_len = len(record)
+                if record_len < num_columns:
+                    record_values = [jsonify_if_needed(v) for v in record] + [None] * (num_columns - record_len)
+                else:
+                    record_values = [jsonify_if_needed(v) for v in record[:num_columns]]
+                # Only process extracts if there are any
+                if has_extracts:
+                    for i, key in enumerate(all_columns):
+                        if key in extracts:
+                            record_values[i] = self.db[extracts[key]].lookup({"value": record_values[i]})
                 values.append(record_values)
         else:
             # Dict mode: original logic
