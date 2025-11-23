@@ -810,6 +810,35 @@ You can delete all the existing rows in the table before inserting the new recor
 
 Pass ``analyze=True`` to run ``ANALYZE`` against the table after inserting the new records.
 
+.. _python_api_insert_lists:
+
+Inserting data from a list or tuple iterator
+--------------------------------------------
+
+As an alternative to passing an iterator of dictionaries, you can pass an iterator of lists or tuples. The first item yielded by the iterator must be a list or tuple of string column names, and subsequent items should be lists or tuples of values:
+
+.. code-block:: python
+
+    db["creatures"].insert_all([
+        ["name", "species"],
+        ["Cleo", "dog"],
+        ["Lila", "chicken"],
+        ["Bants", "chicken"],
+    ])
+
+This also works with generators:
+
+.. code-block:: python
+
+    def creatures():
+        yield "id", "name", "city"
+        yield 1, "Cleo", "San Francisco"
+        yield 2, "Lila", "Los Angeles"
+
+    db["creatures"].insert_all(creatures())
+
+Tuples and lists are both supported.
+
 .. _python_api_insert_replace:
 
 Insert-replacing data
