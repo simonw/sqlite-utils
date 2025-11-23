@@ -1,6 +1,7 @@
 """
 Tests for list-based iteration in insert_all and upsert_all
 """
+
 import pytest
 from sqlite_utils import Database
 
@@ -173,3 +174,92 @@ def test_backwards_compatibility_dict_mode():
     rows = list(db["people"].rows)
     assert len(rows) == 2
     assert rows[0] == {"id": 1, "name": "Alice", "age": 30}
+
+
+def test_insert_all_tuple_mode_basic():
+    """Test basic insert_all with tuple-based iteration"""
+    db = Database(memory=True)
+
+    def data_generator():
+        # First yield column names as tuple
+        yield ("id", "name", "age")
+        # Then yield data rows as tuples
+        yield (1, "Alice", 30)
+        yield (2, "Bob", 25)
+        yield (3, "Charlie", 35)
+
+    db["people"].insert_all(data_generator())
+
+    rows = list(db["people"].rows)
+    assert len(rows) == 3
+    assert rows[0] == {"id": 1, "name": "Alice", "age": 30}
+    assert rows[1] == {"id": 2, "name": "Bob", "age": 25}
+    assert rows[2] == {"id": 3, "name": "Charlie", "age": 35}
+
+
+def test_insert_all_mixed_list_tuple():
+    """Test insert_all with mixed lists and tuples for data rows"""
+    db = Database(memory=True)
+
+    def data_generator():
+        # Column names as list
+        yield ["id", "name", "age"]
+        # Mix of list and tuple data rows
+        yield [1, "Alice", 30]
+        yield (2, "Bob", 25)
+        yield [3, "Charlie", 35]
+        yield (4, "Diana", 40)
+
+    db["people"].insert_all(data_generator())
+
+    rows = list(db["people"].rows)
+    assert len(rows) == 4
+    assert rows[0] == {"id": 1, "name": "Alice", "age": 30}
+    assert rows[1] == {"id": 2, "name": "Bob", "age": 25}
+    assert rows[2] == {"id": 3, "name": "Charlie", "age": 35}
+    assert rows[3] == {"id": 4, "name": "Diana", "age": 40}
+
+
+def test_upsert_all_tuple_mode():
+    """Test upsert_all with tuple-based iteration"""
+    db = Database(memory=True)
+
+    # Initial insert with tuples
+    def initial_data():
+        yield ("id", "name", "value")
+        yield (1, "Alice", 100)
+        yield (2, "Bob", 200)
+
+    db["data"].insert_all(initial_data(), pk="id")
+
+    # Upsert with tuples
+    def upsert_data():
+        yield ("id", "name", "value")
+        yield (1, "Alice", 150)  # Update existing
+        yield (3, "Charlie", 300)  # Insert new
+
+    db["data"].upsert_all(upsert_data(), pk="id")
+
+    rows = list(db["data"].rows_where(order_by="id"))
+    assert len(rows) == 3
+    assert rows[0] == {"id": 1, "name": "Alice", "value": 150}
+    assert rows[1] == {"id": 2, "name": "Bob", "value": 200}
+    assert rows[2] == {"id": 3, "name": "Charlie", "value": 300}
+
+
+def test_tuple_mode_shorter_rows():
+    """Test that tuple rows shorter than column list get NULL values"""
+    db = Database(memory=True)
+
+    def data_generator():
+        yield "id", "name", "age", "city"
+        yield 1, "Alice", 30, "NYC"
+        yield 2, "Bob"  # Missing age and city
+        yield 3, "Charlie", 35  # Missing city
+
+    db["people"].insert_all(data_generator())
+
+    rows = list(db["people"].rows_where(order_by="id"))
+    assert rows[0] == {"id": 1, "name": "Alice", "age": 30, "city": "NYC"}
+    assert rows[1] == {"id": 2, "name": "Bob", "age": None, "city": None}
+    assert rows[2] == {"id": 3, "name": "Charlie", "age": 35, "city": None}

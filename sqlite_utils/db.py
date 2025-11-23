@@ -3033,14 +3033,18 @@ class Table(Queryable):
                 # Pad short records with None, truncate long ones
                 record_len = len(record)
                 if record_len < num_columns:
-                    record_values = [jsonify_if_needed(v) for v in record] + [None] * (num_columns - record_len)
+                    record_values = [jsonify_if_needed(v) for v in record] + [None] * (
+                        num_columns - record_len
+                    )
                 else:
                     record_values = [jsonify_if_needed(v) for v in record[:num_columns]]
                 # Only process extracts if there are any
                 if has_extracts:
                     for i, key in enumerate(all_columns):
                         if key in extracts:
-                            record_values[i] = self.db[extracts[key]].lookup({"value": record_values[i]})
+                            record_values[i] = self.db[extracts[key]].lookup(
+                                {"value": record_values[i]}
+                            )
                 values.append(record_values)
         else:
             # Dict mode: original logic
@@ -3393,12 +3397,14 @@ class Table(Queryable):
             return self  # It was an empty list
 
         # Check if this is list mode or dict mode
-        if isinstance(first_record, list):
-            # List mode: first record should be column names
+        if isinstance(first_record, (list, tuple)):
+            # List/tuple mode: first record should be column names
             list_mode = True
             if not all(isinstance(col, str) for col in first_record):
-                raise ValueError("When using list-based iteration, the first yielded value must be a list of column name strings")
-            column_names = first_record
+                raise ValueError(
+                    "When using list-based iteration, the first yielded value must be a list of column name strings"
+                )
+            column_names = list(first_record)
             all_columns = column_names
             num_columns = len(column_names)
             # Get the actual first data record
@@ -3406,8 +3412,10 @@ class Table(Queryable):
                 first_record = next(records_iter)
             except StopIteration:
                 return self  # Only headers, no data
-            if not isinstance(first_record, list):
-                raise ValueError("After column names list, all subsequent records must also be lists")
+            if not isinstance(first_record, (list, tuple)):
+                raise ValueError(
+                    "After column names list, all subsequent records must also be lists"
+                )
         else:
             # Dict mode: traditional behavior
             records_iter = itertools.chain([first_record], records_iter)
