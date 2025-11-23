@@ -1,4 +1,5 @@
 .venv
+dist
 build
 *.db
 __pycache__/
@@ -16,6 +17,7 @@ venv
 .hypothesis
 Pipfile
 Pipfile.lock
+uv.lock
 tests/*.dylib
 tests/*.so
 tests/*.dll
