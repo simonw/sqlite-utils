@@ -963,11 +963,6 @@ def insert_upsert_implementation(
     functions=None,
     strict=False,
 ):
-    convert = _value_or_none(convert)
-    delimiter = _value_or_none(delimiter)
-    quotechar = _value_or_none(quotechar)
-    encoding = _value_or_none(encoding)
-    bulk_sql = _value_or_none(bulk_sql)
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     _maybe_register_functions(db, functions)
@@ -1943,9 +1938,6 @@ def memory(
     \b
         sqlite-utils memory animals.csv --schema
     """
-    sql = _value_or_none(sql)
-    save = _value_or_none(save)
-    encoding = _value_or_none(encoding)
     db = sqlite_utils.Database(memory=True)
 
     # If --dump or --save or --analyze used but no paths detected, assume SQL query is a path:
@@ -3328,16 +3320,9 @@ def _register_functions(db, functions):
             db.register_function(value, name=name)
 
 
-def _value_or_none(value):
-    if getattr(value, "__class__", None).__name__ == "Sentinel":
-        return None
-    return value
-
-
 def _maybe_register_functions(db, functions_list):
     if not functions_list:
         return
     for functions in functions_list:
-        functions = _value_or_none(functions)
         if isinstance(functions, str) and functions.strip():
             _register_functions(db, functions)

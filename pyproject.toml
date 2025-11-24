@@ -22,7 +22,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "click",
+    "click>=8.3.1",
     "click-default-group>=1.2.3",
     "pluggy",
     "python-dateutil",
