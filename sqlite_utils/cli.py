@@ -962,7 +962,7 @@ def insert_upsert_implementation(
     db = sqlite_utils.Database(path)
     _load_extensions(db, load_extension)
     if functions:
-        _maybe_register_functions(db, functions)
+        _register_functions_from_multiple(db, functions)
     if (delimiter or quotechar or sniff or no_headers) and not tsv:
         csv = True
     if (nl + csv + tsv) >= 2:
@@ -1800,7 +1800,7 @@ def query(
     db.register_fts4_bm25()
 
     if functions:
-        _maybe_register_functions(db, functions)
+        _register_functions_from_multiple(db, functions)
 
     _execute_query(
         db,
@@ -2002,7 +2002,7 @@ def memory(
     db.register_fts4_bm25()
 
     if functions:
-        _maybe_register_functions(db, functions)
+        _register_functions_from_multiple(db, functions)
 
     if return_db:
         return db
@@ -3306,16 +3306,10 @@ def _register_functions(db, functions):
             db.register_function(value, name=name)
 
 
-def _value_or_none(value):
-    if getattr(value, "__class__", None).__name__ == "Sentinel":
-        return None
-    return value
-
-
-def _maybe_register_functions(db, functions_list):
+def _register_functions_from_multiple(db, functions_list):
+    """Register functions from multiple --functions arguments."""
     if not functions_list:
         return
     for functions in functions_list:
-        functions = _value_or_none(functions)
         if isinstance(functions, str) and functions.strip():
             _register_functions(db, functions)
