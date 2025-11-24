@@ -4,13 +4,20 @@
  Changelog
 ===========
 
-.. _unreleased:
+.. _v4_0a0:
 
-Unreleased
-----------
+4.0a1 (2025-11-23)
+------------------
 
+- **Breaking change**: The ``db.table(table_name)`` method now only works with tables. To access a SQL view use ``db.view(view_name)`` instead. (:issue:`657`)
 - The ``table.insert_all()`` and ``table.upsert_all()`` methods can now accept an iterator of lists or tuples as an alternative to dictionaries. The first item should be a list/tuple of column names. See :ref:`python_api_insert_lists` for details. (:issue:`672`)
-- **Breaking change:** The default floating point column type has been changed from ``FLOAT`` to ``REAL``, which is the correct SQLite type for floating point values. This affects auto-detected columns when inserting data. (:issue:`645`)
+- **Breaking change**: The default floating point column type has been changed from ``FLOAT`` to ``REAL``, which is the correct SQLite type for floating point values. This affects auto-detected columns when inserting data. (:issue:`645`)
+- Now uses ``pyproject.toml`` in place of ``setup.py`` for packaging. (:issue:`675`)
+- Tables in the Python API now do a much better job of remembering the primary key and other schema details from when they were first created. (:issue:`655`)
+- **Breaking change**: The ``table.convert()` and ``sqlite-utils convert`` mechanisms no longer skip values that evaluate to ``False``. Previously the `--skip-false`` option was needed, this has been removed. (:issue:`542`)
+- **Breaking change**: Tables created by this library now wrap table and column names in ``"double-quotes"`` in the schema. Previously they would use ``[square-braces]``. (:issue:`677`)
+- **Breaking change**: Floating point columns in SQLite now use the correct column type of ``REAL``. They previously used ``FLOAT``. (:issue:`645`)
+- The ``--functions`` CLI argument now accepts a path to a Python file in addition to accepting a string full of Python code. It can also now be specified multiple times. (:issue:`659`)
 - **Breaking change:** Type detection is now the default behavior for the ``insert`` and ``upsert`` CLI commands when importing CSV or TSV data. Previously all columns were treated as ``TEXT`` unless the ``--detect-types`` flag was passed. Use the new ``--no-detect-types`` flag to restore the old behavior. The ``SQLITE_UTILS_DETECT_TYPES`` environment variable has been removed. (:issue:`679`)
 
 .. _v4_0a0:
