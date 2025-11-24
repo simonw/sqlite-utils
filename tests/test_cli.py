@@ -806,6 +806,77 @@ def test_hidden_functions_are_hidden(db_path):
     assert "_two" not in functions
 
 
+def test_query_functions_from_file(db_path, tmp_path):
+    # Create a temporary file with function definitions
+    functions_file = tmp_path / "my_functions.py"
+    functions_file.write_text(TEST_FUNCTIONS)
+
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            db_path,
+            "select zero(), one(1), two(1, 2)",
+            "--functions",
+            str(functions_file),
+        ],
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output.strip()) == [
+        {"zero()": 0, "one(1)": 1, "two(1, 2)": 3}
+    ]
+
+
+def test_query_functions_file_not_found(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            db_path,
+            "select zero()",
+            "--functions",
+            "nonexistent.py",
+        ],
+    )
+    assert result.exit_code == 1
+    assert "File not found: nonexistent.py" in result.output
+
+
+def test_query_functions_multiple_invocations(db_path):
+    # Test using --functions multiple times
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            db_path,
+            "select triple(2), quadruple(2)",
+            "--functions",
+            "def triple(x):\n    return x * 3",
+            "--functions",
+            "def quadruple(x):\n    return x * 4",
+        ],
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output.strip()) == [{"triple(2)": 6, "quadruple(2)": 8}]
+
+
+def test_query_functions_file_and_inline(db_path, tmp_path):
+    # Test combining file and inline code
+    functions_file = tmp_path / "file_funcs.py"
+    functions_file.write_text("def triple(x):\n    return x * 3")
+
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            db_path,
+            "select triple(2), quadruple(2)",
+            "--functions",
+            str(functions_file),
+            "--functions",
+            "def quadruple(x):\n    return x * 4",
+        ],
+    )
+    assert result.exit_code == 0
+    assert json.loads(result.output.strip()) == [{"triple(2)": 6, "quadruple(2)": 8}]
+
+
 LOREM_IPSUM_COMPRESSED = (
     b"x\x9c\xed\xd1\xcdq\x03!\x0c\x05\xe0\xbb\xabP\x01\x1eW\x91\xdc|M\x01\n\xc8\x8e"
     b"f\xf83H\x1e\x97\x1f\x91M\x8e\xe9\xe0\xdd\x96\x05\x84\xf4\xbek\x9fRI\xc7\xf2J"
