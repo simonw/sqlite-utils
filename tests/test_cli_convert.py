@@ -406,9 +406,9 @@ def test_convert_multi_complex_column_types(fresh_db_and_path):
         {"id": 4, "is_str": None, "is_float": None, "is_int": None, "is_bytes": None},
     ]
     assert db["rows"].schema == (
-        "CREATE TABLE [rows] (\n"
-        "   [id] INTEGER PRIMARY KEY\n"
-        ", [is_str] TEXT, [is_float] FLOAT, [is_int] INTEGER, [is_bytes] BLOB)"
+        'CREATE TABLE "rows" (\n'
+        '   "id" INTEGER PRIMARY KEY\n'
+        ', "is_str" TEXT, "is_float" FLOAT, "is_int" INTEGER, "is_bytes" BLOB)'
     )
 
 

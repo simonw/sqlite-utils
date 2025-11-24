@@ -132,7 +132,7 @@ def test_tables_schema(db_path):
     assert (
         '[{"table": "Gosh", "schema": "CREATE TABLE Gosh (c1 text, c2 text, c3 text)"},\n'
         ' {"table": "Gosh2", "schema": "CREATE TABLE Gosh2 (c1 text, c2 text, c3 text)"},\n'
-        ' {"table": "lots", "schema": "CREATE TABLE [lots] (\\n   [id] INTEGER,\\n   [age] INTEGER\\n)"}]'
+        ' {"table": "lots", "schema": "CREATE TABLE \\"lots\\" (\\n   \\"id\\" INTEGER,\\n   \\"age\\" INTEGER\\n)"}]'
     ) == result.output.strip()
 
 
@@ -264,38 +264,38 @@ def test_create_index_desc(db_path):
     assert result.exit_code == 0
     assert (
         db.execute("select sql from sqlite_master where type='index'").fetchone()[0]
-        == "CREATE INDEX [idx_Gosh_c1]\n    ON [Gosh] ([c1] desc)"
+        == 'CREATE INDEX "idx_Gosh_c1"\n    ON "Gosh" ("c1" desc)'
     )
 
 
 @pytest.mark.parametrize(
     "col_name,col_type,expected_schema",
     (
-        ("text", "TEXT", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [text] TEXT)"),
-        ("text", "str", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [text] TEXT)"),
-        ("text", "STR", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [text] TEXT)"),
+        ("text", "TEXT", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "text" TEXT)'),
+        ("text", "str", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "text" TEXT)'),
+        ("text", "STR", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "text" TEXT)'),
         (
             "integer",
             "INTEGER",
-            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [integer] INTEGER)",
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "integer" INTEGER)',
         ),
         (
             "integer",
             "int",
-            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [integer] INTEGER)",
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "integer" INTEGER)',
         ),
-        ("float", "FLOAT", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [float] FLOAT)"),
-        ("blob", "blob", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [blob] BLOB)"),
-        ("blob", "BLOB", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [blob] BLOB)"),
-        ("blob", "bytes", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [blob] BLOB)"),
-        ("blob", "BYTES", "CREATE TABLE [dogs] (\n   [name] TEXT\n, [blob] BLOB)"),
-        ("default", None, "CREATE TABLE [dogs] (\n   [name] TEXT\n, [default] TEXT)"),
+        ("float", "FLOAT", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "float" FLOAT)'),
+        ("blob", "blob", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
+        ("blob", "BLOB", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
+        ("blob", "bytes", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
+        ("blob", "BYTES", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
+        ("default", None, 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "default" TEXT)'),
     ),
 )
 def test_add_column(db_path, col_name, col_type, expected_schema):
     db = Database(db_path)
     db.create_table("dogs", {"name": str})
-    assert db["dogs"].schema == "CREATE TABLE [dogs] (\n   [name] TEXT\n)"
+    assert db["dogs"].schema == 'CREATE TABLE "dogs" (\n   "name" TEXT\n)'
     args = ["add-column", db_path, "dogs", col_name]
     if col_type is not None:
         args.append(col_type)
@@ -319,7 +319,7 @@ def test_add_column_ignore(db_path, ignore):
 def test_add_column_not_null_default(db_path):
     db = Database(db_path)
     db.create_table("dogs", {"name": str})
-    assert db["dogs"].schema == "CREATE TABLE [dogs] (\n   [name] TEXT\n)"
+    assert db["dogs"].schema == 'CREATE TABLE "dogs" (\n   "name" TEXT\n)'
     args = [
         "add-column",
         db_path,
@@ -330,9 +330,9 @@ def test_add_column_not_null_default(db_path):
     ]
     assert CliRunner().invoke(cli.cli, args).exit_code == 0
     assert db["dogs"].schema == (
-        "CREATE TABLE [dogs] (\n"
-        "   [name] TEXT\n"
-        ", [nickname] TEXT NOT NULL DEFAULT 'dogs''dawg')"
+        'CREATE TABLE "dogs" (\n'
+        '   "name" TEXT\n'
+        ", \"nickname\" TEXT NOT NULL DEFAULT 'dogs''dawg')"
     )
 
 
@@ -403,8 +403,8 @@ def test_add_column_foreign_key(db_path):
     assert result.exit_code == 0, result.output
     assert db["books"].schema == (
         'CREATE TABLE "books" (\n'
-        "   [title] TEXT,\n"
-        "   [author_id] INTEGER REFERENCES [authors]([id])\n"
+        '   "title" TEXT,\n'
+        '   "author_id" INTEGER REFERENCES "authors"("id")\n'
         ")"
     )
     # Try it again with a custom --fk-col
@@ -424,9 +424,9 @@ def test_add_column_foreign_key(db_path):
     assert result.exit_code == 0, result.output
     assert db["books"].schema == (
         'CREATE TABLE "books" (\n'
-        "   [title] TEXT,\n"
-        "   [author_id] INTEGER REFERENCES [authors]([id]),\n"
-        "   [author_name_ref] TEXT REFERENCES [authors]([name])\n"
+        '   "title" TEXT,\n'
+        '   "author_id" INTEGER REFERENCES "authors"("id"),\n'
+        '   "author_name_ref" TEXT REFERENCES "authors"("name")\n'
         ")"
     )
     # Throw an error if the --fk table does not exist
@@ -492,10 +492,10 @@ def test_enable_fts(db_path):
     assert "http://example.com_fts" == db["http://example.com"].detect_fts()
     # Check tokenize was set to porter
     assert (
-        "CREATE VIRTUAL TABLE [http://example.com_fts] USING FTS4 (\n"
-        "    [c1],\n"
+        'CREATE VIRTUAL TABLE "http://example.com_fts" USING FTS4 (\n'
+        '    "c1",\n'
         "    tokenize='porter',\n"
-        "    content=[http://example.com]"
+        '    content="http://example.com"'
         "\n)"
     ) == db["http://example.com_fts"].schema
     db["http://example.com"].drop()
@@ -516,7 +516,7 @@ def test_enable_fts_replace(db_path):
         cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"]
     )
     assert result2.exit_code == 1
-    assert result2.output == "Error: table [Gosh_fts] already exists\n"
+    assert result2.output == 'Error: table "Gosh_fts" already exists\n'
 
     # This should work
     result3 = CliRunner().invoke(
@@ -1139,7 +1139,7 @@ def test_upsert_alter(db_path, tmpdir):
                 "age",
                 "integer",
             ],
-            ("CREATE TABLE [t] (\n   [name] TEXT,\n   [age] INTEGER\n)"),
+            ('CREATE TABLE "t" (\n   "name" TEXT,\n   "age" INTEGER\n)'),
         ),
         # All types:
         (
@@ -1158,31 +1158,31 @@ def test_upsert_alter(db_path, tmpdir):
                 "id",
             ],
             (
-                "CREATE TABLE [t] (\n"
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [name] TEXT,\n"
-                "   [age] INTEGER,\n"
-                "   [weight] FLOAT,\n"
-                "   [thumbnail] BLOB\n"
+                'CREATE TABLE "t" (\n'
+                '   "id" INTEGER PRIMARY KEY,\n'
+                '   "name" TEXT,\n'
+                '   "age" INTEGER,\n'
+                '   "weight" FLOAT,\n'
+                '   "thumbnail" BLOB\n'
                 ")"
             ),
         ),
         # Not null:
         (
             ["name", "text", "--not-null", "name"],
-            ("CREATE TABLE [t] (\n" "   [name] TEXT NOT NULL\n" ")"),
+            ('CREATE TABLE "t" (\n' '   "name" TEXT NOT NULL\n' ")"),
         ),
         # Default:
         (
             ["age", "integer", "--default", "age", "3"],
-            ("CREATE TABLE [t] (\n" "   [age] INTEGER DEFAULT '3'\n" ")"),
+            ('CREATE TABLE "t" (\n' "   \"age\" INTEGER DEFAULT '3'\n" ")"),
         ),
         # Compound primary key
         (
             ["category", "text", "name", "text", "--pk", "category", "--pk", "name"],
             (
-                "CREATE TABLE [t] (\n   [category] TEXT,\n   [name] TEXT,\n"
-                "   PRIMARY KEY ([category], [name])\n)"
+                'CREATE TABLE "t" (\n   "category" TEXT,\n   "name" TEXT,\n'
+                '   PRIMARY KEY ("category", "name")\n)'
             ),
         ),
     ],
@@ -1233,16 +1233,16 @@ def test_create_table_foreign_key():
             assert result.exit_code == 0
         db = Database("books.db")
         assert (
-            "CREATE TABLE [authors] (\n"
-            "   [id] INTEGER PRIMARY KEY,\n"
-            "   [name] TEXT\n"
+            'CREATE TABLE "authors" (\n'
+            '   "id" INTEGER PRIMARY KEY,\n'
+            '   "name" TEXT\n'
             ")"
         ) == db["authors"].schema
         assert (
-            "CREATE TABLE [books] (\n"
-            "   [id] INTEGER PRIMARY KEY,\n"
-            "   [title] TEXT,\n"
-            "   [author_id] INTEGER REFERENCES [authors]([id])\n"
+            'CREATE TABLE "books" (\n'
+            '   "id" INTEGER PRIMARY KEY,\n'
+            '   "title" TEXT,\n'
+            '   "author_id" INTEGER REFERENCES "authors"("id")\n'
             ")"
         ) == db["books"].schema
 
@@ -1271,7 +1271,7 @@ def test_create_table_ignore():
             cli.cli, ["create-table", "test.db", "dogs", "id", "integer", "--ignore"]
         )
         assert result.exit_code == 0
-        assert "CREATE TABLE [dogs] (\n   [name] TEXT\n)" == db["dogs"].schema
+        assert 'CREATE TABLE "dogs" (\n   "name" TEXT\n)' == db["dogs"].schema
 
 
 def test_create_table_replace():
@@ -1283,7 +1283,7 @@ def test_create_table_replace():
             cli.cli, ["create-table", "test.db", "dogs", "id", "integer", "--replace"]
         )
         assert result.exit_code == 0
-        assert "CREATE TABLE [dogs] (\n   [id] INTEGER\n)" == db["dogs"].schema
+        assert 'CREATE TABLE "dogs" (\n   "id" INTEGER\n)' == db["dogs"].schema
 
 
 def test_create_view():
@@ -1537,9 +1537,9 @@ def test_add_foreign_keys(db_path):
             [],
             (
                 'CREATE TABLE "dogs" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
-                "   [name] TEXT\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                "   \"age\" INTEGER NOT NULL DEFAULT '1',\n"
+                '   "name" TEXT\n'
                 ")"
             ),
         ),
@@ -1547,9 +1547,9 @@ def test_add_foreign_keys(db_path):
             ["--type", "age", "text"],
             (
                 'CREATE TABLE "dogs" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [age] TEXT NOT NULL DEFAULT '1',\n"
-                "   [name] TEXT\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                "   \"age\" TEXT NOT NULL DEFAULT '1',\n"
+                '   "name" TEXT\n'
                 ")"
             ),
         ),
@@ -1557,8 +1557,8 @@ def test_add_foreign_keys(db_path):
             ["--drop", "age"],
             (
                 'CREATE TABLE "dogs" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [name] TEXT\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                '   "name" TEXT\n'
                 ")"
             ),
         ),
@@ -1566,9 +1566,9 @@ def test_add_foreign_keys(db_path):
             ["--rename", "age", "age2", "--rename", "id", "pk"],
             (
                 'CREATE TABLE "dogs" (\n'
-                "   [pk] INTEGER PRIMARY KEY,\n"
-                "   [age2] INTEGER NOT NULL DEFAULT '1',\n"
-                "   [name] TEXT\n"
+                '   "pk" INTEGER PRIMARY KEY,\n'
+                "   \"age2\" INTEGER NOT NULL DEFAULT '1',\n"
+                '   "name" TEXT\n'
                 ")"
             ),
         ),
@@ -1576,9 +1576,9 @@ def test_add_foreign_keys(db_path):
             ["--not-null", "name"],
             (
                 'CREATE TABLE "dogs" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
-                "   [name] TEXT NOT NULL\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                "   \"age\" INTEGER NOT NULL DEFAULT '1',\n"
+                '   "name" TEXT NOT NULL\n'
                 ")"
             ),
         ),
@@ -1586,9 +1586,9 @@ def test_add_foreign_keys(db_path):
             ["--not-null-false", "age"],
             (
                 'CREATE TABLE "dogs" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [age] INTEGER DEFAULT '1',\n"
-                "   [name] TEXT\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                "   \"age\" INTEGER DEFAULT '1',\n"
+                '   "name" TEXT\n'
                 ")"
             ),
         ),
@@ -1596,9 +1596,9 @@ def test_add_foreign_keys(db_path):
             ["--pk", "name"],
             (
                 'CREATE TABLE "dogs" (\n'
-                "   [id] INTEGER,\n"
-                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
-                "   [name] TEXT PRIMARY KEY\n"
+                '   "id" INTEGER,\n'
+                "   \"age\" INTEGER NOT NULL DEFAULT '1',\n"
+                '   "name" TEXT PRIMARY KEY\n'
                 ")"
             ),
         ),
@@ -1606,9 +1606,9 @@ def test_add_foreign_keys(db_path):
             ["--pk-none"],
             (
                 'CREATE TABLE "dogs" (\n'
-                "   [id] INTEGER,\n"
-                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
-                "   [name] TEXT\n"
+                '   "id" INTEGER,\n'
+                "   \"age\" INTEGER NOT NULL DEFAULT '1',\n"
+                '   "name" TEXT\n'
                 ")"
             ),
         ),
@@ -1616,9 +1616,9 @@ def test_add_foreign_keys(db_path):
             ["--default", "name", "Turnip"],
             (
                 'CREATE TABLE "dogs" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
-                "   [name] TEXT DEFAULT 'Turnip'\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                "   \"age\" INTEGER NOT NULL DEFAULT '1',\n"
+                "   \"name\" TEXT DEFAULT 'Turnip'\n"
                 ")"
             ),
         ),
@@ -1626,9 +1626,9 @@ def test_add_foreign_keys(db_path):
             ["--default-none", "age"],
             (
                 'CREATE TABLE "dogs" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [age] INTEGER NOT NULL,\n"
-                "   [name] TEXT\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                '   "age" INTEGER NOT NULL,\n'
+                '   "name" TEXT\n'
                 ")"
             ),
         ),
@@ -1636,9 +1636,9 @@ def test_add_foreign_keys(db_path):
             ["-o", "name", "--column-order", "age", "-o", "id"],
             (
                 'CREATE TABLE "dogs" (\n'
-                "   [name] TEXT,\n"
-                "   [age] INTEGER NOT NULL DEFAULT '1',\n"
-                "   [id] INTEGER PRIMARY KEY\n"
+                '   "name" TEXT,\n'
+                "   \"age\" INTEGER NOT NULL DEFAULT '1',\n"
+                '   "id" INTEGER PRIMARY KEY\n'
                 ")"
             ),
         ),
@@ -1667,11 +1667,11 @@ def test_transform(db_path, args, expected_schema):
             ["--drop-foreign-key", "country"],
             (
                 'CREATE TABLE "places" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [name] TEXT,\n"
-                "   [country] INTEGER,\n"
-                "   [city] INTEGER REFERENCES [city]([id]),\n"
-                "   [continent] INTEGER\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                '   "name" TEXT,\n'
+                '   "country" INTEGER,\n'
+                '   "city" INTEGER REFERENCES "city"("id"),\n'
+                '   "continent" INTEGER\n'
                 ")"
             ),
         ),
@@ -1679,11 +1679,11 @@ def test_transform(db_path, args, expected_schema):
             ["--drop-foreign-key", "country", "--drop-foreign-key", "city"],
             (
                 'CREATE TABLE "places" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [name] TEXT,\n"
-                "   [country] INTEGER,\n"
-                "   [city] INTEGER,\n"
-                "   [continent] INTEGER\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                '   "name" TEXT,\n'
+                '   "country" INTEGER,\n'
+                '   "city" INTEGER,\n'
+                '   "continent" INTEGER\n'
                 ")"
             ),
         ),
@@ -1691,11 +1691,11 @@ def test_transform(db_path, args, expected_schema):
             ["--add-foreign-key", "continent", "continent", "id"],
             (
                 'CREATE TABLE "places" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [name] TEXT,\n"
-                "   [country] INTEGER REFERENCES [country]([id]),\n"
-                "   [city] INTEGER REFERENCES [city]([id]),\n"
-                "   [continent] INTEGER REFERENCES [continent]([id])\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                '   "name" TEXT,\n'
+                '   "country" INTEGER REFERENCES "country"("id"),\n'
+                '   "city" INTEGER REFERENCES "city"("id"),\n'
+                '   "continent" INTEGER REFERENCES "continent"("id")\n'
                 ")"
             ),
         ),
@@ -1734,7 +1734,7 @@ def test_transform_add_or_drop_foreign_key(db_path, extra_args, expected_schema)
 
 
 _common_other_schema = (
-    "CREATE TABLE [species] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)"
+    'CREATE TABLE "species" (\n   "id" INTEGER PRIMARY KEY,\n   "species" TEXT\n)'
 )
 
 
@@ -1745,9 +1745,9 @@ _common_other_schema = (
             [],
             (
                 'CREATE TABLE "trees" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [address] TEXT,\n"
-                "   [species_id] INTEGER REFERENCES [species]([id])\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                '   "address" TEXT,\n'
+                '   "species_id" INTEGER REFERENCES "species"("id")\n'
                 ")"
             ),
             _common_other_schema,
@@ -1756,20 +1756,20 @@ _common_other_schema = (
             ["--table", "custom_table"],
             (
                 'CREATE TABLE "trees" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [address] TEXT,\n"
-                "   [custom_table_id] INTEGER REFERENCES [custom_table]([id])\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                '   "address" TEXT,\n'
+                '   "custom_table_id" INTEGER REFERENCES "custom_table"("id")\n'
                 ")"
             ),
-            "CREATE TABLE [custom_table] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)",
+            'CREATE TABLE "custom_table" (\n   "id" INTEGER PRIMARY KEY,\n   "species" TEXT\n)',
         ),
         (
             ["--fk-column", "custom_fk"],
             (
                 'CREATE TABLE "trees" (\n'
-                "   [id] INTEGER PRIMARY KEY,\n"
-                "   [address] TEXT,\n"
-                "   [custom_fk] INTEGER REFERENCES [species]([id])\n"
+                '   "id" INTEGER PRIMARY KEY,\n'
+                '   "address" TEXT,\n'
+                '   "custom_fk" INTEGER REFERENCES "species"("id")\n'
                 ")"
             ),
             _common_other_schema,
@@ -1777,11 +1777,11 @@ _common_other_schema = (
         (
             ["--rename", "name", "name2"],
             'CREATE TABLE "trees" (\n'
-            "   [id] INTEGER PRIMARY KEY,\n"
-            "   [address] TEXT,\n"
-            "   [species_id] INTEGER REFERENCES [species]([id])\n"
+            '   "id" INTEGER PRIMARY KEY,\n'
+            '   "address" TEXT,\n'
+            '   "species_id" INTEGER REFERENCES "species"("id")\n'
             ")",
-            "CREATE TABLE [species] (\n   [id] INTEGER PRIMARY KEY,\n   [species] TEXT\n)",
+            'CREATE TABLE "species" (\n   "id" INTEGER PRIMARY KEY,\n   "species" TEXT\n)',
         ),
     ],
 )
@@ -2036,34 +2036,34 @@ def test_triggers(tmpdir, extra_args, expected):
         (
             [],
             (
-                "CREATE TABLE [dogs] (\n"
-                "   [id] INTEGER,\n"
-                "   [name] TEXT\n"
+                'CREATE TABLE "dogs" (\n'
+                '   "id" INTEGER,\n'
+                '   "name" TEXT\n'
                 ");\n"
-                "CREATE TABLE [chickens] (\n"
-                "   [id] INTEGER,\n"
-                "   [name] TEXT,\n"
-                "   [breed] TEXT\n"
+                'CREATE TABLE "chickens" (\n'
+                '   "id" INTEGER,\n'
+                '   "name" TEXT,\n'
+                '   "breed" TEXT\n'
                 ");\n"
-                "CREATE INDEX [idx_chickens_breed]\n"
-                "    ON [chickens] ([breed]);\n"
+                'CREATE INDEX "idx_chickens_breed"\n'
+                '    ON "chickens" ("breed");\n'
             ),
         ),
         (
             ["dogs"],
-            ("CREATE TABLE [dogs] (\n" "   [id] INTEGER,\n" "   [name] TEXT\n" ")\n"),
+            ('CREATE TABLE "dogs" (\n' '   "id" INTEGER,\n' '   "name" TEXT\n' ")\n"),
         ),
         (
             ["chickens", "dogs"],
             (
-                "CREATE TABLE [chickens] (\n"
-                "   [id] INTEGER,\n"
-                "   [name] TEXT,\n"
-                "   [breed] TEXT\n"
+                'CREATE TABLE "chickens" (\n'
+                '   "id" INTEGER,\n'
+                '   "name" TEXT,\n'
+                '   "breed" TEXT\n'
                 ")\n"
-                "CREATE TABLE [dogs] (\n"
-                "   [id] INTEGER,\n"
-                "   [name] TEXT\n"
+                'CREATE TABLE "dogs" (\n'
+                '   "id" INTEGER,\n'
+                '   "name" TEXT\n'
                 ")\n"
             ),
         ),
@@ -2127,10 +2127,10 @@ def test_import_no_headers(tmpdir, args, tsv):
     db = Database(db_path)
     schema = db["creatures"].schema
     assert schema == (
-        "CREATE TABLE [creatures] (\n"
-        "   [untitled_1] TEXT,\n"
-        "   [untitled_2] TEXT,\n"
-        "   [untitled_3] TEXT\n"
+        'CREATE TABLE "creatures" (\n'
+        '   "untitled_1" TEXT,\n'
+        '   "untitled_2" TEXT,\n'
+        '   "untitled_3" TEXT\n'
         ")"
     )
     rows = list(db["creatures"].rows)
@@ -2182,8 +2182,8 @@ def test_csv_insert_bom(tmpdir):
     db = Database(db_path)
     tables = db.execute("select name, sql from sqlite_master").fetchall()
     assert tables == [
-        ("broken", "CREATE TABLE [broken] (\n   [\ufeffname] TEXT,\n   [age] TEXT\n)"),
-        ("fixed", "CREATE TABLE [fixed] (\n   [name] TEXT,\n   [age] TEXT\n)"),
+        ("broken", 'CREATE TABLE "broken" (\n   "\ufeffname" TEXT,\n   "age" TEXT\n)'),
+        ("fixed", 'CREATE TABLE "fixed" (\n   "name" TEXT,\n   "age" TEXT\n)'),
     ]
 
 
@@ -2245,7 +2245,7 @@ def test_integer_overflow_error(tmpdir):
     assert result.exit_code == 1
     assert result.output == (
         "Error: Python int too large to convert to SQLite INTEGER\n\n"
-        "sql = INSERT INTO [items] ([bignumber]) VALUES (?)\n"
+        'sql = INSERT INTO "items" ("bignumber") VALUES (?)\n'
         "parameters = [34223049823094832094802398430298048240]\n"
     )
 

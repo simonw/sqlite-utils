@@ -6,7 +6,13 @@ import hashlib
 import pathlib
 from runpy import run_module
 import sqlite_utils
-from sqlite_utils.db import AlterError, BadMultiValues, DescIndex, NoTable
+from sqlite_utils.db import (
+    AlterError,
+    BadMultiValues,
+    DescIndex,
+    NoTable,
+    quote_identifier,
+)
 from sqlite_utils.plugins import pm, get_plugins
 from sqlite_utils.utils import maximize_csv_field_size_limit
 from sqlite_utils import recipes
@@ -1967,7 +1973,9 @@ def memory(
             view_names.append("t")
         for view_name in view_names:
             if not db[view_name].exists():
-                db.create_view(view_name, "select * from [{}]".format(file_table))
+                db.create_view(
+                    view_name, "select * from {}".format(quote_identifier(file_table))
+                )
 
         if fp:
             fp.close()
@@ -2230,8 +2238,8 @@ def rows(
     """
     columns = "*"
     if column:
-        columns = ", ".join("[{}]".format(c) for c in column)
-    sql = "select {} from [{}]".format(columns, dbtable)
+        columns = ", ".join(quote_identifier(c) for c in column)
+    sql = "select {} from {}".format(columns, quote_identifier(dbtable))
     if where:
         sql += " where " + where
     if order:
@@ -2288,10 +2296,10 @@ def triggers(
     \b
         sqlite-utils triggers trees.db
     """
-    sql = "select name, tbl_name as [table], sql from sqlite_master where type = 'trigger'"
+    sql = "select name, tbl_name as \"table\", sql from sqlite_master where type = 'trigger'"
     if tables:
         quote = sqlite_utils.Database(memory=True).quote
-        sql += " and [table] in ({})".format(
+        sql += ' and "table" in ({})'.format(
             ", ".join(quote(table) for table in tables)
         )
     ctx.invoke(

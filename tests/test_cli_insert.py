@@ -127,12 +127,12 @@ def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
     assert dogs == list(db.query("select * from dogs order by breed, id"))
     assert {"breed", "id"} == set(db["dogs"].pks)
     assert (
-        "CREATE TABLE [dogs] (\n"
-        "   [breed] TEXT,\n"
-        "   [id] INTEGER,\n"
-        "   [name] TEXT,\n"
-        "   [age] INTEGER,\n"
-        "   PRIMARY KEY ([id], [breed])\n"
+        'CREATE TABLE "dogs" (\n'
+        '   "breed" TEXT,\n'
+        '   "id" INTEGER,\n'
+        '   "name" TEXT,\n'
+        '   "age" INTEGER,\n'
+        '   PRIMARY KEY ("id", "breed")\n'
         ")"
     ) == db["dogs"].schema
 
@@ -154,11 +154,11 @@ def test_insert_not_null_default(db_path, tmpdir):
     assert result.exit_code == 0
     db = Database(db_path)
     assert (
-        "CREATE TABLE [dogs] (\n"
-        "   [id] INTEGER PRIMARY KEY,\n"
-        "   [name] TEXT NOT NULL,\n"
-        "   [age] INTEGER NOT NULL DEFAULT '1',\n"
-        "   [score] INTEGER DEFAULT '5'\n)"
+        'CREATE TABLE "dogs" (\n'
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "name" TEXT NOT NULL,\n'
+        "   \"age\" INTEGER NOT NULL DEFAULT '1',\n"
+        "   \"score\" INTEGER DEFAULT '5'\n)"
     ) == db["dogs"].schema
 
 
@@ -466,7 +466,7 @@ def test_insert_convert_text(db_path):
     )
     assert result.exit_code == 0, result.output
     db = Database(db_path)
-    rows = list(db.query("select [text] from [text]"))
+    rows = list(db.query('select "text" from "text"'))
     assert rows == [{"text": "THIS IS TEXT\nWILL BE UPPER NOW"}]
 
 
@@ -486,7 +486,7 @@ def test_insert_convert_text_returning_iterator(db_path):
     )
     assert result.exit_code == 0, result.output
     db = Database(db_path)
-    rows = list(db.query("select [word] from [text]"))
+    rows = list(db.query('select "word" from "text"'))
     assert rows == [{"word": "A"}, {"word": "bunch"}, {"word": "of"}, {"word": "words"}]
 
 
@@ -506,7 +506,7 @@ def test_insert_convert_lines(db_path):
     )
     assert result.exit_code == 0, result.output
     db = Database(db_path)
-    rows = list(db.query("select [line] from [all]"))
+    rows = list(db.query('select "line" from "all"'))
     assert rows == [{"line": "THIS IS TEXT"}, {"line": "WILL BE UPPER NOW"}]
 
 

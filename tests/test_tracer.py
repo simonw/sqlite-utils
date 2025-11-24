@@ -18,15 +18,15 @@ def test_tracer():
         ("select name from sqlite_master where type = 'view'", None),
         ("select name from sqlite_master where type = 'table'", None),
         ("select name from sqlite_master where type = 'view'", None),
-        ("CREATE TABLE [dogs] (\n   [name] TEXT\n);\n        ", None),
+        ('CREATE TABLE "dogs" (\n   "name" TEXT\n);\n        ', None),
         ("select name from sqlite_master where type = 'view'", None),
-        ("INSERT INTO [dogs] ([name]) VALUES (?)", ["Cleopaws"]),
+        ('INSERT INTO "dogs" ("name") VALUES (?)', ["Cleopaws"]),
         (
-            "CREATE VIRTUAL TABLE [dogs_fts] USING FTS5 (\n    [name],\n    content=[dogs]\n)",
+            'CREATE VIRTUAL TABLE "dogs_fts" USING FTS5 (\n    "name",\n    content="dogs"\n)',
             None,
         ),
         (
-            "INSERT INTO [dogs_fts] (rowid, [name])\n    SELECT rowid, [name] FROM [dogs];",
+            'INSERT INTO "dogs_fts" (rowid, "name")\n    SELECT rowid, "name" FROM "dogs";',
             None,
         ),
     ]
@@ -64,7 +64,7 @@ def test_with_tracer():
             "        )\n"
             "    )",
             {
-                "like": "%VIRTUAL TABLE%USING FTS%content=[dogs]%",
+                "like": '%VIRTUAL TABLE%USING FTS%content="dogs"%',
                 "like2": '%VIRTUAL TABLE%USING FTS%content="dogs"%',
                 "table": "dogs",
             },
@@ -73,21 +73,21 @@ def test_with_tracer():
         ("select name from sqlite_master where type = 'view'", None),
         ("select sql from sqlite_master where name = ?", ("dogs_fts",)),
         (
-            "with original as (\n"
+            'with "original" as (\n'
             "    select\n"
             "        rowid,\n"
             "        *\n"
-            "    from [dogs]\n"
+            '    from "dogs"\n'
             ")\n"
             "select\n"
-            "    [original].*\n"
+            '    "original".*\n'
             "from\n"
-            "    [original]\n"
-            "    join [dogs_fts] on [original].rowid = [dogs_fts].rowid\n"
+            '    "original"\n'
+            '    join "dogs_fts" on "original".rowid = "dogs_fts".rowid\n'
             "where\n"
-            "    [dogs_fts] match :query\n"
+            '    "dogs_fts" match :query\n'
             "order by\n"
-            "    [dogs_fts].rank",
+            '    "dogs_fts".rank',
             {"query": "Cleopaws"},
         ),
     ]

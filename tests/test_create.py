@@ -50,13 +50,13 @@ def test_create_table(fresh_db):
         {"name": "datetime_col", "type": "TEXT"},
     ] == [{"name": col.name, "type": col.type} for col in table.columns]
     assert (
-        "CREATE TABLE [test_table] (\n"
-        "   [text_col] TEXT,\n"
-        "   [float_col] FLOAT,\n"
-        "   [int_col] INTEGER,\n"
-        "   [bool_col] INTEGER,\n"
-        "   [bytes_col] BLOB,\n"
-        "   [datetime_col] TEXT\n"
+        'CREATE TABLE "test_table" (\n'
+        '   "text_col" TEXT,\n'
+        '   "float_col" FLOAT,\n'
+        '   "int_col" INTEGER,\n'
+        '   "bool_col" INTEGER,\n'
+        '   "bytes_col" BLOB,\n'
+        '   "datetime_col" TEXT\n'
         ")"
     ) == table.schema
 
@@ -66,11 +66,11 @@ def test_create_table_compound_primary_key(fresh_db):
         "test_table", {"id1": str, "id2": str, "value": int}, pk=("id1", "id2")
     )
     assert (
-        "CREATE TABLE [test_table] (\n"
-        "   [id1] TEXT,\n"
-        "   [id2] TEXT,\n"
-        "   [value] INTEGER,\n"
-        "   PRIMARY KEY ([id1], [id2])\n"
+        'CREATE TABLE "test_table" (\n'
+        '   "id1" TEXT,\n'
+        '   "id2" TEXT,\n'
+        '   "value" INTEGER,\n'
+        '   PRIMARY KEY ("id1", "id2")\n'
         ")"
     ) == table.schema
     assert ["id1", "id2"] == table.pks
@@ -80,13 +80,17 @@ def test_create_table_compound_primary_key(fresh_db):
 def test_create_table_with_single_primary_key(fresh_db, pk):
     fresh_db["foo"].insert({"id": 1}, pk=pk)
     assert (
-        fresh_db["foo"].schema == "CREATE TABLE [foo] (\n   [id] INTEGER PRIMARY KEY\n)"
+        fresh_db["foo"].schema == 'CREATE TABLE "foo" (\n   "id" INTEGER PRIMARY KEY\n)'
     )
 
 
-def test_create_table_with_invalid_column_characters(fresh_db):
-    with pytest.raises(AssertionError):
-        fresh_db.create_table("players", {"name[foo]": str})
+def test_create_table_with_special_column_characters(fresh_db):
+    # With double-quote escaping, columns with special characters are now valid
+    table = fresh_db.create_table("players", {"name[foo]": str})
+    assert ["players"] == fresh_db.table_names()
+    assert [{"name": "name[foo]", "type": "TEXT"}] == [
+        {"name": col.name, "type": col.type} for col in table.columns
+    ]
 
 
 def test_create_table_with_defaults(fresh_db):
@@ -100,7 +104,7 @@ def test_create_table_with_defaults(fresh_db):
         {"name": col.name, "type": col.type} for col in table.columns
     ]
     assert (
-        "CREATE TABLE [players] (\n   [name] TEXT DEFAULT 'bob''''bob',\n   [score] INTEGER DEFAULT 1\n)"
+        "CREATE TABLE \"players\" (\n   \"name\" TEXT DEFAULT 'bob''''bob',\n   \"score\" INTEGER DEFAULT 1\n)"
     ) == table.schema
 
 
@@ -123,7 +127,7 @@ def test_create_table_with_not_null(fresh_db):
         {"name": col.name, "type": col.type} for col in table.columns
     ]
     assert (
-        "CREATE TABLE [players] (\n   [name] TEXT NOT NULL,\n   [score] INTEGER NOT NULL DEFAULT 3\n)"
+        'CREATE TABLE "players" (\n   "name" TEXT NOT NULL,\n   "score" INTEGER NOT NULL DEFAULT 3\n)'
     ) == table.schema
 
 
@@ -145,7 +149,7 @@ def test_create_table_with_not_null(fresh_db):
             [{"name": "memoryview", "type": "BLOB"}],
         ),
         ({"uuid": uuid.uuid4()}, [{"name": "uuid", "type": "TEXT"}]),
-        ({"foo[bar]": 1}, [{"name": "foo_bar_", "type": "INTEGER"}]),
+        ({"foo[bar]": 1}, [{"name": "foo[bar]", "type": "INTEGER"}]),
         (
             {"timedelta": datetime.timedelta(hours=1)},
             [{"name": "timedelta", "type": "TEXT"}],
@@ -307,9 +311,9 @@ def test_self_referential_foreign_key(fresh_db):
         foreign_keys=(("ref", "test_table", "id"),),
     )
     assert (
-        "CREATE TABLE [test_table] (\n"
-        "   [id] INTEGER PRIMARY KEY,\n"
-        "   [ref] INTEGER REFERENCES [test_table]([id])\n"
+        'CREATE TABLE "test_table" (\n'
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "ref" INTEGER REFERENCES "test_table"("id")\n'
         ")"
     ) == table.schema
 
@@ -340,58 +344,58 @@ def test_create_error_if_invalid_self_referential_foreign_keys(fresh_db):
             "nickname",
             str,
             None,
-            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [nickname] TEXT)",
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "nickname" TEXT)',
         ),
         (
             "dob",
             datetime.date,
             None,
-            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [dob] TEXT)",
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "dob" TEXT)',
         ),
-        ("age", int, None, "CREATE TABLE [dogs] (\n   [name] TEXT\n, [age] INTEGER)"),
+        ("age", int, None, 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "age" INTEGER)'),
         (
             "weight",
             float,
             None,
-            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [weight] FLOAT)",
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "weight" FLOAT)',
         ),
-        ("text", "TEXT", None, "CREATE TABLE [dogs] (\n   [name] TEXT\n, [text] TEXT)"),
+        ("text", "TEXT", None, 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "text" TEXT)'),
         (
             "integer",
             "INTEGER",
             None,
-            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [integer] INTEGER)",
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "integer" INTEGER)',
         ),
         (
             "float",
             "FLOAT",
             None,
-            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [float] FLOAT)",
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "float" FLOAT)',
         ),
-        ("blob", "blob", None, "CREATE TABLE [dogs] (\n   [name] TEXT\n, [blob] BLOB)"),
+        ("blob", "blob", None, 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
         (
             "default_str",
             None,
             None,
-            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [default_str] TEXT)",
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "default_str" TEXT)',
         ),
         (
             "nickname",
             str,
             "",
-            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [nickname] TEXT NOT NULL DEFAULT '')",
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "nickname" TEXT NOT NULL DEFAULT \'\')',
         ),
         (
             "nickname",
             str,
             "dawg's dawg",
-            "CREATE TABLE [dogs] (\n   [name] TEXT\n, [nickname] TEXT NOT NULL DEFAULT 'dawg''s dawg')",
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "nickname" TEXT NOT NULL DEFAULT \'dawg\'\'s dawg\')',
         ),
     ),
 )
 def test_add_column(fresh_db, col_name, col_type, not_null_default, expected_schema):
     fresh_db.create_table("dogs", {"name": str})
-    assert fresh_db["dogs"].schema == "CREATE TABLE [dogs] (\n   [name] TEXT\n)"
+    assert fresh_db["dogs"].schema == 'CREATE TABLE "dogs" (\n   "name" TEXT\n)'
     fresh_db["dogs"].add_column(col_name, col_type, not_null_default=not_null_default)
     assert fresh_db["dogs"].schema == expected_schema
 
@@ -496,8 +500,8 @@ def test_add_column_foreign_key(fresh_db):
     fresh_db["dogs"].add_column("breed_id", fk="breeds")
     assert fresh_db["dogs"].schema == (
         'CREATE TABLE "dogs" (\n'
-        "   [name] TEXT,\n"
-        "   [breed_id] INTEGER REFERENCES [breeds]([rowid])\n"
+        '   "name" TEXT,\n'
+        '   "breed_id" INTEGER REFERENCES "breeds"("rowid")\n'
         ")"
     )
     # And again with an explicit primary key column
@@ -505,9 +509,9 @@ def test_add_column_foreign_key(fresh_db):
     fresh_db["dogs"].add_column("subbreed_id", fk="subbreeds")
     assert fresh_db["dogs"].schema == (
         'CREATE TABLE "dogs" (\n'
-        "   [name] TEXT,\n"
-        "   [breed_id] INTEGER REFERENCES [breeds]([rowid]),\n"
-        "   [subbreed_id] TEXT REFERENCES [subbreeds]([primkey])\n"
+        '   "name" TEXT,\n'
+        '   "breed_id" INTEGER REFERENCES "breeds"("rowid"),\n'
+        '   "subbreed_id" TEXT REFERENCES "subbreeds"("primkey")\n'
         ")"
     )
 
@@ -519,8 +523,8 @@ def test_add_foreign_key_guess_table(fresh_db):
     fresh_db["dogs"].add_foreign_key("breed_id")
     assert fresh_db["dogs"].schema == (
         'CREATE TABLE "dogs" (\n'
-        "   [name] TEXT,\n"
-        "   [breed_id] INTEGER REFERENCES [breeds]([id])\n"
+        '   "name" TEXT,\n'
+        '   "breed_id" INTEGER REFERENCES "breeds"("id")\n'
         ")"
     )
 
@@ -591,7 +595,7 @@ def test_add_missing_columns_case_insensitive(fresh_db):
     table.add_missing_columns([{"Name": ".", "age": 4}])
     assert (
         table.schema
-        == "CREATE TABLE [foo] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n, [age] INTEGER)"
+        == 'CREATE TABLE "foo" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT\n, "age" INTEGER)'
     )
 
 
@@ -814,7 +818,7 @@ def test_create_index_desc(fresh_db):
         "select sql from sqlite_master where name='idx_dogs_age_name'"
     ).fetchone()[0]
     assert sql == (
-        "CREATE INDEX [idx_dogs_age_name]\n" "    ON [dogs] ([age] desc, [name])"
+        'CREATE INDEX "idx_dogs_age_name"\n' '    ON "dogs" ("age" desc, "name")'
     )
 
 
@@ -1154,19 +1158,19 @@ def test_quote(fresh_db, input, expected):
     (
         (
             {"id": int},
-            "[id] INTEGER",
+            '"id" INTEGER',
         ),
         (
             {"col": dict},
-            "[col] TEXT",
+            '"col" TEXT',
         ),
         (
             {"col": tuple},
-            "[col] TEXT",
+            '"col" TEXT',
         ),
         (
             {"col": list},
-            "[col] TEXT",
+            '"col" TEXT',
         ),
     ),
 )
@@ -1191,12 +1195,12 @@ def test_create(fresh_db):
         defaults={"integer": 0},
     )
     assert fresh_db["t"].schema == (
-        "CREATE TABLE [t] (\n"
-        "   [id] INTEGER PRIMARY KEY,\n"
-        "   [float] FLOAT NOT NULL,\n"
-        "   [text] TEXT,\n"
-        "   [integer] INTEGER NOT NULL DEFAULT 0,\n"
-        "   [bytes] BLOB\n"
+        'CREATE TABLE "t" (\n'
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "float" FLOAT NOT NULL,\n'
+        '   "text" TEXT,\n'
+        '   "integer" INTEGER NOT NULL DEFAULT 0,\n'
+        '   "bytes" BLOB\n'
         ")"
     )
 
@@ -1232,7 +1236,7 @@ def test_create_replace(fresh_db):
         fresh_db["t"].create({"id": int})
     # This should not
     fresh_db["t"].create({"name": str}, replace=True)
-    assert fresh_db["t"].schema == ("CREATE TABLE [t] (\n" "   [name] TEXT\n" ")")
+    assert fresh_db["t"].schema == ('CREATE TABLE "t" (\n' '   "name" TEXT\n' ")")
 
 
 @pytest.mark.parametrize(
@@ -1242,58 +1246,58 @@ def test_create_replace(fresh_db):
         (
             {"id": int, "name": str},
             {"pk": "id"},
-            "CREATE TABLE [demo] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n)",
+            'CREATE TABLE "demo" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT\n)',
             False,
         ),
         # Drop name column, remove primary key
-        ({"id": int}, {}, 'CREATE TABLE "demo" (\n   [id] INTEGER\n)', True),
+        ({"id": int}, {}, 'CREATE TABLE "demo" (\n   "id" INTEGER\n)', True),
         # Add a new column
         (
             {"id": int, "name": str, "age": int},
             {"pk": "id"},
-            'CREATE TABLE "demo" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT,\n   [age] INTEGER\n)',
+            'CREATE TABLE "demo" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "age" INTEGER\n)',
             True,
         ),
         # Change a column type
         (
             {"id": int, "name": bytes},
             {"pk": "id"},
-            'CREATE TABLE "demo" (\n   [id] INTEGER PRIMARY KEY,\n   [name] BLOB\n)',
+            'CREATE TABLE "demo" (\n   "id" INTEGER PRIMARY KEY,\n   "name" BLOB\n)',
             True,
         ),
         # Change the primary key
         (
             {"id": int, "name": str},
             {"pk": "name"},
-            'CREATE TABLE "demo" (\n   [id] INTEGER,\n   [name] TEXT PRIMARY KEY\n)',
+            'CREATE TABLE "demo" (\n   "id" INTEGER,\n   "name" TEXT PRIMARY KEY\n)',
             True,
         ),
         # Change in column order
         (
             {"id": int, "name": str},
             {"pk": "id", "column_order": ["name"]},
-            'CREATE TABLE "demo" (\n   [name] TEXT,\n   [id] INTEGER PRIMARY KEY\n)',
+            'CREATE TABLE "demo" (\n   "name" TEXT,\n   "id" INTEGER PRIMARY KEY\n)',
             True,
         ),
         # Same column order is ignored
         (
             {"id": int, "name": str},
             {"pk": "id", "column_order": ["id", "name"]},
-            "CREATE TABLE [demo] (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT\n)",
+            'CREATE TABLE "demo" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT\n)',
             False,
         ),
         # Change not null
         (
             {"id": int, "name": str},
             {"pk": "id", "not_null": {"name"}},
-            'CREATE TABLE "demo" (\n   [id] INTEGER PRIMARY KEY,\n   [name] TEXT NOT NULL\n)',
+            'CREATE TABLE "demo" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT NOT NULL\n)',
             True,
         ),
         # Change default values
         (
             {"id": int, "name": str},
             {"pk": "id", "defaults": {"id": 0, "name": "Bob"}},
-            "CREATE TABLE \"demo\" (\n   [id] INTEGER PRIMARY KEY DEFAULT 0,\n   [name] TEXT DEFAULT 'Bob'\n)",
+            'CREATE TABLE "demo" (\n   "id" INTEGER PRIMARY KEY DEFAULT 0,\n   "name" TEXT DEFAULT \'Bob\'\n)',
             True,
         ),
     ),
@@ -1356,11 +1360,11 @@ def test_insert_upsert_strict(fresh_db, method_name, strict):
 def test_create_table_strict(fresh_db, strict):
     table = fresh_db.create_table("t", {"id": int, "f": float}, strict=strict)
     assert table.strict == strict or not fresh_db.supports_strict
-    expected_schema = "CREATE TABLE [t] (\n" "   [id] INTEGER,\n" "   [f] FLOAT\n" ")"
+    expected_schema = 'CREATE TABLE "t" (\n' '   "id" INTEGER,\n' '   "f" FLOAT\n' ")"
     if strict and not fresh_db.supports_strict:
         return
     if strict:
-        expected_schema = "CREATE TABLE [t] (\n   [id] INTEGER,\n   [f] REAL\n) STRICT"
+        expected_schema = 'CREATE TABLE "t" (\n   "id" INTEGER,\n   "f" REAL\n) STRICT'
     assert table.schema == expected_schema
 
 

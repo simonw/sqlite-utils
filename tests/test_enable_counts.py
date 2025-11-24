@@ -15,25 +15,25 @@ def test_enable_counts_specific_table(fresh_db):
     foo.enable_counts()
     assert foo.triggers_dict == {
         "foo_counts_insert": (
-            "CREATE TRIGGER [foo_counts_insert] AFTER INSERT ON [foo]\n"
+            'CREATE TRIGGER "foo_counts_insert" AFTER INSERT ON "foo"\n'
             "BEGIN\n"
-            "    INSERT OR REPLACE INTO [_counts]\n"
+            '    INSERT OR REPLACE INTO "_counts"\n'
             "    VALUES (\n        'foo',\n"
             "        COALESCE(\n"
-            "            (SELECT count FROM [_counts] WHERE [table] = 'foo'),\n"
+            '            (SELECT count FROM "_counts" WHERE "table" = \'foo\'),\n'
             "        0\n"
             "        ) + 1\n"
             "    );\n"
             "END"
         ),
         "foo_counts_delete": (
-            "CREATE TRIGGER [foo_counts_delete] AFTER DELETE ON [foo]\n"
+            'CREATE TRIGGER "foo_counts_delete" AFTER DELETE ON "foo"\n'
             "BEGIN\n"
-            "    INSERT OR REPLACE INTO [_counts]\n"
+            '    INSERT OR REPLACE INTO "_counts"\n'
             "    VALUES (\n"
             "        'foo',\n"
             "        COALESCE(\n"
-            "            (SELECT count FROM [_counts] WHERE [table] = 'foo'),\n"
+            '            (SELECT count FROM "_counts" WHERE "table" = \'foo\'),\n'
             "        0\n"
             "        ) - 1\n"
             "    );\n"
@@ -132,7 +132,7 @@ def test_uses_counts_after_enable_counts(counts_db_path):
         assert db.table("foo").count == 1
         assert logged == [
             ("select name from sqlite_master where type = 'view'", None),
-            ("select count(*) from [foo]", []),
+            ('select count(*) from "foo"', []),
         ]
         logged.clear()
         assert not db.use_counts_table
@@ -141,7 +141,7 @@ def test_uses_counts_after_enable_counts(counts_db_path):
         assert db.table("foo").count == 1
     assert logged == [
         (
-            "CREATE TABLE IF NOT EXISTS [_counts](\n   [table] TEXT PRIMARY KEY,\n   count INTEGER DEFAULT 0\n);",
+            'CREATE TABLE IF NOT EXISTS "_counts"(\n   "table" TEXT PRIMARY KEY,\n   count INTEGER DEFAULT 0\n);',
             None,
         ),
         ("select name from sqlite_master where type = 'table'", None),
@@ -157,7 +157,7 @@ def test_uses_counts_after_enable_counts(counts_db_path):
         ("SELECT quote(:value)", {"value": "baz"}),
         ("select sql from sqlite_master where name = ?", ("_counts",)),
         ("select name from sqlite_master where type = 'view'", None),
-        ("select [table], count from _counts where [table] in (?)", ["foo"]),
+        ('select "table", count from _counts where "table" in (?)', ["foo"]),
     ]
 
 
