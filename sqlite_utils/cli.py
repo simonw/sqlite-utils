@@ -3209,8 +3209,12 @@ FILE_COLUMNS = {
     "ctime": lambda p: p.stat().st_ctime,
     "mtime_int": lambda p: int(p.stat().st_mtime),
     "ctime_int": lambda p: int(p.stat().st_ctime),
-    "mtime_iso": lambda p: datetime.fromtimestamp(p.stat().st_mtime, timezone.utc).replace(tzinfo=None).isoformat(),
-    "ctime_iso": lambda p: datetime.fromtimestamp(p.stat().st_ctime, timezone.utc).replace(tzinfo=None).isoformat(),
+    "mtime_iso": lambda p: datetime.fromtimestamp(p.stat().st_mtime, timezone.utc)
+    .replace(tzinfo=None)
+    .isoformat(),
+    "ctime_iso": lambda p: datetime.fromtimestamp(p.stat().st_ctime, timezone.utc)
+    .replace(tzinfo=None)
+    .isoformat(),
     "size": lambda p: p.stat().st_size,
     "stem": lambda p: p.stem,
     "suffix": lambda p: p.suffix,
