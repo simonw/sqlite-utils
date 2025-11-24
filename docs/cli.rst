@@ -368,6 +368,22 @@ This example defines a function which extracts the domain from a URL:
 
 Every callable object defined in the block will be registered as a SQL function with the same name, with the exception of functions with names that begin with an underscore.
 
+You can also pass the path to a Python file containing function definitions:
+
+.. code-block:: bash
+
+    sqlite-utils query sites.db "select url, domain(url) from urls" --functions functions.py
+
+The ``--functions`` option can be used multiple times to load functions from multiple sources:
+
+.. code-block:: bash
+
+    sqlite-utils query sites.db "select url, domain(url), extract_path(url) from urls" \
+      --functions domain_funcs.py \
+      --functions 'def extract_path(url):
+        from urllib.parse import urlparse
+        return urlparse(url).path'
+
 .. _cli_query_extensions:
 
 SQLite extensions

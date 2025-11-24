@@ -307,6 +307,22 @@ def test_memory_functions():
     assert result.output.strip() == '[{"hello()": "Hello"}]'
 
 
+def test_memory_functions_multiple():
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "memory",
+            "select triple(2), quadruple(2)",
+            "--functions",
+            "def triple(x):\n    return x * 3",
+            "--functions",
+            "def quadruple(x):\n    return x * 4",
+        ],
+    )
+    assert result.exit_code == 0
+    assert result.output.strip() == '[{"triple(2)": 6, "quadruple(2)": 8}]'
+
+
 def test_memory_return_db(tmpdir):
     # https://github.com/simonw/sqlite-utils/issues/643
     from sqlite_utils.cli import cli

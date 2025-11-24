@@ -1375,7 +1375,9 @@ def upsert(
 @click.argument("file", type=click.File("rb"), required=True)
 @click.option("--batch-size", type=int, default=100, help="Commit every X records")
 @click.option(
-    "--functions", help="Python code defining one or more custom SQL functions"
+    "--functions",
+    help="Python code or file path defining custom SQL functions",
+    multiple=True,
 )
 @import_options
 @load_extension_option
@@ -1764,7 +1766,9 @@ def drop_view(path, view, ignore, load_extension):
     help="Named :parameters for SQL query",
 )
 @click.option(
-    "--functions", help="Python code defining one or more custom SQL functions"
+    "--functions",
+    help="Python code or file path defining custom SQL functions",
+    multiple=True,
 )
 @load_extension_option
 def query(
@@ -1828,7 +1832,9 @@ def query(
 )
 @click.argument("sql")
 @click.option(
-    "--functions", help="Python code defining one or more custom SQL functions"
+    "--functions",
+    help="Python code or file path defining custom SQL functions",
+    multiple=True,
 )
 @click.option(
     "--attach",
@@ -3292,6 +3298,13 @@ def _load_extensions(db, load_extension):
 
 def _register_functions(db, functions):
     # Register any Python functions as SQL functions:
+    # Check if this is a file path
+    if "\n" not in functions and functions.endswith(".py"):
+        try:
+            functions = pathlib.Path(functions).read_text()
+        except FileNotFoundError:
+            raise click.ClickException("File not found: {}".format(functions))
+
     sqlite3.enable_callback_tracebacks(True)
     globals = {}
     try:
@@ -3310,9 +3323,10 @@ def _value_or_none(value):
     return value
 
 
-def _maybe_register_functions(db, functions):
-    functions = _value_or_none(functions)
-    if isinstance(functions, (bytes, bytearray)):
-        functions = functions.decode("utf-8")
-    if isinstance(functions, str) and functions.strip():
-        _register_functions(db, functions)
+def _maybe_register_functions(db, functions_list):
+    if not functions_list:
+        return
+    for functions in functions_list:
+        functions = _value_or_none(functions)
+        if isinstance(functions, str) and functions.strip():
+            _register_functions(db, functions)
