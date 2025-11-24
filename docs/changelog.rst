@@ -16,7 +16,6 @@
 - Tables in the Python API now do a much better job of remembering the primary key and other schema details from when they were first created. (:issue:`655`)
 - **Breaking change**: The ``table.convert()` and ``sqlite-utils convert`` mechanisms no longer skip values that evaluate to ``False``. Previously the `--skip-false`` option was needed, this has been removed. (:issue:`542`)
 - **Breaking change**: Tables created by this library now wrap table and column names in ``"double-quotes"`` in the schema. Previously they would use ``[square-braces]``. (:issue:`677`)
-- **Breaking change**: Floating point columns in SQLite now use the correct column type of ``REAL``. They previously used ``FLOAT``. (:issue:`645`)
 - The ``--functions`` CLI argument now accepts a path to a Python file in addition to accepting a string full of Python code. It can also now be specified multiple times. (:issue:`659`)
 - **Breaking change:** Type detection is now the default behavior for the ``insert`` and ``upsert`` CLI commands when importing CSV or TSV data. Previously all columns were treated as ``TEXT`` unless the ``--detect-types`` flag was passed. Use the new ``--no-detect-types`` flag to restore the old behavior. The ``SQLITE_UTILS_DETECT_TYPES`` environment variable has been removed. (:issue:`679`)
 
