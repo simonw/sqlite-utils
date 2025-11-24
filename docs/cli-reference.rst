@@ -131,8 +131,8 @@ See :ref:`cli_query`.
       -r, --raw                   Raw output, first column of first row
       --raw-lines                 Raw output, first column of each row
       -p, --param <TEXT TEXT>...  Named :parameters for SQL query
-      --functions TEXT            Python code block or file path defining custom SQL
-                                  functions, can be used multiple times
+      --functions TEXT            Python code or file path defining custom SQL
+                                  functions
       --load-extension TEXT       Path to SQLite extension, with optional
                                   :entrypoint
       -h, --help                  Show this message and exit.
@@ -174,8 +174,8 @@ See :ref:`cli_memory`.
           sqlite-utils memory animals.csv --schema
 
     Options:
-      --functions TEXT            Python code block or file path defining custom SQL
-                                  functions, can be used multiple times
+      --functions TEXT            Python code or file path defining custom SQL
+                                  functions
       --attach <TEXT FILE>...     Additional databases to attach - specify alias and
                                   filepath
       --flatten                   Flatten nested JSON objects, so {"foo": {"bar":
@@ -374,8 +374,7 @@ See :ref:`cli_bulk`.
 
     Options:
       --batch-size INTEGER   Commit every X records
-      --functions TEXT       Python code block or file path defining custom SQL
-                             functions, can be used multiple times
+      --functions TEXT       Python code or file path defining custom SQL functions
       --flatten              Flatten nested JSON objects, so {"a": {"b": 1}} becomes
                              {"a_b": 1}
       --nl                   Expect newline-delimited JSON
