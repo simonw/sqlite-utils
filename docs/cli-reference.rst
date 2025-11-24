@@ -285,7 +285,8 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --alter                   Alter existing table to add any missing columns
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column
-      -d, --detect-types        Detect types for columns in CSV/TSV data
+      -d, --detect-types        Detect types for columns in CSV/TSV data (default)
+      --no-detect-types         Treat all CSV/TSV columns as TEXT
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       --silent                  Do not show progress bar
@@ -342,7 +343,8 @@ See :ref:`cli_upsert`.
       --alter                   Alter existing table to add any missing columns
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column
-      -d, --detect-types        Detect types for columns in CSV/TSV data
+      -d, --detect-types        Detect types for columns in CSV/TSV data (default)
+      --no-detect-types         Treat all CSV/TSV columns as TEXT
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       --silent                  Do not show progress bar

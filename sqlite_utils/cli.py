@@ -898,8 +898,12 @@ def insert_upsert_options(*, require_pk=False):
                     "-d",
                     "--detect-types",
                     is_flag=True,
-                    envvar="SQLITE_UTILS_DETECT_TYPES",
-                    help="Detect types for columns in CSV/TSV data",
+                    help="Detect types for columns in CSV/TSV data (default)",
+                ),
+                click.option(
+                    "--no-detect-types",
+                    is_flag=True,
+                    help="Treat all CSV/TSV columns as TEXT",
                 ),
                 click.option(
                     "--analyze",
@@ -951,6 +955,7 @@ def insert_upsert_implementation(
     not_null=None,
     default=None,
     detect_types=None,
+    no_detect_types=False,
     analyze=False,
     load_extension=None,
     silent=False,
@@ -1019,7 +1024,8 @@ def insert_upsert_implementation(
                 )
             else:
                 docs = (dict(zip(headers, row)) for row in reader)
-            if detect_types:
+            # detect_types is now the default, unless --no-detect-types is passed
+            if not no_detect_types:
                 tracker = TypeTracker()
                 docs = tracker.wrap(docs)
         elif lines:
@@ -1191,6 +1197,7 @@ def insert(
     stop_after,
     alter,
     detect_types,
+    no_detect_types,
     analyze,
     load_extension,
     silent,
@@ -1273,6 +1280,7 @@ def insert(
             replace=replace,
             truncate=truncate,
             detect_types=detect_types,
+            no_detect_types=no_detect_types,
             analyze=analyze,
             load_extension=load_extension,
             silent=silent,
@@ -1311,6 +1319,7 @@ def upsert(
     not_null,
     default,
     detect_types,
+    no_detect_types,
     analyze,
     load_extension,
     silent,
@@ -1356,6 +1365,7 @@ def upsert(
             not_null=not_null,
             default=default,
             detect_types=detect_types,
+            no_detect_types=no_detect_types,
             analyze=analyze,
             load_extension=load_extension,
             silent=silent,
@@ -1443,6 +1453,7 @@ def bulk(
             not_null=set(),
             default={},
             detect_types=False,
+            no_detect_types=True,
             load_extension=load_extension,
             silent=False,
             bulk_sql=sql,
