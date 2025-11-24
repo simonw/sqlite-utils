@@ -76,7 +76,7 @@ build-backend = "setuptools.build_meta"
 max-line-length = 160
 # Black compatibility, E203 whitespace before ':':
 extend-ignore = ["E203"]
-exclude = [".venv"]
+extend-exclude = [".venv", "build", "dist", "docs", "sqlite_utils.egg-info"]
 
 [tool.setuptools.package-data]
 sqlite_utils = ["py.typed"]

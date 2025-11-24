@@ -1,30 +1,32 @@
 # Run tests and linters
 @default: test lint
 
-# Setup project
-@init:
-  pipenv run pip install -e '.[test,docs,mypy,flake8]'
-
 # Run pytest with supplied options
 @test *options:
-  pipenv run pytest {{options}}
+  just run pytest {{options}}
+
+@run *options:
+  uv run --isolated --with-editable '.[test,mypy,flake8,docs]' -- {{options}}
 
 # Run linters: black, flake8, mypy, cog
 @lint:
-  pipenv run black . --check
-  pipenv run flake8
-  pipenv run mypy sqlite_utils tests
-  pipenv run cog --check README.md docs/*.rst
-  pipenv run codespell docs/*.rst --ignore-words docs/codespell-ignore-words.txt
+  just run black . --check
+  just run flake8
+  just run mypy sqlite_utils tests
+  just run cog --check README.md docs/*.rst
+  just run codespell docs/*.rst --ignore-words docs/codespell-ignore-words.txt
 
 # Rebuild docs with cog
 @cog:
-  pipenv run cog -r README.md docs/*.rst
+  just run cog -r README.md docs/*.rst
 
 # Serve live docs on localhost:8000
 @docs: cog
-  cd docs && pipenv run make livehtml
+  #!/usr/bin/env bash
+  cd docs
+  uv run --isolated --with-editable '../.[test,docs]' make livehtml
+
 
 # Apply Black
 @black:
-  pipenv run black .
+  just run black .
