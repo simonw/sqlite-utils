@@ -25,7 +25,7 @@ setup(
     package_data={"sqlite_utils": ["py.typed"]},
     install_requires=[
         "sqlite-fts4",
-        "click",
+        "click>=8.3.1",
         "click-default-group>=1.2.3",
         "tabulate",
         "python-dateutil",
