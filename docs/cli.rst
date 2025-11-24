@@ -508,7 +508,7 @@ Incoming CSV data will be assumed to use ``utf-8``. If your data uses a differen
 
 If you are joining across multiple CSV files they must all use the same encoding.
 
-Column types will be automatically detected in CSV or TSV data, using the same mechanism as ``--detect-types`` described in :ref:`cli_insert_csv_tsv`. You can pass the ``--no-detect-types`` option to disable this automatic type detection and treat all CSV and TSV columns as ``TEXT``.
+Column types will be automatically detected in CSV or TSV data, as described in :ref:`cli_insert_csv_tsv`. You can pass the ``--no-detect-types`` option to disable this automatic type detection and treat all CSV and TSV columns as ``TEXT``.
 
 .. _cli_memory_explicit:
 
@@ -1263,7 +1263,7 @@ To stop inserting after a specified number of records - useful for getting a fas
 
 A progress bar is displayed when inserting data from a file. You can hide the progress bar using the ``--silent`` option.
 
-By default every column inserted from a CSV or TSV file will be of type ``TEXT``. To automatically detect column types - resulting in a mix of ``TEXT``, ``INTEGER`` and ``REAL`` columns, use the ``--detect-types`` option (or its shortcut ``-d``).
+By default, column types are automatically detected for CSV or TSV files - resulting in a mix of ``TEXT``, ``INTEGER`` and ``REAL`` columns. To disable type detection and treat all columns as ``TEXT``, use the ``--no-detect-types`` option.
 
 For example, given a ``creatures.csv`` file containing this:
 
@@ -1277,9 +1277,9 @@ The following command:
 
 .. code-block:: bash
 
-    sqlite-utils insert creatures.db creatures creatures.csv --csv --detect-types
+    sqlite-utils insert creatures.db creatures creatures.csv --csv
 
-Will produce this schema:
+Will produce this schema with automatically detected types:
 
 .. code-block:: bash
 
@@ -1293,11 +1293,11 @@ Will produce this schema:
        "weight" REAL
     );
 
-You can set the ``SQLITE_UTILS_DETECT_TYPES`` environment variable if you want ``--detect-types`` to be the default behavior:
+To disable type detection and treat all columns as TEXT, use ``--no-detect-types``:
 
 .. code-block:: bash
 
-    export SQLITE_UTILS_DETECT_TYPES=1
+    sqlite-utils insert creatures.db creatures creatures.csv --csv --no-detect-types
 
 If a CSV or TSV file includes empty cells, like this one:
 

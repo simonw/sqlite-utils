@@ -4,7 +4,6 @@ from click.testing import CliRunner
 from pathlib import Path
 import subprocess
 import sys
-from unittest import mock
 import json
 import os
 import pytest
@@ -1907,7 +1906,16 @@ def test_insert_encoding(tmpdir):
     # Using --encoding=latin-1 should work
     good_result = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "places", csv_path, "--encoding", "latin-1", "--csv"],
+        [
+            "insert",
+            db_path,
+            "places",
+            csv_path,
+            "--encoding",
+            "latin-1",
+            "--csv",
+            "--no-detect-types",
+        ],
         catch_exceptions=False,
     )
     assert good_result.exit_code == 0
@@ -2196,7 +2204,7 @@ def test_import_no_headers(tmpdir, args, tsv):
         csv_file.write("Tracy{sep}Spider{sep}7\n".format(sep=sep))
     result = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "creatures", csv_path] + args,
+        ["insert", db_path, "creatures", csv_path] + args + ["--no-detect-types"],
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
@@ -2245,13 +2253,22 @@ def test_csv_insert_bom(tmpdir):
         fp.write(b"\xef\xbb\xbfname,age\nCleo,5")
     result = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "broken", bom_csv_path, "--encoding", "utf-8", "--csv"],
+        [
+            "insert",
+            db_path,
+            "broken",
+            bom_csv_path,
+            "--encoding",
+            "utf-8",
+            "--csv",
+            "--no-detect-types",
+        ],
         catch_exceptions=False,
     )
     assert result.exit_code == 0
     result2 = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "fixed", bom_csv_path, "--csv"],
+        ["insert", db_path, "fixed", bom_csv_path, "--csv", "--no-detect-types"],
         catch_exceptions=False,
     )
     assert result2.exit_code == 0
@@ -2263,43 +2280,40 @@ def test_csv_insert_bom(tmpdir):
     ]
 
 
-@pytest.mark.parametrize("option_or_env_var", (None, "-d", "--detect-types"))
-def test_insert_detect_types(tmpdir, option_or_env_var):
+@pytest.mark.parametrize("option", (None, "-d", "--detect-types"))
+def test_insert_detect_types(tmpdir, option):
+    """Test that type detection is now the default behavior"""
     db_path = str(tmpdir / "test.db")
     data = "name,age,weight\nCleo,6,45.5\nDori,1,3.5"
     extra = []
-    if option_or_env_var:
-        extra = [option_or_env_var]
+    if option:
+        extra = [option]
 
-    def _test():
-        result = CliRunner().invoke(
-            cli.cli,
-            ["insert", db_path, "creatures", "-", "--csv"] + extra,
-            catch_exceptions=False,
-            input=data,
-        )
-        assert result.exit_code == 0
-        db = Database(db_path)
-        assert list(db["creatures"].rows) == [
-            {"name": "Cleo", "age": 6, "weight": 45.5},
-            {"name": "Dori", "age": 1, "weight": 3.5},
-        ]
-
-    if option_or_env_var is None:
-        # Use environment variable instead of option
-        with mock.patch.dict(os.environ, {"SQLITE_UTILS_DETECT_TYPES": "1"}):
-            _test()
-    else:
-        _test()
-
-
-@pytest.mark.parametrize("option", ("-d", "--detect-types"))
-def test_upsert_detect_types(tmpdir, option):
-    db_path = str(tmpdir / "test.db")
-    data = "id,name,age,weight\n1,Cleo,6,45.5\n2,Dori,1,3.5"
     result = CliRunner().invoke(
         cli.cli,
-        ["upsert", db_path, "creatures", "-", "--csv", "--pk", "id"] + [option],
+        ["insert", db_path, "creatures", "-", "--csv"] + extra,
+        catch_exceptions=False,
+        input=data,
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    assert list(db["creatures"].rows) == [
+        {"name": "Cleo", "age": 6, "weight": 45.5},
+        {"name": "Dori", "age": 1, "weight": 3.5},
+    ]
+
+
+@pytest.mark.parametrize("option", (None, "-d", "--detect-types"))
+def test_upsert_detect_types(tmpdir, option):
+    """Test that type detection is now the default behavior for upsert"""
+    db_path = str(tmpdir / "test.db")
+    data = "id,name,age,weight\n1,Cleo,6,45.5\n2,Dori,1,3.5"
+    extra = []
+    if option:
+        extra = [option]
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "creatures", "-", "--csv", "--pk", "id"] + extra,
         catch_exceptions=False,
         input=data,
     )
@@ -2312,12 +2326,12 @@ def test_upsert_detect_types(tmpdir, option):
 
 
 def test_csv_detect_types_creates_real_columns(tmpdir):
-    """Test that CSV import with --detect-types creates REAL columns for floats"""
+    """Test that CSV import creates REAL columns for floats (default behavior)"""
     db_path = str(tmpdir / "test.db")
     data = "name,age,weight\nCleo,6,45.5\nDori,1,3.5"
     result = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "creatures", "-", "--csv", "--detect-types"],
+        ["insert", db_path, "creatures", "-", "--csv"],
         catch_exceptions=False,
         input=data,
     )
@@ -2329,6 +2343,68 @@ def test_csv_detect_types_creates_real_columns(tmpdir):
         '   "name" TEXT,\n'
         '   "age" INTEGER,\n'
         '   "weight" REAL\n'
+        ")"
+    )
+
+
+def test_insert_no_detect_types(tmpdir):
+    """Test that --no-detect-types treats all columns as TEXT"""
+    db_path = str(tmpdir / "test.db")
+    data = "name,age,weight\nCleo,6,45.5\nDori,1,3.5"
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "-", "--csv", "--no-detect-types"],
+        catch_exceptions=False,
+        input=data,
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    # All columns should be TEXT when --no-detect-types is used
+    assert list(db["creatures"].rows) == [
+        {"name": "Cleo", "age": "6", "weight": "45.5"},
+        {"name": "Dori", "age": "1", "weight": "3.5"},
+    ]
+    assert db["creatures"].schema == (
+        'CREATE TABLE "creatures" (\n'
+        '   "name" TEXT,\n'
+        '   "age" TEXT,\n'
+        '   "weight" TEXT\n'
+        ")"
+    )
+
+
+def test_upsert_no_detect_types(tmpdir):
+    """Test that --no-detect-types treats all columns as TEXT for upsert"""
+    db_path = str(tmpdir / "test.db")
+    data = "id,name,age,weight\n1,Cleo,6,45.5\n2,Dori,1,3.5"
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "upsert",
+            db_path,
+            "creatures",
+            "-",
+            "--csv",
+            "--pk",
+            "id",
+            "--no-detect-types",
+        ],
+        catch_exceptions=False,
+        input=data,
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    # All columns should be TEXT when --no-detect-types is used
+    assert list(db["creatures"].rows) == [
+        {"id": "1", "name": "Cleo", "age": "6", "weight": "45.5"},
+        {"id": "2", "name": "Dori", "age": "1", "weight": "3.5"},
+    ]
+    assert db["creatures"].schema == (
+        'CREATE TABLE "creatures" (\n'
+        '   "id" TEXT PRIMARY KEY,\n'
+        '   "name" TEXT,\n'
+        '   "age" TEXT,\n'
+        '   "weight" TEXT\n'
         ")"
     )
 
