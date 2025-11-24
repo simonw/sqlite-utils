@@ -408,7 +408,7 @@ def test_convert_multi_complex_column_types(fresh_db_and_path):
     assert db["rows"].schema == (
         'CREATE TABLE "rows" (\n'
         '   "id" INTEGER PRIMARY KEY\n'
-        ', "is_str" TEXT, "is_float" FLOAT, "is_int" INTEGER, "is_bytes" BLOB)'
+        ', "is_str" TEXT, "is_float" REAL, "is_int" INTEGER, "is_bytes" BLOB)'
     )
 
 

@@ -189,7 +189,7 @@ class Default:
 DEFAULT = Default()
 
 COLUMN_TYPE_MAPPING = {
-    float: "FLOAT",
+    float: "REAL",
     int: "INTEGER",
     bool: "INTEGER",
     str: "TEXT",
@@ -203,19 +203,21 @@ COLUMN_TYPE_MAPPING = {
     datetime.date: "TEXT",
     datetime.time: "TEXT",
     datetime.timedelta: "TEXT",
-    decimal.Decimal: "FLOAT",
+    decimal.Decimal: "REAL",
     None.__class__: "TEXT",
     uuid.UUID: "TEXT",
     # SQLite explicit types
     "TEXT": "TEXT",
     "INTEGER": "INTEGER",
     "FLOAT": "FLOAT",
+    "REAL": "REAL",
     "BLOB": "BLOB",
     "text": "TEXT",
     "str": "TEXT",
     "integer": "INTEGER",
     "int": "INTEGER",
-    "float": "FLOAT",
+    "float": "REAL",
+    "real": "REAL",
     "blob": "BLOB",
     "bytes": "BLOB",
 }
@@ -232,9 +234,9 @@ if np:
                 np.uint16: "INTEGER",
                 np.uint32: "INTEGER",
                 np.uint64: "INTEGER",
-                np.float16: "FLOAT",
-                np.float32: "FLOAT",
-                np.float64: "FLOAT",
+                np.float16: "REAL",
+                np.float32: "REAL",
+                np.float64: "REAL",
             }
         )
     except AttributeError:

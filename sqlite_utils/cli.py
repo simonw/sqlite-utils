@@ -44,7 +44,7 @@ from .utils import (
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
-VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "BLOB")
+VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "REAL", "BLOB")
 
 UNICODE_ERROR = """
 {}
@@ -419,7 +419,7 @@ def dump(path, load_extension):
 @click.argument(
     "col_type",
     type=click.Choice(
-        ["integer", "int", "float", "text", "str", "blob", "bytes"],
+        ["integer", "int", "float", "real", "text", "str", "blob", "bytes"],
         case_sensitive=False,
     ),
     required=False,
@@ -2425,10 +2425,12 @@ def schema(
     "--type",
     type=(
         str,
-        click.Choice(["INTEGER", "TEXT", "FLOAT", "BLOB"], case_sensitive=False),
+        click.Choice(
+            ["INTEGER", "TEXT", "FLOAT", "REAL", "BLOB"], case_sensitive=False
+        ),
     ),
     multiple=True,
-    help="Change column type to INTEGER, TEXT, FLOAT or BLOB",
+    help="Change column type to INTEGER, TEXT, FLOAT, REAL or BLOB",
 )
 @click.option("--drop", type=str, multiple=True, help="Drop this column")
 @click.option(

@@ -457,8 +457,8 @@ See :ref:`cli_transform_table`.
               --rename column2 column_renamed
 
     Options:
-      --type <TEXT CHOICE>...         Change column type to INTEGER, TEXT, FLOAT or
-                                      BLOB
+      --type <TEXT CHOICE>...         Change column type to INTEGER, TEXT, FLOAT,
+                                      REAL or BLOB
       --drop TEXT                     Drop this column
       --rename <TEXT TEXT>...         Rename this column to X
       -o, --column-order TEXT         Reorder columns
@@ -1142,7 +1142,7 @@ See :ref:`cli_add_column`.
 ::
 
     Usage: sqlite-utils add-column [OPTIONS] PATH TABLE COL_NAME
-                          [[integer|int|float|text|str|blob|bytes]]
+                          [[integer|int|float|real|text|str|blob|bytes]]
 
       Add a column to the specified table
 

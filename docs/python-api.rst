@@ -548,7 +548,7 @@ This will create a table with the following schema:
         "id" INTEGER PRIMARY KEY,
         "name" TEXT,
         "age" INTEGER,
-        "weight" FLOAT
+        "weight" REAL
     )
 
 .. _python_api_explicit_create:
@@ -1271,11 +1271,11 @@ You can specify the ``col_type`` argument either using a SQLite type as a string
 
 The ``col_type`` is optional - if you omit it the type of ``TEXT`` will be used.
 
-SQLite types you can specify are ``"TEXT"``, ``"INTEGER"``, ``"FLOAT"`` or ``"BLOB"``.
+SQLite types you can specify are ``"TEXT"``, ``"INTEGER"``, ``"FLOAT"``, ``"REAL"`` or ``"BLOB"``.
 
 If you pass a Python type, it will be mapped to SQLite types as shown here::
 
-    float: "FLOAT"
+    float: "REAL"
     int: "INTEGER"
     bool: "INTEGER"
     str: "TEXT"
@@ -1294,12 +1294,9 @@ If you pass a Python type, it will be mapped to SQLite types as shown here::
     np.uint16: "INTEGER"
     np.uint32: "INTEGER"
     np.uint64: "INTEGER"
-    np.float16: "FLOAT"
-    np.float32: "FLOAT"
-    np.float64: "FLOAT"
-
-.. note::
-    In sqlite-utils 3.x ``FLOAT`` is used for floating point columns when the correct column type is actually ``REAL``. If you specify ``strict=True`` tables created in strict mode will use the correct column type of ``REAL`` instead. We plan to change this behavior in ``sqlite-utils`` 4.x to always use ``REAL``, but this will represent a minor breaking change and so is being held for the next major release, see issue :issue:`645`.
+    np.float16: "REAL"
+    np.float32: "REAL"
+    np.float64: "REAL"
 
 You can also add a column that is a foreign key reference to another table using the ``fk`` parameter:
 

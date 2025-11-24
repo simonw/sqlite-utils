@@ -284,7 +284,7 @@ def test_create_index_desc(db_path):
             "int",
             'CREATE TABLE "dogs" (\n   "name" TEXT\n, "integer" INTEGER)',
         ),
-        ("float", "FLOAT", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "float" FLOAT)'),
+        ("float", "FLOAT", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "float" REAL)'),
         ("blob", "blob", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
         ("blob", "BLOB", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
         ("blob", "bytes", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
@@ -2238,6 +2238,28 @@ def test_upsert_detect_types(tmpdir, option):
         {"id": 1, "name": "Cleo", "age": 6, "weight": 45.5},
         {"id": 2, "name": "Dori", "age": 1, "weight": 3.5},
     ]
+
+
+def test_csv_detect_types_creates_real_columns(tmpdir):
+    """Test that CSV import with --detect-types creates REAL columns for floats"""
+    db_path = str(tmpdir / "test.db")
+    data = "name,age,weight\nCleo,6,45.5\nDori,1,3.5"
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "-", "--csv", "--detect-types"],
+        catch_exceptions=False,
+        input=data,
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    # Check that the schema uses REAL for the weight column
+    assert db["creatures"].schema == (
+        'CREATE TABLE "creatures" (\n'
+        '   "name" TEXT,\n'
+        '   "age" INTEGER,\n'
+        '   "weight" REAL\n'
+        ")"
+    )
 
 
 def test_integer_overflow_error(tmpdir):
