@@ -28,6 +28,7 @@ dependencies = [
     "python-dateutil",
     "sqlite-fts4",
     "tabulate",
+    "pip",
 ]
 
 [project.urls]
