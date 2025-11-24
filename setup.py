@@ -30,6 +30,7 @@ setup(
         "tabulate",
         "python-dateutil",
         "pluggy",
+        "pip",
     ],
     extras_require={
         "test": ["pytest", "black>=24.1.1", "hypothesis", "cogapp"],
