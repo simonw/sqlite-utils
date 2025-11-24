@@ -4,6 +4,15 @@
  Changelog
 ===========
 
+.. _v3_39:
+
+3.39 (2025-11-24)
+-----------------
+
+- Fixed a bug with ``sqlite-utils install`` when the tool had been installed using ``uv``. (:issue:`687`)
+- The ```--functions``` argument now optionally accepts a path to a Python file as an alternative to a string full of code, and can be specified multiple times - see :ref:`cli_query_functions`.  (:issue:`659`)
+- ``sqlite-utils`` now requires on Python 3.10 or higher.
+
 .. _v4_0a1:
 
 4.0a1 (2025-11-23)
