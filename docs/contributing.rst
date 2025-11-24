@@ -81,15 +81,10 @@ All three of these tools are run by our CI mechanism against every commit and pu
 
 .. _contributing_just:
 
-Using Just and pipenv
-=====================
+Using Just and uv
+=================
 
-If you install `Just <https://github.com/casey/just>`__ and `pipenv <https://pipenv.pypa.io/>`__ you can use them to manage your local development environment.
-
-To create a virtual environment and install all development dependencies, run::
-
-    cd sqlite-utils
-    just init
+If you install `Just <https://github.com/casey/just>`__ and `uv <https://github.com/astral-sh/uv>`__ you can use them to manage your local development environment.
 
 To run all of the tests and linters::
 
