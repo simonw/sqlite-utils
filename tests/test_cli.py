@@ -4,7 +4,6 @@ from click.testing import CliRunner
 from pathlib import Path
 import subprocess
 import sys
-from unittest import mock
 import json
 import os
 import pytest
