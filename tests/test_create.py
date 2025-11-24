@@ -43,7 +43,7 @@ def test_create_table(fresh_db):
     assert ["test_table"] == fresh_db.table_names()
     assert [
         {"name": "text_col", "type": "TEXT"},
-        {"name": "float_col", "type": "FLOAT"},
+        {"name": "float_col", "type": "REAL"},
         {"name": "int_col", "type": "INTEGER"},
         {"name": "bool_col", "type": "INTEGER"},
         {"name": "bytes_col", "type": "BLOB"},
@@ -52,7 +52,7 @@ def test_create_table(fresh_db):
     assert (
         'CREATE TABLE "test_table" (\n'
         '   "text_col" TEXT,\n'
-        '   "float_col" FLOAT,\n'
+        '   "float_col" REAL,\n'
         '   "int_col" INTEGER,\n'
         '   "bool_col" INTEGER,\n'
         '   "bytes_col" BLOB,\n'
@@ -143,7 +143,7 @@ def test_create_table_with_not_null(fresh_db):
             [{"name": "create", "type": "TEXT"}, {"name": "table", "type": "TEXT"}],
         ),
         ({"day": datetime.time(11, 0)}, [{"name": "day", "type": "TEXT"}]),
-        ({"decimal": decimal.Decimal("1.2")}, [{"name": "decimal", "type": "FLOAT"}]),
+        ({"decimal": decimal.Decimal("1.2")}, [{"name": "decimal", "type": "REAL"}]),
         (
             {"memoryview": memoryview(b"hello")},
             [{"name": "memoryview", "type": "BLOB"}],
@@ -193,7 +193,7 @@ def test_create_table_with_custom_columns(method_name, use_old_upsert):
         {"name": "id", "type": "INTEGER"},
         {"name": "name", "type": "TEXT"},
         {"name": "age", "type": "INTEGER"},
-        {"name": "weight", "type": "FLOAT"},
+        {"name": "weight", "type": "REAL"},
     ]
     assert expected_columns == [
         {"name": col.name, "type": col.type} for col in table.columns
@@ -357,7 +357,7 @@ def test_create_error_if_invalid_self_referential_foreign_keys(fresh_db):
             "weight",
             float,
             None,
-            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "weight" FLOAT)',
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "weight" REAL)',
         ),
         ("text", "TEXT", None, 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "text" TEXT)'),
         (
@@ -561,7 +561,7 @@ def test_index_foreign_keys_if_index_name_is_already_used(fresh_db):
         ),
         (
             {"hats": 5, "rating": 3.5},
-            [{"name": "hats", "type": "INTEGER"}, {"name": "rating", "type": "FLOAT"}],
+            [{"name": "hats", "type": "INTEGER"}, {"name": "rating", "type": "REAL"}],
         ),
     ],
 )
@@ -1197,7 +1197,7 @@ def test_create(fresh_db):
     assert fresh_db["t"].schema == (
         'CREATE TABLE "t" (\n'
         '   "id" INTEGER PRIMARY KEY,\n'
-        '   "float" FLOAT NOT NULL,\n'
+        '   "float" REAL NOT NULL,\n'
         '   "text" TEXT,\n'
         '   "integer" INTEGER NOT NULL DEFAULT 0,\n'
         '   "bytes" BLOB\n'
@@ -1360,7 +1360,7 @@ def test_insert_upsert_strict(fresh_db, method_name, strict):
 def test_create_table_strict(fresh_db, strict):
     table = fresh_db.create_table("t", {"id": int, "f": float}, strict=strict)
     assert table.strict == strict or not fresh_db.supports_strict
-    expected_schema = 'CREATE TABLE "t" (\n' '   "id" INTEGER,\n' '   "f" FLOAT\n' ")"
+    expected_schema = 'CREATE TABLE "t" (\n' '   "id" INTEGER,\n' '   "f" REAL\n' ")"
     if strict and not fresh_db.supports_strict:
         return
     if strict:

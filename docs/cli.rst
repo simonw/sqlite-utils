@@ -1247,7 +1247,7 @@ To stop inserting after a specified number of records - useful for getting a fas
 
 A progress bar is displayed when inserting data from a file. You can hide the progress bar using the ``--silent`` option.
 
-By default every column inserted from a CSV or TSV file will be of type ``TEXT``. To automatically detect column types - resulting in a mix of ``TEXT``, ``INTEGER`` and ``FLOAT`` columns, use the ``--detect-types`` option (or its shortcut ``-d``).
+By default every column inserted from a CSV or TSV file will be of type ``TEXT``. To automatically detect column types - resulting in a mix of ``TEXT``, ``INTEGER`` and ``REAL`` columns, use the ``--detect-types`` option (or its shortcut ``-d``).
 
 For example, given a ``creatures.csv`` file containing this:
 
@@ -1274,7 +1274,7 @@ Will produce this schema:
     CREATE TABLE "creatures" (
        "name" TEXT,
        "age" INTEGER,
-       "weight" FLOAT
+       "weight" REAL
     );
 
 You can set the ``SQLITE_UTILS_DETECT_TYPES`` environment variable if you want ``--detect-types`` to be the default behavior:
@@ -1589,7 +1589,7 @@ This will result in the following schema:
     CREATE TABLE "images" (
         "path" TEXT PRIMARY KEY,
         "md5" TEXT,
-        "mtime" FLOAT
+        "mtime" REAL
     );
 
 Note that there's no ``content`` column here at all - if you specify custom columns using ``-c`` you need to include ``-c content`` to create that column.
@@ -1888,8 +1888,8 @@ The type of the returned values will be taken into account when creating the new
 
     CREATE TABLE "places" (
         "location" TEXT,
-        "latitude" FLOAT,
-        "longitude" FLOAT
+        "latitude" REAL,
+        "longitude" REAL
     );
 
 The code function can also return ``None``, in which case its output will be ignored. You can drop the original column at the end of the operation by adding ``--drop``.
