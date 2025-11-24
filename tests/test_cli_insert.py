@@ -227,7 +227,7 @@ def test_insert_csv_tsv(content, options, db_path, tmpdir):
         fp.write(content)
     result = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "data", file_path] + options,
+        ["insert", db_path, "data", file_path] + options + ["--no-detect-types"],
         catch_exceptions=False,
     )
     assert result.exit_code == 0
@@ -236,7 +236,7 @@ def test_insert_csv_tsv(content, options, db_path, tmpdir):
 
 @pytest.mark.parametrize("empty_null", (True, False))
 def test_insert_csv_empty_null(db_path, empty_null):
-    options = ["--csv"]
+    options = ["--csv", "--no-detect-types"]
     if empty_null:
         options.append("--empty-null")
     result = CliRunner().invoke(
@@ -430,7 +430,7 @@ def test_insert_text(db_path):
     "options,input",
     (
         ([], '[{"id": "1", "name": "Bob"}, {"id": "2", "name": "Cat"}]'),
-        (["--csv"], "id,name\n1,Bob\n2,Cat"),
+        (["--csv", "--no-detect-types"], "id,name\n1,Bob\n2,Cat"),
         (["--nl"], '{"id": "1", "name": "Bob"}\n{"id": "2", "name": "Cat"}'),
     ),
 )

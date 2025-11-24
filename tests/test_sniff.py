@@ -12,7 +12,7 @@ def test_sniff(tmpdir, filepath):
     runner = CliRunner()
     result = runner.invoke(
         cli.cli,
-        ["insert", db_path, "creatures", str(filepath), "--sniff"],
+        ["insert", db_path, "creatures", str(filepath), "--sniff", "--no-detect-types"],
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.stdout

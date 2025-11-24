@@ -1907,7 +1907,16 @@ def test_insert_encoding(tmpdir):
     # Using --encoding=latin-1 should work
     good_result = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "places", csv_path, "--encoding", "latin-1", "--csv", "--no-detect-types"],
+        [
+            "insert",
+            db_path,
+            "places",
+            csv_path,
+            "--encoding",
+            "latin-1",
+            "--csv",
+            "--no-detect-types",
+        ],
         catch_exceptions=False,
     )
     assert good_result.exit_code == 0
@@ -2196,7 +2205,7 @@ def test_import_no_headers(tmpdir, args, tsv):
         csv_file.write("Tracy{sep}Spider{sep}7\n".format(sep=sep))
     result = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "creatures", csv_path] + args,
+        ["insert", db_path, "creatures", csv_path] + args + ["--no-detect-types"],
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
@@ -2245,7 +2254,16 @@ def test_csv_insert_bom(tmpdir):
         fp.write(b"\xef\xbb\xbfname,age\nCleo,5")
     result = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "broken", bom_csv_path, "--encoding", "utf-8", "--csv", "--no-detect-types"],
+        [
+            "insert",
+            db_path,
+            "broken",
+            bom_csv_path,
+            "--encoding",
+            "utf-8",
+            "--csv",
+            "--no-detect-types",
+        ],
         catch_exceptions=False,
     )
     assert result.exit_code == 0
@@ -2362,7 +2380,16 @@ def test_upsert_no_detect_types(tmpdir):
     data = "id,name,age,weight\n1,Cleo,6,45.5\n2,Dori,1,3.5"
     result = CliRunner().invoke(
         cli.cli,
-        ["upsert", db_path, "creatures", "-", "--csv", "--pk", "id", "--no-detect-types"],
+        [
+            "upsert",
+            db_path,
+            "creatures",
+            "-",
+            "--csv",
+            "--pk",
+            "id",
+            "--no-detect-types",
+        ],
         catch_exceptions=False,
         input=data,
     )
