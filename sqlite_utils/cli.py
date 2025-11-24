@@ -419,7 +419,7 @@ def dump(path, load_extension):
 @click.argument(
     "col_type",
     type=click.Choice(
-        ["integer", "int", "float", "text", "str", "blob", "bytes"],
+        ["integer", "int", "float", "real", "text", "str", "blob", "bytes"],
         case_sensitive=False,
     ),
     required=False,

@@ -216,7 +216,7 @@ COLUMN_TYPE_MAPPING = {
     "str": "TEXT",
     "integer": "INTEGER",
     "int": "INTEGER",
-    "float": "FLOAT",
+    "float": "REAL",
     "real": "REAL",
     "blob": "BLOB",
     "bytes": "BLOB",

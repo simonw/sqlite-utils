@@ -1142,7 +1142,7 @@ See :ref:`cli_add_column`.
 ::
 
     Usage: sqlite-utils add-column [OPTIONS] PATH TABLE COL_NAME
-                          [[integer|int|float|text|str|blob|bytes]]
+                          [[integer|int|float|real|text|str|blob|bytes]]
 
       Add a column to the specified table
 
