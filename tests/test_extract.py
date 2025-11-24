@@ -24,16 +24,16 @@ def test_extract_single_column(fresh_db, table, fk_column):
     fresh_db["tree"].extract("species", table=table, fk_column=fk_column)
     assert fresh_db["tree"].schema == (
         'CREATE TABLE "tree" (\n'
-        "   [id] INTEGER PRIMARY KEY,\n"
-        "   [name] TEXT,\n"
-        "   [{}] INTEGER REFERENCES [{}]([id]),\n".format(expected_fk, expected_table)
-        + "   [end] INTEGER\n"
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "name" TEXT,\n'
+        '   "{}" INTEGER REFERENCES "{}"("id"),\n'.format(expected_fk, expected_table)
+        + '   "end" INTEGER\n'
         + ")"
     )
     assert fresh_db[expected_table].schema == (
-        "CREATE TABLE [{}] (\n".format(expected_table)
-        + "   [id] INTEGER PRIMARY KEY,\n"
-        "   [species] TEXT\n"
+        'CREATE TABLE "{}" (\n'.format(expected_table)
+        + '   "id" INTEGER PRIMARY KEY,\n'
+        '   "species" TEXT\n'
         ")"
     )
     assert list(fresh_db[expected_table].rows) == [
@@ -71,16 +71,16 @@ def test_extract_multiple_columns_with_rename(fresh_db):
     )
     assert fresh_db["tree"].schema == (
         'CREATE TABLE "tree" (\n'
-        "   [id] INTEGER PRIMARY KEY,\n"
-        "   [name] TEXT,\n"
-        "   [common_name_latin_name_id] INTEGER REFERENCES [common_name_latin_name]([id])\n"
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "name" TEXT,\n'
+        '   "common_name_latin_name_id" INTEGER REFERENCES "common_name_latin_name"("id")\n'
         ")"
     )
     assert fresh_db["common_name_latin_name"].schema == (
-        "CREATE TABLE [common_name_latin_name] (\n"
-        "   [id] INTEGER PRIMARY KEY,\n"
-        "   [name] TEXT,\n"
-        "   [latin_name] TEXT\n"
+        'CREATE TABLE "common_name_latin_name" (\n'
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "name" TEXT,\n'
+        '   "latin_name" TEXT\n'
         ")"
     )
     assert list(fresh_db["common_name_latin_name"].rows) == [
@@ -122,8 +122,8 @@ def test_extract_rowid_table(fresh_db):
     fresh_db["tree"].extract(["common_name", "latin_name"])
     assert fresh_db["tree"].schema == (
         'CREATE TABLE "tree" (\n'
-        "   [name] TEXT,\n"
-        "   [common_name_latin_name_id] INTEGER REFERENCES [common_name_latin_name]([id])\n"
+        '   "name" TEXT,\n'
+        '   "common_name_latin_name_id" INTEGER REFERENCES "common_name_latin_name"("id")\n'
         ")"
     )
     assert (
@@ -152,15 +152,15 @@ def test_reuse_lookup_table(fresh_db):
     fresh_db["individuals"].extract("species", rename={"species": "name"})
     assert fresh_db["sightings"].schema == (
         'CREATE TABLE "sightings" (\n'
-        "   [id] INTEGER PRIMARY KEY,\n"
-        "   [species_id] INTEGER REFERENCES [species]([id])\n"
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "species_id" INTEGER REFERENCES "species"("id")\n'
         ")"
     )
     assert fresh_db["individuals"].schema == (
         'CREATE TABLE "individuals" (\n'
-        "   [id] INTEGER PRIMARY KEY,\n"
-        "   [name] TEXT,\n"
-        "   [species_id] INTEGER REFERENCES [species]([id])\n"
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "name" TEXT,\n'
+        '   "species_id" INTEGER REFERENCES "species"("id")\n'
         ")"
     )
     assert list(fresh_db["species"].rows) == [

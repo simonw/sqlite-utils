@@ -200,19 +200,19 @@ def test_triggers_and_triggers_dict(fresh_db):
     }
     expected_triggers = {
         "authors_ai": (
-            "CREATE TRIGGER [authors_ai] AFTER INSERT ON [authors] BEGIN\n"
-            "  INSERT INTO [authors_fts] (rowid, [name], [famous_works]) VALUES (new.rowid, new.[name], new.[famous_works]);\n"
+            'CREATE TRIGGER "authors_ai" AFTER INSERT ON "authors" BEGIN\n'
+            '  INSERT INTO "authors_fts" (rowid, "name", "famous_works") VALUES (new.rowid, new."name", new."famous_works");\n'
             "END"
         ),
         "authors_ad": (
-            "CREATE TRIGGER [authors_ad] AFTER DELETE ON [authors] BEGIN\n"
-            "  INSERT INTO [authors_fts] ([authors_fts], rowid, [name], [famous_works]) VALUES('delete', old.rowid, old.[name], old.[famous_works]);\n"
+            'CREATE TRIGGER "authors_ad" AFTER DELETE ON "authors" BEGIN\n'
+            '  INSERT INTO "authors_fts" ("authors_fts", rowid, "name", "famous_works") VALUES(\'delete\', old.rowid, old."name", old."famous_works");\n'
             "END"
         ),
         "authors_au": (
-            "CREATE TRIGGER [authors_au] AFTER UPDATE ON [authors] BEGIN\n"
-            "  INSERT INTO [authors_fts] ([authors_fts], rowid, [name], [famous_works]) VALUES('delete', old.rowid, old.[name], old.[famous_works]);\n"
-            "  INSERT INTO [authors_fts] (rowid, [name], [famous_works]) VALUES (new.rowid, new.[name], new.[famous_works]);\nEND"
+            'CREATE TRIGGER "authors_au" AFTER UPDATE ON "authors" BEGIN\n'
+            '  INSERT INTO "authors_fts" ("authors_fts", rowid, "name", "famous_works") VALUES(\'delete\', old.rowid, old."name", old."famous_works");\n'
+            '  INSERT INTO "authors_fts" (rowid, "name", "famous_works") VALUES (new.rowid, new."name", new."famous_works");\nEND'
         ),
     }
     assert authors.triggers_dict == expected_triggers

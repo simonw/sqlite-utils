@@ -70,6 +70,16 @@ USING\s+(?P<using>\w+)          # for example USING FTS5
     re.VERBOSE | re.IGNORECASE,
 )
 
+
+def quote_identifier(identifier: str) -> str:
+    """
+    Quote an identifier (table name, column name, etc.) using double quotes.
+
+    Double quotes inside the identifier are escaped by doubling them.
+    """
+    return '"{}"'.format(identifier.replace('"', '""'))
+
+
 try:
     import pandas as pd  # type: ignore
 except ImportError:
@@ -280,8 +290,8 @@ class BadMultiValues(Exception):
 
 
 _COUNTS_TABLE_CREATE_SQL = """
-CREATE TABLE IF NOT EXISTS [{}](
-   [table] TEXT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS "{}"(
+   "table" TEXT PRIMARY KEY,
    count INTEGER DEFAULT 0
 );
 """.strip()
@@ -500,9 +510,9 @@ class Database:
         :param filepath: Path to SQLite database file on disk
         """
         attach_sql = """
-            ATTACH DATABASE '{}' AS [{}];
+            ATTACH DATABASE '{}' AS {};
         """.format(
-            str(pathlib.Path(filepath).resolve()), alias
+            str(pathlib.Path(filepath).resolve()), quote_identifier(alias)
         ).strip()
         self.execute(attach_sql)
 
@@ -786,9 +796,9 @@ class Database:
 
         :param tables: Subset list of tables to return counts for.
         """
-        sql = "select [table], count from {}".format(self._counts_table_name)
+        sql = 'select "table", count from {}'.format(self._counts_table_name)
         if tables:
-            sql += " where [table] in ({})".format(", ".join("?" for table in tables))
+            sql += ' where "table" in ({})'.format(", ".join("?" for table in tables))
         try:
             return {r[0]: r[1] for r in self.execute(sql, tables).fetchall()}
         except OperationalError:
@@ -933,7 +943,6 @@ class Database:
         ), "defaults set {} includes items not in columns {}".format(
             repr(set(defaults)), repr(set(columns.keys()))
         )
-        validate_column_names(columns.keys())
         column_items = list(columns.items())
         if column_order is not None:
 
@@ -976,9 +985,13 @@ class Database:
                 )
             if column_name in foreign_keys_by_column:
                 column_extras.append(
-                    "REFERENCES [{other_table}]([{other_column}])".format(
-                        other_table=foreign_keys_by_column[column_name].other_table,
-                        other_column=foreign_keys_by_column[column_name].other_column,
+                    "REFERENCES {}({})".format(
+                        quote_identifier(
+                            foreign_keys_by_column[column_name].other_table
+                        ),
+                        quote_identifier(
+                            foreign_keys_by_column[column_name].other_column
+                        ),
                     )
                 )
             column_type_str = COLUMN_TYPE_MAPPING[column_type]
@@ -987,8 +1000,8 @@ class Database:
             if strict and column_type_str == "FLOAT":
                 column_type_str = "REAL"
             column_defs.append(
-                "   [{column_name}] {column_type}{column_extras}".format(
-                    column_name=column_name,
+                "   {} {column_type}{column_extras}".format(
+                    quote_identifier(column_name),
                     column_type=column_type_str,
                     column_extras=(
                         (" " + " ".join(column_extras)) if column_extras else ""
@@ -998,15 +1011,15 @@ class Database:
         extra_pk = ""
         if single_pk is None and pk and len(pk) > 1:
             extra_pk = ",\n   PRIMARY KEY ({pks})".format(
-                pks=", ".join(["[{}]".format(p) for p in pk])
+                pks=", ".join([quote_identifier(p) for p in pk])
             )
         columns_sql = ",\n".join(column_defs)
-        sql = """CREATE TABLE {if_not_exists}[{table}] (
+        sql = """CREATE TABLE {if_not_exists}{table} (
 {columns_sql}{extra_pk}
 ){strict};
         """.format(
             if_not_exists="IF NOT EXISTS " if if_not_exists else "",
-            table=name,
+            table=quote_identifier(name),
             columns_sql=columns_sql,
             extra_pk=extra_pk,
             strict=" STRICT" if strict and self.supports_strict else "",
@@ -1144,8 +1157,8 @@ class Database:
         :param new_name: Name to rename it to
         """
         self.execute(
-            "ALTER TABLE [{name}] RENAME TO [{new_name}]".format(
-                name=name, new_name=new_name
+            "ALTER TABLE {} RENAME TO {}".format(
+                quote_identifier(name), quote_identifier(new_name)
             )
         )
 
@@ -1163,7 +1176,9 @@ class Database:
         assert not (
             ignore and replace
         ), "Use one or the other of ignore/replace, not both"
-        create_sql = "CREATE VIEW {name} AS {sql}".format(name=name, sql=sql)
+        create_sql = "CREATE VIEW {name} AS {sql}".format(
+            name=quote_identifier(name), sql=sql
+        )
         if ignore or replace:
             # Does view exist already?
             if name in self.view_names():
@@ -1270,7 +1285,7 @@ class Database:
         """
         sql = "ANALYZE"
         if name is not None:
-            sql += " [{}]".format(name)
+            sql += " {}".format(quote_identifier(name))
         self.execute(sql)
 
     def iterdump(self) -> Generator[str, None, None]:
@@ -1348,7 +1363,7 @@ class Queryable:
         :param where_args: Parameters to use with that fragment - an iterable for ``id > ?``
           parameters, or a dictionary for ``id > :id``
         """
-        sql = "select count(*) from [{}]".format(self.name)
+        sql = "select count(*) from {}".format(quote_identifier(self.name))
         if where is not None:
             sql += " where " + where
         return self.db.execute(sql, where_args or []).fetchone()[0]
@@ -1391,7 +1406,7 @@ class Queryable:
         """
         if not self.exists():
             return
-        sql = "select {} from [{}]".format(select, self.name)
+        sql = "select {} from {}".format(select, quote_identifier(self.name))
         if where is not None:
             sql += " where " + where
         if order_by is not None:
@@ -1429,7 +1444,7 @@ class Queryable:
         if not pks:
             column_names.insert(0, "rowid")
             pks = ["rowid"]
-        select = ",".join("[{}]".format(column_name) for column_name in column_names)
+        select = ",".join(quote_identifier(column_name) for column_name in column_names)
         for row in self.rows_where(
             select=select,
             where=where,
@@ -1448,7 +1463,9 @@ class Queryable:
         "List of :ref:`Columns <reference_db_other_column>` representing the columns in this table or view."
         if not self.exists():
             return []
-        rows = self.db.execute("PRAGMA table_info([{}])".format(self.name)).fetchall()
+        rows = self.db.execute(
+            "PRAGMA table_info({})".format(quote_identifier(self.name))
+        ).fetchall()
         return [Column(*row) for row in rows]
 
     @property
@@ -1588,7 +1605,7 @@ class Table(Queryable):
                 )
             )
 
-        wheres = ["[{}] = ?".format(pk_name) for pk_name in pks]
+        wheres = ["{} = ?".format(quote_identifier(pk_name)) for pk_name in pks]
         rows = self.rows_where(" and ".join(wheres), pk_values)
         try:
             row = list(rows)[0]
@@ -1602,7 +1619,7 @@ class Table(Queryable):
         "List of foreign keys defined on this table."
         fks = []
         for row in self.db.execute(
-            "PRAGMA foreign_key_list([{}])".format(self.name)
+            "PRAGMA foreign_key_list({})".format(quote_identifier(self.name))
         ).fetchall():
             if row is not None:
                 id, seq, table_name, from_, to_, on_update, on_delete, match = row
@@ -1799,9 +1816,9 @@ class Table(Queryable):
         if not self.exists():
             raise NoTable(f"Table {self.name} does not exist")
         with self.db.conn:
-            sql = "CREATE TABLE [{new_table}] AS SELECT * FROM [{table}];".format(
-                new_table=new_name,
-                table=self.name,
+            sql = "CREATE TABLE {} AS SELECT * FROM {};".format(
+                quote_identifier(new_name),
+                quote_identifier(self.name),
             )
             self.db.execute(sql)
         return self.db[new_name]
@@ -2034,23 +2051,27 @@ class Table(Queryable):
         if "rowid" not in new_cols:
             new_cols.insert(0, "rowid")
             old_cols.insert(0, "rowid")
-        copy_sql = "INSERT INTO [{new_table}] ({new_cols})\n   SELECT {old_cols} FROM [{old_table}];".format(
-            new_table=new_table_name,
-            old_table=self.name,
-            old_cols=", ".join("[{}]".format(col) for col in old_cols),
-            new_cols=", ".join("[{}]".format(col) for col in new_cols),
+        copy_sql = "INSERT INTO {} ({new_cols})\n   SELECT {old_cols} FROM {};".format(
+            quote_identifier(new_table_name),
+            quote_identifier(self.name),
+            old_cols=", ".join(quote_identifier(col) for col in old_cols),
+            new_cols=", ".join(quote_identifier(col) for col in new_cols),
         )
         sqls.append(copy_sql)
         # Drop (or keep) the old table
         if keep_table:
             sqls.append(
-                "ALTER TABLE [{}] RENAME TO [{}];".format(self.name, keep_table)
+                "ALTER TABLE {} RENAME TO {};".format(
+                    quote_identifier(self.name), quote_identifier(keep_table)
+                )
             )
         else:
-            sqls.append("DROP TABLE [{}];".format(self.name))
+            sqls.append("DROP TABLE {};".format(quote_identifier(self.name)))
         # Rename the new one
         sqls.append(
-            "ALTER TABLE [{}] RENAME TO [{}];".format(new_table_name, self.name)
+            "ALTER TABLE {} RENAME TO {};".format(
+                quote_identifier(new_table_name), quote_identifier(self.name)
+            )
         )
         # Re-add existing indexes
         for index in self.indexes:
@@ -2066,7 +2087,7 @@ class Table(Queryable):
                         "transformation and manually recreate the new index after running this transformation."
                     )
                 if keep_table:
-                    sqls.append(f"DROP INDEX IF EXISTS [{index.name}];")
+                    sqls.append(f"DROP INDEX IF EXISTS {quote_identifier(index.name)};")
                 for col in index.columns:
                     if col in rename.keys() or col in drop:
                         raise TransformError(
@@ -2137,11 +2158,11 @@ class Table(Queryable):
         lookup_columns = [(rename.get(col) or col) for col in columns]
         lookup_table.create_index(lookup_columns, unique=True, if_not_exists=True)
         self.db.execute(
-            "INSERT OR IGNORE INTO [{lookup_table}] ({lookup_columns}) SELECT DISTINCT {table_cols} FROM [{table}]".format(
-                lookup_table=table,
-                lookup_columns=", ".join("[{}]".format(c) for c in lookup_columns),
-                table_cols=", ".join("[{}]".format(c) for c in columns),
-                table=self.name,
+            "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {}".format(
+                quote_identifier(table),
+                quote_identifier(self.name),
+                lookup_columns=", ".join(quote_identifier(c) for c in lookup_columns),
+                table_cols=", ".join(quote_identifier(c) for c in columns),
             )
         )
 
@@ -2150,16 +2171,16 @@ class Table(Queryable):
 
         # And populate it
         self.db.execute(
-            "UPDATE [{table}] SET [{magic_lookup_column}] = (SELECT id FROM [{lookup_table}] WHERE {where})".format(
-                table=self.name,
-                magic_lookup_column=magic_lookup_column,
-                lookup_table=table,
+            "UPDATE {} SET {} = (SELECT id FROM {} WHERE {where})".format(
+                quote_identifier(self.name),
+                quote_identifier(magic_lookup_column),
+                quote_identifier(table),
                 where=" AND ".join(
-                    "[{table}].[{column}] IS [{lookup_table}].[{lookup_column}]".format(
-                        table=self.name,
-                        lookup_table=table,
-                        column=column,
-                        lookup_column=rename.get(column) or column,
+                    "{}.{} IS {}.{}".format(
+                        quote_identifier(self.name),
+                        quote_identifier(column),
+                        quote_identifier(table),
+                        quote_identifier(rename.get(column) or column),
                     )
                     for column in columns
                 ),
@@ -2216,10 +2237,9 @@ class Table(Queryable):
         columns_sql = []
         for column in columns:
             if isinstance(column, DescIndex):
-                fmt = "[{}] desc"
+                columns_sql.append("{} desc".format(quote_identifier(column)))
             else:
-                fmt = "[{}]"
-            columns_sql.append(fmt.format(column))
+                columns_sql.append(quote_identifier(column))
 
         suffix = None
         created_index_name = None
@@ -2230,14 +2250,14 @@ class Table(Queryable):
             sql = (
                 textwrap.dedent(
                     """
-                CREATE {unique}INDEX {if_not_exists}[{index_name}]
-                    ON [{table_name}] ({columns});
+                CREATE {unique}INDEX {if_not_exists}{index_name}
+                    ON {table_name} ({columns});
             """
                 )
                 .strip()
                 .format(
-                    index_name=created_index_name,
-                    table_name=self.name,
+                    index_name=quote_identifier(created_index_name),
+                    table_name=quote_identifier(self.name),
                     columns=", ".join(columns_sql),
                     unique="UNIQUE " if unique else "",
                     if_not_exists="IF NOT EXISTS " if if_not_exists else "",
@@ -2307,9 +2327,9 @@ class Table(Queryable):
             not_null_sql = "NOT NULL DEFAULT {}".format(
                 self.db.quote_default_value(not_null_default)
             )
-        sql = "ALTER TABLE [{table}] ADD COLUMN [{col_name}] {col_type}{not_null_default};".format(
-            table=self.name,
-            col_name=col_name,
+        sql = "ALTER TABLE {} ADD COLUMN {} {col_type}{not_null_default};".format(
+            quote_identifier(self.name),
+            quote_identifier(col_name),
             col_type=fk_col_type or COLUMN_TYPE_MAPPING[col_type],
             not_null_default=(" " + not_null_sql) if not_null_sql else "",
         )
@@ -2325,7 +2345,7 @@ class Table(Queryable):
         :param ignore: Set to ``True`` to ignore the error if the table does not exist
         """
         try:
-            self.db.execute("DROP TABLE [{}]".format(self.name))
+            self.db.execute("DROP TABLE {}".format(quote_identifier(self.name)))
         except sqlite3.OperationalError:
             if not ignore:
                 raise
@@ -2431,29 +2451,29 @@ class Table(Queryable):
             textwrap.dedent(
                 """
         {create_counts_table}
-        CREATE TRIGGER IF NOT EXISTS [{table}{counts_table}_insert] AFTER INSERT ON [{table}]
+        CREATE TRIGGER IF NOT EXISTS {trigger_insert} AFTER INSERT ON {table}
         BEGIN
-            INSERT OR REPLACE INTO [{counts_table}]
+            INSERT OR REPLACE INTO {counts_table}
             VALUES (
                 {table_quoted},
                 COALESCE(
-                    (SELECT count FROM [{counts_table}] WHERE [table] = {table_quoted}),
+                    (SELECT count FROM {counts_table} WHERE "table" = {table_quoted}),
                 0
                 ) + 1
             );
         END;
-        CREATE TRIGGER IF NOT EXISTS [{table}{counts_table}_delete] AFTER DELETE ON [{table}]
+        CREATE TRIGGER IF NOT EXISTS {trigger_delete} AFTER DELETE ON {table}
         BEGIN
-            INSERT OR REPLACE INTO [{counts_table}]
+            INSERT OR REPLACE INTO {counts_table}
             VALUES (
                 {table_quoted},
                 COALESCE(
-                    (SELECT count FROM [{counts_table}] WHERE [table] = {table_quoted}),
+                    (SELECT count FROM {counts_table} WHERE "table" = {table_quoted}),
                 0
                 ) - 1
             );
         END;
-        INSERT OR REPLACE INTO _counts VALUES ({table_quoted}, (select count(*) from [{table}]));
+        INSERT OR REPLACE INTO _counts VALUES ({table_quoted}, (select count(*) from {table}));
         """
             )
             .strip()
@@ -2461,9 +2481,15 @@ class Table(Queryable):
                 create_counts_table=_COUNTS_TABLE_CREATE_SQL.format(
                     self.db._counts_table_name
                 ),
-                counts_table=self.db._counts_table_name,
-                table=self.name,
+                counts_table=quote_identifier(self.db._counts_table_name),
+                table=quote_identifier(self.name),
                 table_quoted=self.db.quote(self.name),
+                trigger_insert=quote_identifier(
+                    self.name + self.db._counts_table_name + "_insert"
+                ),
+                trigger_delete=quote_identifier(
+                    self.name + self.db._counts_table_name + "_delete"
+                ),
             )
         )
         with self.db.conn:
@@ -2503,16 +2529,17 @@ class Table(Queryable):
         create_fts_sql = (
             textwrap.dedent(
                 """
-            CREATE VIRTUAL TABLE [{table}_fts] USING {fts_version} (
+            CREATE VIRTUAL TABLE {table_fts} USING {fts_version} (
                 {columns},{tokenize}
-                content=[{table}]
+                content={table}
             )
         """
             )
             .strip()
             .format(
-                table=self.name,
-                columns=", ".join("[{}]".format(c) for c in columns),
+                table=quote_identifier(self.name),
+                table_fts=quote_identifier(self.name + "_fts"),
+                columns=", ".join(quote_identifier(c) for c in columns),
                 fts_version=fts_version,
                 tokenize="\n    tokenize='{}',".format(tokenize) if tokenize else "",
             )
@@ -2539,27 +2566,34 @@ class Table(Queryable):
         self.populate_fts(columns)
 
         if create_triggers:
-            old_cols = ", ".join("old.[{}]".format(c) for c in columns)
-            new_cols = ", ".join("new.[{}]".format(c) for c in columns)
+            old_cols = ", ".join("old.{}".format(quote_identifier(c)) for c in columns)
+            new_cols = ", ".join("new.{}".format(quote_identifier(c)) for c in columns)
+            columns_quoted = ", ".join(quote_identifier(c) for c in columns)
+            table = quote_identifier(self.name)
+            table_fts = quote_identifier(self.name + "_fts")
             triggers = (
                 textwrap.dedent(
                     """
-                CREATE TRIGGER [{table}_ai] AFTER INSERT ON [{table}] BEGIN
-                  INSERT INTO [{table}_fts] (rowid, {columns}) VALUES (new.rowid, {new_cols});
+                CREATE TRIGGER {table_ai} AFTER INSERT ON {table} BEGIN
+                  INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
                 END;
-                CREATE TRIGGER [{table}_ad] AFTER DELETE ON [{table}] BEGIN
-                  INSERT INTO [{table}_fts] ([{table}_fts], rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
+                CREATE TRIGGER {table_ad} AFTER DELETE ON {table} BEGIN
+                  INSERT INTO {table_fts} ({table_fts}, rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
                 END;
-                CREATE TRIGGER [{table}_au] AFTER UPDATE ON [{table}] BEGIN
-                  INSERT INTO [{table}_fts] ([{table}_fts], rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
-                  INSERT INTO [{table}_fts] (rowid, {columns}) VALUES (new.rowid, {new_cols});
+                CREATE TRIGGER {table_au} AFTER UPDATE ON {table} BEGIN
+                  INSERT INTO {table_fts} ({table_fts}, rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
+                  INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
                 END;
             """
                 )
                 .strip()
                 .format(
-                    table=self.name,
-                    columns=", ".join("[{}]".format(c) for c in columns),
+                    table=table,
+                    table_fts=table_fts,
+                    table_ai=quote_identifier(self.name + "_ai"),
+                    table_ad=quote_identifier(self.name + "_ad"),
+                    table_au=quote_identifier(self.name + "_au"),
+                    columns=columns_quoted,
                     old_cols=old_cols,
                     new_cols=new_cols,
                 )
@@ -2574,16 +2608,19 @@ class Table(Queryable):
 
         :param columns: Columns to populate the data for
         """
+        columns_quoted = ", ".join(quote_identifier(c) for c in columns)
         sql = (
             textwrap.dedent(
                 """
-            INSERT INTO [{table}_fts] (rowid, {columns})
-                SELECT rowid, {columns} FROM [{table}];
+            INSERT INTO {table_fts} (rowid, {columns})
+                SELECT rowid, {columns} FROM {table};
         """
             )
             .strip()
             .format(
-                table=self.name, columns=", ".join("[{}]".format(c) for c in columns)
+                table=quote_identifier(self.name),
+                table_fts=quote_identifier(self.name + "_fts"),
+                columns=columns_quoted,
             )
         )
         self.db.executescript(sql)
@@ -2600,18 +2637,20 @@ class Table(Queryable):
                 """
             SELECT name FROM sqlite_master
                 WHERE type = 'trigger'
-                AND sql LIKE '% INSERT INTO [{}]%'
+                AND (sql LIKE '% INSERT INTO [{}]%' OR sql LIKE '% INSERT INTO "{}"%')
         """
             )
             .strip()
-            .format(fts_table)
+            .format(fts_table, fts_table)
         )
         trigger_names = []
         for row in self.db.execute(sql).fetchall():
             trigger_names.append(row[0])
         with self.db.conn:
             for trigger_name in trigger_names:
-                self.db.execute("DROP TRIGGER IF EXISTS [{}]".format(trigger_name))
+                self.db.execute(
+                    "DROP TRIGGER IF EXISTS {}".format(quote_identifier(trigger_name))
+                )
         return self
 
     def rebuild_fts(self):
@@ -2621,8 +2660,8 @@ class Table(Queryable):
             # Assume this is itself an FTS table
             fts_table = self.name
         self.db.execute(
-            "INSERT INTO [{table}]([{table}]) VALUES('rebuild');".format(
-                table=fts_table
+            "INSERT INTO {table}({table}) VALUES('rebuild');".format(
+                table=quote_identifier(fts_table)
             )
         )
         return self
@@ -2644,7 +2683,7 @@ class Table(Queryable):
         """
         ).strip()
         args = {
-            "like": "%VIRTUAL TABLE%USING FTS%content=[{}]%".format(self.name),
+            "like": '%VIRTUAL TABLE%USING FTS%content="{}"%'.format(self.name),
             "like2": '%VIRTUAL TABLE%USING FTS%content="{}"%'.format(self.name),
             "table": self.name,
         }
@@ -2660,9 +2699,9 @@ class Table(Queryable):
         if fts_table is not None:
             self.db.execute(
                 """
-                INSERT INTO [{table}] ([{table}]) VALUES ("optimize");
+                INSERT INTO {table} ({table}) VALUES ("optimize");
             """.strip().format(
-                    table=fts_table
+                    table=quote_identifier(fts_table)
                 )
             )
         return self
@@ -2688,17 +2727,19 @@ class Table(Queryable):
         """
         # Pick names for table and rank column that don't clash
         original = "original_" if self.name == "original" else "original"
+        original_quoted = quote_identifier(original)
         columns_sql = "*"
-        columns_with_prefix_sql = "[{}].*".format(original)
+        columns_with_prefix_sql = "{}.*".format(original_quoted)
         if columns:
-            columns_sql = ",\n        ".join("[{}]".format(c) for c in columns)
+            columns_sql = ",\n        ".join(quote_identifier(c) for c in columns)
             columns_with_prefix_sql = ",\n    ".join(
-                "[{}].[{}]".format(original, c) for c in columns
+                "{}.{}".format(original_quoted, quote_identifier(c)) for c in columns
             )
         fts_table = self.detect_fts()
         assert fts_table, "Full-text search is not configured for table '{}'".format(
             self.name
         )
+        fts_table_quoted = quote_identifier(fts_table)
         virtual_table_using = self.db[fts_table].virtual_table_using
         sql = textwrap.dedent(
             """
@@ -2706,26 +2747,26 @@ class Table(Queryable):
             select
                 rowid,
                 {columns}
-            from [{dbtable}]{where_clause}
+            from {dbtable}{where_clause}
         )
         select
             {columns_with_prefix}
         from
-            [{original}]
-            join [{fts_table}] on [{original}].rowid = [{fts_table}].rowid
+            {original}
+            join {fts_table} on {original}.rowid = {fts_table}.rowid
         where
-            [{fts_table}] match :query
+            {fts_table} match :query
         order by
             {order_by}
         {limit_offset}
         """
         ).strip()
         if virtual_table_using == "FTS5":
-            rank_implementation = "[{}].rank".format(fts_table)
+            rank_implementation = "{}.rank".format(fts_table_quoted)
         else:
             self.db.register_fts4_bm25()
-            rank_implementation = "rank_bm25(matchinfo([{}], 'pcnalx'))".format(
-                fts_table
+            rank_implementation = "rank_bm25(matchinfo({}, 'pcnalx'))".format(
+                fts_table_quoted
             )
         if include_rank:
             columns_with_prefix_sql += ",\n    " + rank_implementation + " rank"
@@ -2735,12 +2776,12 @@ class Table(Queryable):
         if offset is not None:
             limit_offset += " offset {}".format(offset)
         return sql.format(
-            dbtable=self.name,
+            dbtable=quote_identifier(self.name),
             where_clause="\n    where {}".format(where) if where else "",
-            original=original,
+            original=original_quoted,
             columns=columns_sql,
             columns_with_prefix=columns_with_prefix_sql,
-            fts_table=fts_table,
+            fts_table=fts_table_quoted,
             order_by=order_by or rank_implementation,
             limit_offset=limit_offset.strip(),
         ).strip()
@@ -2808,9 +2849,9 @@ class Table(Queryable):
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
         self.get(pk_values)
-        wheres = ["[{}] = ?".format(pk_name) for pk_name in self.pks]
-        sql = "delete from [{table}] where {wheres}".format(
-            table=self.name, wheres=" and ".join(wheres)
+        wheres = ["{} = ?".format(quote_identifier(pk_name)) for pk_name in self.pks]
+        sql = "delete from {} where {wheres}".format(
+            quote_identifier(self.name), wheres=" and ".join(wheres)
         )
         with self.db.conn:
             self.db.execute(sql, pk_values)
@@ -2834,7 +2875,7 @@ class Table(Queryable):
         """
         if not self.exists():
             return self
-        sql = "delete from [{}]".format(self.name)
+        sql = "delete from {}".format(quote_identifier(self.name))
         if where is not None:
             sql += " where " + where
         self.db.execute(sql, where_args or [])
@@ -2873,14 +2914,17 @@ class Table(Queryable):
         sets = []
         wheres = []
         pks = self.pks
-        validate_column_names(updates.keys())
         for key, value in updates.items():
-            sets.append("[{}] = {}".format(key, conversions.get(key, "?")))
+            sets.append(
+                "{} = {}".format(quote_identifier(key), conversions.get(key, "?"))
+            )
             args.append(jsonify_if_needed(value))
-        wheres = ["[{}] = ?".format(pk_name) for pk_name in pks]
+        wheres = ["{} = ?".format(quote_identifier(pk_name)) for pk_name in pks]
         args.extend(pk_values)
-        sql = "update [{table}] set {sets} where {wheres}".format(
-            table=self.name, sets=", ".join(sets), wheres=" and ".join(wheres)
+        sql = "update {} set {sets} where {wheres}".format(
+            quote_identifier(self.name),
+            sets=", ".join(sets),
+            wheres=" and ".join(wheres),
         )
         with self.db.conn:
             try:
@@ -2957,14 +3001,14 @@ class Table(Queryable):
             if fn_name == "<lambda>":
                 fn_name = f"lambda_{abs(hash(fn))}"
             self.db.register_function(convert_value, name=fn_name)
-            sql = "update [{table}] set {sets}{where};".format(
-                table=self.name,
+            sql = "update {} set {sets}{where};".format(
+                quote_identifier(self.name),
                 sets=", ".join(
                     [
-                        "[{output_column}] = {fn_name}([{column}])".format(
-                            output_column=output or column,
-                            column=column,
-                            fn_name=fn_name,
+                        "{} = {}({})".format(
+                            quote_identifier(output or column),
+                            fn_name,
+                            quote_identifier(column),
                         )
                         for column in columns
                     ]
@@ -2992,7 +3036,7 @@ class Table(Queryable):
         ) as bar:
             for row in self.rows_where(
                 select=", ".join(
-                    "[{}]".format(column_name) for column_name in (pks + [column])
+                    quote_identifier(column_name) for column_name in (pks + [column])
                 ),
                 where=where,
                 where_args=where_args,
@@ -3097,7 +3141,7 @@ class Table(Queryable):
                     record_values.append(value)
                 values.append(record_values)
 
-        columns_sql = ", ".join(f"[{c}]" for c in all_columns)
+        columns_sql = ", ".join(quote_identifier(c) for c in all_columns)
         placeholder_expr = ", ".join(conversions.get(c, "?") for c in all_columns)
         row_placeholders_sql = ", ".join(f"({placeholder_expr})" for _ in values)
         flat_params = list(itertools.chain.from_iterable(values))
@@ -3105,7 +3149,7 @@ class Table(Queryable):
         # replace=True mean INSERT OR REPLACE INTO
         if replace:
             sql = (
-                f"INSERT OR REPLACE INTO [{self.name}] "
+                f"INSERT OR REPLACE INTO {quote_identifier(self.name)} "
                 f"({columns_sql}) VALUES {row_placeholders_sql}"
             )
             return [(sql, flat_params)]
@@ -3116,7 +3160,7 @@ class Table(Queryable):
             if ignore:
                 or_ignore = " OR IGNORE"
             sql = (
-                f"INSERT{or_ignore} INTO [{self.name}] "
+                f"INSERT{or_ignore} INTO {quote_identifier(self.name)} "
                 f"({columns_sql}) VALUES {row_placeholders_sql}"
             )
             return [(sql, flat_params)]
@@ -3124,26 +3168,27 @@ class Table(Queryable):
         # Everything from here on is for upsert=True
         pk_cols = [pk] if isinstance(pk, str) else list(pk)
         non_pk_cols = [c for c in all_columns if c not in pk_cols]
-        conflict_sql = ", ".join(f"[{c}]" for c in pk_cols)
+        conflict_sql = ", ".join(quote_identifier(c) for c in pk_cols)
 
         if self.db.supports_on_conflict and not self.db.use_old_upsert:
             if non_pk_cols:
                 # DO UPDATE
                 assignments = []
                 for c in non_pk_cols:
+                    c_quoted = quote_identifier(c)
                     if c in conversions:
                         assignments.append(
-                            f"[{c}] = {conversions[c].replace('?', f'excluded.[{c}]')}"
+                            f"{c_quoted} = {conversions[c].replace('?', f'excluded.{c_quoted}')}"
                         )
                     else:
-                        assignments.append(f"[{c}] = excluded.[{c}]")
+                        assignments.append(f"{c_quoted} = excluded.{c_quoted}")
                 do_clause = "DO UPDATE SET " + ", ".join(assignments)
             else:
                 # All columns are in the PK – nothing to update.
                 do_clause = "DO NOTHING"
 
             sql = (
-                f"INSERT INTO [{self.name}] ({columns_sql}) "
+                f"INSERT INTO {quote_identifier(self.name)} ({columns_sql}) "
                 f"VALUES {row_placeholders_sql} "
                 f"ON CONFLICT({conflict_sql}) {do_clause}"
             )
@@ -3164,24 +3209,30 @@ class Table(Queryable):
             # them since it ignores the resulting integrity errors
             if not_null:
                 placeholders.extend(not_null)
-            sql = "INSERT OR IGNORE INTO [{table}]({cols}) VALUES({placeholders});".format(
-                table=self.name,
-                cols=", ".join(["[{}]".format(p) for p in placeholders]),
-                placeholders=", ".join(["?" for p in placeholders]),
+            sql = (
+                "INSERT OR IGNORE INTO {table}({cols}) VALUES({placeholders});".format(
+                    table=quote_identifier(self.name),
+                    cols=", ".join([quote_identifier(p) for p in placeholders]),
+                    placeholders=", ".join(["?" for p in placeholders]),
+                )
             )
             queries_and_params.append(
                 (sql, [record[col] for col in pks] + ["" for _ in (not_null or [])])
             )
-            # UPDATE [book] SET [name] = 'Programming' WHERE [id] = 1001;
+            # UPDATE "book" SET "name" = 'Programming' WHERE "id" = 1001;
             set_cols = [col for col in all_columns if col not in pks]
             if set_cols:
-                sql2 = "UPDATE [{table}] SET {pairs} WHERE {wheres}".format(
-                    table=self.name,
+                sql2 = "UPDATE {} SET {pairs} WHERE {wheres}".format(
+                    quote_identifier(self.name),
                     pairs=", ".join(
-                        "[{}] = {}".format(col, conversions.get(col, "?"))
+                        "{} = {}".format(
+                            quote_identifier(col), conversions.get(col, "?")
+                        )
                         for col in set_cols
                     ),
-                    wheres=" AND ".join("[{}] = ?".format(pk) for pk in pks),
+                    wheres=" AND ".join(
+                        "{} = ?".format(quote_identifier(pk)) for pk in pks
+                    ),
                 )
                 queries_and_params.append(
                     (
@@ -3452,9 +3503,6 @@ class Table(Queryable):
         else:
             # Dict mode: traditional behavior
             records_iter = itertools.chain([first_record], records_iter)
-            records_iter = fix_square_braces(
-                cast(Iterable[Dict[str, Any]], records_iter)
-            )
             try:
                 first_record = next(records_iter)
             except StopIteration:
@@ -3469,7 +3517,7 @@ class Table(Queryable):
         self.last_rowid = None
         self.last_pk = None
         if truncate and self.exists():
-            self.db.execute("DELETE FROM [{}];".format(self.name))
+            self.db.execute("DELETE FROM {};".format(quote_identifier(self.name)))
         result = None
         for chunk in chunks(itertools.chain([first_record], records_iter), batch_size):
             chunk = list(chunk)
@@ -3724,7 +3772,9 @@ class Table(Queryable):
             unique_column_sets = [set(i.columns) for i in self.indexes]
             if set(lookup_values.keys()) not in unique_column_sets:
                 self.create_index(lookup_values.keys(), unique=True)
-            wheres = ["[{}] = ?".format(column) for column in lookup_values]
+            wheres = [
+                "{} = ?".format(quote_identifier(column)) for column in lookup_values
+            ]
             rows = list(
                 self.rows_where(
                     " and ".join(wheres), [value for _, value in lookup_values.items()]
@@ -3887,20 +3937,24 @@ class Table(Queryable):
                 value = value[:value_truncate] + "..."
             return value
 
+        table_quoted = quote_identifier(table)
+        column_quoted = quote_identifier(column)
         num_null = db.execute(
-            "select count(*) from [{}] where [{}] is null".format(table, column)
+            "select count(*) from {} where {} is null".format(
+                table_quoted, column_quoted
+            )
         ).fetchone()[0]
         num_blank = db.execute(
-            "select count(*) from [{}] where [{}] = ''".format(table, column)
+            "select count(*) from {} where {} = ''".format(table_quoted, column_quoted)
         ).fetchone()[0]
         num_distinct = db.execute(
-            "select count(distinct [{}]) from [{}]".format(column, table)
+            "select count(distinct {}) from {}".format(column_quoted, table_quoted)
         ).fetchone()[0]
         most_common_results = None
         least_common_results = None
         if num_distinct == 1:
             value = db.execute(
-                "select [{}] from [{}] limit 1".format(column, table)
+                "select {} from {} limit 1".format(column_quoted, table_quoted)
             ).fetchone()[0]
             most_common_results = [(truncate(value), total_rows)]
         elif num_distinct != total_rows:
@@ -3912,8 +3966,12 @@ class Table(Queryable):
                     most_common_results = [
                         (truncate(r[0]), r[1])
                         for r in db.execute(
-                            "select [{}], count(*) from [{}] group by [{}] order by count(*) desc, [{}] limit {}".format(
-                                column, table, column, column, common_limit
+                            "select {}, count(*) from {} group by {} order by count(*) desc, {} limit {}".format(
+                                column_quoted,
+                                table_quoted,
+                                column_quoted,
+                                column_quoted,
+                                common_limit,
                             )
                         ).fetchall()
                     ]
@@ -3926,8 +3984,12 @@ class Table(Queryable):
                     least_common_results = [
                         (truncate(r[0]), r[1])
                         for r in db.execute(
-                            "select [{}], count(*) from [{}] group by [{}] order by count(*), [{}] desc limit {}".format(
-                                column, table, column, column, common_limit
+                            "select {}, count(*) from {} group by {} order by count(*), {} desc limit {}".format(
+                                column_quoted,
+                                table_quoted,
+                                column_quoted,
+                                column_quoted,
+                                common_limit,
                             )
                         ).fetchall()
                     ]
@@ -4045,7 +4107,7 @@ class View(Queryable):
         """
 
         try:
-            self.db.execute("DROP VIEW [{}]".format(self.name))
+            self.db.execute("DROP VIEW {}".format(quote_identifier(self.name)))
         except sqlite3.OperationalError:
             if not ignore:
                 raise
@@ -4080,25 +4142,6 @@ def resolve_extracts(
     if isinstance(extracts, (list, tuple)):
         extracts = {item: item for item in extracts}
     return extracts
-
-
-def validate_column_names(columns):
-    # Validate no columns contain '[' or ']' - #86
-    for column in columns:
-        assert (
-            "[" not in column and "]" not in column
-        ), "'[' and ']' cannot be used in column names"
-
-
-def fix_square_braces(records: Iterable[Dict[str, Any]]):
-    for record in records:
-        if any("[" in key or "]" in key for key in record.keys()):
-            yield {
-                key.replace("[", "_").replace("]", "_"): value
-                for key, value in record.items()
-            }
-        else:
-            yield record
 
 
 def _decode_default_value(value):

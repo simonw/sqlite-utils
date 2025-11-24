@@ -114,18 +114,18 @@ def test_lookup_with_extra_insert_parameters(fresh_db):
         columns={"make_this_integer": int},
     )
     assert species.schema == (
-        "CREATE TABLE [species] (\n"
-        "   [renamed_id] INTEGER PRIMARY KEY,\n"
-        "   [this_at_front] INTEGER,\n"
-        "   [name] TEXT,\n"
-        "   [type] TEXT,\n"
-        "   [first_seen] TEXT,\n"
-        "   [make_not_null] INTEGER NOT NULL,\n"
-        "   [fk_to_other] INTEGER REFERENCES [other_table]([id]),\n"
-        "   [default_is_dog] TEXT DEFAULT 'dog',\n"
-        "   [extract_this] INTEGER REFERENCES [extract_this]([id]),\n"
-        "   [convert_to_upper] TEXT,\n"
-        "   [make_this_integer] INTEGER\n"
+        'CREATE TABLE "species" (\n'
+        '   "renamed_id" INTEGER PRIMARY KEY,\n'
+        '   "this_at_front" INTEGER,\n'
+        '   "name" TEXT,\n'
+        '   "type" TEXT,\n'
+        '   "first_seen" TEXT,\n'
+        '   "make_not_null" INTEGER NOT NULL,\n'
+        '   "fk_to_other" INTEGER REFERENCES "other_table"("id"),\n'
+        "   \"default_is_dog\" TEXT DEFAULT 'dog',\n"
+        '   "extract_this" INTEGER REFERENCES "extract_this"("id"),\n'
+        '   "convert_to_upper" TEXT,\n'
+        '   "make_this_integer" INTEGER\n'
         ")"
     )
     assert species.get(id) == {

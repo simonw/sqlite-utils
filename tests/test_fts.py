@@ -435,40 +435,40 @@ def test_enable_fts_error_message_on_views():
             {},
             "FTS5",
             (
-                "with original as (\n"
+                'with "original" as (\n'
                 "    select\n"
                 "        rowid,\n"
                 "        *\n"
-                "    from [books]\n"
+                '    from "books"\n'
                 ")\n"
                 "select\n"
-                "    [original].*\n"
+                '    "original".*\n'
                 "from\n"
-                "    [original]\n"
-                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                '    "original"\n'
+                '    join "books_fts" on "original".rowid = "books_fts".rowid\n'
                 "where\n"
-                "    [books_fts] match :query\n"
+                '    "books_fts" match :query\n'
                 "order by\n"
-                "    [books_fts].rank"
+                '    "books_fts".rank'
             ),
         ),
         (
             {"columns": ["title"], "order_by": "rowid", "limit": 10},
             "FTS5",
             (
-                "with original as (\n"
+                'with "original" as (\n'
                 "    select\n"
                 "        rowid,\n"
-                "        [title]\n"
-                "    from [books]\n"
+                '        "title"\n'
+                '    from "books"\n'
                 ")\n"
                 "select\n"
-                "    [original].[title]\n"
+                '    "original"."title"\n'
                 "from\n"
-                "    [original]\n"
-                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                '    "original"\n'
+                '    join "books_fts" on "original".rowid = "books_fts".rowid\n'
                 "where\n"
-                "    [books_fts] match :query\n"
+                '    "books_fts" match :query\n'
                 "order by\n"
                 "    rowid\n"
                 "limit 10"
@@ -478,64 +478,64 @@ def test_enable_fts_error_message_on_views():
             {"where": "author = :author"},
             "FTS5",
             (
-                "with original as (\n"
+                'with "original" as (\n'
                 "    select\n"
                 "        rowid,\n"
                 "        *\n"
-                "    from [books]\n"
+                '    from "books"\n'
                 "    where author = :author\n"
                 ")\n"
                 "select\n"
-                "    [original].*\n"
+                '    "original".*\n'
                 "from\n"
-                "    [original]\n"
-                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                '    "original"\n'
+                '    join "books_fts" on "original".rowid = "books_fts".rowid\n'
                 "where\n"
-                "    [books_fts] match :query\n"
+                '    "books_fts" match :query\n'
                 "order by\n"
-                "    [books_fts].rank"
+                '    "books_fts".rank'
             ),
         ),
         (
             {"columns": ["title"]},
             "FTS4",
             (
-                "with original as (\n"
+                'with "original" as (\n'
                 "    select\n"
                 "        rowid,\n"
-                "        [title]\n"
-                "    from [books]\n"
+                '        "title"\n'
+                '    from "books"\n'
                 ")\n"
                 "select\n"
-                "    [original].[title]\n"
+                '    "original"."title"\n'
                 "from\n"
-                "    [original]\n"
-                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                '    "original"\n'
+                '    join "books_fts" on "original".rowid = "books_fts".rowid\n'
                 "where\n"
-                "    [books_fts] match :query\n"
+                '    "books_fts" match :query\n'
                 "order by\n"
-                "    rank_bm25(matchinfo([books_fts], 'pcnalx'))"
+                "    rank_bm25(matchinfo(\"books_fts\", 'pcnalx'))"
             ),
         ),
         (
             {"offset": 1, "limit": 1},
             "FTS4",
             (
-                "with original as (\n"
+                'with "original" as (\n'
                 "    select\n"
                 "        rowid,\n"
                 "        *\n"
-                "    from [books]\n"
+                '    from "books"\n'
                 ")\n"
                 "select\n"
-                "    [original].*\n"
+                '    "original".*\n'
                 "from\n"
-                "    [original]\n"
-                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                '    "original"\n'
+                '    join "books_fts" on "original".rowid = "books_fts".rowid\n'
                 "where\n"
-                "    [books_fts] match :query\n"
+                '    "books_fts" match :query\n'
                 "order by\n"
-                "    rank_bm25(matchinfo([books_fts], 'pcnalx'))\n"
+                "    rank_bm25(matchinfo(\"books_fts\", 'pcnalx'))\n"
                 "limit 1 offset 1"
             ),
         ),
@@ -543,21 +543,21 @@ def test_enable_fts_error_message_on_views():
             {"limit": 2},
             "FTS4",
             (
-                "with original as (\n"
+                'with "original" as (\n'
                 "    select\n"
                 "        rowid,\n"
                 "        *\n"
-                "    from [books]\n"
+                '    from "books"\n'
                 ")\n"
                 "select\n"
-                "    [original].*\n"
+                '    "original".*\n'
                 "from\n"
-                "    [original]\n"
-                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                '    "original"\n'
+                '    join "books_fts" on "original".rowid = "books_fts".rowid\n'
                 "where\n"
-                "    [books_fts] match :query\n"
+                '    "books_fts" match :query\n'
                 "order by\n"
-                "    rank_bm25(matchinfo([books_fts], 'pcnalx'))\n"
+                "    rank_bm25(matchinfo(\"books_fts\", 'pcnalx'))\n"
                 "limit 2"
             ),
         ),
@@ -565,66 +565,66 @@ def test_enable_fts_error_message_on_views():
             {"where": "author = :author"},
             "FTS4",
             (
-                "with original as (\n"
+                'with "original" as (\n'
                 "    select\n"
                 "        rowid,\n"
                 "        *\n"
-                "    from [books]\n"
+                '    from "books"\n'
                 "    where author = :author\n"
                 ")\n"
                 "select\n"
-                "    [original].*\n"
+                '    "original".*\n'
                 "from\n"
-                "    [original]\n"
-                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                '    "original"\n'
+                '    join "books_fts" on "original".rowid = "books_fts".rowid\n'
                 "where\n"
-                "    [books_fts] match :query\n"
+                '    "books_fts" match :query\n'
                 "order by\n"
-                "    rank_bm25(matchinfo([books_fts], 'pcnalx'))"
+                "    rank_bm25(matchinfo(\"books_fts\", 'pcnalx'))"
             ),
         ),
         (
             {"include_rank": True},
             "FTS5",
             (
-                "with original as (\n"
+                'with "original" as (\n'
                 "    select\n"
                 "        rowid,\n"
                 "        *\n"
-                "    from [books]\n"
+                '    from "books"\n'
                 ")\n"
                 "select\n"
-                "    [original].*,\n"
-                "    [books_fts].rank rank\n"
+                '    "original".*,\n'
+                '    "books_fts".rank rank\n'
                 "from\n"
-                "    [original]\n"
-                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                '    "original"\n'
+                '    join "books_fts" on "original".rowid = "books_fts".rowid\n'
                 "where\n"
-                "    [books_fts] match :query\n"
+                '    "books_fts" match :query\n'
                 "order by\n"
-                "    [books_fts].rank"
+                '    "books_fts".rank'
             ),
         ),
         (
             {"include_rank": True},
             "FTS4",
             (
-                "with original as (\n"
+                'with "original" as (\n'
                 "    select\n"
                 "        rowid,\n"
                 "        *\n"
-                "    from [books]\n"
+                '    from "books"\n'
                 ")\n"
                 "select\n"
-                "    [original].*,\n"
-                "    rank_bm25(matchinfo([books_fts], 'pcnalx')) rank\n"
+                '    "original".*,\n'
+                "    rank_bm25(matchinfo(\"books_fts\", 'pcnalx')) rank\n"
                 "from\n"
-                "    [original]\n"
-                "    join [books_fts] on [original].rowid = [books_fts].rowid\n"
+                '    "original"\n'
+                '    join "books_fts" on "original".rowid = "books_fts".rowid\n'
                 "where\n"
-                "    [books_fts] match :query\n"
+                '    "books_fts" match :query\n'
                 "order by\n"
-                "    rank_bm25(matchinfo([books_fts], 'pcnalx'))"
+                "    rank_bm25(matchinfo(\"books_fts\", 'pcnalx'))"
             ),
         ),
     ],
