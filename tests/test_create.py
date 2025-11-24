@@ -1449,7 +1449,7 @@ def test_strict_persists_after_create_655(fresh_db):
     """When strict is passed to create(), it should be stored in _defaults."""
     table = fresh_db["users"]
     table.create({"id": int, "name": str}, pk="id", strict=True)
-    assert table._defaults["strict"] == True
+    assert table._defaults["strict"] is True
 
 
 def test_upsert_uses_pk_from_prior_insert_655(fresh_db):
