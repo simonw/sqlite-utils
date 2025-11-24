@@ -943,7 +943,6 @@ class Database:
         ), "defaults set {} includes items not in columns {}".format(
             repr(set(defaults)), repr(set(columns.keys()))
         )
-        validate_column_names(columns.keys())
         column_items = list(columns.items())
         if column_order is not None:
 
@@ -2915,7 +2914,6 @@ class Table(Queryable):
         sets = []
         wheres = []
         pks = self.pks
-        validate_column_names(updates.keys())
         for key, value in updates.items():
             sets.append(
                 "{} = {}".format(quote_identifier(key), conversions.get(key, "?"))
@@ -3505,9 +3503,6 @@ class Table(Queryable):
         else:
             # Dict mode: traditional behavior
             records_iter = itertools.chain([first_record], records_iter)
-            records_iter = fix_square_braces(
-                cast(Iterable[Dict[str, Any]], records_iter)
-            )
             try:
                 first_record = next(records_iter)
             except StopIteration:
@@ -4147,20 +4142,6 @@ def resolve_extracts(
     if isinstance(extracts, (list, tuple)):
         extracts = {item: item for item in extracts}
     return extracts
-
-
-def validate_column_names(columns):
-    # Validate no columns contain problematic characters
-    # With double-quote identifier escaping, embedded quotes are handled
-    # by the quote_identifier function, so no validation is needed
-    pass
-
-
-def fix_square_braces(records: Iterable[Dict[str, Any]]):
-    # Legacy function name kept for backward compatibility
-    # With double-quote identifier escaping, embedded quotes are handled
-    # by the quote_identifier function, so records pass through unchanged
-    yield from records
 
 
 def _decode_default_value(value):
