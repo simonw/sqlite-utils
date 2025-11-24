@@ -62,8 +62,8 @@ def test_views(db_path):
     result = CliRunner().invoke(cli.cli, ["views", db_path, "--table", "--schema"])
     assert (
         "view    schema\n"
-        "------  --------------------------------------------\n"
-        "hello   CREATE VIEW hello AS select sqlite_version()"
+        "------  ----------------------------------------------\n"
+        'hello   CREATE VIEW "hello" AS select sqlite_version()'
     ) == result.output.strip()
 
 
@@ -1294,7 +1294,9 @@ def test_create_view():
             cli.cli, ["create-view", "test.db", "version", "select sqlite_version()"]
         )
         assert result.exit_code == 0
-        assert "CREATE VIEW version AS select sqlite_version()" == db["version"].schema
+        assert (
+            'CREATE VIEW "version" AS select sqlite_version()' == db["version"].schema
+        )
 
 
 def test_create_view_error_if_view_exists():
@@ -1329,7 +1331,8 @@ def test_create_view_ignore():
         )
         assert result.exit_code == 0
         assert (
-            "CREATE VIEW version AS select sqlite_version() + 1" == db["version"].schema
+            'CREATE VIEW "version" AS select sqlite_version() + 1'
+            == db["version"].schema
         )
 
 
@@ -1349,7 +1352,9 @@ def test_create_view_replace():
             ],
         )
         assert result.exit_code == 0
-        assert "CREATE VIEW version AS select sqlite_version()" == db["version"].schema
+        assert (
+            'CREATE VIEW "version" AS select sqlite_version()' == db["version"].schema
+        )
 
 
 def test_drop_table():

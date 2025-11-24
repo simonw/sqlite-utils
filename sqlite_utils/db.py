@@ -1177,7 +1177,9 @@ class Database:
         assert not (
             ignore and replace
         ), "Use one or the other of ignore/replace, not both"
-        create_sql = "CREATE VIEW {name} AS {sql}".format(name=name, sql=sql)
+        create_sql = "CREATE VIEW {name} AS {sql}".format(
+            name=quote_identifier(name), sql=sql
+        )
         if ignore or replace:
             # Does view exist already?
             if name in self.view_names():

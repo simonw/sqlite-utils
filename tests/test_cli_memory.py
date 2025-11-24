@@ -172,8 +172,8 @@ def test_memory_dump(extra_args):
         ");\n"
         "INSERT INTO \"stdin\" VALUES(1,'Cleo');\n"
         "INSERT INTO \"stdin\" VALUES(2,'Bants');\n"
-        'CREATE VIEW t1 AS select * from "stdin";\n'
-        'CREATE VIEW t AS select * from "stdin";\n'
+        'CREATE VIEW "t1" AS select * from "stdin";\n'
+        'CREATE VIEW "t" AS select * from "stdin";\n'
         "COMMIT;"
     )
     # Using sqlite-dump it won't have IF NOT EXISTS
@@ -194,8 +194,8 @@ def test_memory_schema(extra_args):
         '   "id" INTEGER,\n'
         '   "name" TEXT\n'
         ");\n"
-        'CREATE VIEW t1 AS select * from "stdin";\n'
-        'CREATE VIEW t AS select * from "stdin";'
+        'CREATE VIEW "t1" AS select * from "stdin";\n'
+        'CREATE VIEW "t" AS select * from "stdin";'
     )
 
 
@@ -288,13 +288,13 @@ def test_memory_two_files_with_same_stem(tmpdir):
         '   "id" INTEGER,\n'
         '   "name" TEXT\n'
         ");\n"
-        'CREATE VIEW t1 AS select * from "data";\n'
-        'CREATE VIEW t AS select * from "data";\n'
+        'CREATE VIEW "t1" AS select * from "data";\n'
+        'CREATE VIEW "t" AS select * from "data";\n'
         'CREATE TABLE "data_2" (\n'
         '   "id" INTEGER,\n'
         '   "name" TEXT\n'
         ");\n"
-        'CREATE VIEW t2 AS select * from "data_2";\n'
+        'CREATE VIEW "t2" AS select * from "data_2";\n'
     )
 
 
