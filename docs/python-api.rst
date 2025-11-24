@@ -459,8 +459,8 @@ The ``db.schema`` property returns the full SQL schema for the database as a str
     >>> db = sqlite_utils.Database("dogs.db")
     >>> print(db.schema)
     CREATE TABLE "dogs" (
-        [id] INTEGER PRIMARY KEY,
-        [name] TEXT
+        "id" INTEGER PRIMARY KEY,
+        "name" TEXT
     );
 
 .. _python_api_creating_tables:
@@ -544,11 +544,11 @@ This will create a table with the following schema:
 
 .. code-block:: sql
 
-    CREATE TABLE [dogs] (
-        [id] INTEGER PRIMARY KEY,
-        [name] TEXT,
-        [age] INTEGER,
-        [weight] FLOAT
+    CREATE TABLE "dogs" (
+        "id" INTEGER PRIMARY KEY,
+        "name" TEXT,
+        "age" INTEGER,
+        "weight" FLOAT
     )
 
 .. _python_api_explicit_create:
@@ -729,10 +729,10 @@ Here's an example that uses these features:
     #  {'id': 3, 'name': 'Dharma', 'score': 1}]
     print(db.table("authors").schema)
     # Outputs:
-    # CREATE TABLE [authors] (
-    #     [id] INTEGER PRIMARY KEY,
-    #     [name] TEXT NOT NULL,
-    #     [score] INTEGER NOT NULL DEFAULT 1
+    # CREATE TABLE "authors" (
+    #     "id" INTEGER PRIMARY KEY,
+    #     "name" TEXT NOT NULL,
+    #     "score" INTEGER NOT NULL DEFAULT 1
     # )
 
 
@@ -1196,10 +1196,10 @@ You can inspect the database to see the results like this::
     >>> list(db.table("characteristics_dogs").rows)
     [{'characteristics_id': 1, 'dogs_id': 1}, {'characteristics_id': 2, 'dogs_id': 1}]
     >>> print(db.table("characteristics_dogs").schema)
-    CREATE TABLE [characteristics_dogs] (
-        [characteristics_id] INTEGER REFERENCES [characteristics]([id]),
-        [dogs_id] INTEGER REFERENCES [dogs]([id]),
-        PRIMARY KEY ([characteristics_id], [dogs_id])
+    CREATE TABLE "characteristics_dogs" (
+        "characteristics_id" INTEGER REFERENCES "characteristics"("id"),
+        "dogs_id" INTEGER REFERENCES "dogs"("id"),
+        PRIMARY KEY ("characteristics_id", "dogs_id")
     )
 
 .. _python_api_analyze_column:
@@ -1648,10 +1648,10 @@ The schema of the above table is:
 
 .. code-block:: sql
 
-    CREATE TABLE [Trees] (
-        [id] INTEGER PRIMARY KEY,
-        [TreeAddress] TEXT,
-        [Species] TEXT
+    CREATE TABLE "Trees" (
+        "id" INTEGER PRIMARY KEY,
+        "TreeAddress" TEXT,
+        "Species" TEXT
     )
 
 Here's how to extract the ``Species`` column using ``.extract()``:
@@ -1665,9 +1665,9 @@ After running this code the table schema now looks like this:
 .. code-block:: sql
 
     CREATE TABLE "Trees" (
-        [id] INTEGER PRIMARY KEY,
-        [TreeAddress] TEXT,
-        [Species_id] INTEGER,
+        "id" INTEGER PRIMARY KEY,
+        "TreeAddress" TEXT,
+        "Species_id" INTEGER,
         FOREIGN KEY(Species_id) REFERENCES Species(id)
     )
 
@@ -1675,9 +1675,9 @@ A new ``Species`` table will have been created with the following schema:
 
 .. code-block:: sql
 
-    CREATE TABLE [Species] (
-        [id] INTEGER PRIMARY KEY,
-        [Species] TEXT
+    CREATE TABLE "Species" (
+        "id" INTEGER PRIMARY KEY,
+        "Species" TEXT
     )
 
 The ``.extract()`` method defaults to creating a table with the same name as the column that was extracted, and adding a foreign key column called ``tablename_id``.
@@ -1693,15 +1693,15 @@ The resulting schema looks like this:
 .. code-block:: sql
 
     CREATE TABLE "Trees" (
-        [id] INTEGER PRIMARY KEY,
-        [TreeAddress] TEXT,
-        [tree_species_id] INTEGER,
+        "id" INTEGER PRIMARY KEY,
+        "TreeAddress" TEXT,
+        "tree_species_id" INTEGER,
         FOREIGN KEY(tree_species_id) REFERENCES tree_species(id)
     )
 
-    CREATE TABLE [tree_species] (
-        [id] INTEGER PRIMARY KEY,
-        [Species] TEXT
+    CREATE TABLE "tree_species" (
+        "id" INTEGER PRIMARY KEY,
+        "Species" TEXT
     )
 
 You can also extract multiple columns into the same external table. Say for example you have a table like this:
@@ -1726,15 +1726,15 @@ This produces the following schema:
 .. code-block:: sql
 
     CREATE TABLE "Trees" (
-        [id] INTEGER PRIMARY KEY,
-        [TreeAddress] TEXT,
-        [CommonName_LatinName_id] INTEGER,
+        "id" INTEGER PRIMARY KEY,
+        "TreeAddress" TEXT,
+        "CommonName_LatinName_id" INTEGER,
         FOREIGN KEY(CommonName_LatinName_id) REFERENCES CommonName_LatinName(id)
     )
-    CREATE TABLE [CommonName_LatinName] (
-        [id] INTEGER PRIMARY KEY,
-        [CommonName] TEXT,
-        [LatinName] TEXT
+    CREATE TABLE "CommonName_LatinName" (
+        "id" INTEGER PRIMARY KEY,
+        "CommonName" TEXT,
+        "LatinName" TEXT
     )
 
 The table name ``CommonName_LatinName`` is derived from the extract columns. You can use ``table=`` and ``fk_column=`` to specify custom names like this:
@@ -1748,15 +1748,15 @@ This produces the following schema:
 .. code-block:: sql
 
     CREATE TABLE "Trees" (
-        [id] INTEGER PRIMARY KEY,
-        [TreeAddress] TEXT,
-        [species_id] INTEGER,
+        "id" INTEGER PRIMARY KEY,
+        "TreeAddress" TEXT,
+        "species_id" INTEGER,
         FOREIGN KEY(species_id) REFERENCES Species(id)
     )
-    CREATE TABLE [Species] (
-        [id] INTEGER PRIMARY KEY,
-        [CommonName] TEXT,
-        [LatinName] TEXT
+    CREATE TABLE "Species" (
+        "id" INTEGER PRIMARY KEY,
+        "CommonName" TEXT,
+        "LatinName" TEXT
     )
 
 You can use the ``rename=`` argument to rename columns in the lookup table. To create a ``Species`` table with columns called ``name`` and ``latin`` you can do this:
@@ -1774,10 +1774,10 @@ This produces a lookup table like so:
 
 .. code-block:: sql
 
-    CREATE TABLE [Species] (
-        [id] INTEGER PRIMARY KEY,
-        [name] TEXT,
-        [latin] TEXT
+    CREATE TABLE "Species" (
+        "id" INTEGER PRIMARY KEY,
+        "name" TEXT,
+        "latin" TEXT
     )
 
 .. _python_api_hash:
@@ -2100,12 +2100,12 @@ The ``.schema`` property outputs the table's schema as a SQL string::
       "Longitude" REAL,
       "Location" TEXT
     ,
-    FOREIGN KEY ("PlantType") REFERENCES [PlantType](id),
-        FOREIGN KEY ("qCaretaker") REFERENCES [qCaretaker](id),
-        FOREIGN KEY ("qSpecies") REFERENCES [qSpecies](id),
-        FOREIGN KEY ("qSiteInfo") REFERENCES [qSiteInfo](id),
-        FOREIGN KEY ("qCareAssistant") REFERENCES [qCareAssistant](id),
-        FOREIGN KEY ("qLegalStatus") REFERENCES [qLegalStatus](id))
+    FOREIGN KEY ("PlantType") REFERENCES "PlantType"(id),
+        FOREIGN KEY ("qCaretaker") REFERENCES "qCaretaker"(id),
+        FOREIGN KEY ("qSpecies") REFERENCES "qSpecies"(id),
+        FOREIGN KEY ("qSiteInfo") REFERENCES "qSiteInfo"(id),
+        FOREIGN KEY ("qCareAssistant") REFERENCES "qCareAssistant"(id),
+        FOREIGN KEY ("qLegalStatus") REFERENCES "qLegalStatus"(id))
 
 .. _python_api_introspection_strict:
 
@@ -2507,9 +2507,9 @@ This will create the ``_counts`` table if it does not already exist, with the fo
 
 .. code-block:: sql
 
-    CREATE TABLE [_counts] (
-       [table] TEXT PRIMARY KEY,
-       [count] INTEGER DEFAULT 0
+    CREATE TABLE "_counts" (
+       "table" TEXT PRIMARY KEY,
+       "count" INTEGER DEFAULT 0
     )
 
 You can enable cached counts for every table in a database (except for virtual tables and the ``_counts`` table itself) using the database ``enable_counts()`` method:
@@ -2719,11 +2719,11 @@ For example:
 
     # The table schema looks like this:
     # print(db.table("cats").schema)
-    # CREATE TABLE [cats] (
-    #    [id] INTEGER PRIMARY KEY,
-    #    [name] TEXT,
-    #    [age] INTEGER,
-    #    [thumbnail] BLOB
+    # CREATE TABLE "cats" (
+    #    "id" INTEGER PRIMARY KEY,
+    #    "name" TEXT,
+    #    "age" INTEGER,
+    #    "thumbnail" BLOB
     # )
 
 .. _python_api_register_function:
@@ -2887,9 +2887,9 @@ If we insert this data directly into a table we will get a schema that is entire
     db.table("creatures").insert_all(rows)
     print(db.schema)
     # Outputs:
-    # CREATE TABLE [creatures] (
-    #    [id] TEXT,
-    #    [name] TEXT
+    # CREATE TABLE "creatures" (
+    #    "id" TEXT,
+    #    "name" TEXT
     # );
 
 We can detect the best column types using a ``TypeTracker`` instance:
@@ -2910,9 +2910,9 @@ We can then apply those types to our new table using the :ref:`table.transform()
     db.table("creatures2").transform(types=tracker.types)
     print(db.table("creatures2").schema)
     # Outputs:
-    # CREATE TABLE [creatures2] (
-    #    [id] INTEGER,
-    #    [name] TEXT
+    # CREATE TABLE "creatures2" (
+    #    "id" INTEGER,
+    #    "name" TEXT
     # );
 
 .. _python_api_gis:

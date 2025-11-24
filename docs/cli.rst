@@ -547,13 +547,13 @@ To see the in-memory database schema that would be used for a file or for multip
 
 .. code-block:: output
 
-    CREATE TABLE [dogs] (
-        [id] INTEGER,
-        [age] INTEGER,
-        [name] TEXT
+    CREATE TABLE "dogs" (
+        "id" INTEGER,
+        "age" INTEGER,
+        "name" TEXT
     );
-    CREATE VIEW t1 AS select * from [dogs];
-    CREATE VIEW t AS select * from [dogs];
+    CREATE VIEW "t1" AS select * from "dogs";
+    CREATE VIEW "t" AS select * from "dogs";
 
 You can run the equivalent of the :ref:`analyze-tables <cli_analyze_tables>` command using ``--analyze``:
 
@@ -596,15 +596,15 @@ You can output SQL that will both create the tables and insert the full data use
 .. code-block:: output
 
     BEGIN TRANSACTION;
-    CREATE TABLE [dogs] (
-        [id] INTEGER,
-        [age] INTEGER,
-        [name] TEXT
+    CREATE TABLE "dogs" (
+        "id" INTEGER,
+        "age" INTEGER,
+        "name" TEXT
     );
     INSERT INTO "dogs" VALUES('1','4','Cleo');
     INSERT INTO "dogs" VALUES('2','2','Pancakes');
-    CREATE VIEW t1 AS select * from [dogs];
-    CREATE VIEW t AS select * from [dogs];
+    CREATE VIEW "t1" AS select * from "dogs";
+    CREATE VIEW "t" AS select * from "dogs";
     COMMIT;
 
 Passing ``--save other.db`` will instead use that SQL to populate a new database file:
@@ -746,10 +746,10 @@ Use ``--schema`` to include the schema of each table:
     -------  -----------------------------------------------
     Gosh     CREATE TABLE Gosh (c1 text, c2 text, c3 text)
     Gosh2    CREATE TABLE Gosh2 (c1 text, c2 text, c3 text)
-    dogs     CREATE TABLE [dogs] (
-               [id] INTEGER,
-               [age] INTEGER,
-               [name] TEXT)
+    dogs     CREATE TABLE "dogs" (
+               "id" INTEGER,
+               "age" INTEGER,
+               "name" TEXT)
 
 The ``--nl``, ``--csv``, ``--tsv``, ``--table`` and ``--fmt`` options are also available.
 
@@ -839,13 +839,13 @@ The ``triggers`` command shows any triggers configured for the database:
 
     name             table      sql
     ---------------  ---------  -----------------------------------------------------------------
-    plants_insert    plants     CREATE TRIGGER [plants_insert] AFTER INSERT ON [plants]
+    plants_insert    plants     CREATE TRIGGER "plants_insert" AFTER INSERT ON "plants"
                                 BEGIN
-                                    INSERT OR REPLACE INTO [_counts]
+                                    INSERT OR REPLACE INTO "_counts"
                                     VALUES (
                                       'plants',
                                       COALESCE(
-                                        (SELECT count FROM [_counts] WHERE [table] = 'plants'),
+                                        (SELECT count FROM "_counts" WHERE "table" = 'plants'),
                                       0
                                       ) + 1
                                     );
@@ -876,8 +876,8 @@ The ``sqlite-utils schema`` command shows the full SQL schema for the database:
 .. code-block:: output
 
     CREATE TABLE "dogs" (
-        [id] INTEGER PRIMARY KEY,
-        [name] TEXT
+        "id" INTEGER PRIMARY KEY,
+        "name" TEXT
     );
 
 This will show the schema for every table and index in the database. To view the schema just for a specified subset of tables pass those as additional arguments:
@@ -983,16 +983,16 @@ The ``_analyze_tables_`` table has the following schema:
 
 .. code-block:: sql
 
-    CREATE TABLE [_analyze_tables_] (
-        [table] TEXT,
-        [column] TEXT,
-        [total_rows] INTEGER,
-        [num_null] INTEGER,
-        [num_blank] INTEGER,
-        [num_distinct] INTEGER,
-        [most_common] TEXT,
-        [least_common] TEXT,
-        PRIMARY KEY ([table], [column])
+    CREATE TABLE "_analyze_tables_" (
+        "table" TEXT,
+        "column" TEXT,
+        "total_rows" INTEGER,
+        "num_null" INTEGER,
+        "num_blank" INTEGER,
+        "num_distinct" INTEGER,
+        "most_common" TEXT,
+        "least_common" TEXT,
+        PRIMARY KEY ("table", "column")
     );
 
 The ``most_common`` and ``least_common`` columns will contain nested JSON arrays of the most common and least common values that look like this:
@@ -1197,23 +1197,23 @@ Inserting this into a table using ``sqlite-utils insert logs.db logs log.json`` 
 
 .. code-block:: sql
 
-    CREATE TABLE [logs] (
-       [httpRequest] TEXT,
-       [insertId] TEXT,
-       [labels] TEXT
+    CREATE TABLE "logs" (
+       "httpRequest" TEXT,
+       "insertId" TEXT,
+       "labels" TEXT
     );
 
 With the ``--flatten`` option columns will be created using ``topkey_nextkey`` column names - so running ``sqlite-utils insert logs.db logs log.json --flatten`` will create the following schema instead:
 
 .. code-block:: sql
 
-    CREATE TABLE [logs] (
-       [httpRequest_latency] TEXT,
-       [httpRequest_requestMethod] TEXT,
-       [httpRequest_requestSize] TEXT,
-       [httpRequest_status] INTEGER,
-       [insertId] TEXT,
-       [labels_service] TEXT
+    CREATE TABLE "logs" (
+       "httpRequest_latency" TEXT,
+       "httpRequest_requestMethod" TEXT,
+       "httpRequest_requestSize" TEXT,
+       "httpRequest_status" INTEGER,
+       "insertId" TEXT,
+       "labels_service" TEXT
     );
 
 .. _cli_insert_csv_tsv:
@@ -1272,9 +1272,9 @@ Will produce this schema:
 .. code-block:: output
 
     CREATE TABLE "creatures" (
-       [name] TEXT,
-       [age] INTEGER,
-       [weight] FLOAT
+       "name" TEXT,
+       "age" INTEGER,
+       "weight" FLOAT
     );
 
 You can set the ``SQLITE_UTILS_DETECT_TYPES`` environment variable if you want ``--detect-types`` to be the default behavior:
@@ -1354,8 +1354,8 @@ This will produce the following schema:
 
 .. code-block:: sql
 
-    CREATE TABLE [loglines] (
-       [line] TEXT
+    CREATE TABLE "loglines" (
+       "line" TEXT
     );
 
 You can also insert the entire contents of the file into a single column called ``text`` using ``--text``:
@@ -1368,8 +1368,8 @@ The schema here will be:
 
 .. code-block:: sql
 
-    CREATE TABLE [content] (
-       [text] TEXT
+    CREATE TABLE "content" (
+       "text" TEXT
     );
 
 .. _cli_insert_convert:
@@ -1462,8 +1462,8 @@ The result looks like this:
 .. code-block:: output
 
     BEGIN TRANSACTION;
-    CREATE TABLE [words] (
-       [word] TEXT
+    CREATE TABLE "words" (
+       "word" TEXT
     );
     INSERT INTO "words" VALUES('A');
     INSERT INTO "words" VALUES('bunch');
@@ -1568,10 +1568,10 @@ By default this command will create a table with the following schema:
 
 .. code-block:: sql
 
-    CREATE TABLE [images] (
-        [path] TEXT PRIMARY KEY,
-        [content] BLOB,
-        [size] INTEGER
+    CREATE TABLE "images" (
+        "path" TEXT PRIMARY KEY,
+        "content" BLOB,
+        "size" INTEGER
     );
 
 Content will be treated as binary by default and stored in a ``BLOB`` column. You can use the ``--text`` option to store that content in a ``TEXT`` column instead.
@@ -1586,10 +1586,10 @@ This will result in the following schema:
 
 .. code-block:: sql
 
-    CREATE TABLE [images] (
-        [path] TEXT PRIMARY KEY,
-        [md5] TEXT,
-        [mtime] FLOAT
+    CREATE TABLE "images" (
+        "path" TEXT PRIMARY KEY,
+        "md5" TEXT,
+        "mtime" FLOAT
     );
 
 Note that there's no ``content`` column here at all - if you specify custom columns using ``-c`` you need to include ``-c content`` to create that column.
@@ -1886,10 +1886,10 @@ The type of the returned values will be taken into account when creating the new
 
 .. code-block:: sql
 
-    CREATE TABLE [places] (
-        [location] TEXT,
-        [latitude] FLOAT,
-        [longitude] FLOAT
+    CREATE TABLE "places" (
+        "location" TEXT,
+        "latitude" FLOAT,
+        "longitude" FLOAT
     );
 
 The code function can also return ``None``, in which case its output will be ignored. You can drop the original column at the end of the operation by adding ``--drop``.
@@ -1933,11 +1933,11 @@ You can specify columns that should be NOT NULL using ``--not-null colname``. Yo
 
     table    schema
     -------  --------------------------------
-    mytable  CREATE TABLE [mytable] (
-                [id] INTEGER PRIMARY KEY,
-                [name] TEXT NOT NULL,
-                [age] INTEGER NOT NULL,
-                [is_good] INTEGER DEFAULT '1'
+    mytable  CREATE TABLE "mytable" (
+                "id" INTEGER PRIMARY KEY,
+                "name" TEXT NOT NULL,
+                "age" INTEGER NOT NULL,
+                "is_good" INTEGER DEFAULT '1'
             )
 
 You can specify foreign key relationships between the tables you are creating using ``--fk colname othertable othercolumn``:
@@ -1964,14 +1964,14 @@ You can specify foreign key relationships between the tables you are creating us
 
     table    schema
     -------  -------------------------------------------------
-    authors  CREATE TABLE [authors] (
-                [id] INTEGER PRIMARY KEY,
-                [name] TEXT
+    authors  CREATE TABLE "authors" (
+                "id" INTEGER PRIMARY KEY,
+                "name" TEXT
              )
-    books    CREATE TABLE [books] (
-                [id] INTEGER PRIMARY KEY,
-                [title] TEXT,
-                [author_id] INTEGER REFERENCES [authors]([id])
+    books    CREATE TABLE "books" (
+                "id" INTEGER PRIMARY KEY,
+                "title" TEXT,
+                "author_id" INTEGER REFERENCES "authors"("id")
              )
 
 You can create a table in `SQLite STRICT mode <https://www.sqlite.org/stricttables.html>`__ using ``--strict``:
@@ -1988,9 +1988,9 @@ You can create a table in `SQLite STRICT mode <https://www.sqlite.org/stricttabl
 
    table    schema
    -------  ------------------------
-   mytable  CREATE TABLE [mytable] (
-               [id] INTEGER,
-               [name] TEXT
+   mytable  CREATE TABLE "mytable" (
+               "id" INTEGER,
+               "name" TEXT
             ) STRICT
 
 If a table with the same name already exists, you will get an error. You can choose to silently ignore this error with ``--ignore``, or you can replace the existing table with a new, empty table using ``--replace``.
@@ -2100,16 +2100,16 @@ If you want to see the SQL that will be executed to make the change without actu
 
 .. code-block:: output
 
-    CREATE TABLE [roadside_attractions_new_4033a60276b9] (
-       [id] INTEGER PRIMARY KEY,
-       [longitude] FLOAT,
-       [latitude] FLOAT,
-       [name] TEXT DEFAULT 'Untitled'
+    CREATE TABLE "roadside_attractions_new_4033a60276b9" (
+       "id" INTEGER PRIMARY KEY,
+       "longitude" FLOAT,
+       "latitude" FLOAT,
+       "name" TEXT DEFAULT 'Untitled'
     );
-    INSERT INTO [roadside_attractions_new_4033a60276b9] ([longitude], [latitude], [id], [name])
-       SELECT [longitude], [latitude], [pk], [name] FROM [roadside_attractions];
-    DROP TABLE [roadside_attractions];
-    ALTER TABLE [roadside_attractions_new_4033a60276b9] RENAME TO [roadside_attractions];
+    INSERT INTO "roadside_attractions_new_4033a60276b9" ("longitude", "latitude", "id", "name")
+       SELECT "longitude", "latitude", "pk", "name" FROM "roadside_attractions";
+    DROP TABLE "roadside_attractions";
+    ALTER TABLE "roadside_attractions_new_4033a60276b9" RENAME TO "roadside_attractions";
 
 .. _cli_transform_table_add_primary_key_to_rowid:
 
@@ -2126,8 +2126,8 @@ SQLite tables that are created without an explicit primary key are created as `r
 
 .. code-block:: output
 
-    CREATE TABLE [chickens] (
-       [name] TEXT
+    CREATE TABLE "chickens" (
+       "name" TEXT
     );
 
 .. code-block:: bash
@@ -2161,8 +2161,8 @@ You can use ``sqlite-utils transform ... --pk id`` to add a primary key column c
 .. code-block:: output
 
     CREATE TABLE "chickens" (
-       [id] INTEGER PRIMARY KEY,
-       [name] TEXT
+       "id" INTEGER PRIMARY KEY,
+       "name" TEXT
     );
 
 .. code-block:: bash
@@ -2208,17 +2208,17 @@ This would produce the following schema:
 .. code-block:: sql
 
     CREATE TABLE "trees" (
-        [id] INTEGER PRIMARY KEY,
-        [TreeAddress] TEXT,
-        [species_id] INTEGER,
+        "id" INTEGER PRIMARY KEY,
+        "TreeAddress" TEXT,
+        "species_id" INTEGER,
         FOREIGN KEY(species_id) REFERENCES species(id)
     );
-    CREATE TABLE [species] (
-        [id] INTEGER PRIMARY KEY,
-        [species] TEXT
+    CREATE TABLE "species" (
+        "id" INTEGER PRIMARY KEY,
+        "species" TEXT
     );
-    CREATE UNIQUE INDEX [idx_species_species]
-        ON [species] ([species]);
+    CREATE UNIQUE INDEX "idx_species_species"
+        ON "species" ("species");
 
 The command takes the following options:
 
@@ -2251,40 +2251,40 @@ After running the above, the command ``sqlite-utils schema global.db`` reveals t
 
 .. code-block:: sql
 
-    CREATE TABLE [countries] (
-       [id] INTEGER PRIMARY KEY,
-       [country] TEXT,
-       [name] TEXT
+    CREATE TABLE "countries" (
+       "id" INTEGER PRIMARY KEY,
+       "country" TEXT,
+       "name" TEXT
     );
     CREATE TABLE "power_plants" (
-       [country_id] INTEGER,
-       [name] TEXT,
-       [gppd_idnr] TEXT,
-       [capacity_mw] TEXT,
-       [latitude] TEXT,
-       [longitude] TEXT,
-       [primary_fuel] TEXT,
-       [other_fuel1] TEXT,
-       [other_fuel2] TEXT,
-       [other_fuel3] TEXT,
-       [commissioning_year] TEXT,
-       [owner] TEXT,
-       [source] TEXT,
-       [url] TEXT,
-       [geolocation_source] TEXT,
-       [wepp_id] TEXT,
-       [year_of_capacity_data] TEXT,
-       [generation_gwh_2013] TEXT,
-       [generation_gwh_2014] TEXT,
-       [generation_gwh_2015] TEXT,
-       [generation_gwh_2016] TEXT,
-       [generation_gwh_2017] TEXT,
-       [generation_data_source] TEXT,
-       [estimated_generation_gwh] TEXT,
-       FOREIGN KEY([country_id]) REFERENCES [countries]([id])
+       "country_id" INTEGER,
+       "name" TEXT,
+       "gppd_idnr" TEXT,
+       "capacity_mw" TEXT,
+       "latitude" TEXT,
+       "longitude" TEXT,
+       "primary_fuel" TEXT,
+       "other_fuel1" TEXT,
+       "other_fuel2" TEXT,
+       "other_fuel3" TEXT,
+       "commissioning_year" TEXT,
+       "owner" TEXT,
+       "source" TEXT,
+       "url" TEXT,
+       "geolocation_source" TEXT,
+       "wepp_id" TEXT,
+       "year_of_capacity_data" TEXT,
+       "generation_gwh_2013" TEXT,
+       "generation_gwh_2014" TEXT,
+       "generation_gwh_2015" TEXT,
+       "generation_gwh_2016" TEXT,
+       "generation_gwh_2017" TEXT,
+       "generation_data_source" TEXT,
+       "estimated_generation_gwh" TEXT,
+       FOREIGN KEY("country_id") REFERENCES "countries"("id")
     );
-    CREATE UNIQUE INDEX [idx_countries_country_name]
-        ON [countries] ([country], [name]);
+    CREATE UNIQUE INDEX "idx_countries_country_name"
+        ON "countries" ("country", "name");
 
 .. _cli_create_view:
 
@@ -2567,17 +2567,17 @@ Use the ``--sql`` option to output the SQL that would be executed, rather than r
         select
             rowid,
             *
-        from [documents]
+        from "documents"
     )
     select
-        [original].*
+        "original".*
     from
-        [original]
-        join [documents_fts] on [original].rowid = [documents_fts].rowid
+        "original"
+        join "documents_fts" on "original".rowid = "documents_fts".rowid
     where
-        [documents_fts] match :query
+        "documents_fts" match :query
     order by
-        [documents_fts].rank
+        "documents_fts".rank
 
 .. _cli_enable_counts:
 
