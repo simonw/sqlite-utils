@@ -45,6 +45,32 @@ def test_cli_bulk(test_db_and_path):
     ] == list(db["example"].rows)
 
 
+def test_cli_bulk_multiple_functions(test_db_and_path):
+    db, db_path = test_db_and_path
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "bulk",
+            db_path,
+            "insert into example (id, name) values (:id, myupper(mylower(:name)))",
+            "-",
+            "--nl",
+            "--functions",
+            "myupper = lambda s: s.upper()",
+            "--functions",
+            "mylower = lambda s: s.lower()",
+        ],
+        input='{"id": 3, "name": "ThReE"}\n{"id": 4, "name": "FoUr"}\n',
+    )
+    assert result.exit_code == 0, result.output
+    assert [
+        {"id": 1, "name": "One"},
+        {"id": 2, "name": "Two"},
+        {"id": 3, "name": "THREE"},
+        {"id": 4, "name": "FOUR"},
+    ] == list(db["example"].rows)
+
+
 def test_cli_bulk_batch_size(test_db_and_path):
     db, db_path = test_db_and_path
     proc = subprocess.Popen(
