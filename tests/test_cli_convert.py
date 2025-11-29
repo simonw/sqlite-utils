@@ -645,3 +645,51 @@ def test_convert_handles_falsey_values(fresh_db_and_path):
     assert result.exit_code == 0, result.output
     assert db["t"].get(1)["x"] == 1
     assert db["t"].get(2)["x"] == 2
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        # Direct callable reference (issue #686)
+        "r.parsedate",
+        "recipes.parsedate",
+        # Traditional call syntax still works
+        "r.parsedate(value)",
+        "recipes.parsedate(value)",
+    ],
+)
+def test_convert_callable_reference(test_db_and_path, code):
+    """Test that callable references like r.parsedate work without (value)"""
+    db, db_path = test_db_and_path
+    result = CliRunner().invoke(
+        cli.cli, ["convert", db_path, "example", "dt", code], catch_exceptions=False
+    )
+    assert result.exit_code == 0, result.output
+    rows = list(db["example"].rows)
+    assert rows[0]["dt"] == "2019-10-05"
+    assert rows[1]["dt"] == "2019-10-06"
+    assert rows[2]["dt"] == ""
+    assert rows[3]["dt"] is None
+
+
+def test_convert_callable_reference_with_import(fresh_db_and_path):
+    """Test callable reference from an imported module"""
+    db, db_path = fresh_db_and_path
+    db["example"].insert({"id": 1, "data": '{"name": "test"}'})
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "convert",
+            db_path,
+            "example",
+            "data",
+            "json.loads",
+            "--import",
+            "json",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    # json.loads returns a dict, which sqlite stores as JSON string
+    row = db["example"].get(1)
+    assert row["data"] == '{"name": "test"}'

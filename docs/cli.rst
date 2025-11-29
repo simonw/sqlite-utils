@@ -1849,7 +1849,19 @@ These recipes can be used in the code passed to ``sqlite-utils convert`` like th
     sqlite-utils convert my.db mytable mycolumn \
       'r.jsonsplit(value)'
 
-To use any of the documented parameters, do this:
+You can also pass the recipe function directly without the ``(value)`` part - sqlite-utils will detect that it is a callable and use it automatically:
+
+.. code-block:: bash
+
+    sqlite-utils convert my.db mytable mycolumn r.parsedate
+
+This shorter syntax works for any callable, including functions from imported modules:
+
+.. code-block:: bash
+
+    sqlite-utils convert my.db mytable mycolumn json.loads --import json
+
+To use any of the documented parameters, use the full function call syntax:
 
 .. code-block:: bash
 
