@@ -450,11 +450,24 @@ def progressbar(*args, **kwargs):
 
 def _compile_code(code, imports, variable="value"):
     globals = {"r": recipes, "recipes": recipes}
+    # Handle imports first so they're available for all approaches
+    for import_ in imports:
+        globals[import_.split(".")[0]] = __import__(import_)
+
     # If user defined a convert() function, return that
     try:
         exec(code, globals)
         return globals["convert"]
     except (AttributeError, SyntaxError, NameError, KeyError, TypeError):
+        pass
+
+    # Check if code is a direct callable reference
+    # e.g. "r.parsedate" instead of "r.parsedate(value)"
+    try:
+        fn = eval(code, globals)
+        if callable(fn):
+            return fn
+    except Exception:
         pass
 
     # Try compiling their code as a function instead
@@ -478,8 +491,6 @@ def _compile_code(code, imports, variable="value"):
     if code_o is None:
         raise SyntaxError("Could not compile code")
 
-    for import_ in imports:
-        globals[import_.split(".")[0]] = __import__(import_)
     exec(code_o, globals)
     return globals["fn"]
 
