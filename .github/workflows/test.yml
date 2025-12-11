@@ -24,9 +24,7 @@ jobs:
         cache-dependency-path: pyproject.toml
     - name: Install dependencies
       run: |
-        pip install -e '.[test,mypy,flake8]'
-    - name: Optionally install tui dependencies
-      run: pip install -e '.[tui]'
+        pip install . --group dev
     - name: Optionally install numpy
       if: matrix.numpy == 1
       run: pip install numpy

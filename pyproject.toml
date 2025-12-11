@@ -31,22 +31,22 @@ dependencies = [
     "pip",
 ]
 
-[project.urls]
-Homepage = "https://github.com/simonw/sqlite-utils"
-Documentation = "https://sqlite-utils.datasette.io/en/stable/"
-Changelog = "https://sqlite-utils.datasette.io/en/stable/changelog.html"
-Issues = "https://github.com/simonw/sqlite-utils/issues"
-CI = "https://github.com/simonw/sqlite-utils/actions"
-
-[project.scripts]
-sqlite-utils = "sqlite_utils.cli:cli"
-
-[project.optional-dependencies]
-test = [
+[dependency-groups]
+dev = [
     "black>=24.1.1",
     "cogapp",
     "hypothesis",
     "pytest",
+    # mypy
+    "data-science-types",
+    "mypy",
+    "types-click",
+    "types-pluggy",
+    "types-python-dateutil",
+    "types-tabulate",
+    # flake8
+    "flake8",
+    "flake8-pyproject",
 ]
 docs = [
     "beanbag-docutils>=2.0",
@@ -56,18 +56,16 @@ docs = [
     "sphinx-autobuild",
     "sphinx-copybutton",
 ]
-mypy = [
-    "data-science-types",
-    "mypy",
-    "types-click",
-    "types-pluggy",
-    "types-python-dateutil",
-    "types-tabulate",
-]
-flake8 = [
-    "flake8",
-    "flake8-pyproject",
-]
+
+[project.urls]
+Homepage = "https://github.com/simonw/sqlite-utils"
+Documentation = "https://sqlite-utils.datasette.io/en/stable/"
+Changelog = "https://sqlite-utils.datasette.io/en/stable/changelog.html"
+Issues = "https://github.com/simonw/sqlite-utils/issues"
+CI = "https://github.com/simonw/sqlite-utils/actions"
+
+[project.scripts]
+sqlite-utils = "sqlite_utils.cli:cli"
 
 [build-system]
 requires = ["setuptools"]
