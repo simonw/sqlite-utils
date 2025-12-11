@@ -12,8 +12,8 @@ python:
   install:
   - method: pip
     path: .
-    extra_requirements:
-    - docs
+    dependency-groups:
+    - dev
 
 formats:
 - pdf
