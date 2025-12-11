@@ -13,12 +13,12 @@ All improvements to the software should start with an issue. Read `How I build a
 Obtaining the code
 ==================
 
-To work on this library locally, first checkout the code.
+To work on this library locally, first checkout the code::
 
     git clone git@github.com:simonw/sqlite-utils
     cd sqlite-utils
 
-Use `uv run` to run the development version of the tool:
+Use ``uv run`` to run the development version of the tool::
 
     uv run sqlite-utils --help
 
@@ -27,7 +27,7 @@ Use `uv run` to run the development version of the tool:
 Running the tests
 =================
 
-Use `uv run` to run the tests:
+Use ``uv run`` to run the tests::
 
     uv run pytest
 
@@ -42,9 +42,6 @@ To build the documentation run this command::
 
 This will start a server on port 8000 that will serve the documentation and live-reload any time you make an edit to a ``.rst`` file.
 
-    cd docs
-    make livehtml
-
 The `cog <https://github.com/nedbat/cog>`__ tool is used to maintain portions of the documentation. You can run it like so::
 
     uv run cog -r docs/*.rst
@@ -54,7 +51,7 @@ The `cog <https://github.com/nedbat/cog>`__ tool is used to maintain portions of
 Linting and formatting
 ======================
 
-``sqlite-utils`` uses `Black <https://black.readthedocs.io/>`__ for code formatting, and `flake8 <https://flake8.pycqa.org/>`__ and `mypy <https://mypy.readthedocs.io/>`__ for linting and type checking.
+``sqlite-utils`` uses `Black <https://black.readthedocs.io/>`__ for code formatting, and `flake8 <https://flake8.pycqa.org/>`__ and `mypy <https://mypy.readthedocs.io/>`__ for linting and type checking::
 
     uv run black .
 
@@ -67,10 +64,10 @@ All three of these tools are run by our CI mechanism against every commit and pu
 
 .. _contributing_just:
 
-Using Just and uv
-=================
+Using Just
+==========
 
-If you install `Just <https://github.com/casey/just>`__ and `uv <https://github.com/astral-sh/uv>`__ you can use them to manage your local development environment.
+If you install `Just <https://github.com/casey/just>`__ you can use it to manage your local development environment.
 
 To run all of the tests and linters::
 
