@@ -37,13 +37,6 @@ dev = [
     "cogapp",
     "hypothesis",
     "pytest",
-    # docs
-    "beanbag-docutils>=2.0",
-    "codespell",
-    "furo",
-    "pygments-csv-lexer",
-    "sphinx-autobuild",
-    "sphinx-copybutton",
     # mypy
     "data-science-types",
     "mypy",
@@ -54,6 +47,14 @@ dev = [
     # flake8
     "flake8",
     "flake8-pyproject",
+]
+docs = [
+    "beanbag-docutils>=2.0",
+    "codespell",
+    "furo",
+    "pygments-csv-lexer",
+    "sphinx-autobuild",
+    "sphinx-copybutton",
 ]
 
 [project.urls]
