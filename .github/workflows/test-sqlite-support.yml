@@ -34,7 +34,7 @@ jobs:
     - run: python3 -c "import sqlite3; print(sqlite3.sqlite_version)"
     - name: Install dependencies
       run: |
-        pip install -e '.[test]'
+        pip install . --group dev
         pip freeze
     - name: Run tests
       run: |

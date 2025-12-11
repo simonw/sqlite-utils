@@ -31,6 +31,31 @@ dependencies = [
     "pip",
 ]
 
+[dependency-groups]
+dev = [
+    "black>=24.1.1",
+    "cogapp",
+    "hypothesis",
+    "pytest",
+    # docs
+    "beanbag-docutils>=2.0",
+    "codespell",
+    "furo",
+    "pygments-csv-lexer",
+    "sphinx-autobuild",
+    "sphinx-copybutton",
+    # mypy
+    "data-science-types",
+    "mypy",
+    "types-click",
+    "types-pluggy",
+    "types-python-dateutil",
+    "types-tabulate",
+    # flake8
+    "flake8",
+    "flake8-pyproject",
+]
+
 [project.urls]
 Homepage = "https://github.com/simonw/sqlite-utils"
 Documentation = "https://sqlite-utils.datasette.io/en/stable/"
@@ -40,34 +65,6 @@ CI = "https://github.com/simonw/sqlite-utils/actions"
 
 [project.scripts]
 sqlite-utils = "sqlite_utils.cli:cli"
-
-[project.optional-dependencies]
-test = [
-    "black>=24.1.1",
-    "cogapp",
-    "hypothesis",
-    "pytest",
-]
-docs = [
-    "beanbag-docutils>=2.0",
-    "codespell",
-    "furo",
-    "pygments-csv-lexer",
-    "sphinx-autobuild",
-    "sphinx-copybutton",
-]
-mypy = [
-    "data-science-types",
-    "mypy",
-    "types-click",
-    "types-pluggy",
-    "types-python-dateutil",
-    "types-tabulate",
-]
-flake8 = [
-    "flake8",
-    "flake8-pyproject",
-]
 
 [build-system]
 requires = ["setuptools"]
