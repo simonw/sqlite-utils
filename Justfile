@@ -3,30 +3,30 @@
 
 # Run pytest with supplied options
 @test *options:
-  just run pytest {{options}}
+  uv run pytest {{options}}
 
 @run *options:
-  uv run --isolated --with-editable '.[test,mypy,flake8,docs]' -- {{options}}
+  uv run -- {{options}}
 
 # Run linters: black, flake8, mypy, cog
 @lint:
   just run black . --check
-  just run flake8
-  just run mypy sqlite_utils tests
-  just run cog --check README.md docs/*.rst
-  just run codespell docs/*.rst --ignore-words docs/codespell-ignore-words.txt
+  uv run flake8
+  uv run mypy sqlite_utils tests
+  uv run cog --check README.md docs/*.rst
+  uv run --group docs codespell docs/*.rst --ignore-words docs/codespell-ignore-words.txt
 
 # Rebuild docs with cog
 @cog:
-  just run cog -r README.md docs/*.rst
+  uv run --group docs cog -r README.md docs/*.rst
 
 # Serve live docs on localhost:8000
 @docs: cog
   #!/usr/bin/env bash
   cd docs
-  uv run --isolated --with-editable '../.[test,docs]' make livehtml
+  uv run --group docs make livehtml
 
 
 # Apply Black
 @black:
-  just run black .
+  uv run black .
