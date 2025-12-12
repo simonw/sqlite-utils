@@ -16,7 +16,9 @@ def pytest_configure(config):
 
 @pytest.fixture
 def fresh_db():
-    return Database(memory=True)
+    db = Database(memory=True)
+    yield db
+    db.close()
 
 
 @pytest.fixture
@@ -30,7 +32,8 @@ def existing_db():
         INSERT INTO foo (text) values ("three");
     """
     )
-    return database
+    yield database
+    database.close()
 
 
 @pytest.fixture
@@ -38,4 +41,5 @@ def db_path(tmpdir):
     path = str(tmpdir / "test.db")
     db = sqlite3.connect(path)
     db.executescript(CREATE_TABLES)
+    db.close()
     return path

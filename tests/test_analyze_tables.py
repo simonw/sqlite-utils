@@ -44,6 +44,7 @@ def big_db_to_analyze_path(tmpdir):
                 }
             )
     db["stuff"].insert_all(to_insert)
+    db.close()
     return path
 
 
@@ -137,6 +138,7 @@ def db_to_analyze_path(db_to_analyze, tmpdir):
     db = sqlite3.connect(path)
     sql = "\n".join(db_to_analyze.iterdump())
     db.executescript(sql)
+    db.close()
     return path
 
 
@@ -311,6 +313,7 @@ def test_analyze_table_validate_columns(tmpdir, args, expected_error):
             "age": 5,
         }
     )
+    db.close()
     result = CliRunner().invoke(
         cli.cli,
         ["analyze-tables", path] + args,
