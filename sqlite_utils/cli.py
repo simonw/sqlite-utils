@@ -44,6 +44,28 @@ from .utils import (
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
+
+def _register_db_for_cleanup(db):
+    """Register a database to be closed when the Click context is cleaned up."""
+    ctx = click.get_current_context(silent=True)
+    if ctx is None:
+        return
+    if not hasattr(ctx, "_databases_to_close"):
+        ctx._databases_to_close = []
+        ctx.call_on_close(lambda: _close_databases(ctx))
+    ctx._databases_to_close.append(db)
+
+
+def _close_databases(ctx):
+    """Close all databases registered for cleanup."""
+    if hasattr(ctx, "_databases_to_close"):
+        for db in ctx._databases_to_close:
+            try:
+                db.close()
+            except Exception:
+                pass
+
+
 VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "REAL", "BLOB")
 
 UNICODE_ERROR = """
@@ -183,6 +205,7 @@ def tables(
         sqlite-utils tables trees.db
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     headers = ["view" if views else "table"]
     if counts:
@@ -309,6 +332,7 @@ def optimize(path, tables, no_vacuum, load_extension):
         sqlite-utils optimize chickens.db
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     if not tables:
         tables = db.table_names(fts4=True) + db.table_names(fts5=True)
@@ -336,6 +360,7 @@ def rebuild_fts(path, tables, load_extension):
         sqlite-utils rebuild-fts chickens.db chickens
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     if not tables:
         tables = db.table_names(fts4=True) + db.table_names(fts5=True)
@@ -360,6 +385,7 @@ def analyze(path, names):
         sqlite-utils analyze chickens.db
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     try:
         if names:
             for name in names:
@@ -384,7 +410,9 @@ def vacuum(path):
     \b
         sqlite-utils vacuum chickens.db
     """
-    sqlite_utils.Database(path).vacuum()
+    db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
+    db.vacuum()
 
 
 @cli.command()
@@ -403,6 +431,7 @@ def dump(path, load_extension):
         sqlite-utils dump chickens.db
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     for line in db.iterdump():
         click.echo(line)
@@ -464,6 +493,7 @@ def add_column(
         sqlite-utils add-column chickens.db chickens weight float
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
         db[table].add_column(
@@ -501,6 +531,7 @@ def add_foreign_key(
         sqlite-utils add-foreign-key my.db books author_id authors id
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
         db[table].add_foreign_key(column, other_table, other_column, ignore=ignore)
@@ -528,6 +559,7 @@ def add_foreign_keys(path, foreign_key, load_extension):
             authors country_id countries id
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     if len(foreign_key) % 4 != 0:
         raise click.ClickException(
@@ -559,6 +591,7 @@ def index_foreign_keys(path, load_extension):
         sqlite-utils index-foreign-keys chickens.db
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     db.index_foreign_keys()
 
@@ -603,6 +636,7 @@ def create_index(
         sqlite-utils create-index chickens.db chickens -- -name
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     # Treat -prefix as descending for columns
     columns = []
@@ -660,6 +694,7 @@ def enable_fts(
         fts_version = "FTS4"
 
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
         db[table].enable_fts(
@@ -691,6 +726,7 @@ def populate_fts(path, table, column, load_extension):
         sqlite-utils populate-fts chickens.db chickens name
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     db[table].populate_fts(column)
 
@@ -712,6 +748,7 @@ def disable_fts(path, table, load_extension):
         sqlite-utils disable-fts chickens.db chickens
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     db[table].disable_fts()
 
@@ -734,6 +771,7 @@ def enable_wal(path, load_extension):
     """
     for path_ in path:
         db = sqlite_utils.Database(path_)
+        _register_db_for_cleanup(db)
         _load_extensions(db, load_extension)
         db.enable_wal()
 
@@ -756,6 +794,7 @@ def disable_wal(path, load_extension):
     """
     for path_ in path:
         db = sqlite_utils.Database(path_)
+        _register_db_for_cleanup(db)
         _load_extensions(db, load_extension)
         db.disable_wal()
 
@@ -777,6 +816,7 @@ def enable_counts(path, tables, load_extension):
         sqlite-utils enable-counts chickens.db
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     if not tables:
         db.enable_counts()
@@ -805,6 +845,7 @@ def reset_counts(path, load_extension):
         sqlite-utils reset-counts chickens.db
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     db.reset_counts()
 
@@ -864,7 +905,7 @@ def insert_upsert_options(*, require_pk=False):
                     required=True,
                 ),
                 click.argument("table"),
-                click.argument("file", type=click.File("rb"), required=True),
+                click.argument("file", type=click.File("rb", lazy=True), required=True),
                 click.option(
                     "--pk",
                     help="Columns to use as the primary key, e.g. id",
@@ -964,6 +1005,7 @@ def insert_upsert_implementation(
     strict=False,
 ):
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     _maybe_register_functions(db, functions)
     if (delimiter or quotechar or sniff or no_headers) and not tsv:
@@ -1480,6 +1522,7 @@ def create_database(path, enable_wal, init_spatialite, load_extension):
         sqlite-utils create-database trees.db
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     if enable_wal:
         db.enable_wal()
 
@@ -1569,6 +1612,7 @@ def create_table(
     Valid column types are text, integer, float and blob.
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     if len(columns) % 2 == 1:
         raise click.ClickException(
@@ -1620,6 +1664,7 @@ def duplicate(path, table, new_table, ignore, load_extension):
     Create a duplicate of this table, copying across the schema and all row data.
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
         db[table].duplicate(new_table)
@@ -1643,6 +1688,7 @@ def rename_table(path, table, new_name, ignore, load_extension):
     Rename this table.
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
         db.rename_table(table, new_name)
@@ -1671,6 +1717,7 @@ def drop_table(path, table, ignore, load_extension):
         sqlite-utils drop-table chickens.db chickens
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
         db[table].drop(ignore=ignore)
@@ -1707,6 +1754,7 @@ def create_view(path, view, select, ignore, replace, load_extension):
           'select * from chickens where weight > 3'
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     # Does view already exist?
     if view in db.view_names():
@@ -1741,6 +1789,7 @@ def drop_view(path, view, ignore, load_extension):
         sqlite-utils drop-view chickens.db heavy_chickens
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
         db[view].drop(ignore=ignore)
@@ -1805,6 +1854,7 @@ def query(
             -p age 1
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     for alias, attach_path in attach:
         db.attach(alias, attach_path)
     _load_extensions(db, load_extension)
@@ -1939,6 +1989,8 @@ def memory(
         sqlite-utils memory animals.csv --schema
     """
     db = sqlite_utils.Database(memory=True)
+    if not return_db:
+        _register_db_for_cleanup(db)
 
     # If --dump or --save or --analyze used but no paths detected, assume SQL query is a path:
     if (dump or save or schema or analyze) and not paths:
@@ -1948,6 +2000,7 @@ def memory(
     for i, path in enumerate(paths):
         # Path may have a :format suffix
         fp = None
+        should_close_fp = False
         if ":" in path and path.rsplit(":", 1)[-1].upper() in Format.__members__:
             path, suffix = path.rsplit(":", 1)
             format = Format[suffix.upper()]
@@ -1965,29 +2018,32 @@ def memory(
                 file_table = stem
             stem_counts[stem] = stem_counts.get(stem, 1) + 1
             fp = file_path.open("rb")
-        rows, format_used = rows_from_file(fp, format=format, encoding=encoding)
-        tracker = None
-        if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
-            tracker = TypeTracker()
-            rows = tracker.wrap(rows)
-        if flatten:
-            rows = (_flatten(row) for row in rows)
+            should_close_fp = True
+        try:
+            rows, format_used = rows_from_file(fp, format=format, encoding=encoding)
+            tracker = None
+            if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
+                tracker = TypeTracker()
+                rows = tracker.wrap(rows)
+            if flatten:
+                rows = (_flatten(row) for row in rows)
 
-        db[file_table].insert_all(rows, alter=True)
-        if tracker is not None:
-            db[file_table].transform(types=tracker.types)
-        # Add convenient t / t1 / t2 views
-        view_names = ["t{}".format(i + 1)]
-        if i == 0:
-            view_names.append("t")
-        for view_name in view_names:
-            if not db[view_name].exists():
-                db.create_view(
-                    view_name, "select * from {}".format(quote_identifier(file_table))
-                )
-
-        if fp:
-            fp.close()
+            db[file_table].insert_all(rows, alter=True)
+            if tracker is not None:
+                db[file_table].transform(types=tracker.types)
+            # Add convenient t / t1 / t2 views
+            view_names = ["t{}".format(i + 1)]
+            if i == 0:
+                view_names.append("t")
+            for view_name in view_names:
+                if not db[view_name].exists():
+                    db.create_view(
+                        view_name,
+                        "select * from {}".format(quote_identifier(file_table)),
+                    )
+        finally:
+            if should_close_fp and fp:
+                fp.close()
 
     if analyze:
         _analyze(db, tables=None, columns=None, save=False)
@@ -2004,6 +2060,7 @@ def memory(
 
     if save:
         db2 = sqlite_utils.Database(save)
+        _register_db_for_cleanup(db2)
         for line in db.iterdump():
             db2.execute(line)
         return
@@ -2140,6 +2197,7 @@ def search(
         sqlite-utils search data.db chickens lila
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     # Check table exists
     table_obj = db[dbtable]
@@ -2307,7 +2365,9 @@ def triggers(
     """
     sql = "select name, tbl_name as \"table\", sql from sqlite_master where type = 'trigger'"
     if tables:
-        quote = sqlite_utils.Database(memory=True).quote
+        _quote_db = sqlite_utils.Database(memory=True)
+        _register_db_for_cleanup(_quote_db)
+        quote = _quote_db.quote
         sql += ' and "table" in ({})'.format(
             ", ".join(quote(table) for table in tables)
         )
@@ -2372,7 +2432,9 @@ def indexes(
       sqlite_master.type = 'table'
     """
     if tables:
-        quote = sqlite_utils.Database(memory=True).quote
+        _quote_db = sqlite_utils.Database(memory=True)
+        _register_db_for_cleanup(_quote_db)
+        quote = _quote_db.quote
         sql += " and sqlite_master.name in ({})".format(
             ", ".join(quote(table) for table in tables)
         )
@@ -2415,6 +2477,7 @@ def schema(
         sqlite-utils schema trees.db
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     if tables:
         for table in tables:
@@ -2507,6 +2570,7 @@ def transform(
             --rename column2 column_renamed
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     types = {}
     kwargs = {}
@@ -2590,6 +2654,7 @@ def extract(
         sqlite-utils extract trees.db Street_Trees species
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     kwargs = dict(
         columns=columns,
@@ -2734,6 +2799,7 @@ def insert_files(
                 yield row
 
         db = sqlite_utils.Database(path)
+        _register_db_for_cleanup(db)
         _load_extensions(db, load_extension)
         try:
             with db.conn:
@@ -2792,6 +2858,7 @@ def analyze_tables(
         sqlite-utils analyze-tables data.db trees
     """
     db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     _analyze(db, tables, columns, save, common_limit, no_most, no_least)
 
@@ -2991,6 +3058,7 @@ def convert(
 ):
     sqlite3.enable_callback_tracebacks(True)
     db = sqlite_utils.Database(db_path)
+    _register_db_for_cleanup(db)
     if output is not None and len(columns) > 1:
         raise click.ClickException("Cannot use --output with more than one column")
     if multi and len(columns) > 1:
@@ -3133,6 +3201,7 @@ def add_geometry_column(
     By default, this command will try to load the SpatiaLite extension from usual paths.
     To load it from a specific path, use --load-extension."""
     db = sqlite_utils.Database(db_path)
+    _register_db_for_cleanup(db)
     if not db[table].exists():
         raise click.ClickException(
             "You must create a table before adding a geometry column"
@@ -3165,6 +3234,7 @@ def create_spatial_index(db_path, table, column_name, load_extension):
     By default, this command will try to load the SpatiaLite extension from usual paths.
     To load it from a specific path, use --load-extension."""
     db = sqlite_utils.Database(db_path)
+    _register_db_for_cleanup(db)
     if not db[table].exists():
         raise click.ClickException(
             "You must create a table and add a geometry column before creating a spatial index"

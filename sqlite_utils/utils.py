@@ -8,10 +8,11 @@ import itertools
 import json
 import os
 import sys
-from . import recipes
-from typing import Dict, cast, BinaryIO, Iterable, Optional, Tuple, Type
+from typing import Dict, cast, BinaryIO, Iterable, Iterator, Optional, Tuple, Type
 
 import click
+
+from . import recipes
 
 try:
     import pysqlite3 as sqlite3  # noqa: F401
@@ -41,6 +42,27 @@ SPATIALITE_PATHS = (
 
 # Mainly so we can restore it if needed in the tests:
 ORIGINAL_CSV_FIELD_SIZE_LIMIT = csv.field_size_limit()
+
+
+class _CloseableIterator(Iterator[dict]):
+    """Iterator wrapper that closes a file when iteration is complete."""
+
+    def __init__(self, iterator: Iterator[dict], closeable: io.IOBase):
+        self._iterator = iterator
+        self._closeable = closeable
+
+    def __iter__(self) -> "_CloseableIterator":
+        return self
+
+    def __next__(self) -> dict:
+        try:
+            return next(self._iterator)
+        except StopIteration:
+            self._closeable.close()
+            raise
+
+    def close(self) -> None:
+        self._closeable.close()
 
 
 def maximize_csv_field_size_limit():
@@ -299,7 +321,8 @@ def rows_from_file(
             reader = csv.DictReader(decoded_fp, dialect=dialect)
         else:
             reader = csv.DictReader(decoded_fp)
-        return _extra_key_strategy(reader, ignore_extras, extras_key), Format.CSV
+        rows = _extra_key_strategy(reader, ignore_extras, extras_key)
+        return _CloseableIterator(iter(rows), decoded_fp), Format.CSV
     elif format == Format.TSV:
         rows = rows_from_file(
             fp, format=Format.CSV, dialect=csv.excel_tab, encoding=encoding

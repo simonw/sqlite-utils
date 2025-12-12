@@ -328,7 +328,8 @@ def test_memory_return_db(tmpdir):
     from sqlite_utils.cli import cli
 
     path = str(tmpdir / "dogs.csv")
-    open(path, "w").write("id,name\n1,Cleo")
+    with open(path, "w") as f:
+        f.write("id,name\n1,Cleo")
 
     with click.Context(cli) as ctx:
         db = ctx.invoke(cli.commands["memory"], paths=(path,), return_db=True)

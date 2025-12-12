@@ -14,6 +14,26 @@ def pytest_configure(config):
     sys._called_from_test = True
 
 
+@pytest.fixture(autouse=True)
+def close_all_databases():
+    """Automatically close all Database objects created during a test."""
+    databases = []
+    original_init = Database.__init__
+
+    def tracking_init(self, *args, **kwargs):
+        original_init(self, *args, **kwargs)
+        databases.append(self)
+
+    Database.__init__ = tracking_init
+    yield
+    Database.__init__ = original_init
+    for db in databases:
+        try:
+            db.close()
+        except Exception:
+            pass
+
+
 @pytest.fixture
 def fresh_db():
     return Database(memory=True)
@@ -38,4 +58,5 @@ def db_path(tmpdir):
     path = str(tmpdir / "test.db")
     db = sqlite3.connect(path)
     db.executescript(CREATE_TABLES)
+    db.close()
     return path

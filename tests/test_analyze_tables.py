@@ -137,6 +137,7 @@ def db_to_analyze_path(db_to_analyze, tmpdir):
     db = sqlite3.connect(path)
     sql = "\n".join(db_to_analyze.iterdump())
     db.executescript(sql)
+    db.close()
     return path
 
 

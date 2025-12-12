@@ -9,9 +9,11 @@ def _supports_pragma_function_list():
     db = Database(memory=True)
     try:
         db.execute("select * from pragma_function_list()")
+        return True
     except Exception:
         return False
-    return True
+    finally:
+        db.close()
 
 
 def test_register_commands():
