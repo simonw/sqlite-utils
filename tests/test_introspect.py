@@ -2,6 +2,14 @@ from sqlite_utils.db import Index, View, Database, XIndex, XIndexColumn
 import pytest
 
 
+def _check_supports_strict():
+    """Check if SQLite supports strict tables without leaking the database."""
+    db = Database(memory=True)
+    result = db.supports_strict
+    db.close()
+    return result
+
+
 def test_table_names(existing_db):
     assert ["foo"] == existing_db.table_names()
 
@@ -282,7 +290,7 @@ def test_use_rowid(fresh_db):
 
 
 @pytest.mark.skipif(
-    not Database(memory=True).supports_strict,
+    not _check_supports_strict(),
     reason="Needs SQLite version that supports strict",
 )
 @pytest.mark.parametrize(

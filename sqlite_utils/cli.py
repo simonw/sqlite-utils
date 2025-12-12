@@ -905,7 +905,7 @@ def insert_upsert_options(*, require_pk=False):
                     required=True,
                 ),
                 click.argument("table"),
-                click.argument("file", type=click.File("rb"), required=True),
+                click.argument("file", type=click.File("rb", lazy=True), required=True),
                 click.option(
                     "--pk",
                     help="Columns to use as the primary key, e.g. id",
@@ -2000,6 +2000,7 @@ def memory(
     for i, path in enumerate(paths):
         # Path may have a :format suffix
         fp = None
+        should_close_fp = False
         if ":" in path and path.rsplit(":", 1)[-1].upper() in Format.__members__:
             path, suffix = path.rsplit(":", 1)
             format = Format[suffix.upper()]
@@ -2017,29 +2018,32 @@ def memory(
                 file_table = stem
             stem_counts[stem] = stem_counts.get(stem, 1) + 1
             fp = file_path.open("rb")
-        rows, format_used = rows_from_file(fp, format=format, encoding=encoding)
-        tracker = None
-        if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
-            tracker = TypeTracker()
-            rows = tracker.wrap(rows)
-        if flatten:
-            rows = (_flatten(row) for row in rows)
+            should_close_fp = True
+        try:
+            rows, format_used = rows_from_file(fp, format=format, encoding=encoding)
+            tracker = None
+            if format_used in (Format.CSV, Format.TSV) and not no_detect_types:
+                tracker = TypeTracker()
+                rows = tracker.wrap(rows)
+            if flatten:
+                rows = (_flatten(row) for row in rows)
 
-        db[file_table].insert_all(rows, alter=True)
-        if tracker is not None:
-            db[file_table].transform(types=tracker.types)
-        # Add convenient t / t1 / t2 views
-        view_names = ["t{}".format(i + 1)]
-        if i == 0:
-            view_names.append("t")
-        for view_name in view_names:
-            if not db[view_name].exists():
-                db.create_view(
-                    view_name, "select * from {}".format(quote_identifier(file_table))
-                )
-
-        if fp:
-            fp.close()
+            db[file_table].insert_all(rows, alter=True)
+            if tracker is not None:
+                db[file_table].transform(types=tracker.types)
+            # Add convenient t / t1 / t2 views
+            view_names = ["t{}".format(i + 1)]
+            if i == 0:
+                view_names.append("t")
+            for view_name in view_names:
+                if not db[view_name].exists():
+                    db.create_view(
+                        view_name,
+                        "select * from {}".format(quote_identifier(file_table)),
+                    )
+        finally:
+            if should_close_fp and fp:
+                fp.close()
 
     if analyze:
         _analyze(db, tables=None, columns=None, save=False)
