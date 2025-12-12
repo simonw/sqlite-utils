@@ -382,6 +382,12 @@ class Database:
             pm.hook.prepare_connection(conn=self.conn)
         self.strict = strict
 
+    def __enter__(self) -> "Database":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
+
     def close(self) -> None:
         "Close the SQLite connection, and the underlying database file"
         self.conn.close()

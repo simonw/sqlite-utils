@@ -123,6 +123,27 @@ You can pass ``strict=True`` to enable `SQLite STRICT mode <https://www.sqlite.o
 
     db = Database("my_database.db", strict=True)
 
+.. _python_api_close:
+
+Closing a database
+------------------
+
+Database objects maintain a connection to the underlying SQLite database. You can explicitly close this connection using the ``.close()`` method:
+
+.. code-block:: python
+
+    db = Database("my_database.db")
+    # ... use the database ...
+    db.close()
+
+The ``Database`` object also works as a context manager, which will automatically close the connection when the ``with`` block exits:
+
+.. code-block:: python
+
+    with Database("my_database.db") as db:
+        db["my_table"].insert({"name": "Example"})
+    # Connection is automatically closed here
+
 .. _python_api_attach:
 
 Attaching additional databases
