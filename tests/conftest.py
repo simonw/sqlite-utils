@@ -14,11 +14,29 @@ def pytest_configure(config):
     sys._called_from_test = True
 
 
+@pytest.fixture(autouse=True)
+def close_all_databases():
+    """Automatically close all Database objects created during a test."""
+    databases = []
+    original_init = Database.__init__
+
+    def tracking_init(self, *args, **kwargs):
+        original_init(self, *args, **kwargs)
+        databases.append(self)
+
+    Database.__init__ = tracking_init
+    yield
+    Database.__init__ = original_init
+    for db in databases:
+        try:
+            db.close()
+        except Exception:
+            pass
+
+
 @pytest.fixture
 def fresh_db():
-    db = Database(memory=True)
-    yield db
-    db.close()
+    return Database(memory=True)
 
 
 @pytest.fixture
@@ -32,8 +50,7 @@ def existing_db():
         INSERT INTO foo (text) values ("three");
     """
     )
-    yield database
-    database.close()
+    return database
 
 
 @pytest.fixture

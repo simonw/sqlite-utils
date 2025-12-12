@@ -82,7 +82,6 @@ def test_tables_counts_and_columns(db_path):
     db = Database(db_path)
     with db.conn:
         db["lots"].insert_all([{"id": i, "age": i + 1} for i in range(30)])
-    db.close()
     result = CliRunner().invoke(cli.cli, ["tables", "--counts", "--columns", db_path])
     assert (
         '[{"table": "Gosh", "count": 0, "columns": ["c1", "c2", "c3"]},\n'
@@ -118,7 +117,6 @@ def test_tables_counts_and_columns_csv(db_path, format, expected):
     db = Database(db_path)
     with db.conn:
         db["lots"].insert_all([{"id": i, "age": i + 1} for i in range(30)])
-    db.close()
     result = CliRunner().invoke(
         cli.cli, ["tables", "--counts", "--columns", format, db_path]
     )
@@ -129,7 +127,6 @@ def test_tables_schema(db_path):
     db = Database(db_path)
     with db.conn:
         db["lots"].insert_all([{"id": i, "age": i + 1} for i in range(30)])
-    db.close()
     result = CliRunner().invoke(cli.cli, ["tables", "--schema", db_path])
     assert (
         '[{"table": "Gosh", "schema": "CREATE TABLE Gosh (c1 text, c2 text, c3 text)"},\n'
@@ -191,7 +188,6 @@ def test_output_table(db_path, options, expected):
                 for i in range(4)
             ]
         )
-    db.close()
     result = CliRunner().invoke(cli.cli, ["rows", db_path, "rows"] + options)
     assert result.exit_code == 0
     assert expected == result.output.strip()
@@ -247,7 +243,6 @@ def test_create_index(db_path):
             CliRunner().invoke(cli.cli, create_index_unique_args + [option]).exit_code
             == 0
         )
-    db.close()
 
 
 def test_create_index_analyze(db_path):
@@ -627,7 +622,6 @@ def test_optimize(db_path, tables):
             )
         db["Gosh"].enable_fts(["c1", "c2", "c3"], fts_version="FTS4")
         db["Gosh2"].enable_fts(["c1", "c2", "c3"], fts_version="FTS5")
-    db.close()
     size_before_optimize = os.stat(db_path).st_size
     result = CliRunner().invoke(cli.cli, ["optimize", db_path] + tables)
     assert result.exit_code == 0
@@ -1456,7 +1450,6 @@ def test_drop_table_error():
     with runner.isolated_filesystem():
         db = Database("test.db")
         db["t"].create({"pk": int}, pk="pk")
-        db.close()
         result = runner.invoke(
             cli.cli,
             [
@@ -1481,7 +1474,6 @@ def test_drop_view():
         db = Database("test.db")
         db.create_view("hello", "select 1")
         assert "hello" in db.view_names()
-        db.close()
         result = runner.invoke(
             cli.cli,
             [
@@ -1491,9 +1483,7 @@ def test_drop_view():
             ],
         )
         assert result.exit_code == 0
-        db = Database("test.db")
         assert "hello" not in db.view_names()
-        db.close()
 
 
 def test_drop_view_error():
@@ -1501,7 +1491,6 @@ def test_drop_view_error():
     with runner.isolated_filesystem():
         db = Database("test.db")
         db["t"].create({"pk": int}, pk="pk")
-        db.close()
         result = runner.invoke(
             cli.cli,
             [
@@ -1739,13 +1728,10 @@ def test_transform(db_path, args, expected_schema):
             defaults={"age": 1},
             pk="id",
         )
-    db.close()
     result = CliRunner().invoke(cli.cli, ["transform", db_path, "dogs"] + args)
     print(result.output)
     assert result.exit_code == 0
-    db = Database(db_path)
     schema = db["dogs"].schema
-    db.close()
     assert schema == expected_schema
 
 

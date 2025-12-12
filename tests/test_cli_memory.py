@@ -335,4 +335,3 @@ def test_memory_return_db(tmpdir):
         db = ctx.invoke(cli.commands["memory"], paths=(path,), return_db=True)
 
     assert db.table_names() == ["dogs"]
-    db.close()
