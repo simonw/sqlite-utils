@@ -22,7 +22,7 @@ import os
 import pathlib
 import re
 import secrets
-from sqlite_fts4 import rank_bm25  # type: ignore
+from sqlite_fts4 import rank_bm25
 import textwrap
 from typing import (
     cast,
@@ -32,10 +32,13 @@ from typing import (
     Generator,
     Iterable,
     Sequence,
+    Set,
+    Type,
     Union,
     Optional,
     List,
     Tuple,
+    TYPE_CHECKING,
 )
 import uuid
 from sqlite_utils.plugins import pm
@@ -81,14 +84,14 @@ def quote_identifier(identifier: str) -> str:
 
 
 try:
-    import pandas as pd  # type: ignore
+    import pandas as pd
 except ImportError:
-    pd = None  # type: ignore
+    pd = None
 
 try:
-    import numpy as np  # type: ignore
+    import numpy as np
 except ImportError:
-    np = None  # type: ignore
+    np = None
 
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
@@ -245,7 +248,7 @@ if np:
 
 # If pandas is available, add more types
 if pd:
-    COLUMN_TYPE_MAPPING.update({pd.Timestamp: "TEXT"})  # type: ignore
+    COLUMN_TYPE_MAPPING.update({pd.Timestamp: "TEXT"})
 
 
 class AlterError(Exception):
@@ -287,7 +290,7 @@ class DescIndex(str):
 class BadMultiValues(Exception):
     "With multi=True code must return a Python dictionary"
 
-    def __init__(self, values):
+    def __init__(self, values: Any) -> None:
         self.values = values
 
 
@@ -385,7 +388,12 @@ class Database:
     def __enter__(self) -> "Database":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any],
+    ) -> None:
         self.close()
 
     def close(self) -> None:
@@ -393,7 +401,7 @@ class Database:
         self.conn.close()
 
     @contextlib.contextmanager
-    def ensure_autocommit_off(self):
+    def ensure_autocommit_off(self) -> Generator[None, None, None]:
         """
         Ensure autocommit is off for this database connection.
 
@@ -412,7 +420,9 @@ class Database:
             self.conn.isolation_level = old_isolation_level
 
     @contextlib.contextmanager
-    def tracer(self, tracer: Optional[Callable] = None):
+    def tracer(
+        self, tracer: Optional[Callable[..., Any]] = None
+    ) -> Generator["Database", None, None]:
         """
         Context manager to temporarily set a tracer function - all executed SQL queries will
         be passed to this.
@@ -451,11 +461,11 @@ class Database:
 
     def register_function(
         self,
-        fn: Optional[Callable] = None,
+        fn: Optional[Callable[..., Any]] = None,
         deterministic: bool = False,
         replace: bool = False,
         name: Optional[str] = None,
-    ):
+    ) -> Optional[Callable[[Callable[..., Any]], Callable[..., Any]]]:
         """
         ``fn`` will be made available as a function within SQL, with the same name and number
         of arguments. Can be used as a decorator::
@@ -478,12 +488,12 @@ class Database:
         :param name: name of the SQLite function - if not specified, the Python function name will be used
         """
 
-        def register(fn):
+        def register(fn: Callable[..., Any]) -> Callable[..., Any]:
             fn_name = name or fn.__name__
             arity = len(inspect.signature(fn).parameters)
             if not replace and (fn_name, arity) in self._registered_functions:
                 return fn
-            kwargs = {}
+            kwargs: Dict[str, Any] = {}
             registered = False
             if deterministic:
                 # Try this, but fall back if sqlite3.NotSupportedError
@@ -503,12 +513,13 @@ class Database:
             return register
         else:
             register(fn)
+            return None
 
-    def register_fts4_bm25(self):
+    def register_fts4_bm25(self) -> None:
         "Register the ``rank_bm25(match_info)`` function used for calculating relevance with SQLite FTS4."
         self.register_function(rank_bm25, deterministic=True, replace=True)
 
-    def attach(self, alias: str, filepath: Union[str, pathlib.Path]):
+    def attach(self, alias: str, filepath: Union[str, pathlib.Path]) -> None:
         """
         Attach another SQLite database file to this connection with the specified alias, equivalent to::
 
@@ -525,8 +536,8 @@ class Database:
         self.execute(attach_sql)
 
     def query(
-        self, sql: str, params: Optional[Union[Iterable, dict]] = None
-    ) -> Generator[dict, None, None]:
+        self, sql: str, params: Optional[Union[Iterable[Any], Dict[str, Any]]] = None
+    ) -> Generator[Dict[str, Any], None, None]:
         """
         Execute ``sql`` and return an iterable of dictionaries representing each row.
 
@@ -566,7 +577,7 @@ class Database:
             self._tracer(sql, None)
         return self.conn.executescript(sql)
 
-    def table(self, table_name: str, **kwargs) -> "Table":
+    def table(self, table_name: str, **kwargs: Any) -> "Table":
         """
         Return a table object, optionally configured with default options.
 
@@ -598,11 +609,12 @@ class Database:
         # Normally we would use .execute(sql, [params]) for escaping, but
         # occasionally that isn't available - most notable when we need
         # to include a "... DEFAULT 'value'" in a column definition.
-        return self.execute(
+        result: str = self.execute(
             # Use SQLite itself to correctly escape this string:
             "SELECT quote(:value)",
             {"value": value},
         ).fetchone()[0]
+        return result
 
     def quote_fts(self, query: str) -> str:
         """
@@ -763,9 +775,10 @@ class Database:
 
         https://www.sqlite.org/pragma.html#pragma_journal_mode
         """
-        return self.execute("PRAGMA journal_mode;").fetchone()[0]
+        result: str = self.execute("PRAGMA journal_mode;").fetchone()[0]
+        return result
 
-    def enable_wal(self):
+    def enable_wal(self) -> None:
         """
         Sets ``journal_mode`` to ``'wal'`` to enable Write-Ahead Log mode.
         """
@@ -773,17 +786,17 @@ class Database:
             with self.ensure_autocommit_off():
                 self.execute("PRAGMA journal_mode=wal;")
 
-    def disable_wal(self):
+    def disable_wal(self) -> None:
         "Sets ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode."
         if self.journal_mode != "delete":
             with self.ensure_autocommit_off():
                 self.execute("PRAGMA journal_mode=delete;")
 
-    def _ensure_counts_table(self):
+    def _ensure_counts_table(self) -> None:
         with self.conn:
             self.execute(_COUNTS_TABLE_CREATE_SQL.format(self._counts_table_name))
 
-    def enable_counts(self):
+    def enable_counts(self) -> None:
         """
         Enable trigger-based count caching for every table in the database, see
         :ref:`python_api_cached_table_counts`.
@@ -812,12 +825,12 @@ class Database:
         except OperationalError:
             return {}
 
-    def reset_counts(self):
+    def reset_counts(self) -> None:
         "Re-calculate cached counts for tables."
         tables = [table for table in self.tables if table.has_counts_triggers]
         with self.conn:
             self._ensure_counts_table()
-            counts_table = self[self._counts_table_name]
+            counts_table = cast("Table", self[self._counts_table_name])
             counts_table.delete_where()
             counts_table.insert_all(
                 {"table": table.name, "count": table.execute_count()}
@@ -825,8 +838,8 @@ class Database:
             )
 
     def execute_returning_dicts(
-        self, sql: str, params: Optional[Union[Iterable, dict]] = None
-    ) -> List[dict]:
+        self, sql: str, params: Optional[Union[Iterable[Any], Dict[str, Any]]] = None
+    ) -> List[Dict[str, Any]]:
         return list(self.query(sql, params))
 
     def resolve_foreign_keys(
@@ -954,7 +967,7 @@ class Database:
         column_items = list(columns.items())
         if column_order is not None:
 
-            def sort_key(p):
+            def sort_key(p: Tuple[str, Any]) -> int:
                 return column_order.index(p[0]) if p[0] in column_order else 999
 
             column_items.sort(key=sort_key)
@@ -1157,7 +1170,7 @@ class Database:
             hash_id_columns=hash_id_columns,
         )
 
-    def rename_table(self, name: str, new_name: str):
+    def rename_table(self, name: str, new_name: str) -> None:
         """
         Rename a table.
 
@@ -1172,7 +1185,7 @@ class Database:
 
     def create_view(
         self, name: str, sql: str, ignore: bool = False, replace: bool = False
-    ):
+    ) -> "Database":
         """
         Create a new SQL view with the specified name - ``sql`` should start with ``SELECT ...``.
 
@@ -1218,7 +1231,9 @@ class Database:
                 candidates.append(table_obj.name)
         return candidates
 
-    def add_foreign_keys(self, foreign_keys: Iterable[Tuple[str, str, str, str]]):
+    def add_foreign_keys(
+        self, foreign_keys: Iterable[Tuple[str, str, str, str]]
+    ) -> None:
         """
         See :ref:`python_api_add_foreign_keys`.
 
@@ -1270,10 +1285,10 @@ class Database:
 
         self.vacuum()
 
-    def index_foreign_keys(self):
+    def index_foreign_keys(self) -> None:
         "Create indexes for every foreign key column on every table in the database."
         for table_name in self.table_names():
-            table = self[table_name]
+            table = self.table(table_name)
             existing_indexes = {
                 i.columns[0] for i in table.indexes if len(i.columns) == 1
             }
@@ -1281,11 +1296,11 @@ class Database:
                 if fk.column not in existing_indexes:
                     table.create_index([fk.column], find_unique_name=True)
 
-    def vacuum(self):
+    def vacuum(self) -> None:
         "Run a SQLite ``VACUUM`` against the database."
         self.execute("VACUUM;")
 
-    def analyze(self, name=None):
+    def analyze(self, name: Optional[str] = None) -> None:
         """
         Run ``ANALYZE`` against the entire database or a named table or index.
 
@@ -1351,18 +1366,21 @@ class Database:
 
 
 class Queryable:
+    db: "Database"
+    name: str
+
     def exists(self) -> bool:
         "Does this table or view exist yet?"
         return False
 
-    def __init__(self, db, name):
+    def __init__(self, db: "Database", name: str) -> None:
         self.db = db
         self.name = name
 
     def count_where(
         self,
         where: Optional[str] = None,
-        where_args: Optional[Union[Iterable, dict]] = None,
+        where_args: Optional[Union[Iterable[Any], Dict[str, Any]]] = None,
     ) -> int:
         """
         Executes ``SELECT count(*) FROM table WHERE ...`` and returns a count.
@@ -1374,9 +1392,10 @@ class Queryable:
         sql = "select count(*) from {}".format(quote_identifier(self.name))
         if where is not None:
             sql += " where " + where
-        return self.db.execute(sql, where_args or []).fetchone()[0]
+        result: int = self.db.execute(sql, where_args or []).fetchone()[0]
+        return result
 
-    def execute_count(self):
+    def execute_count(self) -> int:
         # Backwards compatibility, see https://github.com/simonw/sqlite-utils/issues/305#issuecomment-890713185
         return self.count_where()
 
@@ -1386,19 +1405,19 @@ class Queryable:
         return self.count_where()
 
     @property
-    def rows(self) -> Generator[dict, None, None]:
+    def rows(self) -> Generator[Dict[str, Any], None, None]:
         "Iterate over every dictionaries for each row in this table or view."
         return self.rows_where()
 
     def rows_where(
         self,
         where: Optional[str] = None,
-        where_args: Optional[Union[Iterable, dict]] = None,
+        where_args: Optional[Union[Iterable[Any], Dict[str, Any]]] = None,
         order_by: Optional[str] = None,
         select: str = "*",
         limit: Optional[int] = None,
         offset: Optional[int] = None,
-    ) -> Generator[dict, None, None]:
+    ) -> Generator[Dict[str, Any], None, None]:
         """
         Iterate over every row in this table or view that matches the specified where clause.
 
@@ -1800,18 +1819,18 @@ class Table(Queryable):
                 self.name,
                 columns,
                 pk=pk,
-                foreign_keys=foreign_keys,
-                column_order=column_order,
-                not_null=not_null,
-                defaults=defaults,
-                hash_id=hash_id,
-                hash_id_columns=hash_id_columns,
-                extracts=extracts,
+                foreign_keys=foreign_keys,  # type: ignore[arg-type]
+                column_order=column_order,  # type: ignore[arg-type]
+                not_null=not_null,  # type: ignore[arg-type]
+                defaults=defaults,  # type: ignore[arg-type]
+                hash_id=hash_id,  # type: ignore[arg-type]
+                hash_id_columns=hash_id_columns,  # type: ignore[arg-type]
+                extracts=extracts,  # type: ignore[arg-type]
                 if_not_exists=if_not_exists,
                 replace=replace,
                 ignore=ignore,
                 transform=transform,
-                strict=strict,
+                strict=bool(strict) if strict is not DEFAULT else False,
             )
         return self
 
@@ -1829,7 +1848,7 @@ class Table(Queryable):
                 quote_identifier(self.name),
             )
             self.db.execute(sql)
-        return self.db[new_name]
+        return self.db.table(new_name)
 
     def transform(
         self,
@@ -2134,7 +2153,7 @@ class Table(Queryable):
                 )
             )
         table = table or "_".join(columns)
-        lookup_table = self.db[table]
+        lookup_table = self.db.table(table)
         fk_column = fk_column or "{}_id".format(table)
         magic_lookup_column = "{}_{}".format(fk_column, os.urandom(6).hex())
 
@@ -2748,7 +2767,7 @@ class Table(Queryable):
             self.name
         )
         fts_table_quoted = quote_identifier(fts_table)
-        virtual_table_using = self.db[fts_table].virtual_table_using
+        virtual_table_using = self.db.table(fts_table).virtual_table_using
         sql = textwrap.dedent(
             """
         with {original} as (
@@ -2845,7 +2864,7 @@ class Table(Queryable):
         for row in cursor:
             yield dict(zip(columns, row))
 
-    def value_or_default(self, key, value):
+    def value_or_default(self, key: str, value: Any) -> Any:
         return self._defaults[key] if value is DEFAULT else value
 
     def delete(self, pk_values: Union[list, tuple, str, int, float]) -> "Table":
@@ -3033,8 +3052,8 @@ class Table(Queryable):
         self, column, fn, drop, show_progress, where=None, where_args=None
     ):
         # First we execute the function
-        pk_to_values = {}
-        new_column_types = {}
+        pk_to_values: Dict[Any, Any] = {}
+        new_column_types: Dict[str, Set[type]] = {}
         pks = [column.name for column in self.columns if column.is_pk]
         if not pks:
             pks = ["rowid"]
@@ -3124,7 +3143,7 @@ class Table(Queryable):
                 if has_extracts:
                     for i, key in enumerate(all_columns):
                         if key in extracts:
-                            record_values[i] = self.db[extracts[key]].lookup(
+                            record_values[i] = self.db.table(extracts[key]).lookup(
                                 {"value": record_values[i]}
                             )
                 values.append(record_values)
@@ -3145,7 +3164,7 @@ class Table(Queryable):
                     )
                     if key in extracts:
                         extract_table = extracts[key]
-                        value = self.db[extract_table].lookup({"value": value})
+                        value = self.db.table(extract_table).lookup({"value": value})
                     record_values.append(value)
                 values.append(record_values)
 
@@ -3789,6 +3808,7 @@ class Table(Queryable):
                 )
             )
             try:
+                assert pk is not None, "pk cannot be None"
                 return rows[0][pk]
             except IndexError:
                 return self.insert(
