@@ -46,6 +46,7 @@ jobs:
     - name: run flake8
       run: flake8
     - name: run ty
+      if: matrix.os != 'windows-latest'
       run: |
         pip install uv
         uv run ty check sqlite_utils
