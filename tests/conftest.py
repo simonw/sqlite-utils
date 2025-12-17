@@ -11,7 +11,7 @@ create table Gosh2 (c1 text, c2 text, c3 text);
 def pytest_configure(config):
     import sys
 
-    sys._called_from_test = True
+    sys._called_from_test = True  # type: ignore[attr-defined]
 
 
 @pytest.fixture(autouse=True)
@@ -24,9 +24,9 @@ def close_all_databases():
         original_init(self, *args, **kwargs)
         databases.append(self)
 
-    Database.__init__ = tracking_init
+    Database.__init__ = tracking_init  # type: ignore[method-assign]
     yield
-    Database.__init__ = original_init
+    Database.__init__ = original_init  # type: ignore[method-assign]
     for db in databases:
         try:
             db.close()

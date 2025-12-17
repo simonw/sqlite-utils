@@ -424,7 +424,7 @@ def test_enable_fts_error_message_on_views():
     db = Database(memory=True)
     db.create_view("hello", "select 1 + 1")
     with pytest.raises(NotImplementedError) as e:
-        db["hello"].enable_fts()
+        db["hello"].enable_fts()  # type: ignore[call-arg]
         assert e.value.args[0] == "enable_fts() is supported on tables but not on views"
 
 
