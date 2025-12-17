@@ -293,6 +293,7 @@ def views(
     \b
         sqlite-utils views trees.db
     """
+    assert tables.callback is not None
     tables.callback(
         path=path,
         fts4=False,
