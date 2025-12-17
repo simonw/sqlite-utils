@@ -1051,7 +1051,7 @@ def insert_upsert_implementation(
                 csv_reader_args["delimiter"] = delimiter
             if quotechar:
                 csv_reader_args["quotechar"] = quotechar
-            reader = csv_std.reader(decoded, **csv_reader_args)
+            reader = csv_std.reader(decoded, **csv_reader_args)  # type: ignore
             first_row = next(reader)
             if no_headers:
                 headers = ["untitled_{}".format(i + 1) for i in range(len(first_row))]
@@ -2988,7 +2988,7 @@ def _generate_convert_help():
         n
         for n in dir(recipes)
         if not n.startswith("_")
-        and n not in ("json", "parser")
+        and n not in ("json", "parser", "Callable", "Optional")
         and callable(getattr(recipes, n))
     ]
     for name in recipe_names:

@@ -615,11 +615,13 @@ See :ref:`cli_convert`.
 
       The following common operations are available as recipe functions:
 
-      r.jsonsplit(value, delimiter=',', type=<class 'str'>)
+      r.jsonsplit(value: 'str', delimiter: 'str' = ',', type: 'Callable[[str],
+      object]' = <class 'str'>) -> 'str'
 
       Convert a string like a,b,c into a JSON array ["a", "b", "c"]
 
-      r.parsedate(value, dayfirst=False, yearfirst=False, errors=None)
+      r.parsedate(value: 'str', dayfirst: 'bool' = False, yearfirst: 'bool' = False,
+      errors: 'Optional[object]' = None) -> 'Optional[str]'
 
       Parse a date and convert it to ISO date format: yyyy-mm-dd
   
@@ -628,7 +630,8 @@ See :ref:`cli_convert`.
       - errors=r.IGNORE to ignore values that cannot be parsed
       - errors=r.SET_NULL to set values that cannot be parsed to null
 
-      r.parsedatetime(value, dayfirst=False, yearfirst=False, errors=None)
+      r.parsedatetime(value: 'str', dayfirst: 'bool' = False, yearfirst: 'bool' =
+      False, errors: 'Optional[object]' = None) -> 'Optional[str]'
 
       Parse a datetime and convert it to ISO datetime format: yyyy-mm-ddTHH:MM:SS
   

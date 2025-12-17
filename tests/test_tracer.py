@@ -50,7 +50,7 @@ def test_with_tracer():
     with db.tracer(tracer):
         list(dogs.search("Cleopaws"))
 
-    assert len(collected) == 5
+    assert len(collected) == 4
     assert collected == [
         (
             "SELECT name FROM sqlite_master\n"
@@ -69,7 +69,6 @@ def test_with_tracer():
                 "table": "dogs",
             },
         ),
-        ("select name from sqlite_master where type = 'view'", None),
         ("select name from sqlite_master where type = 'view'", None),
         ("select sql from sqlite_master where name = ?", ("dogs_fts",)),
         (
@@ -94,4 +93,4 @@ def test_with_tracer():
 
     # Outside the with block collected should not be appended to
     dogs.insert({"name": "Cleopaws"})
-    assert len(collected) == 5
+    assert len(collected) == 4

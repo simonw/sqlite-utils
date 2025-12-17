@@ -1,11 +1,20 @@
+from __future__ import annotations
+
+from typing import Callable, Optional
+
 from dateutil import parser
 import json
 
-IGNORE = object()
-SET_NULL = object()
+IGNORE: object = object()
+SET_NULL: object = object()
 
 
-def parsedate(value, dayfirst=False, yearfirst=False, errors=None):
+def parsedate(
+    value: str,
+    dayfirst: bool = False,
+    yearfirst: bool = False,
+    errors: Optional[object] = None,
+) -> Optional[str]:
     """
     Parse a date and convert it to ISO date format: yyyy-mm-dd
     \b
@@ -31,7 +40,12 @@ def parsedate(value, dayfirst=False, yearfirst=False, errors=None):
             raise
 
 
-def parsedatetime(value, dayfirst=False, yearfirst=False, errors=None):
+def parsedatetime(
+    value: str,
+    dayfirst: bool = False,
+    yearfirst: bool = False,
+    errors: Optional[object] = None,
+) -> Optional[str]:
     """
     Parse a datetime and convert it to ISO datetime format: yyyy-mm-ddTHH:MM:SS
     \b
@@ -53,7 +67,9 @@ def parsedatetime(value, dayfirst=False, yearfirst=False, errors=None):
             raise
 
 
-def jsonsplit(value, delimiter=",", type=str):
+def jsonsplit(
+    value: str, delimiter: str = ",", type: Callable[[str], object] = str
+) -> str:
     """
     Convert a string like a,b,c into a JSON array ["a", "b", "c"]
     """

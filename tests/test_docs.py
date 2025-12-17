@@ -41,9 +41,9 @@ def test_convert_help():
     result = CliRunner().invoke(cli.cli, ["convert", "--help"])
     assert result.exit_code == 0
     for expected in (
-        "r.jsonsplit(value, ",
-        "r.parsedate(value, ",
-        "r.parsedatetime(value, ",
+        "r.jsonsplit(value:",
+        "r.parsedate(value:",
+        "r.parsedatetime(value:",
     ):
         assert expected in result.output
 
@@ -54,7 +54,7 @@ def test_convert_help():
         n
         for n in dir(recipes)
         if not n.startswith("_")
-        and n not in ("json", "parser")
+        and n not in ("json", "parser", "Callable", "Optional")
         and callable(getattr(recipes, n))
     ],
 )

@@ -1,8 +1,10 @@
+from typing import Dict, List, Union
+
 import pluggy
 import sys
 from . import hookspecs
 
-pm = pluggy.PluginManager("sqlite_utils")
+pm: pluggy.PluginManager = pluggy.PluginManager("sqlite_utils")
 pm.add_hookspecs(hookspecs)
 
 if not getattr(sys, "_called_from_test", False):
@@ -10,12 +12,12 @@ if not getattr(sys, "_called_from_test", False):
     pm.load_setuptools_entrypoints("sqlite_utils")
 
 
-def get_plugins():
-    plugins = []
+def get_plugins() -> List[Dict[str, Union[str, List[str]]]]:
+    plugins: List[Dict[str, Union[str, List[str]]]] = []
     plugin_to_distinfo = dict(pm.list_plugin_distinfo())
     for plugin in pm.get_plugins():
         hookcallers = pm.get_hookcallers(plugin) or []
-        plugin_info = {
+        plugin_info: Dict[str, Union[str, List[str]]] = {
             "name": plugin.__name__,
             "hooks": [h.name for h in hookcallers],
         }
