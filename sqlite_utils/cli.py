@@ -1037,6 +1037,7 @@ def insert_upsert_implementation(
         if csv or tsv:
             if sniff:
                 # Read first 2048 bytes and use that to detect
+                assert sniff_buffer is not None
                 first_bytes = sniff_buffer.peek(2048)
                 dialect = csv_std.Sniffer().sniff(
                     first_bytes.decode(encoding, "ignore")
@@ -2120,7 +2121,8 @@ def _execute_query(
         else:
             headers = [c[0] for c in cursor.description]
         if raw:
-            data = cursor.fetchone()[0]
+            row = cursor.fetchone()  # type: ignore[union-attr]
+            data = row[0] if row else None
             if isinstance(data, bytes):
                 sys.stdout.buffer.write(data)
             else:

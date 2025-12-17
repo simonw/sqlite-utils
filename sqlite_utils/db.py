@@ -819,7 +819,7 @@ class Database:
         tables = [table for table in self.tables if table.has_counts_triggers]
         with self.conn:
             self._ensure_counts_table()
-            counts_table = self[self._counts_table_name]
+            counts_table = self.table(self._counts_table_name)
             counts_table.delete_where()
             counts_table.insert_all(
                 {"table": table.name, "count": table.execute_count()}
@@ -1275,7 +1275,7 @@ class Database:
     def index_foreign_keys(self):
         "Create indexes for every foreign key column on every table in the database."
         for table_name in self.table_names():
-            table = self[table_name]
+            table = self.table(table_name)
             existing_indexes = {
                 i.columns[0] for i in table.indexes if len(i.columns) == 1
             }
