@@ -1819,18 +1819,18 @@ class Table(Queryable):
                 self.name,
                 columns,
                 pk=pk,
-                foreign_keys=foreign_keys,
-                column_order=column_order,
-                not_null=not_null,
-                defaults=defaults,
-                hash_id=hash_id,
-                hash_id_columns=hash_id_columns,
-                extracts=extracts,
+                foreign_keys=foreign_keys,  # type: ignore[arg-type]
+                column_order=column_order,  # type: ignore[arg-type]
+                not_null=not_null,  # type: ignore[arg-type]
+                defaults=defaults,  # type: ignore[arg-type]
+                hash_id=hash_id,  # type: ignore[arg-type]
+                hash_id_columns=hash_id_columns,  # type: ignore[arg-type]
+                extracts=extracts,  # type: ignore[arg-type]
                 if_not_exists=if_not_exists,
                 replace=replace,
                 ignore=ignore,
                 transform=transform,
-                strict=strict,
+                strict=strict,  # type: ignore[arg-type]
             )
         return self
 
@@ -3053,7 +3053,7 @@ class Table(Queryable):
     ):
         # First we execute the function
         pk_to_values = {}
-        new_column_types = {}
+        new_column_types: Dict[str, Set[type]] = {}
         pks = [column.name for column in self.columns if column.is_pk]
         if not pks:
             pks = ["rowid"]
@@ -3559,7 +3559,7 @@ class Table(Queryable):
                         chunk_as_dicts = [dict(zip(column_names, row)) for row in chunk]
                         column_types = suggest_column_types(chunk_as_dicts)
                     else:
-                        column_types = suggest_column_types(chunk)
+                        column_types = suggest_column_types(chunk)  # type: ignore[arg-type]
                     if extracts:
                         for col in extracts:
                             if col in column_types:
@@ -3585,9 +3585,9 @@ class Table(Queryable):
                     if hash_id:
                         all_columns.insert(0, hash_id)
                 else:
-                    all_columns_set = set()
+                    all_columns_set: Set[str] = set()
                     for record in chunk:
-                        all_columns_set.update(record.keys())
+                        all_columns_set.update(record.keys())  # type: ignore[union-attr]
                     all_columns = list(sorted(all_columns_set))
                     if hash_id:
                         all_columns.insert(0, hash_id)
@@ -3810,7 +3810,7 @@ class Table(Queryable):
                 )
             )
             try:
-                return rows[0][pk]
+                return rows[0][pk]  # type: ignore[index]
             except IndexError:
                 return self.insert(
                     combined_values,

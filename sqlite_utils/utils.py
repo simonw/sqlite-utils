@@ -464,7 +464,7 @@ class ValueTracker:
 
     def test_integer(self, value: object) -> bool:
         try:
-            int(value)  # type: ignore[arg-type]
+            int(value)  # type: ignore
             return True
         except (ValueError, TypeError):
             return False
@@ -504,7 +504,7 @@ class NullProgressBar:
         self.args = args
 
     def __iter__(self) -> Iterator[T]:
-        yield from self.args[0]
+        yield from self.args[0]  # type: ignore
 
     def update(self, value: int) -> None:
         pass
