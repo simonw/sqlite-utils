@@ -47,6 +47,7 @@ dev = [
     # flake8
     "flake8",
     "flake8-pyproject",
+    "ty",
 ]
 docs = [
     "beanbag-docutils>=2.0",

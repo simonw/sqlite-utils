@@ -45,6 +45,8 @@ jobs:
       run: mypy sqlite_utils tests
     - name: run flake8
       run: flake8
+    - name: run ty
+      run: ty check
     - name: Check formatting
       run: black . --check
     - name: Check if cog needs to be run
