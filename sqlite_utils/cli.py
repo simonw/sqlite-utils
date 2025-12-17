@@ -1,4 +1,5 @@
 import base64
+from typing import Any
 import click
 from click_default_group import DefaultGroup  # type: ignore
 from datetime import datetime, timezone
@@ -705,7 +706,7 @@ def enable_fts(
             replace=replace,
         )
     except OperationalError as ex:
-        raise click.ClickException(ex)
+        raise click.ClickException(str(ex))
 
 
 @cli.command(name="populate-fts")
@@ -1042,7 +1043,7 @@ def insert_upsert_implementation(
                 )
             else:
                 dialect = "excel-tab" if tsv else "excel"
-            csv_reader_args = {"dialect": dialect}
+            csv_reader_args: dict[str, Any] = {"dialect": dialect}
             if delimiter:
                 csv_reader_args["delimiter"] = delimiter
             if quotechar:
@@ -2656,13 +2657,13 @@ def extract(
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
-    kwargs = dict(
+    kwargs: dict[str, Any] = dict(
         columns=columns,
         table=other_table,
         fk_column=fk_column,
         rename=dict(rename),
     )
-    db[table].extract(**kwargs)
+    db.table(table).extract(**kwargs)
 
 
 @cli.command(name="insert-files")
