@@ -535,7 +535,9 @@ def add_foreign_key(
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db.table(table).add_foreign_key(column, other_table, other_column, ignore=ignore)
+        db.table(table).add_foreign_key(
+            column, other_table, other_column, ignore=ignore
+        )
     except AlterError as e:
         raise click.ClickException(str(e))
 
