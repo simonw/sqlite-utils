@@ -50,20 +50,19 @@ def _register_db_for_cleanup(db):
     ctx = click.get_current_context(silent=True)
     if ctx is None:
         return
-    if not hasattr(ctx, "_databases_to_close"):
-        ctx._databases_to_close = []
+    if "_databases_to_close" not in ctx.meta:
+        ctx.meta["_databases_to_close"] = []
         ctx.call_on_close(lambda: _close_databases(ctx))
-    ctx._databases_to_close.append(db)
+    ctx.meta["_databases_to_close"].append(db)
 
 
 def _close_databases(ctx):
     """Close all databases registered for cleanup."""
-    if hasattr(ctx, "_databases_to_close"):
-        for db in ctx._databases_to_close:
-            try:
-                db.close()
-            except Exception:
-                pass
+    for db in ctx.meta.get("_databases_to_close", []):
+        try:
+            db.close()
+        except Exception:
+            pass
 
 
 VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "REAL", "BLOB")
