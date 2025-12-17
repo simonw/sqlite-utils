@@ -41,7 +41,7 @@ import uuid
 from sqlite_utils.plugins import pm
 
 try:
-    from sqlite_dump import iterdump
+    from sqlite_dump import iterdump  # type: ignore[import-not-found]
 except ImportError:
     iterdump = None
 
@@ -526,7 +526,7 @@ class Database:
         self.execute(attach_sql)
 
     def query(
-        self, sql: str, params: Optional[Union[Iterable, dict]] = None
+        self, sql: str, params: Optional[Union[Sequence, Dict[str, Any]]] = None
     ) -> Generator[dict, None, None]:
         """
         Execute ``sql`` and return an iterable of dictionaries representing each row.
@@ -541,7 +541,7 @@ class Database:
             yield dict(zip(keys, row))
 
     def execute(
-        self, sql: str, parameters: Optional[Union[Iterable, dict]] = None
+        self, sql: str, parameters: Optional[Union[Sequence, Dict[str, Any]]] = None
     ) -> sqlite3.Cursor:
         """
         Execute SQL query and return a ``sqlite3.Cursor``.
@@ -806,10 +806,11 @@ class Database:
         :param tables: Subset list of tables to return counts for.
         """
         sql = 'select "table", count from {}'.format(self._counts_table_name)
-        if tables:
-            sql += ' where "table" in ({})'.format(", ".join("?" for table in tables))
+        tables_list = list(tables) if tables else None
+        if tables_list:
+            sql += ' where "table" in ({})'.format(", ".join("?" for _ in tables_list))
         try:
-            return {r[0]: r[1] for r in self.execute(sql, tables).fetchall()}
+            return {r[0]: r[1] for r in self.execute(sql, tables_list).fetchall()}
         except OperationalError:
             return {}
 
@@ -826,7 +827,7 @@ class Database:
             )
 
     def execute_returning_dicts(
-        self, sql: str, params: Optional[Union[Iterable, dict]] = None
+        self, sql: str, params: Optional[Union[Sequence, Dict[str, Any]]] = None
     ) -> List[dict]:
         return list(self.query(sql, params))
 
@@ -1340,6 +1341,8 @@ class Database:
         """
         if path is None:
             path = find_spatialite()
+        if path is None:
+            raise OSError("Could not find SpatiaLite extension")
 
         self.conn.enable_load_extension(True)
         self.conn.load_extension(path)
@@ -3006,7 +3009,7 @@ class Table(Queryable):
                 bar.update(1)
                 return jsonify_if_needed(fn(v))
 
-            fn_name = fn.__name__
+            fn_name = getattr(fn, "__name__", "fn")
             if fn_name == "<lambda>":
                 fn_name = f"lambda_{abs(hash(fn))}"
             self.db.register_function(convert_value, name=fn_name)
@@ -3251,9 +3254,11 @@ class Table(Queryable):
                 )
             # We can populate .last_pk right here
             if num_records_processed == 1:
-                self.last_pk = tuple(record[pk] for pk in pks)
-                if len(self.last_pk) == 1:
-                    self.last_pk = self.last_pk[0]
+                pk_values = tuple(record[pk] for pk in pks)
+                if len(pk_values) == 1:
+                    self.last_pk = pk_values[0]
+                else:
+                    self.last_pk = pk_values
         return queries_and_params
 
     def insert_chunk(
