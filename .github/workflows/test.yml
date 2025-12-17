@@ -46,7 +46,7 @@ jobs:
     - name: run flake8
       run: flake8
     - name: run ty
-      run: ty check
+      run: ty check sqlite_utils
     - name: Check formatting
       run: black . --check
     - name: Check if cog needs to be run
