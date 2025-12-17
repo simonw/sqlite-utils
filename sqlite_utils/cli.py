@@ -393,7 +393,7 @@ def analyze(path, names):
         else:
             db.analyze()
     except OperationalError as e:
-        raise click.ClickException(e)
+        raise click.ClickException(str(e))
 
 
 @cli.command()
@@ -536,7 +536,7 @@ def add_foreign_key(
     try:
         db[table].add_foreign_key(column, other_table, other_column, ignore=ignore)
     except AlterError as e:
-        raise click.ClickException(e)
+        raise click.ClickException(str(e))
 
 
 @cli.command(name="add-foreign-keys")
@@ -571,7 +571,7 @@ def add_foreign_keys(path, foreign_key, load_extension):
     try:
         db.add_foreign_keys(tuples)
     except AlterError as e:
-        raise click.ClickException(e)
+        raise click.ClickException(str(e))
 
 
 @cli.command(name="index-foreign-keys")
@@ -3361,7 +3361,10 @@ def _load_extensions(db, load_extension):
         db.conn.enable_load_extension(True)
         for ext in load_extension:
             if ext == "spatialite" and not os.path.exists(ext):
-                ext = find_spatialite()
+                found = find_spatialite()
+                if found is None:
+                    raise click.ClickException("Could not find SpatiaLite extension")
+                ext = found
             if ":" in ext:
                 path, _, entrypoint = ext.partition(":")
                 db.conn.execute("SELECT load_extension(?, ?)", [path, entrypoint])

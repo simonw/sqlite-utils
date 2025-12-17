@@ -328,6 +328,7 @@ class Database:
 
     _counts_table_name = "_counts"
     use_counts_table = False
+    conn: sqlite3.Connection
 
     def __init__(
         self,
