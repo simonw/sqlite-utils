@@ -32,6 +32,8 @@ from typing import (
     Generator,
     Iterable,
     Sequence,
+    Set,
+    Type,
     Union,
     Optional,
     List,
@@ -287,7 +289,7 @@ class DescIndex(str):
 class BadMultiValues(Exception):
     "With multi=True code must return a Python dictionary"
 
-    def __init__(self, values):
+    def __init__(self, values: object) -> None:
         self.values = values
 
 
@@ -386,7 +388,12 @@ class Database:
     def __enter__(self) -> "Database":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[object],
+    ) -> None:
         self.close()
 
     def close(self) -> None:
@@ -394,7 +401,7 @@ class Database:
         self.conn.close()
 
     @contextlib.contextmanager
-    def ensure_autocommit_off(self):
+    def ensure_autocommit_off(self) -> Generator[None, None, None]:
         """
         Ensure autocommit is off for this database connection.
 
@@ -413,7 +420,9 @@ class Database:
             self.conn.isolation_level = old_isolation_level
 
     @contextlib.contextmanager
-    def tracer(self, tracer: Optional[Callable] = None):
+    def tracer(
+        self, tracer: Optional[Callable[[str, Optional[Sequence]], None]] = None
+    ) -> Generator["Database", None, None]:
         """
         Context manager to temporarily set a tracer function - all executed SQL queries will
         be passed to this.
@@ -456,7 +465,7 @@ class Database:
         deterministic: bool = False,
         replace: bool = False,
         name: Optional[str] = None,
-    ):
+    ) -> Optional[Callable[[Callable], Callable]]:
         """
         ``fn`` will be made available as a function within SQL, with the same name and number
         of arguments. Can be used as a decorator::
@@ -479,12 +488,12 @@ class Database:
         :param name: name of the SQLite function - if not specified, the Python function name will be used
         """
 
-        def register(fn):
+        def register(fn: Callable) -> Callable:
             fn_name = name or fn.__name__
             arity = len(inspect.signature(fn).parameters)
             if not replace and (fn_name, arity) in self._registered_functions:
                 return fn
-            kwargs = {}
+            kwargs: Dict[str, bool] = {}
             registered = False
             if deterministic:
                 # Try this, but fall back if sqlite3.NotSupportedError
@@ -504,12 +513,13 @@ class Database:
             return register
         else:
             register(fn)
+            return None
 
-    def register_fts4_bm25(self):
+    def register_fts4_bm25(self) -> None:
         "Register the ``rank_bm25(match_info)`` function used for calculating relevance with SQLite FTS4."
         self.register_function(rank_bm25, deterministic=True, replace=True)
 
-    def attach(self, alias: str, filepath: Union[str, pathlib.Path]):
+    def attach(self, alias: str, filepath: Union[str, pathlib.Path]) -> None:
         """
         Attach another SQLite database file to this connection with the specified alias, equivalent to::
 
@@ -567,7 +577,7 @@ class Database:
             self._tracer(sql, None)
         return self.conn.executescript(sql)
 
-    def table(self, table_name: str, **kwargs) -> "Table":
+    def table(self, table_name: str, **kwargs: Any) -> "Table":
         """
         Return a table object, optionally configured with default options.
 
@@ -766,7 +776,7 @@ class Database:
         """
         return self.execute("PRAGMA journal_mode;").fetchone()[0]
 
-    def enable_wal(self):
+    def enable_wal(self) -> None:
         """
         Sets ``journal_mode`` to ``'wal'`` to enable Write-Ahead Log mode.
         """
@@ -774,17 +784,17 @@ class Database:
             with self.ensure_autocommit_off():
                 self.execute("PRAGMA journal_mode=wal;")
 
-    def disable_wal(self):
+    def disable_wal(self) -> None:
         "Sets ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode."
         if self.journal_mode != "delete":
             with self.ensure_autocommit_off():
                 self.execute("PRAGMA journal_mode=delete;")
 
-    def _ensure_counts_table(self):
+    def _ensure_counts_table(self) -> None:
         with self.conn:
             self.execute(_COUNTS_TABLE_CREATE_SQL.format(self._counts_table_name))
 
-    def enable_counts(self):
+    def enable_counts(self) -> None:
         """
         Enable trigger-based count caching for every table in the database, see
         :ref:`python_api_cached_table_counts`.
@@ -814,7 +824,7 @@ class Database:
         except OperationalError:
             return {}
 
-    def reset_counts(self):
+    def reset_counts(self) -> None:
         "Re-calculate cached counts for tables."
         tables = [table for table in self.tables if table.has_counts_triggers]
         with self.conn:
@@ -1159,7 +1169,7 @@ class Database:
             hash_id_columns=hash_id_columns,
         )
 
-    def rename_table(self, name: str, new_name: str):
+    def rename_table(self, name: str, new_name: str) -> None:
         """
         Rename a table.
 
@@ -1174,7 +1184,7 @@ class Database:
 
     def create_view(
         self, name: str, sql: str, ignore: bool = False, replace: bool = False
-    ):
+    ) -> "Database":
         """
         Create a new SQL view with the specified name - ``sql`` should start with ``SELECT ...``.
 
@@ -1220,7 +1230,9 @@ class Database:
                 candidates.append(table_obj.name)
         return candidates
 
-    def add_foreign_keys(self, foreign_keys: Iterable[Tuple[str, str, str, str]]):
+    def add_foreign_keys(
+        self, foreign_keys: Iterable[Tuple[str, str, str, str]]
+    ) -> None:
         """
         See :ref:`python_api_add_foreign_keys`.
 
@@ -1272,7 +1284,7 @@ class Database:
 
         self.vacuum()
 
-    def index_foreign_keys(self):
+    def index_foreign_keys(self) -> None:
         "Create indexes for every foreign key column on every table in the database."
         for table_name in self.table_names():
             table = self.table(table_name)
@@ -1283,11 +1295,11 @@ class Database:
                 if fk.column not in existing_indexes:
                     table.create_index([fk.column], find_unique_name=True)
 
-    def vacuum(self):
+    def vacuum(self) -> None:
         "Run a SQLite ``VACUUM`` against the database."
         self.execute("VACUUM;")
 
-    def analyze(self, name=None):
+    def analyze(self, name: Optional[str] = None) -> None:
         """
         Run ``ANALYZE`` against the entire database or a named table or index.
 
@@ -1355,18 +1367,21 @@ class Database:
 
 
 class Queryable:
+    db: "Database"
+    name: str
+
     def exists(self) -> bool:
         "Does this table or view exist yet?"
         return False
 
-    def __init__(self, db, name):
+    def __init__(self, db: "Database", name: str) -> None:
         self.db = db
         self.name = name
 
     def count_where(
         self,
         where: Optional[str] = None,
-        where_args: Optional[Union[Iterable, dict]] = None,
+        where_args: Optional[Union[Sequence, Dict[str, Any]]] = None,
     ) -> int:
         """
         Executes ``SELECT count(*) FROM table WHERE ...`` and returns a count.
@@ -1380,7 +1395,7 @@ class Queryable:
             sql += " where " + where
         return self.db.execute(sql, where_args or []).fetchone()[0]
 
-    def execute_count(self):
+    def execute_count(self) -> int:
         # Backwards compatibility, see https://github.com/simonw/sqlite-utils/issues/305#issuecomment-890713185
         return self.count_where()
 
@@ -1390,19 +1405,19 @@ class Queryable:
         return self.count_where()
 
     @property
-    def rows(self) -> Generator[dict, None, None]:
+    def rows(self) -> Generator[Dict[str, Any], None, None]:
         "Iterate over every dictionaries for each row in this table or view."
         return self.rows_where()
 
     def rows_where(
         self,
         where: Optional[str] = None,
-        where_args: Optional[Union[Iterable, dict]] = None,
+        where_args: Optional[Union[Sequence, Dict[str, Any]]] = None,
         order_by: Optional[str] = None,
         select: str = "*",
         limit: Optional[int] = None,
         offset: Optional[int] = None,
-    ) -> Generator[dict, None, None]:
+    ) -> Generator[Dict[str, Any], None, None]:
         """
         Iterate over every row in this table or view that matches the specified where clause.
 
@@ -2350,7 +2365,7 @@ class Table(Queryable):
             self.add_foreign_key(col_name, fk, fk_col)
         return self
 
-    def drop(self, ignore: bool = False):
+    def drop(self, ignore: bool = False) -> None:
         """
         Drop this table.
 
@@ -2394,7 +2409,7 @@ class Table(Queryable):
             )
         )
 
-    def guess_foreign_column(self, other_table: str):
+    def guess_foreign_column(self, other_table: str) -> str:
         pks = [c for c in self.db[other_table].columns if c.is_pk]
         if len(pks) != 1:
             raise BadPrimaryKey(
@@ -2453,7 +2468,7 @@ class Table(Queryable):
         self.db.add_foreign_keys([(self.name, column, other_table, other_column)])
         return self
 
-    def enable_counts(self):
+    def enable_counts(self) -> None:
         """
         Set up triggers to update a cache of the count of rows in this table.
 
@@ -2665,7 +2680,7 @@ class Table(Queryable):
                 )
         return self
 
-    def rebuild_fts(self):
+    def rebuild_fts(self) -> None:
         "Run the ``rebuild`` operation against the associated full-text search index table."
         fts_table = self.detect_fts()
         if fts_table is None:
@@ -2849,7 +2864,7 @@ class Table(Queryable):
         for row in cursor:
             yield dict(zip(columns, row))
 
-    def value_or_default(self, key, value):
+    def value_or_default(self, key: str, value: Any) -> Any:
         return self._defaults[key] if value is DEFAULT else value
 
     def delete(self, pk_values: Union[list, tuple, str, int, float]) -> "Table":
@@ -3913,7 +3928,7 @@ class Table(Queryable):
             )
         return self
 
-    def analyze(self):
+    def analyze(self) -> None:
         "Run ANALYZE against this table"
         self.db.analyze(self.name)
 
@@ -4105,7 +4120,7 @@ class Table(Queryable):
 
 
 class View(Queryable):
-    def exists(self):
+    def exists(self) -> bool:
         return True
 
     def __repr__(self) -> str:
@@ -4113,7 +4128,7 @@ class View(Queryable):
             self.name, ", ".join(c.name for c in self.columns)
         )
 
-    def drop(self, ignore=False):
+    def drop(self, ignore: bool = False) -> None:
         """
         Drop this view.
 
@@ -4126,14 +4141,14 @@ class View(Queryable):
             if not ignore:
                 raise
 
-    def enable_fts(self, *args, **kwargs):
+    def enable_fts(self, *args: object, **kwargs: object) -> None:
         "``enable_fts()`` is supported on tables but not on views."
         raise NotImplementedError(
             "enable_fts() is supported on tables but not on views"
         )
 
 
-def jsonify_if_needed(value):
+def jsonify_if_needed(value: object) -> object:
     if isinstance(value, decimal.Decimal):
         return float(value)
     if isinstance(value, (dict, list, tuple)):
@@ -4158,7 +4173,7 @@ def resolve_extracts(
     return extracts
 
 
-def _decode_default_value(value):
+def _decode_default_value(value: str) -> object:
     if value.startswith("'") and value.endswith("'"):
         # It's a string
         return value[1:-1]
