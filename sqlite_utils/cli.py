@@ -339,7 +339,7 @@ def optimize(path, tables, no_vacuum, load_extension):
         tables = db.table_names(fts4=True) + db.table_names(fts5=True)
     with db.conn:
         for table in tables:
-            db[table].optimize()
+            db.table(table).optimize()
     if not no_vacuum:
         db.vacuum()
 
@@ -367,7 +367,7 @@ def rebuild_fts(path, tables, load_extension):
         tables = db.table_names(fts4=True) + db.table_names(fts5=True)
     with db.conn:
         for table in tables:
-            db[table].rebuild_fts()
+            db.table(table).rebuild_fts()
 
 
 @cli.command()
@@ -497,7 +497,7 @@ def add_column(
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[table].add_column(
+        db.table(table).add_column(
             col_name, col_type, fk=fk, fk_col=fk_col, not_null_default=not_null_default
         )
     except OperationalError as ex:
@@ -535,7 +535,7 @@ def add_foreign_key(
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[table].add_foreign_key(column, other_table, other_column, ignore=ignore)
+        db.table(table).add_foreign_key(column, other_table, other_column, ignore=ignore)
     except AlterError as e:
         raise click.ClickException(str(e))
 
@@ -645,7 +645,7 @@ def create_index(
         if col.startswith("-"):
             col = DescIndex(col[1:])
         columns.append(col)
-    db[table].create_index(
+    db.table(table).create_index(
         columns,
         index_name=name,
         unique=unique,
@@ -729,7 +729,7 @@ def populate_fts(path, table, column, load_extension):
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
-    db[table].populate_fts(column)
+    db.table(table).populate_fts(column)
 
 
 @cli.command(name="disable-fts")
@@ -751,7 +751,7 @@ def disable_fts(path, table, load_extension):
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
-    db[table].disable_fts()
+    db.table(table).disable_fts()
 
 
 @cli.command(name="enable-wal")
@@ -827,7 +827,7 @@ def enable_counts(path, tables, load_extension):
         if bad_tables:
             raise click.ClickException("Invalid tables: {}".format(bad_tables))
         for table in tables:
-            db[table].enable_counts()
+            db.table(table).enable_counts()
 
 
 @cli.command(name="reset-counts")
@@ -1147,7 +1147,7 @@ def insert_upsert_implementation(
             return
 
         try:
-            db[table].insert_all(
+            db.table(table).insert_all(
                 docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
             )
         except Exception as e:
@@ -1174,7 +1174,7 @@ def insert_upsert_implementation(
             else:
                 raise
         if tracker is not None:
-            db[table].transform(types=tracker.types)
+            db.table(table).transform(types=tracker.types)
 
         # Clean up open file-like objects
         if sniff_buffer:
@@ -1637,7 +1637,7 @@ def create_table(
                     table
                 )
             )
-    db[table].create(
+    db.table(table).create(
         coltypes,
         pk=pks[0] if len(pks) == 1 else pks,
         not_null=not_null,
@@ -1668,7 +1668,7 @@ def duplicate(path, table, new_table, ignore, load_extension):
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[table].duplicate(new_table)
+        db.table(table).duplicate(new_table)
     except NoTable:
         if not ignore:
             raise click.ClickException('Table "{}" does not exist'.format(table))
@@ -2029,9 +2029,9 @@ def memory(
             if flatten:
                 rows = (_flatten(row) for row in rows)
 
-            db[file_table].insert_all(rows, alter=True)
+            db.table(file_table).insert_all(rows, alter=True)
             if tracker is not None:
-                db[file_table].transform(types=tracker.types)
+                db.table(file_table).transform(types=tracker.types)
             # Add convenient t / t1 / t2 views
             view_names = ["t{}".format(i + 1)]
             if i == 0:
@@ -2201,7 +2201,7 @@ def search(
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     # Check table exists
-    table_obj = db[dbtable]
+    table_obj = db.table(dbtable)
     if not table_obj.exists():
         raise click.ClickException("Table '{}' does not exist".format(dbtable))
     if not table_obj.detect_fts():
@@ -2613,10 +2613,10 @@ def transform(
         kwargs["add_foreign_keys"] = add_foreign_keys
 
     if sql:
-        for line in db[table].transform_sql(**kwargs):
+        for line in db.table(table).transform_sql(**kwargs):
             click.echo(line)
     else:
-        db[table].transform(**kwargs)
+        db.table(table).transform(**kwargs)
 
 
 @cli.command()
@@ -2804,7 +2804,7 @@ def insert_files(
         _load_extensions(db, load_extension)
         try:
             with db.conn:
-                db[table].insert_all(
+                db.table(table).insert_all(
                     to_insert(),
                     pk=pks[0] if len(pks) == 1 else pks,
                     alter=alter,
@@ -3123,7 +3123,7 @@ def convert(
 
             fn = wrapped_fn
         try:
-            db[table].convert(
+            db.table(table).convert(
                 columns,
                 fn,
                 where=where,
@@ -3213,7 +3213,7 @@ def add_geometry_column(
         _load_extensions(db, load_extension)
     db.init_spatialite()
 
-    if db[table].add_geometry_column(
+    if db.table(table).add_geometry_column(
         column_name, geometry_type, srid, coord_dimension, not_null
     ):
         click.echo(f"Added {geometry_type} column {column_name} to {table}")
@@ -3251,7 +3251,7 @@ def create_spatial_index(db_path, table, column_name, load_extension):
             "You must add a geometry column before creating a spatial index"
         )
 
-    db[table].create_spatial_index(column_name)
+    db.table(table).create_spatial_index(column_name)
 
 
 @cli.command(name="plugins")
