@@ -15,14 +15,14 @@ import click
 from . import recipes
 
 try:
-    import pysqlite3 as sqlite3  # noqa: F401
-    from pysqlite3 import dbapi2  # noqa: F401
+    import pysqlite3 as sqlite3  # type: ignore[import-not-found]  # noqa: F401
+    from pysqlite3 import dbapi2  # type: ignore[import-not-found]  # noqa: F401
 
     OperationalError = dbapi2.OperationalError
 except ImportError:
     try:
-        import sqlean as sqlite3  # noqa: F401
-        from sqlean import dbapi2  # noqa: F401
+        import sqlean as sqlite3  # type: ignore[import-not-found]  # noqa: F401
+        from sqlean import dbapi2  # type: ignore[import-not-found]  # noqa: F401
 
         OperationalError = dbapi2.OperationalError
     except ImportError:
