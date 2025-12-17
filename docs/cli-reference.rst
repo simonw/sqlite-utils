@@ -131,7 +131,7 @@ See :ref:`cli_query`.
       -r, --raw                   Raw output, first column of first row
       --raw-lines                 Raw output, first column of each row
       -p, --param <TEXT TEXT>...  Named :parameters for SQL query
-      --functions TEXT            Python code or file path defining custom SQL
+      --functions TEXT            Python code defining one or more custom SQL
                                   functions
       --load-extension TEXT       Path to SQLite extension, with optional
                                   :entrypoint
@@ -174,7 +174,7 @@ See :ref:`cli_memory`.
           sqlite-utils memory animals.csv --schema
 
     Options:
-      --functions TEXT            Python code or file path defining custom SQL
+      --functions TEXT            Python code defining one or more custom SQL
                                   functions
       --attach <TEXT FILE>...     Additional databases to attach - specify alias and
                                   filepath
@@ -270,7 +270,6 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --nl                      Expect newline-delimited JSON
       -c, --csv                 Expect CSV input
       --tsv                     Expect TSV input
-      --empty-null              Treat empty strings as NULL
       --lines                   Treat each line as a single value called 'line'
       --text                    Treat input as a single value called 'text'
       --convert TEXT            Python code to convert each item
@@ -281,16 +280,13 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --no-headers              CSV file has no header row
       --encoding TEXT           Character encoding for input, defaults to utf-8
       --batch-size INTEGER      Commit every X records
-      --stop-after INTEGER      Stop after X records
       --alter                   Alter existing table to add any missing columns
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column
-      -d, --detect-types        Detect types for columns in CSV/TSV data (default)
-      --no-detect-types         Treat all CSV/TSV columns as TEXT
+      -d, --detect-types        Detect types for columns in CSV/TSV data
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       --silent                  Do not show progress bar
-      --strict                  Apply STRICT mode to created table
       --ignore                  Ignore records if pk already exists
       --replace                 Replace records if pk already exists
       --truncate                Truncate table before inserting records, if table
@@ -328,7 +324,6 @@ See :ref:`cli_upsert`.
       --nl                      Expect newline-delimited JSON
       -c, --csv                 Expect CSV input
       --tsv                     Expect TSV input
-      --empty-null              Treat empty strings as NULL
       --lines                   Treat each line as a single value called 'line'
       --text                    Treat input as a single value called 'text'
       --convert TEXT            Python code to convert each item
@@ -339,16 +334,13 @@ See :ref:`cli_upsert`.
       --no-headers              CSV file has no header row
       --encoding TEXT           Character encoding for input, defaults to utf-8
       --batch-size INTEGER      Commit every X records
-      --stop-after INTEGER      Stop after X records
       --alter                   Alter existing table to add any missing columns
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column
-      -d, --detect-types        Detect types for columns in CSV/TSV data (default)
-      --no-detect-types         Treat all CSV/TSV columns as TEXT
+      -d, --detect-types        Detect types for columns in CSV/TSV data
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       --silent                  Do not show progress bar
-      --strict                  Apply STRICT mode to created table
       -h, --help                Show this message and exit.
 
 
@@ -376,13 +368,12 @@ See :ref:`cli_bulk`.
 
     Options:
       --batch-size INTEGER   Commit every X records
-      --functions TEXT       Python code or file path defining custom SQL functions
+      --functions TEXT       Python code defining one or more custom SQL functions
       --flatten              Flatten nested JSON objects, so {"a": {"b": 1}} becomes
                              {"a_b": 1}
       --nl                   Expect newline-delimited JSON
       -c, --csv              Expect CSV input
       --tsv                  Expect TSV input
-      --empty-null           Treat empty strings as NULL
       --lines                Treat each line as a single value called 'line'
       --text                 Treat input as a single value called 'text'
       --convert TEXT         Python code to convert each item
@@ -459,25 +450,20 @@ See :ref:`cli_transform_table`.
               --rename column2 column_renamed
 
     Options:
-      --type <TEXT CHOICE>...         Change column type to INTEGER, TEXT, FLOAT,
-                                      REAL or BLOB
-      --drop TEXT                     Drop this column
-      --rename <TEXT TEXT>...         Rename this column to X
-      -o, --column-order TEXT         Reorder columns
-      --not-null TEXT                 Set this column to NOT NULL
-      --not-null-false TEXT           Remove NOT NULL from this column
-      --pk TEXT                       Make this column the primary key
-      --pk-none                       Remove primary key (convert to rowid table)
-      --default <TEXT TEXT>...        Set default value for this column
-      --default-none TEXT             Remove default from this column
-      --add-foreign-key <TEXT TEXT TEXT>...
-                                      Add a foreign key constraint from a column to
-                                      another table with another column
-      --drop-foreign-key TEXT         Drop foreign key constraint for this column
-      --sql                           Output SQL without executing it
-      --load-extension TEXT           Path to SQLite extension, with optional
-                                      :entrypoint
-      -h, --help                      Show this message and exit.
+      --type <TEXT CHOICE>...   Change column type to INTEGER, TEXT, FLOAT or BLOB
+      --drop TEXT               Drop this column
+      --rename <TEXT TEXT>...   Rename this column to X
+      -o, --column-order TEXT   Reorder columns
+      --not-null TEXT           Set this column to NOT NULL
+      --not-null-false TEXT     Remove NOT NULL from this column
+      --pk TEXT                 Make this column the primary key
+      --pk-none                 Remove primary key (convert to rowid table)
+      --default <TEXT TEXT>...  Set default value for this column
+      --default-none TEXT       Remove default from this column
+      --drop-foreign-key TEXT   Drop foreign key constraint for this column
+      --sql                     Output SQL without executing it
+      --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
+      -h, --help                Show this message and exit.
 
 
 .. _cli_ref_extract:
@@ -605,9 +591,9 @@ See :ref:`cli_convert`.
 
       Convert columns using Python code you supply. For example:
 
-      sqlite-utils convert my.db mytable mycolumn \
-          '"\n".join(textwrap.wrap(value, 10))' \
-          --import=textwrap
+          sqlite-utils convert my.db mytable mycolumn \
+              '"\n".join(textwrap.wrap(value, 10))' \
+              --import=textwrap
 
       "value" is a variable with the column value to be converted.
 
@@ -617,30 +603,30 @@ See :ref:`cli_convert`.
 
       r.jsonsplit(value, delimiter=',', type=<class 'str'>)
 
-      Convert a string like a,b,c into a JSON array ["a", "b", "c"]
+          Convert a string like a,b,c into a JSON array ["a", "b", "c"]
 
       r.parsedate(value, dayfirst=False, yearfirst=False, errors=None)
 
-      Parse a date and convert it to ISO date format: yyyy-mm-dd
-  
-      - dayfirst=True: treat xx as the day in xx/yy/zz
-      - yearfirst=True: treat xx as the year in xx/yy/zz
-      - errors=r.IGNORE to ignore values that cannot be parsed
-      - errors=r.SET_NULL to set values that cannot be parsed to null
+          Parse a date and convert it to ISO date format: yyyy-mm-dd
+      
+          - dayfirst=True: treat xx as the day in xx/yy/zz
+          - yearfirst=True: treat xx as the year in xx/yy/zz
+          - errors=r.IGNORE to ignore values that cannot be parsed
+          - errors=r.SET_NULL to set values that cannot be parsed to null
 
       r.parsedatetime(value, dayfirst=False, yearfirst=False, errors=None)
 
-      Parse a datetime and convert it to ISO datetime format: yyyy-mm-ddTHH:MM:SS
-  
-      - dayfirst=True: treat xx as the day in xx/yy/zz
-      - yearfirst=True: treat xx as the year in xx/yy/zz
-      - errors=r.IGNORE to ignore values that cannot be parsed
-      - errors=r.SET_NULL to set values that cannot be parsed to null
+          Parse a datetime and convert it to ISO datetime format: yyyy-mm-ddTHH:MM:SS
+      
+          - dayfirst=True: treat xx as the day in xx/yy/zz
+          - yearfirst=True: treat xx as the year in xx/yy/zz
+          - errors=r.IGNORE to ignore values that cannot be parsed
+          - errors=r.SET_NULL to set values that cannot be parsed to null
 
       You can use these recipes like so:
 
-      sqlite-utils convert my.db mytable mycolumn \
-          'r.jsonsplit(value, delimiter=":")'
+          sqlite-utils convert my.db mytable mycolumn \
+              'r.jsonsplit(value, delimiter=":")'
 
     Options:
       --import TEXT                   Python modules to import
@@ -655,8 +641,8 @@ See :ref:`cli_convert`.
       --output-type [integer|float|blob|text]
                                       Column type to use for the output column
       --drop                          Drop original column afterwards
+      --no-skip-false                 Don't skip falsey values
       -s, --silent                    Don't show a progress bar
-      --pdb                           Open pdb debugger on first error
       -h, --help                      Show this message and exit.
 
 
@@ -923,7 +909,6 @@ See :ref:`cli_create_table`.
       --replace                 If table already exists, replace it
       --transform               If table already exists, try to transform the schema
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
-      --strict                  Apply STRICT mode to created table
       -h, --help                Show this message and exit.
 
 
@@ -1045,6 +1030,21 @@ disable-fts
       -h, --help             Show this message and exit.
 
 
+.. _cli_ref_tui:
+
+tui
+===
+
+::
+
+    Usage: sqlite-utils tui [OPTIONS]
+
+      Open Textual TUI.
+
+    Options:
+      -h, --help  Show this message and exit.
+
+
 .. _cli_ref_optimize:
 
 optimize
@@ -1144,7 +1144,7 @@ See :ref:`cli_add_column`.
 ::
 
     Usage: sqlite-utils add-column [OPTIONS] PATH TABLE COL_NAME
-                          [[integer|int|float|real|text|str|blob|bytes]]
+                          [[integer|float|blob|text|INTEGER|FLOAT|BLOB|TEXT]]
 
       Add a column to the specified table
 
@@ -1179,6 +1179,8 @@ See :ref:`cli_add_foreign_key`.
       Example:
 
           sqlite-utils add-foreign-key my.db books author_id authors id
+
+      WARNING: Could corrupt your database! Back up your database file first.
 
     Options:
       --ignore               If foreign key already exists, do nothing
@@ -1335,25 +1337,6 @@ See :ref:`cli_duplicate_table`.
       -h, --help             Show this message and exit.
 
 
-.. _cli_ref_rename_table:
-
-rename-table
-============
-
-See :ref:`cli_renaming_tables`.
-
-::
-
-    Usage: sqlite-utils rename-table [OPTIONS] PATH TABLE NEW_NAME
-
-      Rename this table.
-
-    Options:
-      --ignore               If table does not exist, do nothing
-      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
-      -h, --help             Show this message and exit.
-
-
 .. _cli_ref_drop_table:
 
 drop-table
@@ -1434,14 +1417,13 @@ See :ref:`cli_install`.
 
 ::
 
-    Usage: sqlite-utils install [OPTIONS] [PACKAGES]...
+    Usage: sqlite-utils install [OPTIONS] PACKAGES...
 
       Install packages from PyPI into the same environment as sqlite-utils
 
     Options:
-      -U, --upgrade        Upgrade packages to latest version
-      -e, --editable TEXT  Install a project in editable mode from this path
-      -h, --help           Show this message and exit.
+      -U, --upgrade  Upgrade packages to latest version
+      -h, --help     Show this message and exit.
 
 
 .. _cli_ref_uninstall:
@@ -1514,21 +1496,6 @@ See :ref:`cli_spatialite_indexes`.
     Options:
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
-
-
-.. _cli_ref_plugins:
-
-plugins
-=======
-
-::
-
-    Usage: sqlite-utils plugins [OPTIONS]
-
-      List installed plugins
-
-    Options:
-      -h, --help  Show this message and exit.
 
 
 .. [[[end]]]
