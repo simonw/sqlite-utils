@@ -489,7 +489,7 @@ class Database:
         """
 
         def register(fn: Callable) -> Callable:
-            fn_name = name or fn.__name__
+            fn_name = name or fn.__name__  # type: ignore
             arity = len(inspect.signature(fn).parameters)
             if not replace and (fn_name, arity) in self._registered_functions:
                 return fn
@@ -1450,11 +1450,11 @@ class Queryable:
     def pks_and_rows_where(
         self,
         where: Optional[str] = None,
-        where_args: Optional[Union[Iterable, dict]] = None,
+        where_args: Optional[Union[Sequence, Dict[str, Any]]] = None,
         order_by: Optional[str] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
-    ) -> Generator[Tuple[Any, Dict], None, None]:
+    ) -> Generator[Tuple[Any, Dict[str, Any]], None, None]:
         """
         Like ``.rows_where()`` but returns ``(pk, row)`` pairs - ``pk`` can be a single value or tuple.
 
@@ -1848,7 +1848,7 @@ class Table(Queryable):
                 quote_identifier(self.name),
             )
             self.db.execute(sql)
-        return self.db[new_name]
+        return self.db.table(new_name)
 
     def transform(
         self,
@@ -2153,7 +2153,7 @@ class Table(Queryable):
                 )
             )
         table = table or "_".join(columns)
-        lookup_table = self.db[table]
+        lookup_table = self.db.table(table)
         fk_column = fk_column or "{}_id".format(table)
         magic_lookup_column = "{}_{}".format(fk_column, os.urandom(6).hex())
 
@@ -2680,7 +2680,7 @@ class Table(Queryable):
                 )
         return self
 
-    def rebuild_fts(self) -> None:
+    def rebuild_fts(self) -> "Table":
         "Run the ``rebuild`` operation against the associated full-text search index table."
         fts_table = self.detect_fts()
         if fts_table is None:
@@ -2767,7 +2767,7 @@ class Table(Queryable):
             self.name
         )
         fts_table_quoted = quote_identifier(fts_table)
-        virtual_table_using = self.db[fts_table].virtual_table_using
+        virtual_table_using = self.db.table(fts_table).virtual_table_using
         sql = textwrap.dedent(
             """
         with {original} as (
@@ -2887,7 +2887,7 @@ class Table(Queryable):
     def delete_where(
         self,
         where: Optional[str] = None,
-        where_args: Optional[Union[Iterable, dict]] = None,
+        where_args: Optional[Union[Sequence, Dict[str, Any]]] = None,
         analyze: bool = False,
     ) -> "Table":
         """
@@ -2978,9 +2978,9 @@ class Table(Queryable):
         drop: bool = False,
         multi: bool = False,
         where: Optional[str] = None,
-        where_args: Optional[Union[Iterable, dict]] = None,
+        where_args: Optional[Union[Sequence, Dict[str, Any]]] = None,
         show_progress: bool = False,
-    ):
+    ) -> "Table":
         """
         Apply conversion function ``fn`` to every value in the specified columns.
 
@@ -3143,7 +3143,7 @@ class Table(Queryable):
                 if has_extracts:
                     for i, key in enumerate(all_columns):
                         if key in extracts:
-                            record_values[i] = self.db[extracts[key]].lookup(
+                            record_values[i] = self.db.table(extracts[key]).lookup(
                                 {"value": record_values[i]}
                             )
                 values.append(record_values)
@@ -3164,7 +3164,7 @@ class Table(Queryable):
                     )
                     if key in extracts:
                         extract_table = extracts[key]
-                        value = self.db[extract_table].lookup({"value": value})
+                        value = self.db.table(extract_table).lookup({"value": value})
                     record_values.append(value)
                 values.append(record_values)
 
@@ -3874,7 +3874,7 @@ class Table(Queryable):
           already exists.
         """
         if isinstance(other_table, str):
-            other_table = cast(Table, self.db.table(other_table, pk=pk))
+            other_table = self.db.table(other_table, pk=pk)
         our_id = self.last_pk
         if lookup is not None:
             assert record_or_iterable is None, "Provide lookup= or record, not both"

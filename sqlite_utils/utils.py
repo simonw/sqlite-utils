@@ -237,8 +237,8 @@ def file_progress(
     if fileno == 0:  # 0 means stdin
         yield file
     else:
-        file_length = os.path.getsize(file.name)
-        with click.progressbar(length=file_length, **kwargs) as bar:
+        file_length = os.path.getsize(file.name)  # type: ignore
+        with click.progressbar(length=file_length, **kwargs) as bar:  # type: ignore
             yield UpdateWrapper(file, bar.update)
 
 
@@ -516,7 +516,7 @@ def progressbar(*args: Iterable[T], **kwargs: Any) -> Generator[Any, None, None]
     if silent:
         yield NullProgressBar(*args)
     else:
-        with click.progressbar(*args, **kwargs) as bar:
+        with click.progressbar(*args, **kwargs) as bar:  # type: ignore
             yield bar
 
 
