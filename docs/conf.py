@@ -79,7 +79,7 @@ author = "Simon Willison"
 #
 # The short X.Y version.
 pipe = Popen("git describe --tags --always", stdout=PIPE, shell=True)
-git_version = pipe.stdout.read().decode("utf8")
+git_version = pipe.stdout.read().decode("utf8") if pipe.stdout else ""
 
 if git_version:
     version = git_version.rsplit("-", 1)[0]

@@ -45,6 +45,11 @@ jobs:
       run: mypy sqlite_utils tests
     - name: run flake8
       run: flake8
+    - name: run ty
+      if: matrix.os != 'windows-latest'
+      run: |
+        pip install uv
+        uv run ty check sqlite_utils
     - name: Check formatting
       run: black . --check
     - name: Check if cog needs to be run

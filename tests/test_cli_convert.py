@@ -535,7 +535,7 @@ def test_convert_where(test_db_and_path):
             "id = :id",
             "-p",
             "id",
-            2,
+            "2",
         ],
     )
     assert result.exit_code == 0, result.output
@@ -564,7 +564,7 @@ def test_convert_where_multi(fresh_db_and_path):
             "id = :id",
             "-p",
             "id",
-            2,
+            "2",
             "--multi",
         ],
     )

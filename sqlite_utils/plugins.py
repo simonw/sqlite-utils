@@ -14,9 +14,10 @@ def get_plugins():
     plugins = []
     plugin_to_distinfo = dict(pm.list_plugin_distinfo())
     for plugin in pm.get_plugins():
+        hookcallers = pm.get_hookcallers(plugin) or []
         plugin_info = {
             "name": plugin.__name__,
-            "hooks": [h.name for h in pm.get_hookcallers(plugin)],
+            "hooks": [h.name for h in hookcallers],
         }
         distinfo = plugin_to_distinfo.get(plugin)
         if distinfo:

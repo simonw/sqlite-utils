@@ -7,7 +7,7 @@ from sqlite_utils.db import Database
 from sqlite_utils.utils import find_spatialite, sqlite3
 
 try:
-    import sqlean
+    import sqlean  # type: ignore[import-not-found]
 except ImportError:
     sqlean = None
 
@@ -50,7 +50,7 @@ def test_add_geometry_column():
         column_name="geometry",
         geometry_type="Point",
         srid=4326,
-        coord_dimension=2,
+        coord_dimension="XY",
     )
 
     assert db["geometry_columns"].get(["locations", "geometry"]) == {

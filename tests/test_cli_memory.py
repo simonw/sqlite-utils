@@ -331,7 +331,7 @@ def test_memory_return_db(tmpdir):
     with open(path, "w") as f:
         f.write("id,name\n1,Cleo")
 
-    with click.Context(cli) as ctx:
+    with click.Context(cli) as ctx:  # type: ignore[attr-defined]
         db = ctx.invoke(cli.commands["memory"], paths=(path,), return_db=True)
 
     assert db.table_names() == ["dogs"]

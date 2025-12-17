@@ -48,7 +48,7 @@ def test_rows_from_file_extra_fields_strategies(ignore_extras, extras_key, expec
 
 def test_rows_from_file_error_on_string_io():
     with pytest.raises(TypeError) as ex:
-        rows_from_file(StringIO("id,name\r\n1,Cleo"))
+        rows_from_file(StringIO("id,name\r\n1,Cleo"))  # type: ignore[arg-type]
     assert ex.value.args == (
         "rows_from_file() requires a file-like object that supports peek(), such as io.BytesIO",
     )
