@@ -132,16 +132,18 @@ def find_spatialite() -> Optional[str]:
 
 def suggest_column_types(
     records: Iterable[Dict[str, Any]],
+    json_converters: bool = False,
 ) -> Dict[str, type]:
     all_column_types: Dict[str, Set[type]] = {}
     for record in records:
         for key, value in record.items():
             all_column_types.setdefault(key, set()).add(type(value))
-    return types_for_column_types(all_column_types)
+    return types_for_column_types(all_column_types, json_converters=json_converters)
 
 
 def types_for_column_types(
     all_column_types: Dict[str, Set[type]],
+    json_converters: bool = False,
 ) -> Dict[str, type]:
     column_types: Dict[str, type] = {}
     for key, types in all_column_types.items():
@@ -153,10 +155,19 @@ def types_for_column_types(
             t = str
         elif len(types) == 1:
             t = list(types)[0]
-            # But if it's a subclass of list / tuple / dict, use str
-            # instead as we will be storing it as JSON in the table
-            for superclass in (list, tuple, dict):
-                if issubclass(t, superclass):
+            if json_converters:
+                # Normalize subclasses of list / dict to the base class
+                # so they can be handled by the mapping in db.py
+                for superclass in (list, dict):
+                    if issubclass(t, superclass):
+                        t = superclass
+                        break
+            elif issubclass(t, (list, dict)):
+                t = str
+            if issubclass(t, tuple):
+                if json_converters:
+                    t = tuple
+                else:
                     t = str
         elif {int, bool}.issuperset(types):
             t = int
