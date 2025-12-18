@@ -176,6 +176,19 @@ You can use the ``--json-cols`` option to automatically detect these JSON column
         }
     ]
 
+.. _cli_use_json_converters:
+
+Automatic JSON deserialization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can use the ``--use-json-converters`` flag to automatically deserialize columns that are declared as ``JSON`` (or inferred as such during insertion).
+
+.. code-block:: bash
+
+    sqlite-utils query dogs.db "select * from dogs" --use-json-converters
+
+If you use this flag with ``insert``, ``upsert`` or ``bulk``, it will also cause nested Python dictionaries or lists to be stored in columns with a declared type of ``JSON`` rather than ``TEXT``.
+
 .. _cli_query_csv:
 
 Returning CSV or TSV
@@ -1935,7 +1948,7 @@ Most of the time creating tables by inserting example data is the quickest appro
 
 This will create a table called ``mytable`` with two columns - an integer ``id`` column and a text ``name`` column. It will set the ``id`` column to be the primary key.
 
-You can pass as many column-name column-type pairs as you like. Valid types are ``integer``, ``text``, ``float`` and ``blob``.
+You can pass as many column-name column-type pairs as you like. Valid types are ``integer``, ``text``, ``float``, ``blob`` and ``json``.
 
 Pass ``--pk`` more than once for a compound primary key that covers multiple columns.
 

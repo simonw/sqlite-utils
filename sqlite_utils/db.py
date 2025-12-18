@@ -222,6 +222,7 @@ COLUMN_TYPE_MAPPING = {
     "real": "REAL",
     "blob": "BLOB",
     "bytes": "BLOB",
+    "JSON": "JSON",
 }
 # If numpy is available, add more types
 if np:
@@ -326,6 +327,7 @@ class Database:
     :param use_old_upsert: set to ``True`` to force the older upsert implementation. See
       :ref:`python_api_old_upsert`
     :param strict: Apply STRICT mode to all created tables (unless overridden)
+    :param use_json_converters: Automatically use JSON columns for nested structures and register JSON converter
     """
 
     _counts_table_name = "_counts"
@@ -344,24 +346,33 @@ class Database:
         execute_plugins: bool = True,
         use_old_upsert: bool = False,
         strict: bool = False,
+        use_json_converters: bool = False,
     ):
         self.memory_name = None
         self.memory = False
         self.use_old_upsert = use_old_upsert
+        self.use_json_converters = use_json_converters
         assert (filename_or_conn is not None and (not memory and not memory_name)) or (
             filename_or_conn is None and (memory or memory_name)
         ), "Either specify a filename_or_conn or pass memory=True"
+
+        detect_types = 0
+        if use_json_converters:
+            sqlite3.register_converter("JSON", json.loads)
+            detect_types = sqlite3.PARSE_DECLTYPES
+
         if memory_name:
             uri = "file:{}?mode=memory&cache=shared".format(memory_name)
             self.conn = sqlite3.connect(
                 uri,
                 uri=True,
                 check_same_thread=False,
+                detect_types=detect_types,
             )
             self.memory = True
             self.memory_name = memory_name
         elif memory or filename_or_conn == ":memory:":
-            self.conn = sqlite3.connect(":memory:")
+            self.conn = sqlite3.connect(":memory:", detect_types=detect_types)
             self.memory = True
         elif isinstance(filename_or_conn, (str, pathlib.Path)):
             if recreate and os.path.exists(filename_or_conn):
@@ -370,9 +381,9 @@ class Database:
                 except OSError:
                     # Avoid mypy and __repr__ errors, see:
                     # https://github.com/simonw/sqlite-utils/issues/503
-                    self.conn = sqlite3.connect(":memory:")
+                    self.conn = sqlite3.connect(":memory:", detect_types=detect_types)
                     raise
-            self.conn = sqlite3.connect(str(filename_or_conn))
+            self.conn = sqlite3.connect(str(filename_or_conn), detect_types=detect_types)
         else:
             assert not recreate, "recreate cannot be used with connections, only paths"
             self.conn = filename_or_conn
@@ -1015,6 +1026,8 @@ class Database:
                     )
                 )
             column_type_str = COLUMN_TYPE_MAPPING[column_type]
+            if self.use_json_converters and column_type in (dict, list, tuple):
+                column_type_str = "JSON"
             # Special case for strict tables to map FLOAT to REAL
             # Refs https://github.com/simonw/sqlite-utils/issues/644
             if strict and column_type_str == "FLOAT":
@@ -3557,9 +3570,13 @@ class Table(Queryable):
                     if list_mode:
                         # Convert list records to dicts for type detection
                         chunk_as_dicts = [dict(zip(column_names, row)) for row in chunk]
-                        column_types = suggest_column_types(chunk_as_dicts)
+                        column_types = suggest_column_types(
+                            chunk_as_dicts, json_converters=self.db.use_json_converters
+                        )
                     else:
-                        column_types = suggest_column_types(chunk)  # type: ignore[arg-type]
+                        column_types = suggest_column_types(
+                            chunk, json_converters=self.db.use_json_converters
+                        )  # type: ignore[arg-type]
                     if extracts:
                         for col in extracts:
                             if col in column_types:
@@ -3746,7 +3763,9 @@ class Table(Queryable):
         )
 
     def add_missing_columns(self, records: Iterable[Dict[str, Any]]) -> "Table":
-        needed_columns = suggest_column_types(records)
+        needed_columns = suggest_column_types(
+            records, json_converters=self.db.use_json_converters
+        )
         current_columns = {c.lower() for c in self.columns_dict}
         for col_name, col_type in needed_columns.items():
             if col_name.lower() not in current_columns:

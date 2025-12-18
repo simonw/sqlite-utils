@@ -117,6 +117,14 @@ By default, any :ref:`sqlite-utils plugins <plugins>` that implement the :ref:`p
 
     db = Database(memory=True, execute_plugins=False)
 
+You can pass ``use_json_converters=True`` to enable automatic JSON conversion for columns declared as ``JSON``. This will register a custom converter with SQLite that uses ``json.loads()`` to deserialize values:
+
+.. code-block:: python
+
+    db = Database("my_database.db", use_json_converters=True)
+
+When this is enabled, Python ``dict``, ``list`` and ``tuple`` values will be stored in columns with a declared type of ``JSON``, and those columns will be automatically deserialized back into Python objects when you retrieve them from the database.
+
 You can pass ``strict=True`` to enable `SQLite STRICT mode <https://www.sqlite.org/stricttables.html>`__ for all tables created using this database object:
 
 .. code-block:: python

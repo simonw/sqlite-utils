@@ -66,7 +66,7 @@ def _close_databases(ctx):
             pass
 
 
-VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "REAL", "BLOB")
+VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "REAL", "BLOB", "JSON")
 
 UNICODE_ERROR = """
 {}
@@ -962,6 +962,12 @@ def insert_upsert_options(*, require_pk=False):
                     default=False,
                     help="Apply STRICT mode to created table",
                 ),
+                click.option(
+                    "--use-json-converters",
+                    is_flag=True,
+                    default=False,
+                    help="Automatically use JSON columns for nested structures and register JSON converter",
+                ),
             )
         ):
             fn = decorator(fn)
@@ -1006,8 +1012,9 @@ def insert_upsert_implementation(
     bulk_sql=None,
     functions=None,
     strict=False,
+    use_json_converters=False,
 ):
-    db = sqlite_utils.Database(path)
+    db = sqlite_utils.Database(path, use_json_converters=use_json_converters)
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     _maybe_register_functions(db, functions)
@@ -1151,7 +1158,11 @@ def insert_upsert_implementation(
 
         try:
             db.table(table).insert_all(
-                docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
+                docs,
+                pk=pk,
+                batch_size=batch_size,
+                alter=alter,
+                **extra_kwargs,
             )
         except Exception as e:
             if (
@@ -1248,6 +1259,7 @@ def insert(
     not_null,
     default,
     strict,
+    use_json_converters,
 ):
     """
     Insert records from FILE into a table, creating the table if it
@@ -1328,6 +1340,7 @@ def insert(
             not_null=not_null,
             default=default,
             strict=strict,
+            use_json_converters=use_json_converters,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
@@ -1365,6 +1378,7 @@ def upsert(
     load_extension,
     silent,
     strict,
+    use_json_converters,
 ):
     """
     Upsert records based on their primary key. Works like 'insert' but if
@@ -1411,6 +1425,7 @@ def upsert(
             load_extension=load_extension,
             silent=silent,
             strict=strict,
+            use_json_converters=use_json_converters,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
@@ -1429,6 +1444,12 @@ def upsert(
     "--functions",
     help="Python code or file path defining custom SQL functions",
     multiple=True,
+)
+@click.option(
+    "--use-json-converters",
+    is_flag=True,
+    default=False,
+    help="Automatically use JSON columns for nested structures and register JSON converter",
 )
 @import_options
 @load_extension_option
@@ -1453,6 +1474,7 @@ def bulk(
     no_headers,
     encoding,
     load_extension,
+    use_json_converters,
 ):
     """
     Execute parameterized SQL against the provided list of documents.
@@ -1499,6 +1521,7 @@ def bulk(
             silent=False,
             bulk_sql=sql,
             functions=functions,
+            use_json_converters=use_json_converters,
         )
     except (OperationalError, sqlite3.IntegrityError) as e:
         raise click.ClickException(str(e))
@@ -1613,7 +1636,7 @@ def create_table(
             height float \\
             photo blob --pk id
 
-    Valid column types are text, integer, float and blob.
+    Valid column types are text, integer, float, blob and json.
     """
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
@@ -1830,7 +1853,14 @@ def drop_view(path, view, ignore, load_extension):
     multiple=True,
 )
 @load_extension_option
+@click.option(
+    "--use-json-converters",
+    is_flag=True,
+    default=False,
+    help="Automatically use JSON columns for nested structures and register JSON converter",
+)
 def query(
+
     path,
     sql,
     attach,
@@ -1847,6 +1877,7 @@ def query(
     param,
     load_extension,
     functions,
+    use_json_converters,
 ):
     """Execute SQL query and return the results as JSON
 
@@ -1857,7 +1888,7 @@ def query(
             "select * from chickens where age > :age" \\
             -p age 1
     """
-    db = sqlite_utils.Database(path)
+    db = sqlite_utils.Database(path, use_json_converters=use_json_converters)
     _register_db_for_cleanup(db)
     for alias, attach_path in attach:
         db.attach(alias, attach_path)
@@ -1939,7 +1970,14 @@ def query(
     is_flag=True,
     help="Analyze resulting tables and output results",
 )
+@click.option(
+    "--use-json-converters",
+    is_flag=True,
+    default=False,
+    help="Automatically use JSON columns for nested structures and register JSON converter",
+)
 @load_extension_option
+
 def memory(
     paths,
     sql,
@@ -1964,6 +2002,7 @@ def memory(
     save,
     analyze,
     load_extension,
+    use_json_converters,
     return_db=False,
 ):
     """Execute SQL query against an in-memory database, optionally populated by imported data
@@ -1992,7 +2031,7 @@ def memory(
     \b
         sqlite-utils memory animals.csv --schema
     """
-    db = sqlite_utils.Database(memory=True)
+    db = sqlite_utils.Database(memory=True, use_json_converters=use_json_converters)
     if not return_db:
         _register_db_for_cleanup(db)
 
