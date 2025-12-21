@@ -12,6 +12,7 @@ from sqlite_utils.db import (
     BadMultiValues,
     DescIndex,
     NoTable,
+    NoView,
     quote_identifier,
 )
 from sqlite_utils.plugins import pm, get_plugins
@@ -1796,9 +1797,10 @@ def drop_view(path, view, ignore, load_extension):
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[view].drop(ignore=ignore)
-    except OperationalError:
-        raise click.ClickException('View "{}" does not exist'.format(view))
+        db.view(view).drop(ignore=ignore)
+    except NoView:
+        if not ignore:
+            raise click.ClickException('View "{}" does not exist'.format(view))
 
 
 @cli.command()

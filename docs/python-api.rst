@@ -282,11 +282,13 @@ Using this factory function allows you to set :ref:`python_api_table_configurati
 
 The ``db.table()`` method  will always return a :ref:`reference_db_table` instance, or raise a ``sqlite_utils.db.NoTable`` exception if the table name is actually a SQL view.
 
-You can also access tables or views using dictionary-style syntax, like this:
+You can also access tables using dictionary-style syntax, like this:
 
 .. code-block:: python
 
-    table_or_view = db["my_table_or_view_name"]
+    table = db["my_table_name"]
+
+This is equivalent to calling ``db.table("my_table_name")``. It will raise a ``sqlite_utils.db.NoTable`` exception if the name refers to a view rather than a table.
 
 If a table accessed using either of these methods does not yet exist, it will be created the first time you attempt to insert or upsert data into it.
 
