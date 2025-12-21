@@ -1082,7 +1082,7 @@ def test_drop(fresh_db):
 def test_drop_view(fresh_db):
     fresh_db.create_view("foo_view", "select 1")
     assert ["foo_view"] == fresh_db.view_names()
-    assert None is fresh_db["foo_view"].drop()
+    assert None is fresh_db.view("foo_view").drop()
     assert [] == fresh_db.view_names()
 
 
@@ -1093,7 +1093,7 @@ def test_drop_ignore(fresh_db):
     # Testing view is harder, we need to create it in order
     # to get a View object, then drop it twice
     fresh_db.create_view("foo_view", "select 1")
-    view = fresh_db["foo_view"]
+    view = fresh_db.view("foo_view")
     assert isinstance(view, View)
     view.drop()
     with pytest.raises(sqlite3.OperationalError):
