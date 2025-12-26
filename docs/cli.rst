@@ -2030,7 +2030,7 @@ You can also pass ``--transform`` to transform the existing table to match the n
 Renaming a table
 ================
 
-Yo ucan rename a table using the ``rename-table`` command:
+You can rename a table using the ``rename-table`` command:
 
 .. code-block:: bash
 
