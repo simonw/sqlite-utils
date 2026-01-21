@@ -967,12 +967,9 @@ def test_query_json_with_json_cols(db_path):
     result = CliRunner().invoke(
         cli.cli, [db_path, "select id, name, friends from dogs"]
     )
-    assert (
-        r"""
+    assert r"""
     [{"id": 1, "name": "Cleo", "friends": "[{\"name\": \"Pancakes\"}, {\"name\": \"Bailey\"}]"}]
-    """.strip()
-        == result.output.strip()
-    )
+    """.strip() == result.output.strip()
     # With --json-cols:
     result = CliRunner().invoke(
         cli.cli, [db_path, "select id, name, friends from dogs", "--json-cols"]
@@ -2038,12 +2035,10 @@ def test_search_quote(tmpdir):
 def test_indexes(tmpdir):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db.conn.executescript(
-        """
+    db.conn.executescript("""
         create table Gosh (c1 text, c2 text, c3 text);
         create index Gosh_idx on Gosh(c2, c3 desc);
-    """
-    )
+    """)
     result = CliRunner().invoke(
         cli.cli,
         ["indexes", str(db_path)],
@@ -2134,16 +2129,12 @@ def test_triggers(tmpdir, extra_args, expected):
         pk="id",
     )
     db["counter"].insert({"count": 1})
-    db.conn.execute(
-        textwrap.dedent(
-            """
+    db.conn.execute(textwrap.dedent("""
         CREATE TRIGGER blah AFTER INSERT ON articles
         BEGIN
             UPDATE counter SET count = count + 1;
         END
-    """
-        )
-    )
+    """))
     args = ["triggers", db_path]
     if extra_args:
         args.extend(extra_args)

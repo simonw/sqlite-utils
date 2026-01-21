@@ -638,15 +638,13 @@ def test_transform_with_indexes_errors(fresh_db, transform_params):
 def test_transform_with_unique_constraint_implicit_index(fresh_db):
     dogs = fresh_db["dogs"]
     # Create a table with a UNIQUE constraint on 'name', which creates an implicit index
-    fresh_db.execute(
-        """
+    fresh_db.execute("""
         CREATE TABLE dogs (
             id INTEGER PRIMARY KEY,
             name TEXT UNIQUE,
             age INTEGER
         );
-    """
-    )
+    """)
     dogs.insert({"id": 1, "name": "Cleo", "age": 5})
 
     # Attempt to transform the table without modifying 'name'
@@ -794,15 +792,13 @@ def test_transform_update_incoming_fks_self_referential(fresh_db):
     fresh_db.execute("PRAGMA foreign_keys=ON")
 
     # Create employees table with self-referential FK (manager_id -> id)
-    fresh_db.execute(
-        """
+    fresh_db.execute("""
         CREATE TABLE employees (
             id INTEGER PRIMARY KEY,
             name TEXT,
             manager_id INTEGER REFERENCES employees(id)
         )
-    """
-    )
+    """)
     fresh_db["employees"].insert_all(
         [
             {"id": 1, "name": "CEO", "manager_id": None},
