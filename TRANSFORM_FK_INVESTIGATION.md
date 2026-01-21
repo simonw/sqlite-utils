@@ -95,8 +95,24 @@ The `transform()` method (db.py lines 1853-1917) implements the following safety
 | Rename non-referenced column        | Works, FKs intact  | Works, FKs intact   |
 | Rename referenced column            | FAILS (rollback)   | Works, FKs BROKEN!  |
 | Drop referenced column              | FAILS (rollback)   | Works, FKs BROKEN!  |
+| Change PK away from referenced col  | FAILS (rollback)   | Works, FKs BROKEN!  |
 | Self-referential FK                 | Works, FKs intact  | Works, FKs intact   |
 | Multiple tables with FKs            | Works, FKs intact  | Works, FKs intact   |
+
+## Cases That Break Incoming FKs
+
+There are **three** scenarios that break incoming FK constraints:
+
+1. **Rename referenced column**: The FK references `authors(id)` but the column is
+   renamed to `author_pk` - the FK now references a non-existent column.
+
+2. **Drop referenced column**: The FK references `authors(id)` but the column is
+   dropped entirely - the FK now references a non-existent column.
+
+3. **Remove PK/UNIQUE from referenced column**: SQLite requires that FK targets be
+   either PRIMARY KEY or UNIQUE. If you change `id` from `INTEGER PRIMARY KEY` to
+   just `INTEGER`, the FK becomes invalid ("foreign key mismatch") even though the
+   column still exists.
 
 ## Known Issue: Leftover Temp Table on Failure
 
@@ -119,6 +135,62 @@ a data integrity problem.
 
 3. **Use `foreign_key_check`** after bulk operations with FK enforcement off to
    verify data integrity
+
+## Automatic Detection and Fixing
+
+### Detection (Easy)
+
+To detect if a transform will break incoming FKs:
+
+```python
+def get_incoming_fks(db, table_name):
+    """Find all FKs from other tables that reference this table."""
+    incoming = []
+    for other_table in db.table_names():
+        if other_table == table_name:
+            continue
+        for fk in db[other_table].foreign_keys:
+            if fk.other_table == table_name:
+                incoming.append({
+                    "from_table": fk.table,
+                    "from_column": fk.column,
+                    "to_column": fk.other_column,
+                })
+    return incoming
+```
+
+Then check if any `to_column` values are in the `rename` or `drop` sets, or if
+they're losing their PK/UNIQUE status.
+
+### Automatic Fixing for Column Renames (Moderate Complexity)
+
+For column renames, it's possible to automatically update the referencing tables:
+
+1. Before transforming table A, find all tables with FKs to A
+2. For each table B with `FK(col -> A.old_col)`:
+   - Transform B with `foreign_keys=` parameter to update to `FK(col -> A.new_col)`
+3. Then transform A with the rename
+
+### Challenges
+
+- **Circular references**: A -> B -> A requires careful ordering
+- **Chain reactions**: Transforming B might affect table C
+- **Transaction safety**: All transforms should succeed or all fail
+
+### Proposed API Enhancement
+
+```python
+# Option 1: Auto-update with a flag
+db["authors"].transform(
+    rename={"id": "author_pk"},
+    update_incoming_fks=True  # Automatically update FKs in other tables
+)
+
+# Option 2: Better error message
+# "Cannot rename 'id': books.author_id references this column.
+#  First transform 'books' to update its foreign key, or use
+#  update_incoming_fks=True to do this automatically."
+```
 
 ## Code References
 
