@@ -1867,7 +1867,7 @@ class Table(Queryable):
             if other_table_name == self.name:
                 continue
 
-            other_table = self.db[other_table_name]
+            other_table = self.db.table(other_table_name)
             other_fks = other_table.foreign_keys
 
             # Check if any FK references a column being renamed
@@ -1927,26 +1927,26 @@ class Table(Queryable):
         assert self.exists(), "Cannot transform a table that doesn't exist yet"
 
         # Collect SQL for updating incoming FKs if needed
-        incoming_fk_sqls = []
+        incoming_fk_sqls: List[str] = []
         if update_incoming_fks and rename:
             tables_needing_update = self._get_incoming_fks_needing_update(rename)
             for other_table_name, new_fks in tables_needing_update:
-                other_table = self.db[other_table_name]
+                other_table = self.db.table(other_table_name)
                 # Generate transform SQL for the other table with updated FKs
                 # Skip FK validation since the new column doesn't exist yet
                 try:
-                    self.db._skip_fk_validation = True
+                    setattr(self.db, "_skip_fk_validation", True)
                     incoming_fk_sqls.extend(
                         other_table.transform_sql(foreign_keys=new_fks)
                     )
                 finally:
-                    self.db._skip_fk_validation = False
+                    setattr(self.db, "_skip_fk_validation", False)
 
         # Skip FK validation for main transform if update_incoming_fks is True
         # because self-referential FKs will reference the new column name
         # that only exists after the transform completes
         if update_incoming_fks and rename:
-            self.db._skip_fk_validation = True
+            setattr(self.db, "_skip_fk_validation", True)
         try:
             sqls = self.transform_sql(
                 types=types,
@@ -1963,7 +1963,7 @@ class Table(Queryable):
             )
         finally:
             if update_incoming_fks and rename:
-                self.db._skip_fk_validation = False
+                setattr(self.db, "_skip_fk_validation", False)
 
         pragma_foreign_keys_was_on = self.db.execute("PRAGMA foreign_keys").fetchone()[
             0
