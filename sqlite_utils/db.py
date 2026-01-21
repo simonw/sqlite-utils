@@ -974,15 +974,17 @@ class Database:
             column_items.insert(0, (hash_id, str))
             pk = hash_id
         # Soundness check foreign_keys point to existing tables
-        for fk in foreign_keys:
-            if fk.other_table == name and columns.get(fk.other_column):
-                continue
-            if fk.other_column != "rowid" and not any(
-                c for c in self[fk.other_table].columns if c.name == fk.other_column
-            ):
-                raise AlterError(
-                    "No such column: {}.{}".format(fk.other_table, fk.other_column)
-                )
+        # (can be skipped for internal operations like update_incoming_fks)
+        if not getattr(self, "_skip_fk_validation", False):
+            for fk in foreign_keys:
+                if fk.other_table == name and columns.get(fk.other_column):
+                    continue
+                if fk.other_column != "rowid" and not any(
+                    c for c in self[fk.other_table].columns if c.name == fk.other_column
+                ):
+                    raise AlterError(
+                        "No such column: {}.{}".format(fk.other_table, fk.other_column)
+                    )
 
         column_defs = []
         # ensure pk is a tuple
@@ -1850,6 +1852,42 @@ class Table(Queryable):
             self.db.execute(sql)
         return self.db.table(new_name)
 
+    def _get_incoming_fks_needing_update(self, rename: dict) -> list:
+        """
+        Find all tables with FK constraints pointing to columns being renamed.
+
+        Returns a list of (table_name, new_fks) tuples where new_fks is the
+        updated list of foreign keys for that table.
+
+        :param rename: Dictionary mapping old column names to new column names
+        """
+        tables_needing_update = []
+
+        for other_table_name in self.db.table_names():
+            if other_table_name == self.name:
+                continue
+
+            other_table = self.db[other_table_name]
+            other_fks = other_table.foreign_keys
+
+            # Check if any FK references a column being renamed
+            needs_update = False
+            new_fks = []
+            for fk in other_fks:
+                if fk.other_table == self.name and fk.other_column in rename:
+                    # This FK needs updating
+                    needs_update = True
+                    new_fks.append(
+                        (fk.column, fk.other_table, rename[fk.other_column])
+                    )
+                else:
+                    new_fks.append((fk.column, fk.other_table, fk.other_column))
+
+            if needs_update:
+                tables_needing_update.append((other_table_name, new_fks))
+
+        return tables_needing_update
+
     def transform(
         self,
         *,
@@ -1864,6 +1902,7 @@ class Table(Queryable):
         foreign_keys: Optional[ForeignKeysType] = None,
         column_order: Optional[List[str]] = None,
         keep_table: Optional[str] = None,
+        update_incoming_fks: bool = False,
     ) -> "Table":
         """
         Apply an advanced alter table, including operations that are not supported by
@@ -1884,8 +1923,27 @@ class Table(Queryable):
           to use when creating the table
         :param keep_table: If specified, the existing table will be renamed to this and will not be
           dropped
+        :param update_incoming_fks: If True, automatically update foreign key constraints in other
+          tables that reference columns being renamed in this table
         """
         assert self.exists(), "Cannot transform a table that doesn't exist yet"
+
+        # Collect SQL for updating incoming FKs if needed
+        incoming_fk_sqls = []
+        if update_incoming_fks and rename:
+            tables_needing_update = self._get_incoming_fks_needing_update(rename)
+            for other_table_name, new_fks in tables_needing_update:
+                other_table = self.db[other_table_name]
+                # Generate transform SQL for the other table with updated FKs
+                # Skip FK validation since the new column doesn't exist yet
+                try:
+                    self.db._skip_fk_validation = True
+                    incoming_fk_sqls.extend(
+                        other_table.transform_sql(foreign_keys=new_fks)
+                    )
+                finally:
+                    self.db._skip_fk_validation = False
+
         sqls = self.transform_sql(
             types=types,
             rename=rename,
@@ -1906,7 +1964,11 @@ class Table(Queryable):
             if pragma_foreign_keys_was_on:
                 self.db.execute("PRAGMA foreign_keys=0;")
             with self.db.conn:
+                # First: transform the main table (so renamed columns exist)
                 for sql in sqls:
+                    self.db.execute(sql)
+                # Then: update incoming FKs in other tables
+                for sql in incoming_fk_sqls:
                     self.db.execute(sql)
                 # Run the foreign_key_check before we commit
                 if pragma_foreign_keys_was_on:

@@ -661,3 +661,50 @@ def test_transform_with_unique_constraint_implicit_index(fresh_db):
         "You must manually drop this index prior to running this transformation and manually recreate the new index after running this transformation."
         in str(excinfo.value)
     )
+
+
+def test_transform_update_incoming_fks_on_column_rename(fresh_db):
+    """
+    Test that update_incoming_fks=True updates FK constraints in other tables
+    when a referenced column is renamed.
+    """
+    fresh_db.execute("PRAGMA foreign_keys=ON")
+
+    # Create authors table with id as PK
+    fresh_db["authors"].insert({"id": 1, "name": "Alice"}, pk="id")
+
+    # Create books table with FK to authors.id
+    fresh_db["books"].insert(
+        {"id": 1, "title": "Book A", "author_id": 1},
+        pk="id",
+        foreign_keys=[("author_id", "authors", "id")],
+    )
+
+    # Verify initial FK
+    assert fresh_db["books"].foreign_keys == [
+        ForeignKey(table="books", column="author_id", other_table="authors", other_column="id")
+    ]
+
+    # Rename authors.id to authors.author_pk with update_incoming_fks=True
+    fresh_db["authors"].transform(
+        rename={"id": "author_pk"},
+        update_incoming_fks=True,
+    )
+
+    # Verify authors column was renamed
+    assert "author_pk" in fresh_db["authors"].columns_dict
+    assert "id" not in fresh_db["authors"].columns_dict
+
+    # Verify books FK was updated to point to new column name
+    assert fresh_db["books"].foreign_keys == [
+        ForeignKey(table="books", column="author_id", other_table="authors", other_column="author_pk")
+    ]
+
+    # Verify data integrity
+    assert list(fresh_db["authors"].rows) == [{"author_pk": 1, "name": "Alice"}]
+    assert list(fresh_db["books"].rows) == [{"id": 1, "title": "Book A", "author_id": 1}]
+
+    # Verify FK enforcement still works
+    assert fresh_db.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+    violations = list(fresh_db.execute("PRAGMA foreign_key_check").fetchall())
+    assert violations == []
