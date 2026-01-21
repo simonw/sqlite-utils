@@ -474,6 +474,8 @@ See :ref:`cli_transform_table`.
                                       Add a foreign key constraint from a column to
                                       another table with another column
       --drop-foreign-key TEXT         Drop foreign key constraint for this column
+      --update-incoming-fks           Update foreign keys in other tables that
+                                      reference renamed columns
       --sql                           Output SQL without executing it
       --load-extension TEXT           Path to SQLite extension, with optional
                                       :entrypoint

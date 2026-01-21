@@ -1828,7 +1828,9 @@ def test_transform_update_incoming_fks_cli(db_path):
             "transform",
             db_path,
             "authors",
-            "--rename", "id", "author_pk",
+            "--rename",
+            "id",
+            "author_pk",
             "--update-incoming-fks",
         ],
     )

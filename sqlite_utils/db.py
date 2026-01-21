@@ -1877,9 +1877,7 @@ class Table(Queryable):
                 if fk.other_table == self.name and fk.other_column in rename:
                     # This FK needs updating
                     needs_update = True
-                    new_fks.append(
-                        (fk.column, fk.other_table, rename[fk.other_column])
-                    )
+                    new_fks.append((fk.column, fk.other_table, rename[fk.other_column]))
                 else:
                     new_fks.append((fk.column, fk.other_table, fk.other_column))
 

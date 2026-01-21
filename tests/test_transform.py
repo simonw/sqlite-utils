@@ -682,7 +682,9 @@ def test_transform_update_incoming_fks_on_column_rename(fresh_db):
 
     # Verify initial FK
     assert fresh_db["books"].foreign_keys == [
-        ForeignKey(table="books", column="author_id", other_table="authors", other_column="id")
+        ForeignKey(
+            table="books", column="author_id", other_table="authors", other_column="id"
+        )
     ]
 
     # Rename authors.id to authors.author_pk with update_incoming_fks=True
@@ -697,12 +699,19 @@ def test_transform_update_incoming_fks_on_column_rename(fresh_db):
 
     # Verify books FK was updated to point to new column name
     assert fresh_db["books"].foreign_keys == [
-        ForeignKey(table="books", column="author_id", other_table="authors", other_column="author_pk")
+        ForeignKey(
+            table="books",
+            column="author_id",
+            other_table="authors",
+            other_column="author_pk",
+        )
     ]
 
     # Verify data integrity
     assert list(fresh_db["authors"].rows) == [{"author_pk": 1, "name": "Alice"}]
-    assert list(fresh_db["books"].rows) == [{"id": 1, "title": "Book A", "author_id": 1}]
+    assert list(fresh_db["books"].rows) == [
+        {"id": 1, "title": "Book A", "author_id": 1}
+    ]
 
     # Verify FK enforcement still works
     assert fresh_db.execute("PRAGMA foreign_keys").fetchone()[0] == 1
@@ -749,13 +758,28 @@ def test_transform_update_incoming_fks_multiple_tables(fresh_db):
 
     # Verify all FKs were updated
     assert fresh_db["books"].foreign_keys == [
-        ForeignKey(table="books", column="author_id", other_table="authors", other_column="author_pk")
+        ForeignKey(
+            table="books",
+            column="author_id",
+            other_table="authors",
+            other_column="author_pk",
+        )
     ]
     assert fresh_db["articles"].foreign_keys == [
-        ForeignKey(table="articles", column="writer_id", other_table="authors", other_column="author_pk")
+        ForeignKey(
+            table="articles",
+            column="writer_id",
+            other_table="authors",
+            other_column="author_pk",
+        )
     ]
     assert fresh_db["quotes"].foreign_keys == [
-        ForeignKey(table="quotes", column="speaker_id", other_table="authors", other_column="author_pk")
+        ForeignKey(
+            table="quotes",
+            column="speaker_id",
+            other_table="authors",
+            other_column="author_pk",
+        )
     ]
 
     # Verify FK enforcement still works
@@ -770,22 +794,31 @@ def test_transform_update_incoming_fks_self_referential(fresh_db):
     fresh_db.execute("PRAGMA foreign_keys=ON")
 
     # Create employees table with self-referential FK (manager_id -> id)
-    fresh_db.execute("""
+    fresh_db.execute(
+        """
         CREATE TABLE employees (
             id INTEGER PRIMARY KEY,
             name TEXT,
             manager_id INTEGER REFERENCES employees(id)
         )
-    """)
-    fresh_db["employees"].insert_all([
-        {"id": 1, "name": "CEO", "manager_id": None},
-        {"id": 2, "name": "VP", "manager_id": 1},
-        {"id": 3, "name": "Dev", "manager_id": 2},
-    ])
+    """
+    )
+    fresh_db["employees"].insert_all(
+        [
+            {"id": 1, "name": "CEO", "manager_id": None},
+            {"id": 2, "name": "VP", "manager_id": 1},
+            {"id": 3, "name": "Dev", "manager_id": 2},
+        ]
+    )
 
     # Verify initial FK
     assert fresh_db["employees"].foreign_keys == [
-        ForeignKey(table="employees", column="manager_id", other_table="employees", other_column="id")
+        ForeignKey(
+            table="employees",
+            column="manager_id",
+            other_table="employees",
+            other_column="id",
+        )
     ]
 
     # Rename employees.id to employees.emp_id with update_incoming_fks=True
@@ -800,7 +833,12 @@ def test_transform_update_incoming_fks_self_referential(fresh_db):
 
     # Verify self-referential FK was updated
     assert fresh_db["employees"].foreign_keys == [
-        ForeignKey(table="employees", column="manager_id", other_table="employees", other_column="emp_id")
+        ForeignKey(
+            table="employees",
+            column="manager_id",
+            other_table="employees",
+            other_column="emp_id",
+        )
     ]
 
     # Verify data integrity
