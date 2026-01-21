@@ -2113,6 +2113,9 @@ Every option for this table (with the exception of ``--pk-none``) can be specifi
 ``--add-foreign-key column other_table other_column``
     Add a foreign key constraint to ``column`` pointing to ``other_table.other_column``.
 
+``--update-incoming-fks``
+    When renaming columns, automatically update foreign key constraints in other tables that reference the renamed columns. For example, if ``books.author_id`` references ``authors.id`` and you rename ``authors.id`` to ``authors.author_pk``, this flag will also update the foreign key in ``books`` to reference the new column name.
+
 If you want to see the SQL that will be executed to make the change without actually executing it, add the ``--sql`` flag. For example:
 
 .. code-block:: bash

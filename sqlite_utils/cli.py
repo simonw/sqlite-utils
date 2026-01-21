@@ -42,7 +42,6 @@ from .utils import (
     TypeTracker,
 )
 
-
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
@@ -2545,6 +2544,11 @@ def schema(
     multiple=True,
     help="Drop foreign key constraint for this column",
 )
+@click.option(
+    "--update-incoming-fks",
+    is_flag=True,
+    help="Update foreign keys in other tables that reference renamed columns",
+)
 @click.option("--sql", is_flag=True, help="Output SQL without executing it")
 @load_extension_option
 def transform(
@@ -2562,6 +2566,7 @@ def transform(
     default_none,
     add_foreign_keys,
     drop_foreign_keys,
+    update_incoming_fks,
     sql,
     load_extension,
 ):
@@ -2615,6 +2620,8 @@ def transform(
         kwargs["drop_foreign_keys"] = drop_foreign_keys
     if add_foreign_keys:
         kwargs["add_foreign_keys"] = add_foreign_keys
+    if update_incoming_fks:
+        kwargs["update_incoming_fks"] = True
 
     if sql:
         for line in db.table(table).transform_sql(**kwargs):
@@ -2911,8 +2918,7 @@ def _analyze(db, tables, columns, save, common_limit=10, no_most=False, no_least
         )
         details = (
             (
-                textwrap.dedent(
-                    """
+                textwrap.dedent("""
         {table}.{column}: ({i}/{total})
 
           Total rows: {total_rows}
@@ -2920,8 +2926,7 @@ def _analyze(db, tables, columns, save, common_limit=10, no_most=False, no_least
           Blank rows: {num_blank}
 
           Distinct values: {num_distinct}{most_common_rendered}{least_common_rendered}
-        """
-                )
+        """)
                 .strip()
                 .format(
                     i=i + 1,
@@ -2968,8 +2973,7 @@ def uninstall(packages, yes):
 
 
 def _generate_convert_help():
-    help = textwrap.dedent(
-        """
+    help = textwrap.dedent("""
     Convert columns using Python code you supply. For example:
 
     \b
@@ -2982,8 +2986,7 @@ def _generate_convert_help():
     Use "-" for CODE to read Python code from standard input.
 
     The following common operations are available as recipe functions:
-    """
-    ).strip()
+    """).strip()
     recipe_names = [
         n
         for n in dir(recipes)
@@ -2997,15 +3000,13 @@ def _generate_convert_help():
             name, str(inspect.signature(fn)), textwrap.dedent(fn.__doc__.rstrip())
         )
     help += "\n\n"
-    help += textwrap.dedent(
-        """
+    help += textwrap.dedent("""
     You can use these recipes like so:
 
     \b
     sqlite-utils convert my.db mytable mycolumn \\
         'r.jsonsplit(value, delimiter=":")'
-    """
-    ).strip()
+    """).strip()
     return help
 
 

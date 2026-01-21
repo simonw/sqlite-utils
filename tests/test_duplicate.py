@@ -5,14 +5,12 @@ import pytest
 
 def test_duplicate(fresh_db):
     # Create table using native Sqlite statement:
-    fresh_db.execute(
-        """CREATE TABLE "table1" (
+    fresh_db.execute("""CREATE TABLE "table1" (
     "text_col" TEXT,
     "real_col" REAL,
     "int_col" INTEGER,
     "bool_col" INTEGER,
-    "datetime_col" TEXT)"""
-    )
+    "datetime_col" TEXT)""")
     # Insert one row of mock data:
     dt = datetime.datetime.now()
     data = {

@@ -371,16 +371,14 @@ def test_convert_multi_complex_column_types(fresh_db_and_path):
         ],
         pk="id",
     )
-    code = textwrap.dedent(
-        """
+    code = textwrap.dedent("""
     if value == 1:
         return {"is_str": "", "is_float": 1.2, "is_int": None}
     elif value == 2:
         return {"is_float": 1, "is_int": 12}
     elif value == 3:
         return {"is_bytes": b"blah"}
-    """
-    )
+    """)
     result = CliRunner().invoke(
         cli.cli,
         [

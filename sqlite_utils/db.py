@@ -974,15 +974,17 @@ class Database:
             column_items.insert(0, (hash_id, str))
             pk = hash_id
         # Soundness check foreign_keys point to existing tables
-        for fk in foreign_keys:
-            if fk.other_table == name and columns.get(fk.other_column):
-                continue
-            if fk.other_column != "rowid" and not any(
-                c for c in self[fk.other_table].columns if c.name == fk.other_column
-            ):
-                raise AlterError(
-                    "No such column: {}.{}".format(fk.other_table, fk.other_column)
-                )
+        # (can be skipped for internal operations like update_incoming_fks)
+        if not getattr(self, "_skip_fk_validation", False):
+            for fk in foreign_keys:
+                if fk.other_table == name and columns.get(fk.other_column):
+                    continue
+                if fk.other_column != "rowid" and not any(
+                    c for c in self[fk.other_table].columns if c.name == fk.other_column
+                ):
+                    raise AlterError(
+                        "No such column: {}.{}".format(fk.other_table, fk.other_column)
+                    )
 
         column_defs = []
         # ensure pk is a tuple
@@ -1850,6 +1852,40 @@ class Table(Queryable):
             self.db.execute(sql)
         return self.db.table(new_name)
 
+    def _get_incoming_fks_needing_update(self, rename: dict) -> list:
+        """
+        Find all tables with FK constraints pointing to columns being renamed.
+
+        Returns a list of (table_name, new_fks) tuples where new_fks is the
+        updated list of foreign keys for that table.
+
+        :param rename: Dictionary mapping old column names to new column names
+        """
+        tables_needing_update = []
+
+        for other_table_name in self.db.table_names():
+            if other_table_name == self.name:
+                continue
+
+            other_table = self.db.table(other_table_name)
+            other_fks = other_table.foreign_keys
+
+            # Check if any FK references a column being renamed
+            needs_update = False
+            new_fks = []
+            for fk in other_fks:
+                if fk.other_table == self.name and fk.other_column in rename:
+                    # This FK needs updating
+                    needs_update = True
+                    new_fks.append((fk.column, fk.other_table, rename[fk.other_column]))
+                else:
+                    new_fks.append((fk.column, fk.other_table, fk.other_column))
+
+            if needs_update:
+                tables_needing_update.append((other_table_name, new_fks))
+
+        return tables_needing_update
+
     def transform(
         self,
         *,
@@ -1864,6 +1900,7 @@ class Table(Queryable):
         foreign_keys: Optional[ForeignKeysType] = None,
         column_order: Optional[List[str]] = None,
         keep_table: Optional[str] = None,
+        update_incoming_fks: bool = False,
     ) -> "Table":
         """
         Apply an advanced alter table, including operations that are not supported by
@@ -1884,21 +1921,50 @@ class Table(Queryable):
           to use when creating the table
         :param keep_table: If specified, the existing table will be renamed to this and will not be
           dropped
+        :param update_incoming_fks: If True, automatically update foreign key constraints in other
+          tables that reference columns being renamed in this table
         """
         assert self.exists(), "Cannot transform a table that doesn't exist yet"
-        sqls = self.transform_sql(
-            types=types,
-            rename=rename,
-            drop=drop,
-            pk=pk,
-            not_null=not_null,
-            defaults=defaults,
-            drop_foreign_keys=drop_foreign_keys,
-            add_foreign_keys=add_foreign_keys,
-            foreign_keys=foreign_keys,
-            column_order=column_order,
-            keep_table=keep_table,
-        )
+
+        # Collect SQL for updating incoming FKs if needed
+        incoming_fk_sqls: List[str] = []
+        if update_incoming_fks and rename:
+            tables_needing_update = self._get_incoming_fks_needing_update(rename)
+            for other_table_name, new_fks in tables_needing_update:
+                other_table = self.db.table(other_table_name)
+                # Generate transform SQL for the other table with updated FKs
+                # Skip FK validation since the new column doesn't exist yet
+                try:
+                    setattr(self.db, "_skip_fk_validation", True)
+                    incoming_fk_sqls.extend(
+                        other_table.transform_sql(foreign_keys=new_fks)
+                    )
+                finally:
+                    setattr(self.db, "_skip_fk_validation", False)
+
+        # Skip FK validation for main transform if update_incoming_fks is True
+        # because self-referential FKs will reference the new column name
+        # that only exists after the transform completes
+        if update_incoming_fks and rename:
+            setattr(self.db, "_skip_fk_validation", True)
+        try:
+            sqls = self.transform_sql(
+                types=types,
+                rename=rename,
+                drop=drop,
+                pk=pk,
+                not_null=not_null,
+                defaults=defaults,
+                drop_foreign_keys=drop_foreign_keys,
+                add_foreign_keys=add_foreign_keys,
+                foreign_keys=foreign_keys,
+                column_order=column_order,
+                keep_table=keep_table,
+            )
+        finally:
+            if update_incoming_fks and rename:
+                setattr(self.db, "_skip_fk_validation", False)
+
         pragma_foreign_keys_was_on = self.db.execute("PRAGMA foreign_keys").fetchone()[
             0
         ]
@@ -1906,7 +1972,11 @@ class Table(Queryable):
             if pragma_foreign_keys_was_on:
                 self.db.execute("PRAGMA foreign_keys=0;")
             with self.db.conn:
+                # First: transform the main table (so renamed columns exist)
                 for sql in sqls:
+                    self.db.execute(sql)
+                # Then: update incoming FKs in other tables
+                for sql in incoming_fk_sqls:
                     self.db.execute(sql)
                 # Run the foreign_key_check before we commit
                 if pragma_foreign_keys_was_on:
@@ -1972,6 +2042,9 @@ class Table(Queryable):
             for table, column, other_table, other_column in self.foreign_keys:
                 # Copy over old foreign keys, unless we are dropping them
                 if (drop_foreign_keys is None) or (column not in drop_foreign_keys):
+                    # For self-referential FKs, also update the referenced column if renamed
+                    if other_table == self.name:
+                        other_column = rename.get(other_column) or other_column
                     create_table_foreign_keys.append(
                         ForeignKey(
                             table,
@@ -2275,12 +2348,10 @@ class Table(Queryable):
                 "{}_{}".format(index_name, suffix) if suffix else index_name
             )
             sql = (
-                textwrap.dedent(
-                    """
+                textwrap.dedent("""
                 CREATE {unique}INDEX {if_not_exists}{index_name}
                     ON {table_name} ({columns});
-            """
-                )
+            """)
                 .strip()
                 .format(
                     index_name=quote_identifier(created_index_name),
@@ -2475,8 +2546,7 @@ class Table(Queryable):
         See :ref:`python_api_cached_table_counts` for details.
         """
         sql = (
-            textwrap.dedent(
-                """
+            textwrap.dedent("""
         {create_counts_table}
         CREATE TRIGGER IF NOT EXISTS {trigger_insert} AFTER INSERT ON {table}
         BEGIN
@@ -2501,8 +2571,7 @@ class Table(Queryable):
             );
         END;
         INSERT OR REPLACE INTO _counts VALUES ({table_quoted}, (select count(*) from {table}));
-        """
-            )
+        """)
             .strip()
             .format(
                 create_counts_table=_COUNTS_TABLE_CREATE_SQL.format(
@@ -2554,14 +2623,12 @@ class Table(Queryable):
         :param replace: Should any existing FTS index for this table be replaced by the new one?
         """
         create_fts_sql = (
-            textwrap.dedent(
-                """
+            textwrap.dedent("""
             CREATE VIRTUAL TABLE {table_fts} USING {fts_version} (
                 {columns},{tokenize}
                 content={table}
             )
-        """
-            )
+        """)
             .strip()
             .format(
                 table=quote_identifier(self.name),
@@ -2599,8 +2666,7 @@ class Table(Queryable):
             table = quote_identifier(self.name)
             table_fts = quote_identifier(self.name + "_fts")
             triggers = (
-                textwrap.dedent(
-                    """
+                textwrap.dedent("""
                 CREATE TRIGGER {table_ai} AFTER INSERT ON {table} BEGIN
                   INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
                 END;
@@ -2611,8 +2677,7 @@ class Table(Queryable):
                   INSERT INTO {table_fts} ({table_fts}, rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
                   INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
                 END;
-            """
-                )
+            """)
                 .strip()
                 .format(
                     table=table,
@@ -2637,12 +2702,10 @@ class Table(Queryable):
         """
         columns_quoted = ", ".join(quote_identifier(c) for c in columns)
         sql = (
-            textwrap.dedent(
-                """
+            textwrap.dedent("""
             INSERT INTO {table_fts} (rowid, {columns})
                 SELECT rowid, {columns} FROM {table};
-        """
-            )
+        """)
             .strip()
             .format(
                 table=quote_identifier(self.name),
@@ -2659,17 +2722,11 @@ class Table(Queryable):
         if fts_table:
             self.db[fts_table].drop()
         # Now delete the triggers that related to that table
-        sql = (
-            textwrap.dedent(
-                """
+        sql = textwrap.dedent("""
             SELECT name FROM sqlite_master
                 WHERE type = 'trigger'
                 AND (sql LIKE '% INSERT INTO [{}]%' OR sql LIKE '% INSERT INTO "{}"%')
-        """
-            )
-            .strip()
-            .format(fts_table, fts_table)
-        )
+        """).strip().format(fts_table, fts_table)
         trigger_names = []
         for row in self.db.execute(sql).fetchall():
             trigger_names.append(row[0])
@@ -2695,8 +2752,7 @@ class Table(Queryable):
 
     def detect_fts(self) -> Optional[str]:
         "Detect if table has a corresponding FTS virtual table and return it"
-        sql = textwrap.dedent(
-            """
+        sql = textwrap.dedent("""
             SELECT name FROM sqlite_master
                 WHERE rootpage = 0
                 AND (
@@ -2707,8 +2763,7 @@ class Table(Queryable):
                         AND sql LIKE '%VIRTUAL TABLE%USING FTS%'
                     )
                 )
-        """
-        ).strip()
+        """).strip()
         args = {
             "like": '%VIRTUAL TABLE%USING FTS%content="{}"%'.format(self.name),
             "like2": '%VIRTUAL TABLE%USING FTS%content="{}"%'.format(self.name),
@@ -2724,13 +2779,9 @@ class Table(Queryable):
         "Run the ``optimize`` operation against the associated full-text search index table."
         fts_table = self.detect_fts()
         if fts_table is not None:
-            self.db.execute(
-                """
+            self.db.execute("""
                 INSERT INTO {table} ({table}) VALUES ("optimize");
-            """.strip().format(
-                    table=quote_identifier(fts_table)
-                )
-            )
+            """.strip().format(table=quote_identifier(fts_table)))
         return self
 
     def search_sql(
@@ -2768,8 +2819,7 @@ class Table(Queryable):
         )
         fts_table_quoted = quote_identifier(fts_table)
         virtual_table_using = self.db.table(fts_table).virtual_table_using
-        sql = textwrap.dedent(
-            """
+        sql = textwrap.dedent("""
         with {original} as (
             select
                 rowid,
@@ -2786,8 +2836,7 @@ class Table(Queryable):
         order by
             {order_by}
         {limit_offset}
-        """
-        ).strip()
+        """).strip()
         if virtual_table_using == "FTS5":
             rank_implementation = "{}.rank".format(fts_table_quoted)
         else:

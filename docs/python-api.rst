@@ -1631,6 +1631,31 @@ This example drops two foreign keys - the one from ``places.country`` to ``count
         drop_foreign_keys=("country", "continent")
     )
 
+.. _python_api_transform_update_incoming_fks:
+
+Updating foreign keys in other tables
+-------------------------------------
+
+When renaming columns that are referenced by foreign keys in other tables, you can use the ``update_incoming_fks=True`` parameter to automatically update those foreign key constraints.
+
+For example, if you have a ``books`` table with a foreign key from ``books.author_id`` to ``authors.id``, and you want to rename ``authors.id`` to ``authors.author_pk``:
+
+.. code-block:: python
+
+    db["authors"].transform(
+        rename={"id": "author_pk"},
+        update_incoming_fks=True,
+    )
+
+This will rename the column in the ``authors`` table and also update the foreign key constraint in the ``books`` table to reference ``authors.author_pk`` instead of ``authors.id``.
+
+Without ``update_incoming_fks=True``, this operation would fail with a foreign key mismatch error (if foreign key enforcement is enabled) because the ``books`` table would still reference the old column name.
+
+This parameter also correctly handles:
+
+- Multiple tables referencing the renamed column
+- Self-referential foreign keys (e.g., an ``employees.manager_id`` column referencing ``employees.id``)
+
 .. _python_api_transform_sql:
 
 Custom transformations with .transform_sql()

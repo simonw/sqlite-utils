@@ -638,15 +638,13 @@ def test_transform_with_indexes_errors(fresh_db, transform_params):
 def test_transform_with_unique_constraint_implicit_index(fresh_db):
     dogs = fresh_db["dogs"]
     # Create a table with a UNIQUE constraint on 'name', which creates an implicit index
-    fresh_db.execute(
-        """
+    fresh_db.execute("""
         CREATE TABLE dogs (
             id INTEGER PRIMARY KEY,
             name TEXT UNIQUE,
             age INTEGER
         );
-    """
-    )
+    """)
     dogs.insert({"id": 1, "name": "Cleo", "age": 5})
 
     # Attempt to transform the table without modifying 'name'
@@ -661,3 +659,188 @@ def test_transform_with_unique_constraint_implicit_index(fresh_db):
         "You must manually drop this index prior to running this transformation and manually recreate the new index after running this transformation."
         in str(excinfo.value)
     )
+
+
+def test_transform_update_incoming_fks_on_column_rename(fresh_db):
+    """
+    Test that update_incoming_fks=True updates FK constraints in other tables
+    when a referenced column is renamed.
+    """
+    fresh_db.execute("PRAGMA foreign_keys=ON")
+
+    # Create authors table with id as PK
+    fresh_db["authors"].insert({"id": 1, "name": "Alice"}, pk="id")
+
+    # Create books table with FK to authors.id
+    fresh_db["books"].insert(
+        {"id": 1, "title": "Book A", "author_id": 1},
+        pk="id",
+        foreign_keys=[("author_id", "authors", "id")],
+    )
+
+    # Verify initial FK
+    assert fresh_db["books"].foreign_keys == [
+        ForeignKey(
+            table="books", column="author_id", other_table="authors", other_column="id"
+        )
+    ]
+
+    # Rename authors.id to authors.author_pk with update_incoming_fks=True
+    fresh_db["authors"].transform(
+        rename={"id": "author_pk"},
+        update_incoming_fks=True,
+    )
+
+    # Verify authors column was renamed
+    assert "author_pk" in fresh_db["authors"].columns_dict
+    assert "id" not in fresh_db["authors"].columns_dict
+
+    # Verify books FK was updated to point to new column name
+    assert fresh_db["books"].foreign_keys == [
+        ForeignKey(
+            table="books",
+            column="author_id",
+            other_table="authors",
+            other_column="author_pk",
+        )
+    ]
+
+    # Verify data integrity
+    assert list(fresh_db["authors"].rows) == [{"author_pk": 1, "name": "Alice"}]
+    assert list(fresh_db["books"].rows) == [
+        {"id": 1, "title": "Book A", "author_id": 1}
+    ]
+
+    # Verify FK enforcement still works
+    assert fresh_db.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+    violations = list(fresh_db.execute("PRAGMA foreign_key_check").fetchall())
+    assert violations == []
+
+
+def test_transform_update_incoming_fks_multiple_tables(fresh_db):
+    """
+    Test that update_incoming_fks=True updates FK constraints in multiple tables
+    when a referenced column is renamed.
+    """
+    fresh_db.execute("PRAGMA foreign_keys=ON")
+
+    # Create authors table with id as PK
+    fresh_db["authors"].insert({"id": 1, "name": "Alice"}, pk="id")
+
+    # Create multiple tables with FKs to authors.id
+    fresh_db["books"].insert(
+        {"id": 1, "title": "Book A", "author_id": 1},
+        pk="id",
+        foreign_keys=[("author_id", "authors", "id")],
+    )
+    fresh_db["articles"].insert(
+        {"id": 1, "headline": "Article A", "writer_id": 1},
+        pk="id",
+        foreign_keys=[("writer_id", "authors", "id")],
+    )
+    fresh_db["quotes"].insert(
+        {"id": 1, "text": "Quote A", "speaker_id": 1},
+        pk="id",
+        foreign_keys=[("speaker_id", "authors", "id")],
+    )
+
+    # Rename authors.id to authors.author_pk with update_incoming_fks=True
+    fresh_db["authors"].transform(
+        rename={"id": "author_pk"},
+        update_incoming_fks=True,
+    )
+
+    # Verify authors column was renamed
+    assert "author_pk" in fresh_db["authors"].columns_dict
+    assert "id" not in fresh_db["authors"].columns_dict
+
+    # Verify all FKs were updated
+    assert fresh_db["books"].foreign_keys == [
+        ForeignKey(
+            table="books",
+            column="author_id",
+            other_table="authors",
+            other_column="author_pk",
+        )
+    ]
+    assert fresh_db["articles"].foreign_keys == [
+        ForeignKey(
+            table="articles",
+            column="writer_id",
+            other_table="authors",
+            other_column="author_pk",
+        )
+    ]
+    assert fresh_db["quotes"].foreign_keys == [
+        ForeignKey(
+            table="quotes",
+            column="speaker_id",
+            other_table="authors",
+            other_column="author_pk",
+        )
+    ]
+
+    # Verify FK enforcement still works
+    violations = list(fresh_db.execute("PRAGMA foreign_key_check").fetchall())
+    assert violations == []
+
+
+def test_transform_update_incoming_fks_self_referential(fresh_db):
+    """
+    Test that update_incoming_fks=True handles self-referential FK constraints.
+    """
+    fresh_db.execute("PRAGMA foreign_keys=ON")
+
+    # Create employees table with self-referential FK (manager_id -> id)
+    fresh_db.execute("""
+        CREATE TABLE employees (
+            id INTEGER PRIMARY KEY,
+            name TEXT,
+            manager_id INTEGER REFERENCES employees(id)
+        )
+    """)
+    fresh_db["employees"].insert_all(
+        [
+            {"id": 1, "name": "CEO", "manager_id": None},
+            {"id": 2, "name": "VP", "manager_id": 1},
+            {"id": 3, "name": "Dev", "manager_id": 2},
+        ]
+    )
+
+    # Verify initial FK
+    assert fresh_db["employees"].foreign_keys == [
+        ForeignKey(
+            table="employees",
+            column="manager_id",
+            other_table="employees",
+            other_column="id",
+        )
+    ]
+
+    # Rename employees.id to employees.emp_id with update_incoming_fks=True
+    fresh_db["employees"].transform(
+        rename={"id": "emp_id"},
+        update_incoming_fks=True,
+    )
+
+    # Verify column was renamed
+    assert "emp_id" in fresh_db["employees"].columns_dict
+    assert "id" not in fresh_db["employees"].columns_dict
+
+    # Verify self-referential FK was updated
+    assert fresh_db["employees"].foreign_keys == [
+        ForeignKey(
+            table="employees",
+            column="manager_id",
+            other_table="employees",
+            other_column="emp_id",
+        )
+    ]
+
+    # Verify data integrity
+    rows = list(fresh_db.execute("SELECT * FROM employees ORDER BY emp_id").fetchall())
+    assert rows == [(1, "CEO", None), (2, "VP", 1), (3, "Dev", 2)]
+
+    # Verify FK enforcement still works
+    violations = list(fresh_db.execute("PRAGMA foreign_key_check").fetchall())
+    assert violations == []

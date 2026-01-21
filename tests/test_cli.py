@@ -967,12 +967,9 @@ def test_query_json_with_json_cols(db_path):
     result = CliRunner().invoke(
         cli.cli, [db_path, "select id, name, friends from dogs"]
     )
-    assert (
-        r"""
+    assert r"""
     [{"id": 1, "name": "Cleo", "friends": "[{\"name\": \"Pancakes\"}, {\"name\": \"Bailey\"}]"}]
-    """.strip()
-        == result.output.strip()
-    )
+    """.strip() == result.output.strip()
     # With --json-cols:
     result = CliRunner().invoke(
         cli.cli, [db_path, "select id, name, friends from dogs", "--json-cols"]
@@ -1810,6 +1807,46 @@ def test_transform_add_or_drop_foreign_key(db_path, extra_args, expected_schema)
     assert schema == expected_schema
 
 
+def test_transform_update_incoming_fks_cli(db_path):
+    """Test --update-incoming-fks flag updates foreign keys in other tables"""
+    db = Database(db_path)
+    with db.conn:
+        db["authors"].insert({"id": 1, "name": "Alice"}, pk="id")
+        db["books"].insert(
+            {"id": 1, "title": "Book A", "author_id": 1},
+            pk="id",
+            foreign_keys=[("author_id", "authors", "id")],
+        )
+
+    # Rename authors.id to authors.author_pk with --update-incoming-fks
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "transform",
+            db_path,
+            "authors",
+            "--rename",
+            "id",
+            "author_pk",
+            "--update-incoming-fks",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    # Verify authors column was renamed
+    assert "author_pk" in db["authors"].columns_dict
+    assert "id" not in db["authors"].columns_dict
+
+    # Verify books FK was updated
+    assert db["books"].schema == (
+        'CREATE TABLE "books" (\n'
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "title" TEXT,\n'
+        '   "author_id" INTEGER REFERENCES "authors"("author_pk")\n'
+        ")"
+    )
+
+
 _common_other_schema = (
     'CREATE TABLE "species" (\n   "id" INTEGER PRIMARY KEY,\n   "species" TEXT\n)'
 )
@@ -1998,12 +2035,10 @@ def test_search_quote(tmpdir):
 def test_indexes(tmpdir):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db.conn.executescript(
-        """
+    db.conn.executescript("""
         create table Gosh (c1 text, c2 text, c3 text);
         create index Gosh_idx on Gosh(c2, c3 desc);
-    """
-    )
+    """)
     result = CliRunner().invoke(
         cli.cli,
         ["indexes", str(db_path)],
@@ -2094,16 +2129,12 @@ def test_triggers(tmpdir, extra_args, expected):
         pk="id",
     )
     db["counter"].insert({"count": 1})
-    db.conn.execute(
-        textwrap.dedent(
-            """
+    db.conn.execute(textwrap.dedent("""
         CREATE TRIGGER blah AFTER INSERT ON articles
         BEGIN
             UPDATE counter SET count = count + 1;
         END
-    """
-        )
-    )
+    """))
     args = ["triggers", db_path]
     if extra_args:
         args.extend(extra_args)

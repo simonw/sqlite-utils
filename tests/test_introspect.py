@@ -109,13 +109,11 @@ def test_table_repr(fresh_db):
 
 
 def test_indexes(fresh_db):
-    fresh_db.executescript(
-        """
+    fresh_db.executescript("""
         create table Gosh (c1 text, c2 text, c3 text);
         create index Gosh_c1 on Gosh(c1);
         create index Gosh_c2c3 on Gosh(c2, c3);
-    """
-    )
+    """)
     assert [
         Index(
             seq=0,
@@ -130,13 +128,11 @@ def test_indexes(fresh_db):
 
 
 def test_xindexes(fresh_db):
-    fresh_db.executescript(
-        """
+    fresh_db.executescript("""
         create table Gosh (c1 text, c2 text, c3 text);
         create index Gosh_c1 on Gosh(c1);
         create index Gosh_c2c3 on Gosh(c2, c3 desc);
-    """
-    )
+    """)
     assert fresh_db["Gosh"].xindexes == [
         XIndex(
             name="Gosh_c2c3",
