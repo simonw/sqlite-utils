@@ -1944,19 +1944,29 @@ class Table(Queryable):
                 finally:
                     self.db._skip_fk_validation = False
 
-        sqls = self.transform_sql(
-            types=types,
-            rename=rename,
-            drop=drop,
-            pk=pk,
-            not_null=not_null,
-            defaults=defaults,
-            drop_foreign_keys=drop_foreign_keys,
-            add_foreign_keys=add_foreign_keys,
-            foreign_keys=foreign_keys,
-            column_order=column_order,
-            keep_table=keep_table,
-        )
+        # Skip FK validation for main transform if update_incoming_fks is True
+        # because self-referential FKs will reference the new column name
+        # that only exists after the transform completes
+        if update_incoming_fks and rename:
+            self.db._skip_fk_validation = True
+        try:
+            sqls = self.transform_sql(
+                types=types,
+                rename=rename,
+                drop=drop,
+                pk=pk,
+                not_null=not_null,
+                defaults=defaults,
+                drop_foreign_keys=drop_foreign_keys,
+                add_foreign_keys=add_foreign_keys,
+                foreign_keys=foreign_keys,
+                column_order=column_order,
+                keep_table=keep_table,
+            )
+        finally:
+            if update_incoming_fks and rename:
+                self.db._skip_fk_validation = False
+
         pragma_foreign_keys_was_on = self.db.execute("PRAGMA foreign_keys").fetchone()[
             0
         ]
@@ -2034,6 +2044,9 @@ class Table(Queryable):
             for table, column, other_table, other_column in self.foreign_keys:
                 # Copy over old foreign keys, unless we are dropping them
                 if (drop_foreign_keys is None) or (column not in drop_foreign_keys):
+                    # For self-referential FKs, also update the referenced column if renamed
+                    if other_table == self.name:
+                        other_column = rename.get(other_column) or other_column
                     create_table_foreign_keys.append(
                         ForeignKey(
                             table,
