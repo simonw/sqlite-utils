@@ -2545,6 +2545,11 @@ def schema(
     multiple=True,
     help="Drop foreign key constraint for this column",
 )
+@click.option(
+    "--update-incoming-fks",
+    is_flag=True,
+    help="Update foreign keys in other tables that reference renamed columns",
+)
 @click.option("--sql", is_flag=True, help="Output SQL without executing it")
 @load_extension_option
 def transform(
@@ -2562,6 +2567,7 @@ def transform(
     default_none,
     add_foreign_keys,
     drop_foreign_keys,
+    update_incoming_fks,
     sql,
     load_extension,
 ):
@@ -2615,6 +2621,8 @@ def transform(
         kwargs["drop_foreign_keys"] = drop_foreign_keys
     if add_foreign_keys:
         kwargs["add_foreign_keys"] = add_foreign_keys
+    if update_incoming_fks:
+        kwargs["update_incoming_fks"] = True
 
     if sql:
         for line in db.table(table).transform_sql(**kwargs):

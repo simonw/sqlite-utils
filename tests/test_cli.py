@@ -1810,6 +1810,44 @@ def test_transform_add_or_drop_foreign_key(db_path, extra_args, expected_schema)
     assert schema == expected_schema
 
 
+def test_transform_update_incoming_fks_cli(db_path):
+    """Test --update-incoming-fks flag updates foreign keys in other tables"""
+    db = Database(db_path)
+    with db.conn:
+        db["authors"].insert({"id": 1, "name": "Alice"}, pk="id")
+        db["books"].insert(
+            {"id": 1, "title": "Book A", "author_id": 1},
+            pk="id",
+            foreign_keys=[("author_id", "authors", "id")],
+        )
+
+    # Rename authors.id to authors.author_pk with --update-incoming-fks
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "transform",
+            db_path,
+            "authors",
+            "--rename", "id", "author_pk",
+            "--update-incoming-fks",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    # Verify authors column was renamed
+    assert "author_pk" in db["authors"].columns_dict
+    assert "id" not in db["authors"].columns_dict
+
+    # Verify books FK was updated
+    assert db["books"].schema == (
+        'CREATE TABLE "books" (\n'
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "title" TEXT,\n'
+        '   "author_id" INTEGER REFERENCES "authors"("author_pk")\n'
+        ")"
+    )
+
+
 _common_other_schema = (
     'CREATE TABLE "species" (\n   "id" INTEGER PRIMARY KEY,\n   "species" TEXT\n)'
 )
