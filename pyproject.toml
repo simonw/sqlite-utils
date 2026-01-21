@@ -33,7 +33,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "black>=24.1.1",
+    "black>=26.1.0",
     "cogapp",
     "hypothesis",
     "pytest",
