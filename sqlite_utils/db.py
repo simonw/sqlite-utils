@@ -1886,6 +1886,7 @@ class Table(Queryable):
           dropped
         """
         assert self.exists(), "Cannot transform a table that doesn't exist yet"
+        fts_table = self.detect_fts()
         sqls = self.transform_sql(
             types=types,
             rename=rename,
@@ -1899,6 +1900,10 @@ class Table(Queryable):
             column_order=column_order,
             keep_table=keep_table,
         )
+        if fts_table:
+            fts_columns = [c.name for c in self.db[fts_table].columns if c.name not in drop]
+            fts_columns_renamed = [renamed[c] if c in renamed else c for c in fts_columns]
+            self.enable_fts(fts_columns_renamed, replace=True)
         pragma_foreign_keys_was_on = self.db.execute("PRAGMA foreign_keys").fetchone()[
             0
         ]
