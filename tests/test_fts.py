@@ -428,6 +428,28 @@ def test_enable_fts_error_message_on_views():
         assert e.value.args[0] == "enable_fts() is supported on tables but not on views"
 
 
+def test_enable_fts_twice_without_replace():
+    # Regression test for https://github.com/simonw/sqlite-utils/issues/694
+    # Calling enable_fts() twice without replace=True should not error
+    db = Database(memory=True)
+    db["books"].insert(
+        {
+            "id": 1,
+            "title": "Habits of Australian Marsupials",
+            "author": "Marlee Hawkins",
+        },
+        pk="id",
+    )
+    # First call creates the FTS table
+    db["books"].enable_fts(["title", "author"])
+    assert db["books_fts"].exists()
+    # Second call without replace=True should return early without error
+    result = db["books"].enable_fts(["title", "author"])
+    assert result == db["books"]
+    # FTS table should still exist
+    assert db["books_fts"].exists()
+
+
 @pytest.mark.parametrize(
     "kwargs,fts,expected",
     [

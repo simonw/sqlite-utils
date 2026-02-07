@@ -2572,7 +2572,11 @@ class Table(Queryable):
             )
         )
         should_recreate = False
-        if replace and self.db["{}_fts".format(self.name)].exists():
+        fts_table_exists = self.db["{}_fts".format(self.name)].exists()
+        if not replace and fts_table_exists:
+            # FTS table already exists and replace=False, so return early
+            return self
+        if replace and fts_table_exists:
             # Does the table need to be recreated?
             fts_schema = self.db["{}_fts".format(self.name)].schema
             if fts_schema != create_fts_sql:
