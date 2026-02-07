@@ -597,3 +597,21 @@ def test_insert_streaming_batch_size_1(db_path):
     proc.stdin.close()
     proc.wait()
     assert proc.returncode == 0
+
+
+def test_insert_csv_headers_only(tmpdir):
+    """Test that CSV with only header row (no data) works with --detect-types (issue #702)"""
+    db_path = str(tmpdir / "test.db")
+    csv_path = str(tmpdir / "headers_only.csv")
+    with open(csv_path, "w") as fp:
+        fp.write("id,name,age\n")
+    # Should not crash with --detect-types (which is now the default)
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "data", csv_path, "--csv"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    # Table should not exist since there were no data rows
+    db = Database(db_path)
+    assert not db["data"].exists()
