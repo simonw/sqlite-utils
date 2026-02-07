@@ -40,6 +40,7 @@ from typing import (
     Tuple,
 )
 import uuid
+import warnings
 from sqlite_utils.plugins import pm
 
 try:
@@ -401,13 +402,16 @@ class Database:
         self.conn.close()
 
     @contextlib.contextmanager
-    def ensure_autocommit_off(self) -> Generator[None, None, None]:
+    def ensure_autocommit_on(self) -> Generator[None, None, None]:
         """
-        Ensure autocommit is off for this database connection.
+        Ensure autocommit is on for this database connection.
+
+        In SQLite's Python module, ``isolation_level = None`` enables autocommit mode,
+        where each statement is committed immediately.
 
         Example usage::
 
-            with db.ensure_autocommit_off():
+            with db.ensure_autocommit_on():
                 # do stuff here
 
         This will reset to the previous autocommit state at the end of the block.
@@ -418,6 +422,21 @@ class Database:
             yield
         finally:
             self.conn.isolation_level = old_isolation_level
+
+    @contextlib.contextmanager
+    def ensure_autocommit_off(self) -> Generator[None, None, None]:
+        """
+        Deprecated alias for :meth:`ensure_autocommit_on`.
+
+        This method name is confusing - ``isolation_level = None`` actually enables
+        autocommit mode in SQLite, not disables it. Use :meth:`ensure_autocommit_on` instead.
+        """
+        warnings.warn(
+            "ensure_autocommit_off() is deprecated, use ensure_autocommit_on() instead",
+            DeprecationWarning,
+        )
+        with self.ensure_autocommit_on():
+            yield
 
     @contextlib.contextmanager
     def tracer(
@@ -781,13 +800,13 @@ class Database:
         Sets ``journal_mode`` to ``'wal'`` to enable Write-Ahead Log mode.
         """
         if self.journal_mode != "wal":
-            with self.ensure_autocommit_off():
+            with self.ensure_autocommit_on():
                 self.execute("PRAGMA journal_mode=wal;")
 
     def disable_wal(self) -> None:
         "Sets ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode."
         if self.journal_mode != "delete":
-            with self.ensure_autocommit_off():
+            with self.ensure_autocommit_on():
                 self.execute("PRAGMA journal_mode=delete;")
 
     def _ensure_counts_table(self) -> None:
