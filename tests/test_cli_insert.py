@@ -597,3 +597,19 @@ def test_insert_streaming_batch_size_1(db_path):
     proc.stdin.close()
     proc.wait()
     assert proc.returncode == 0
+
+
+def test_insert_csv_header_only(tmpdir):
+    # https://github.com/simonw/sqlite-utils/issues/702
+    # Inserting a CSV with only a header row (no data) and --detect-types
+    # should not crash
+    db_path = str(tmpdir / "test.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "data", "-", "--csv", "--detect-types"],
+        input="foo,bar,baz",
+    )
+    assert result.exit_code == 0, result.output
+    # Table should not exist since no rows were inserted
+    db = Database(db_path)
+    assert "data" not in db.table_names()
