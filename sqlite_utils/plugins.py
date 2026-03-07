@@ -7,8 +7,15 @@ from . import hookspecs
 pm: pluggy.PluginManager = pluggy.PluginManager("sqlite_utils")
 pm.add_hookspecs(hookspecs)
 
-if not getattr(sys, "_called_from_test", False):
-    # Only load plugins if not running tests
+
+def _should_load_setuptools_plugins() -> bool:
+    # Avoid loading setuptools plugins while running test suites.
+    # Checking sys.modules for pytest makes this robust even if
+    # sys._called_from_test is set later during test initialization.
+    return not getattr(sys, "_called_from_test", False) and "pytest" not in sys.modules
+
+
+if _should_load_setuptools_plugins():
     pm.load_setuptools_entrypoints("sqlite_utils")
 
 

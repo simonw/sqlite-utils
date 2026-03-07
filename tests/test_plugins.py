@@ -2,6 +2,7 @@ from click.testing import CliRunner
 import click
 import importlib
 import pytest
+import sys
 from sqlite_utils import cli, Database, hookimpl, plugins
 
 
@@ -14,6 +15,12 @@ def _supports_pragma_function_list():
         return False
     finally:
         db.close()
+
+
+def test_should_not_load_setuptools_plugins_when_pytest_present(monkeypatch):
+    monkeypatch.delattr(sys, "_called_from_test", raising=False)
+    assert plugins._should_load_setuptools_plugins() is False
+
 
 
 def test_register_commands():
