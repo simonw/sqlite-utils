@@ -403,14 +403,18 @@ class Database:
     @contextlib.contextmanager
     def ensure_autocommit_off(self) -> Generator[None, None, None]:
         """
-        Ensure autocommit is off for this database connection.
+        Ensure autocommit is on for this database connection.
+
+        Despite the historical method name, this temporarily sets
+        ``self.conn.isolation_level = None`` so statements execute in autocommit
+        mode inside the block.
 
         Example usage::
 
             with db.ensure_autocommit_off():
                 # do stuff here
 
-        This will reset to the previous autocommit state at the end of the block.
+        This will reset to the previous isolation level at the end of the block.
         """
         old_isolation_level = self.conn.isolation_level
         try:
