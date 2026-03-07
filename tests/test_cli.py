@@ -2305,6 +2305,21 @@ def test_insert_detect_types(tmpdir, option):
     ]
 
 
+def test_insert_detect_types_header_only_csv(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    data = "name,age\n"
+
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "-", "--csv", "--detect-types"],
+        catch_exceptions=False,
+        input=data,
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    assert not db["creatures"].exists()
+
+
 @pytest.mark.parametrize("option", (None, "-d", "--detect-types"))
 def test_upsert_detect_types(tmpdir, option):
     """Test that type detection is now the default behavior for upsert"""
