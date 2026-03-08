@@ -40,7 +40,7 @@ from typing import (
     Tuple,
 )
 import uuid
-from sqlite_utils.plugins import pm
+from sqlite_utils.plugins import ensure_plugins_loaded, pm
 
 try:
     from sqlite_dump import iterdump  # type: ignore[import-not-found]
@@ -382,6 +382,7 @@ class Database:
         self._registered_functions: set = set()
         self.use_counts_table = use_counts_table
         if execute_plugins:
+            ensure_plugins_loaded()
             pm.hook.prepare_connection(conn=self.conn)
         self.strict = strict
 
