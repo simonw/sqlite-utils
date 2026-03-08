@@ -15,3 +15,18 @@ def test_execute_returning_dicts(fresh_db):
     assert fresh_db.execute_returning_dicts("select * from test") == [
         {"id": 1, "bar": 2}
     ]
+
+
+def test_query_duplicate_output_columns_are_suffixed(fresh_db):
+    fresh_db.execute("create table one (id integer, value text)")
+    fresh_db.execute("create table two (id integer, value text)")
+    fresh_db["one"].insert({"id": 1, "value": "left"})
+    fresh_db["two"].insert({"id": 2, "value": "right"})
+
+    rows = list(
+        fresh_db.query(
+            "select one.id, two.id, one.value, two.value from one, two where one.id = 1"
+        )
+    )
+
+    assert rows == [{"id": 1, "id_2": 2, "value": "left", "value_2": "right"}]

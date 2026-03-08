@@ -82,6 +82,23 @@ def quote_identifier(identifier: str) -> str:
     return '"{}"'.format(identifier.replace('"', '""'))
 
 
+def _row_to_dict(keys: Sequence[str], row: Sequence[Any]) -> Dict[str, Any]:
+    """
+    Convert a row plus column names to a dictionary.
+
+    Duplicate column names are suffixed with ``_2``, ``_3``... so values are
+    preserved instead of overwritten.
+    """
+    counts: Dict[str, int] = {}
+    result: Dict[str, Any] = {}
+    for key, value in zip(keys, row):
+        count = counts.get(key, 0) + 1
+        counts[key] = count
+        final_key = key if count == 1 else "{}_{}".format(key, count)
+        result[final_key] = value
+    return result
+
+
 try:
     import pandas as pd  # type: ignore
 except ImportError:
@@ -548,7 +565,7 @@ class Database:
         cursor = self.execute(sql, params or tuple())
         keys = [d[0] for d in cursor.description]
         for row in cursor:
-            yield dict(zip(keys, row))
+            yield _row_to_dict(keys, row)
 
     def execute(
         self, sql: str, parameters: Optional[Union[Sequence, Dict[str, Any]]] = None
@@ -1445,7 +1462,7 @@ class Queryable:
         cursor = self.db.execute(sql, where_args or [])
         columns = [c[0] for c in cursor.description]
         for row in cursor:
-            yield dict(zip(columns, row))
+            yield _row_to_dict(columns, row)
 
     def pks_and_rows_where(
         self,
@@ -2862,7 +2879,7 @@ class Table(Queryable):
         )
         columns = [c[0] for c in cursor.description]
         for row in cursor:
-            yield dict(zip(columns, row))
+            yield _row_to_dict(columns, row)
 
     def value_or_default(self, key: str, value: Any) -> Any:
         return self._defaults[key] if value is DEFAULT else value
