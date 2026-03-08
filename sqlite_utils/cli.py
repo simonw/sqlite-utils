@@ -1796,7 +1796,10 @@ def drop_view(path, view, ignore, load_extension):
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[view].drop(ignore=ignore)
+        db.view(view).drop(ignore=ignore)
+    except sqlite_utils.db.NoView:
+        if not ignore:
+            raise click.ClickException('View "{}" does not exist'.format(view))
     except OperationalError:
         raise click.ClickException('View "{}" does not exist'.format(view))
 
@@ -2039,8 +2042,9 @@ def memory(
             view_names = ["t{}".format(i + 1)]
             if i == 0:
                 view_names.append("t")
+            existing_views = set(db.view_names())
             for view_name in view_names:
-                if not db[view_name].exists():
+                if view_name not in existing_views:
                     db.create_view(
                         view_name,
                         "select * from {}".format(quote_identifier(file_table)),
