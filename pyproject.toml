@@ -72,6 +72,9 @@ sqlite-utils = "sqlite_utils.cli:cli"
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[tool.pytest.ini_options]
+filterwarnings = ["error"]
+
 [tool.flake8]
 max-line-length = 160
 # Black compatibility, E203 whitespace before ':':
