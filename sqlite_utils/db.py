@@ -638,6 +638,16 @@ class Database:
         )
 
     def quote_default_value(self, value: str) -> str:
+        """
+        Return a SQL-safe representation of a column default value.
+
+        Already-quoted string literals and the SQLite special keywords
+        ``CURRENT_TIME``, ``CURRENT_DATE``, and ``CURRENT_TIMESTAMP`` are
+        returned unchanged.  Expressions that end in ``)`` are wrapped in
+        parentheses.  All other values are passed through :meth:`quote`.
+
+        :param value: The default value to format.
+        """
         if any(
             [
                 str(value).startswith("'") and str(value).endswith("'"),
@@ -735,6 +745,12 @@ class Database:
 
     @property
     def supports_on_conflict(self) -> bool:
+        """
+        Return ``True`` if the connected SQLite version supports upserts via
+        ``INSERT INTO ... ON CONFLICT DO UPDATE`` (requires SQLite 3.24+).
+
+        The result is cached on the instance after the first call.
+        """
         # SQLite's upsert is implemented as INSERT INTO ... ON CONFLICT DO ...
         if not hasattr(self, "_supports_on_conflict"):
             table_name = "t{}".format(secrets.token_hex(16))
@@ -839,6 +855,12 @@ class Database:
     def execute_returning_dicts(
         self, sql: str, params: Optional[Union[Sequence, Dict[str, Any]]] = None
     ) -> List[dict]:
+        """
+        Execute a SQL query and return the results as a list of dictionaries.
+
+        :param sql: SQL query to execute.
+        :param params: Optional parameters to pass to the query.
+        """
         return list(self.query(sql, params))
 
     def resolve_foreign_keys(
@@ -1396,6 +1418,13 @@ class Queryable:
         return self.db.execute(sql, where_args or []).fetchone()[0]
 
     def execute_count(self) -> int:
+        """
+        Return the total number of rows in this table or view.
+
+        .. deprecated::
+            Use :meth:`count_where` or the :attr:`count` property instead.
+            Kept for backwards compatibility only.
+        """
         # Backwards compatibility, see https://github.com/simonw/sqlite-utils/issues/305#issuecomment-890713185
         return self.count_where()
 
