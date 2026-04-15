@@ -237,7 +237,13 @@ def tables(
             yield row
 
     if table or fmt:
-        print(tabulate.tabulate(_iter(), headers=headers, tablefmt=fmt or "simple"))
+        print(
+            tabulate.tabulate(
+                _iter(),
+                headers=() if no_headers else headers,
+                tablefmt=fmt or "simple",
+            )
+        )
     elif csv or tsv:
         writer = csv_std.writer(sys.stdout, dialect="excel-tab" if tsv else "excel")
         if not no_headers:
@@ -2139,7 +2145,9 @@ def _execute_query(
         elif fmt or table:
             print(
                 tabulate.tabulate(
-                    list(cursor), headers=headers, tablefmt=fmt or "simple"
+                    list(cursor),
+                    headers=() if no_headers else headers,
+                    tablefmt=fmt or "simple",
                 )
             )
         elif csv or tsv:
