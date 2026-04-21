@@ -2327,6 +2327,21 @@ def test_upsert_detect_types(tmpdir, option):
     ]
 
 
+def test_insert_csv_header_only_detect_types_no_crash(tmpdir):
+    """Header-only CSV with default type detection must not crash (issue #702)."""
+    db_path = str(tmpdir / "test.db")
+    data = "name,age,weight\n"
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "-", "--csv"],
+        catch_exceptions=False,
+        input=data,
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    assert not db["creatures"].exists()
+
+
 def test_csv_detect_types_creates_real_columns(tmpdir):
     """Test that CSV import creates REAL columns for floats (default behavior)"""
     db_path = str(tmpdir / "test.db")
