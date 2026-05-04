@@ -1176,7 +1176,7 @@ def insert_upsert_implementation(
                 )
             else:
                 raise
-        if tracker is not None:
+        if tracker is not None and db.table(table).exists():
             db.table(table).transform(types=tracker.types)
 
         # Clean up open file-like objects
