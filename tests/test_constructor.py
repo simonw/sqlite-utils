@@ -87,3 +87,34 @@ def test_legacy_transaction_control_connection_is_accepted(tmpdir):
     db["t"].insert({"id": 1}, pk="id")
     assert [r["id"] for r in db["t"].rows] == [1]
     db.close()
+
+
+def test_memory_attribute_for_memory_true():
+    db = Database(memory=True)
+    assert db.memory is True
+    assert db.memory_name is None
+
+
+def test_memory_attribute_for_memory_name():
+    db = Database(memory_name="shared_attr")
+    assert db.memory is True
+    assert db.memory_name == "shared_attr"
+
+
+def test_memory_attribute_for_memory_string_path():
+    db = Database(":memory:")
+    assert db.memory is True
+    assert db.memory_name is None
+
+
+def test_memory_attribute_for_file_path(tmpdir):
+    db = Database(str(tmpdir / "file.db"))
+    assert db.memory is False
+    assert db.memory_name is None
+
+
+def test_memory_attribute_for_existing_connection():
+    conn = sqlite3.connect(":memory:")
+    db = Database(conn)
+    assert db.memory is False
+    assert db.memory_name is None
