@@ -105,6 +105,14 @@ You can also create a named in-memory database. Unlike regular memory databases 
 
     db = Database(memory_name="my_shared_database")
 
+After creating a ``Database`` you can use ``db.memory`` and ``db.memory_name`` to tell whether it is backed by an in-memory database and to read the shared cache name. ``db.memory`` is ``True`` for any in-memory database and ``db.memory_name`` holds the name passed to ``memory_name=``, or ``None`` otherwise.
+
+.. code-block:: python
+
+    db = Database(memory_name="shared")
+    db.memory       # True
+    db.memory_name  # "shared"
+
 Connections use ``PRAGMA recursive_triggers=on`` by default. If you don't want to use `recursive triggers <https://www.sqlite.org/pragma.html#pragma_recursive_triggers>`__ you can turn them off using:
 
 .. code-block:: python
