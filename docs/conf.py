@@ -109,6 +109,14 @@ highlight_language = "none"
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
+# Smart-quote substitutions, but skip the dash transformations. Without this,
+# "--" inside cross-references like :ref:`insert --convert <...>` gets rewritten
+# to en/em dashes (the en dash "–"), which is the bug from
+# https://github.com/simonw/sqlite-utils/issues/493. The default action is
+# "qDe"; dropping the "D" keeps SmartQuotes for quotes ("q") and ellipses
+# ("e") while leaving "--" alone.
+smartquotes_action = "qe"
+
 
 # -- Options for HTML output ----------------------------------------------
 
