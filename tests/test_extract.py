@@ -126,9 +126,7 @@ def test_extract_rowid_table(fresh_db):
         '   "common_name_latin_name_id" INTEGER REFERENCES "common_name_latin_name"("id")\n'
         ")"
     )
-    assert (
-        fresh_db.execute(
-            """
+    assert fresh_db.execute("""
         select
             tree.name,
             common_name_latin_name.common_name,
@@ -136,10 +134,7 @@ def test_extract_rowid_table(fresh_db):
         from tree
             join common_name_latin_name
             on tree.common_name_latin_name_id = common_name_latin_name.id
-    """
-        ).fetchall()
-        == [("Tree 1", "Palm", "Arecaceae")]
-    )
+    """).fetchall() == [("Tree 1", "Palm", "Arecaceae")]
 
 
 def test_reuse_lookup_table(fresh_db):

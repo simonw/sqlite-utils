@@ -15,6 +15,7 @@ from collections.abc import Mapping
 import contextlib
 import datetime
 import decimal
+import importlib
 import inspect
 import itertools
 import json
@@ -22,7 +23,7 @@ import os
 import pathlib
 import re
 import secrets
-from sqlite_fts4 import rank_bm25  # type: ignore
+from sqlite_fts4 import rank_bm25
 import textwrap
 from typing import (
     cast,
@@ -43,7 +44,7 @@ import uuid
 from sqlite_utils.plugins import pm
 
 try:
-    from sqlite_dump import iterdump  # type: ignore[import-not-found]
+    iterdump = importlib.import_module("sqlite_dump").iterdump
 except ImportError:
     iterdump = None
 
@@ -82,15 +83,17 @@ def quote_identifier(identifier: str) -> str:
     return '"{}"'.format(identifier.replace('"', '""'))
 
 
+pd: Any = None
 try:
-    import pandas as pd  # type: ignore
+    pd = importlib.import_module("pandas")
 except ImportError:
-    pd = None  # type: ignore
+    pd = None
 
+np: Any = None
 try:
-    import numpy as np  # type: ignore
+    np = importlib.import_module("numpy")
 except ImportError:
-    np = None  # type: ignore
+    np = None
 
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
@@ -190,7 +193,10 @@ class Default:
 
 DEFAULT = Default()
 
-COLUMN_TYPE_MAPPING = {
+Tracer = Callable[[str, Optional[Union[Sequence[Any], Dict[str, Any]]]], None]
+
+
+COLUMN_TYPE_MAPPING: Dict[Any, str] = {
     float: "REAL",
     int: "INTEGER",
     bool: "INTEGER",
@@ -339,7 +345,7 @@ class Database:
         memory_name: Optional[str] = None,
         recreate: bool = False,
         recursive_triggers: bool = True,
-        tracer: Optional[Callable] = None,
+        tracer: Optional[Tracer] = None,
         use_counts_table: bool = False,
         execute_plugins: bool = True,
         use_old_upsert: bool = False,
@@ -375,8 +381,8 @@ class Database:
             self.conn = sqlite3.connect(str(filename_or_conn))
         else:
             assert not recreate, "recreate cannot be used with connections, only paths"
-            self.conn = filename_or_conn
-        self._tracer = tracer
+            self.conn = cast(sqlite3.Connection, filename_or_conn)
+        self._tracer: Optional[Tracer] = tracer
         if recursive_triggers:
             self.execute("PRAGMA recursive_triggers=on;")
         self._registered_functions: set = set()
@@ -421,7 +427,7 @@ class Database:
 
     @contextlib.contextmanager
     def tracer(
-        self, tracer: Optional[Callable[[str, Optional[Sequence]], None]] = None
+        self, tracer: Optional[Tracer] = None
     ) -> Generator["Database", None, None]:
         """
         Context manager to temporarily set a tracer function - all executed SQL queries will
@@ -439,7 +445,7 @@ class Database:
         :param tracer: Callable accepting ``sql`` and ``parameters`` arguments
         """
         prev_tracer = self._tracer
-        self._tracer = tracer or print
+        self._tracer = tracer or cast(Tracer, print)
         try:
             yield self
         finally:
@@ -2275,12 +2281,10 @@ class Table(Queryable):
                 "{}_{}".format(index_name, suffix) if suffix else index_name
             )
             sql = (
-                textwrap.dedent(
-                    """
+                textwrap.dedent("""
                 CREATE {unique}INDEX {if_not_exists}{index_name}
                     ON {table_name} ({columns});
-            """
-                )
+            """)
                 .strip()
                 .format(
                     index_name=quote_identifier(created_index_name),
@@ -2475,8 +2479,7 @@ class Table(Queryable):
         See :ref:`python_api_cached_table_counts` for details.
         """
         sql = (
-            textwrap.dedent(
-                """
+            textwrap.dedent("""
         {create_counts_table}
         CREATE TRIGGER IF NOT EXISTS {trigger_insert} AFTER INSERT ON {table}
         BEGIN
@@ -2501,8 +2504,7 @@ class Table(Queryable):
             );
         END;
         INSERT OR REPLACE INTO _counts VALUES ({table_quoted}, (select count(*) from {table}));
-        """
-            )
+        """)
             .strip()
             .format(
                 create_counts_table=_COUNTS_TABLE_CREATE_SQL.format(
@@ -2554,14 +2556,12 @@ class Table(Queryable):
         :param replace: Should any existing FTS index for this table be replaced by the new one?
         """
         create_fts_sql = (
-            textwrap.dedent(
-                """
+            textwrap.dedent("""
             CREATE VIRTUAL TABLE {table_fts} USING {fts_version} (
                 {columns},{tokenize}
                 content={table}
             )
-        """
-            )
+        """)
             .strip()
             .format(
                 table=quote_identifier(self.name),
@@ -2599,8 +2599,7 @@ class Table(Queryable):
             table = quote_identifier(self.name)
             table_fts = quote_identifier(self.name + "_fts")
             triggers = (
-                textwrap.dedent(
-                    """
+                textwrap.dedent("""
                 CREATE TRIGGER {table_ai} AFTER INSERT ON {table} BEGIN
                   INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
                 END;
@@ -2611,8 +2610,7 @@ class Table(Queryable):
                   INSERT INTO {table_fts} ({table_fts}, rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
                   INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
                 END;
-            """
-                )
+            """)
                 .strip()
                 .format(
                     table=table,
@@ -2637,12 +2635,10 @@ class Table(Queryable):
         """
         columns_quoted = ", ".join(quote_identifier(c) for c in columns)
         sql = (
-            textwrap.dedent(
-                """
+            textwrap.dedent("""
             INSERT INTO {table_fts} (rowid, {columns})
                 SELECT rowid, {columns} FROM {table};
-        """
-            )
+        """)
             .strip()
             .format(
                 table=quote_identifier(self.name),
@@ -2659,17 +2655,11 @@ class Table(Queryable):
         if fts_table:
             self.db[fts_table].drop()
         # Now delete the triggers that related to that table
-        sql = (
-            textwrap.dedent(
-                """
+        sql = textwrap.dedent("""
             SELECT name FROM sqlite_master
                 WHERE type = 'trigger'
                 AND (sql LIKE '% INSERT INTO [{}]%' OR sql LIKE '% INSERT INTO "{}"%')
-        """
-            )
-            .strip()
-            .format(fts_table, fts_table)
-        )
+        """).strip().format(fts_table, fts_table)
         trigger_names = []
         for row in self.db.execute(sql).fetchall():
             trigger_names.append(row[0])
@@ -2695,8 +2685,7 @@ class Table(Queryable):
 
     def detect_fts(self) -> Optional[str]:
         "Detect if table has a corresponding FTS virtual table and return it"
-        sql = textwrap.dedent(
-            """
+        sql = textwrap.dedent("""
             SELECT name FROM sqlite_master
                 WHERE rootpage = 0
                 AND (
@@ -2707,8 +2696,7 @@ class Table(Queryable):
                         AND sql LIKE '%VIRTUAL TABLE%USING FTS%'
                     )
                 )
-        """
-        ).strip()
+        """).strip()
         args = {
             "like": '%VIRTUAL TABLE%USING FTS%content="{}"%'.format(self.name),
             "like2": '%VIRTUAL TABLE%USING FTS%content="{}"%'.format(self.name),
@@ -2724,13 +2712,9 @@ class Table(Queryable):
         "Run the ``optimize`` operation against the associated full-text search index table."
         fts_table = self.detect_fts()
         if fts_table is not None:
-            self.db.execute(
-                """
+            self.db.execute("""
                 INSERT INTO {table} ({table}) VALUES ("optimize");
-            """.strip().format(
-                    table=quote_identifier(fts_table)
-                )
-            )
+            """.strip().format(table=quote_identifier(fts_table)))
         return self
 
     def search_sql(
@@ -2768,8 +2752,7 @@ class Table(Queryable):
         )
         fts_table_quoted = quote_identifier(fts_table)
         virtual_table_using = self.db.table(fts_table).virtual_table_using
-        sql = textwrap.dedent(
-            """
+        sql = textwrap.dedent("""
         with {original} as (
             select
                 rowid,
@@ -2786,8 +2769,7 @@ class Table(Queryable):
         order by
             {order_by}
         {limit_offset}
-        """
-        ).strip()
+        """).strip()
         if virtual_table_using == "FTS5":
             rank_implementation = "{}.rank".format(fts_table_quoted)
         else:
@@ -3517,7 +3499,7 @@ class Table(Queryable):
                 raise ValueError(
                     "When using list-based iteration, the first yielded value must be a list of column name strings"
                 )
-            column_names = list(first_record)
+            column_names = cast(List[str], list(first_record))
             all_columns = column_names
             num_columns = len(column_names)
             # Get the actual first data record
@@ -3559,7 +3541,8 @@ class Table(Queryable):
                         chunk_as_dicts = [dict(zip(column_names, row)) for row in chunk]
                         column_types = suggest_column_types(chunk_as_dicts)
                     else:
-                        column_types = suggest_column_types(chunk)  # type: ignore[arg-type]
+                        dict_chunk = cast(List[Dict[str, Any]], chunk)
+                        column_types = suggest_column_types(dict_chunk)
                     if extracts:
                         for col in extracts:
                             if col in column_types:
@@ -3586,14 +3569,14 @@ class Table(Queryable):
                         all_columns.insert(0, hash_id)
                 else:
                     all_columns_set: Set[str] = set()
-                    for record in chunk:
-                        all_columns_set.update(record.keys())  # type: ignore[union-attr]
+                    for record in cast(List[Dict[str, Any]], chunk):
+                        all_columns_set.update(record.keys())
                     all_columns = list(sorted(all_columns_set))
                     if hash_id:
                         all_columns.insert(0, hash_id)
             else:
                 if not list_mode:
-                    for record in chunk:
+                    for record in cast(List[Dict[str, Any]], chunk):
                         all_columns += [
                             column for column in record if column not in all_columns
                         ]
@@ -3791,6 +3774,7 @@ class Table(Queryable):
         :param strict: Boolean, apply STRICT mode if creating the table.
         """
         assert isinstance(lookup_values, dict)
+        assert pk is not None
         if extra_values is not None:
             assert isinstance(extra_values, dict)
         combined_values = dict(lookup_values)
@@ -3810,7 +3794,7 @@ class Table(Queryable):
                 )
             )
             try:
-                return rows[0][pk]  # type: ignore[index]
+                return rows[0][pk]
             except IndexError:
                 return self.insert(
                     combined_values,

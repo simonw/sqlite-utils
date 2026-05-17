@@ -117,15 +117,15 @@ See :ref:`cli_query`.
       --tsv                       Output TSV
       --no-headers                Omit CSV headers
       -t, --table                 Output as a formatted table
-      --fmt TEXT                  Table format - one of asciidoc, double_grid,
-                                  double_outline, fancy_grid, fancy_outline, github,
-                                  grid, heavy_grid, heavy_outline, html, jira,
-                                  latex, latex_booktabs, latex_longtable, latex_raw,
-                                  mediawiki, mixed_grid, mixed_outline, moinmoin,
-                                  orgtbl, outline, pipe, plain, presto, pretty,
-                                  psql, rounded_grid, rounded_outline, rst, simple,
-                                  simple_grid, simple_outline, textile, tsv,
-                                  unsafehtml, youtrack
+      --fmt TEXT                  Table format - one of asciidoc, colon_grid,
+                                  double_grid, double_outline, fancy_grid,
+                                  fancy_outline, github, grid, heavy_grid,
+                                  heavy_outline, html, jira, latex, latex_booktabs,
+                                  latex_longtable, latex_raw, mediawiki, mixed_grid,
+                                  mixed_outline, moinmoin, orgtbl, outline, pipe,
+                                  plain, presto, pretty, psql, rounded_grid,
+                                  rounded_outline, rst, simple, simple_grid,
+                                  simple_outline, textile, tsv, unsafehtml, youtrack
       --json-cols                 Detect JSON cols and output them as JSON, not
                                   escaped strings
       -r, --raw                   Raw output, first column of first row
@@ -186,15 +186,15 @@ See :ref:`cli_memory`.
       --tsv                       Output TSV
       --no-headers                Omit CSV headers
       -t, --table                 Output as a formatted table
-      --fmt TEXT                  Table format - one of asciidoc, double_grid,
-                                  double_outline, fancy_grid, fancy_outline, github,
-                                  grid, heavy_grid, heavy_outline, html, jira,
-                                  latex, latex_booktabs, latex_longtable, latex_raw,
-                                  mediawiki, mixed_grid, mixed_outline, moinmoin,
-                                  orgtbl, outline, pipe, plain, presto, pretty,
-                                  psql, rounded_grid, rounded_outline, rst, simple,
-                                  simple_grid, simple_outline, textile, tsv,
-                                  unsafehtml, youtrack
+      --fmt TEXT                  Table format - one of asciidoc, colon_grid,
+                                  double_grid, double_outline, fancy_grid,
+                                  fancy_outline, github, grid, heavy_grid,
+                                  heavy_outline, html, jira, latex, latex_booktabs,
+                                  latex_longtable, latex_raw, mediawiki, mixed_grid,
+                                  mixed_outline, moinmoin, orgtbl, outline, pipe,
+                                  plain, presto, pretty, psql, rounded_grid,
+                                  rounded_outline, rst, simple, simple_grid,
+                                  simple_outline, textile, tsv, unsafehtml, youtrack
       --json-cols                 Detect JSON cols and output them as JSON, not
                                   escaped strings
       -r, --raw                   Raw output, first column of first row
@@ -425,14 +425,15 @@ See :ref:`cli_search`.
       --tsv                  Output TSV
       --no-headers           Omit CSV headers
       -t, --table            Output as a formatted table
-      --fmt TEXT             Table format - one of asciidoc, double_grid,
-                             double_outline, fancy_grid, fancy_outline, github,
-                             grid, heavy_grid, heavy_outline, html, jira, latex,
-                             latex_booktabs, latex_longtable, latex_raw, mediawiki,
-                             mixed_grid, mixed_outline, moinmoin, orgtbl, outline,
-                             pipe, plain, presto, pretty, psql, rounded_grid,
-                             rounded_outline, rst, simple, simple_grid,
-                             simple_outline, textile, tsv, unsafehtml, youtrack
+      --fmt TEXT             Table format - one of asciidoc, colon_grid,
+                             double_grid, double_outline, fancy_grid, fancy_outline,
+                             github, grid, heavy_grid, heavy_outline, html, jira,
+                             latex, latex_booktabs, latex_longtable, latex_raw,
+                             mediawiki, mixed_grid, mixed_outline, moinmoin, orgtbl,
+                             outline, pipe, plain, presto, pretty, psql,
+                             rounded_grid, rounded_outline, rst, simple,
+                             simple_grid, simple_outline, textile, tsv, unsafehtml,
+                             youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
@@ -690,14 +691,15 @@ See :ref:`cli_tables`.
       --tsv                  Output TSV
       --no-headers           Omit CSV headers
       -t, --table            Output as a formatted table
-      --fmt TEXT             Table format - one of asciidoc, double_grid,
-                             double_outline, fancy_grid, fancy_outline, github,
-                             grid, heavy_grid, heavy_outline, html, jira, latex,
-                             latex_booktabs, latex_longtable, latex_raw, mediawiki,
-                             mixed_grid, mixed_outline, moinmoin, orgtbl, outline,
-                             pipe, plain, presto, pretty, psql, rounded_grid,
-                             rounded_outline, rst, simple, simple_grid,
-                             simple_outline, textile, tsv, unsafehtml, youtrack
+      --fmt TEXT             Table format - one of asciidoc, colon_grid,
+                             double_grid, double_outline, fancy_grid, fancy_outline,
+                             github, grid, heavy_grid, heavy_outline, html, jira,
+                             latex, latex_booktabs, latex_longtable, latex_raw,
+                             mediawiki, mixed_grid, mixed_outline, moinmoin, orgtbl,
+                             outline, pipe, plain, presto, pretty, psql,
+                             rounded_grid, rounded_outline, rst, simple,
+                             simple_grid, simple_outline, textile, tsv, unsafehtml,
+                             youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
       --columns              Include list of columns for each table
@@ -731,14 +733,15 @@ See :ref:`cli_views`.
       --tsv                  Output TSV
       --no-headers           Omit CSV headers
       -t, --table            Output as a formatted table
-      --fmt TEXT             Table format - one of asciidoc, double_grid,
-                             double_outline, fancy_grid, fancy_outline, github,
-                             grid, heavy_grid, heavy_outline, html, jira, latex,
-                             latex_booktabs, latex_longtable, latex_raw, mediawiki,
-                             mixed_grid, mixed_outline, moinmoin, orgtbl, outline,
-                             pipe, plain, presto, pretty, psql, rounded_grid,
-                             rounded_outline, rst, simple, simple_grid,
-                             simple_outline, textile, tsv, unsafehtml, youtrack
+      --fmt TEXT             Table format - one of asciidoc, colon_grid,
+                             double_grid, double_outline, fancy_grid, fancy_outline,
+                             github, grid, heavy_grid, heavy_outline, html, jira,
+                             latex, latex_booktabs, latex_longtable, latex_raw,
+                             mediawiki, mixed_grid, mixed_outline, moinmoin, orgtbl,
+                             outline, pipe, plain, presto, pretty, psql,
+                             rounded_grid, rounded_outline, rst, simple,
+                             simple_grid, simple_outline, textile, tsv, unsafehtml,
+                             youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
       --columns              Include list of columns for each view
@@ -777,15 +780,15 @@ See :ref:`cli_rows`.
       --tsv                       Output TSV
       --no-headers                Omit CSV headers
       -t, --table                 Output as a formatted table
-      --fmt TEXT                  Table format - one of asciidoc, double_grid,
-                                  double_outline, fancy_grid, fancy_outline, github,
-                                  grid, heavy_grid, heavy_outline, html, jira,
-                                  latex, latex_booktabs, latex_longtable, latex_raw,
-                                  mediawiki, mixed_grid, mixed_outline, moinmoin,
-                                  orgtbl, outline, pipe, plain, presto, pretty,
-                                  psql, rounded_grid, rounded_outline, rst, simple,
-                                  simple_grid, simple_outline, textile, tsv,
-                                  unsafehtml, youtrack
+      --fmt TEXT                  Table format - one of asciidoc, colon_grid,
+                                  double_grid, double_outline, fancy_grid,
+                                  fancy_outline, github, grid, heavy_grid,
+                                  heavy_outline, html, jira, latex, latex_booktabs,
+                                  latex_longtable, latex_raw, mediawiki, mixed_grid,
+                                  mixed_outline, moinmoin, orgtbl, outline, pipe,
+                                  plain, presto, pretty, psql, rounded_grid,
+                                  rounded_outline, rst, simple, simple_grid,
+                                  simple_outline, textile, tsv, unsafehtml, youtrack
       --json-cols                 Detect JSON cols and output them as JSON, not
                                   escaped strings
       --load-extension TEXT       Path to SQLite extension, with optional
@@ -817,14 +820,15 @@ See :ref:`cli_triggers`.
       --tsv                  Output TSV
       --no-headers           Omit CSV headers
       -t, --table            Output as a formatted table
-      --fmt TEXT             Table format - one of asciidoc, double_grid,
-                             double_outline, fancy_grid, fancy_outline, github,
-                             grid, heavy_grid, heavy_outline, html, jira, latex,
-                             latex_booktabs, latex_longtable, latex_raw, mediawiki,
-                             mixed_grid, mixed_outline, moinmoin, orgtbl, outline,
-                             pipe, plain, presto, pretty, psql, rounded_grid,
-                             rounded_outline, rst, simple, simple_grid,
-                             simple_outline, textile, tsv, unsafehtml, youtrack
+      --fmt TEXT             Table format - one of asciidoc, colon_grid,
+                             double_grid, double_outline, fancy_grid, fancy_outline,
+                             github, grid, heavy_grid, heavy_outline, html, jira,
+                             latex, latex_booktabs, latex_longtable, latex_raw,
+                             mediawiki, mixed_grid, mixed_outline, moinmoin, orgtbl,
+                             outline, pipe, plain, presto, pretty, psql,
+                             rounded_grid, rounded_outline, rst, simple,
+                             simple_grid, simple_outline, textile, tsv, unsafehtml,
+                             youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
@@ -856,14 +860,15 @@ See :ref:`cli_indexes`.
       --tsv                  Output TSV
       --no-headers           Omit CSV headers
       -t, --table            Output as a formatted table
-      --fmt TEXT             Table format - one of asciidoc, double_grid,
-                             double_outline, fancy_grid, fancy_outline, github,
-                             grid, heavy_grid, heavy_outline, html, jira, latex,
-                             latex_booktabs, latex_longtable, latex_raw, mediawiki,
-                             mixed_grid, mixed_outline, moinmoin, orgtbl, outline,
-                             pipe, plain, presto, pretty, psql, rounded_grid,
-                             rounded_outline, rst, simple, simple_grid,
-                             simple_outline, textile, tsv, unsafehtml, youtrack
+      --fmt TEXT             Table format - one of asciidoc, colon_grid,
+                             double_grid, double_outline, fancy_grid, fancy_outline,
+                             github, grid, heavy_grid, heavy_outline, html, jira,
+                             latex, latex_booktabs, latex_longtable, latex_raw,
+                             mediawiki, mixed_grid, mixed_outline, moinmoin, orgtbl,
+                             outline, pipe, plain, presto, pretty, psql,
+                             rounded_grid, rounded_outline, rst, simple,
+                             simple_grid, simple_outline, textile, tsv, unsafehtml,
+                             youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint

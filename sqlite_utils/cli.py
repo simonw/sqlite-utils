@@ -1,7 +1,7 @@
 import base64
 from typing import Any
 import click
-from click_default_group import DefaultGroup  # type: ignore
+from click_default_group import DefaultGroup
 from datetime import datetime, timezone
 import hashlib
 import pathlib
@@ -41,7 +41,6 @@ from .utils import (
     Format,
     TypeTracker,
 )
-
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
@@ -223,7 +222,7 @@ def tables(
         else:
             items = db.table_names(fts4=fts4, fts5=fts5)
         for name in items:
-            row = [name]
+            row: list[Any] = [name]
             if counts:
                 row.append(method(name).count)
             if columns:
@@ -2122,8 +2121,9 @@ def _execute_query(
             cursor = [[cursor.rowcount]]
         else:
             headers = [c[0] for c in cursor.description]
+        cursor_or_rows: Any = cursor
         if raw:
-            row = cursor.fetchone()  # type: ignore[union-attr]
+            row = cursor_or_rows.fetchone()
             data = row[0] if row else None
             if isinstance(data, bytes):
                 sys.stdout.buffer.write(data)
@@ -2911,8 +2911,7 @@ def _analyze(db, tables, columns, save, common_limit=10, no_most=False, no_least
         )
         details = (
             (
-                textwrap.dedent(
-                    """
+                textwrap.dedent("""
         {table}.{column}: ({i}/{total})
 
           Total rows: {total_rows}
@@ -2920,8 +2919,7 @@ def _analyze(db, tables, columns, save, common_limit=10, no_most=False, no_least
           Blank rows: {num_blank}
 
           Distinct values: {num_distinct}{most_common_rendered}{least_common_rendered}
-        """
-                )
+        """)
                 .strip()
                 .format(
                     i=i + 1,
@@ -2968,8 +2966,7 @@ def uninstall(packages, yes):
 
 
 def _generate_convert_help():
-    help = textwrap.dedent(
-        """
+    help = textwrap.dedent("""
     Convert columns using Python code you supply. For example:
 
     \b
@@ -2982,8 +2979,7 @@ def _generate_convert_help():
     Use "-" for CODE to read Python code from standard input.
 
     The following common operations are available as recipe functions:
-    """
-    ).strip()
+    """).strip()
     recipe_names = [
         n
         for n in dir(recipes)
@@ -2997,15 +2993,13 @@ def _generate_convert_help():
             name, str(inspect.signature(fn)), textwrap.dedent(fn.__doc__.rstrip())
         )
     help += "\n\n"
-    help += textwrap.dedent(
-        """
+    help += textwrap.dedent("""
     You can use these recipes like so:
 
     \b
     sqlite-utils convert my.db mytable mycolumn \\
         'r.jsonsplit(value, delimiter=":")'
-    """
-    ).strip()
+    """).strip()
     return help
 
 

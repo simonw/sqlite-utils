@@ -33,7 +33,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "black>=24.1.1",
+    "black>=26.3.1",
     "cogapp",
     "hypothesis",
     "pytest",
@@ -47,7 +47,9 @@ dev = [
     # flake8
     "flake8",
     "flake8-pyproject",
-    "ty",
+    "ty>=0.0.37",
+    # For stable cog:
+    "tabulate>=0.10.0",
 ]
 docs = [
     "beanbag-docutils>=2.0",

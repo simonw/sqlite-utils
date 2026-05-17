@@ -20,7 +20,6 @@ import pathlib
 import pytest
 import uuid
 
-
 try:
     import pandas as pd  # type: ignore
 except ImportError:

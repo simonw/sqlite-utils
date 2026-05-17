@@ -1,6 +1,5 @@
 import pytest
 
-
 EXAMPLES = [
     ("TEXT DEFAULT 'foo'", "'foo'", "'foo'"),
     ("TEXT DEFAULT 'foo)'", "'foo)'", "'foo)'"),

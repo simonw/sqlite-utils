@@ -143,10 +143,7 @@ def db_to_analyze_path(db_to_analyze, tmpdir):
 
 def test_analyze_table(db_to_analyze_path):
     result = CliRunner().invoke(cli.cli, ["analyze-tables", db_to_analyze_path])
-    assert (
-        result.output.strip()
-        == (
-            """
+    assert result.output.strip() == ("""
 stuff.id: (1/3)
 
   Total rows: 8
@@ -179,9 +176,7 @@ stuff.size: (3/3)
 
   Most common:
     5: 5
-    3: 4"""
-        ).strip()
-    )
+    3: 4""").strip()
 
 
 def test_analyze_table_save(db_to_analyze_path):
