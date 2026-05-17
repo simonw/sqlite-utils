@@ -1,7 +1,7 @@
 import base64
 from typing import Any
 import click
-from click_default_group import DefaultGroup  # type: ignore
+from click_default_group import DefaultGroup
 from datetime import datetime, timezone
 import hashlib
 import pathlib
@@ -222,7 +222,7 @@ def tables(
         else:
             items = db.table_names(fts4=fts4, fts5=fts5)
         for name in items:
-            row = [name]
+            row: list[Any] = [name]
             if counts:
                 row.append(method(name).count)
             if columns:
@@ -2121,8 +2121,9 @@ def _execute_query(
             cursor = [[cursor.rowcount]]
         else:
             headers = [c[0] for c in cursor.description]
+        cursor_or_rows: Any = cursor
         if raw:
-            row = cursor.fetchone()  # type: ignore[union-attr]
+            row = cursor_or_rows.fetchone()
             data = row[0] if row else None
             if isinstance(data, bytes):
                 sys.stdout.buffer.write(data)

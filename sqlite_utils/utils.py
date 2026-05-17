@@ -3,6 +3,7 @@ import contextlib
 import csv
 import enum
 import hashlib
+import importlib
 import io
 import itertools
 import json
@@ -21,6 +22,7 @@ from typing import (
     Set,
     Tuple,
     Type,
+    TYPE_CHECKING,
     TypeVar,
     Union,
     cast,
@@ -30,22 +32,26 @@ import click
 
 from . import recipes
 
-try:
-    import pysqlite3 as sqlite3  # type: ignore[import-not-found]  # noqa: F401
-    from pysqlite3 import dbapi2  # type: ignore[import-not-found]  # noqa: F401
+if TYPE_CHECKING:
+    import sqlite3  # noqa: F401
+    from sqlite3 import dbapi2  # noqa: F401
 
     OperationalError = dbapi2.OperationalError
-except ImportError:
+else:
     try:
-        import sqlean as sqlite3  # type: ignore[import-not-found]  # noqa: F401
-        from sqlean import dbapi2  # type: ignore[import-not-found]  # noqa: F401
-
+        sqlite3 = importlib.import_module("pysqlite3")
+        dbapi2 = importlib.import_module("pysqlite3.dbapi2")
         OperationalError = dbapi2.OperationalError
     except ImportError:
-        import sqlite3  # noqa: F401
-        from sqlite3 import dbapi2  # noqa: F401
+        try:
+            sqlite3 = importlib.import_module("sqlean")
+            dbapi2 = importlib.import_module("sqlean.dbapi2")
+            OperationalError = dbapi2.OperationalError
+        except ImportError:
+            import sqlite3  # noqa: F401
+            from sqlite3 import dbapi2  # noqa: F401
 
-        OperationalError = dbapi2.OperationalError
+            OperationalError = dbapi2.OperationalError
 
 
 SPATIALITE_PATHS = (
@@ -60,7 +66,7 @@ SPATIALITE_PATHS = (
 ORIGINAL_CSV_FIELD_SIZE_LIMIT = csv.field_size_limit()
 
 # Type alias for row dictionaries - values can be various SQLite-compatible types
-RowValue = Union[None, int, float, str, bytes, bool]
+RowValue = Union[None, int, float, str, bytes, bool, List[str]]
 Row = Dict[str, RowValue]
 
 T = TypeVar("T")
@@ -284,7 +290,7 @@ def _extra_key_strategy(
         else:
             extras_value = row.pop(None)
             row_out = cast(Row, row)
-            row_out[extras_key] = extras_value  # type: ignore[assignment]
+            row_out[extras_key] = cast(RowValue, extras_value)
             yield row_out
 
 
@@ -464,14 +470,14 @@ class ValueTracker:
 
     def test_integer(self, value: object) -> bool:
         try:
-            int(value)  # type: ignore
+            int(cast(Any, value))
             return True
         except (ValueError, TypeError):
             return False
 
     def test_float(self, value: object) -> bool:
         try:
-            float(value)  # type: ignore[arg-type]
+            float(cast(Any, value))
             return True
         except (ValueError, TypeError):
             return False

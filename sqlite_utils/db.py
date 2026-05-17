@@ -15,6 +15,7 @@ from collections.abc import Mapping
 import contextlib
 import datetime
 import decimal
+import importlib
 import inspect
 import itertools
 import json
@@ -22,7 +23,7 @@ import os
 import pathlib
 import re
 import secrets
-from sqlite_fts4 import rank_bm25  # type: ignore
+from sqlite_fts4 import rank_bm25
 import textwrap
 from typing import (
     cast,
@@ -43,7 +44,7 @@ import uuid
 from sqlite_utils.plugins import pm
 
 try:
-    from sqlite_dump import iterdump  # type: ignore[import-not-found]
+    iterdump = importlib.import_module("sqlite_dump").iterdump
 except ImportError:
     iterdump = None
 
@@ -82,15 +83,17 @@ def quote_identifier(identifier: str) -> str:
     return '"{}"'.format(identifier.replace('"', '""'))
 
 
+pd: Any = None
 try:
-    import pandas as pd  # type: ignore
+    pd = importlib.import_module("pandas")
 except ImportError:
-    pd = None  # type: ignore
+    pd = None
 
+np: Any = None
 try:
-    import numpy as np  # type: ignore
+    np = importlib.import_module("numpy")
 except ImportError:
-    np = None  # type: ignore
+    np = None
 
 Column = namedtuple(
     "Column", ("cid", "name", "type", "notnull", "default_value", "is_pk")
@@ -190,7 +193,10 @@ class Default:
 
 DEFAULT = Default()
 
-COLUMN_TYPE_MAPPING = {
+Tracer = Callable[[str, Optional[Union[Sequence[Any], Dict[str, Any]]]], None]
+
+
+COLUMN_TYPE_MAPPING: Dict[Any, str] = {
     float: "REAL",
     int: "INTEGER",
     bool: "INTEGER",
@@ -339,7 +345,7 @@ class Database:
         memory_name: Optional[str] = None,
         recreate: bool = False,
         recursive_triggers: bool = True,
-        tracer: Optional[Callable] = None,
+        tracer: Optional[Tracer] = None,
         use_counts_table: bool = False,
         execute_plugins: bool = True,
         use_old_upsert: bool = False,
@@ -375,8 +381,8 @@ class Database:
             self.conn = sqlite3.connect(str(filename_or_conn))
         else:
             assert not recreate, "recreate cannot be used with connections, only paths"
-            self.conn = filename_or_conn
-        self._tracer = tracer
+            self.conn = cast(sqlite3.Connection, filename_or_conn)
+        self._tracer: Optional[Tracer] = tracer
         if recursive_triggers:
             self.execute("PRAGMA recursive_triggers=on;")
         self._registered_functions: set = set()
@@ -421,7 +427,7 @@ class Database:
 
     @contextlib.contextmanager
     def tracer(
-        self, tracer: Optional[Callable[[str, Optional[Sequence]], None]] = None
+        self, tracer: Optional[Tracer] = None
     ) -> Generator["Database", None, None]:
         """
         Context manager to temporarily set a tracer function - all executed SQL queries will
@@ -439,7 +445,7 @@ class Database:
         :param tracer: Callable accepting ``sql`` and ``parameters`` arguments
         """
         prev_tracer = self._tracer
-        self._tracer = tracer or print
+        self._tracer = tracer or cast(Tracer, print)
         try:
             yield self
         finally:
@@ -3493,7 +3499,7 @@ class Table(Queryable):
                 raise ValueError(
                     "When using list-based iteration, the first yielded value must be a list of column name strings"
                 )
-            column_names = list(first_record)
+            column_names = cast(List[str], list(first_record))
             all_columns = column_names
             num_columns = len(column_names)
             # Get the actual first data record
@@ -3535,7 +3541,8 @@ class Table(Queryable):
                         chunk_as_dicts = [dict(zip(column_names, row)) for row in chunk]
                         column_types = suggest_column_types(chunk_as_dicts)
                     else:
-                        column_types = suggest_column_types(chunk)  # type: ignore[arg-type]
+                        dict_chunk = cast(List[Dict[str, Any]], chunk)
+                        column_types = suggest_column_types(dict_chunk)
                     if extracts:
                         for col in extracts:
                             if col in column_types:
@@ -3562,14 +3569,14 @@ class Table(Queryable):
                         all_columns.insert(0, hash_id)
                 else:
                     all_columns_set: Set[str] = set()
-                    for record in chunk:
-                        all_columns_set.update(record.keys())  # type: ignore[union-attr]
+                    for record in cast(List[Dict[str, Any]], chunk):
+                        all_columns_set.update(record.keys())
                     all_columns = list(sorted(all_columns_set))
                     if hash_id:
                         all_columns.insert(0, hash_id)
             else:
                 if not list_mode:
-                    for record in chunk:
+                    for record in cast(List[Dict[str, Any]], chunk):
                         all_columns += [
                             column for column in record if column not in all_columns
                         ]
@@ -3767,6 +3774,7 @@ class Table(Queryable):
         :param strict: Boolean, apply STRICT mode if creating the table.
         """
         assert isinstance(lookup_values, dict)
+        assert pk is not None
         if extra_values is not None:
             assert isinstance(extra_values, dict)
         combined_values = dict(lookup_values)
@@ -3786,7 +3794,7 @@ class Table(Queryable):
                 )
             )
             try:
-                return rows[0][pk]  # type: ignore[index]
+                return rows[0][pk]
             except IndexError:
                 return self.insert(
                     combined_values,
