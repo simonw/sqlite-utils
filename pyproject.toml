@@ -48,6 +48,8 @@ dev = [
     "flake8",
     "flake8-pyproject",
     "ty",
+    # For stable cog:
+    "tabulate>=0.10.0",
 ]
 docs = [
     "beanbag-docutils>=2.0",

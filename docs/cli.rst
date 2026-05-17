@@ -257,6 +257,7 @@ Available ``--fmt`` options are:
 .. ]]]
 
 - ``asciidoc``
+- ``colon_grid``
 - ``double_grid``
 - ``double_outline``
 - ``fancy_grid``
