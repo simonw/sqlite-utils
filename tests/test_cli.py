@@ -2318,6 +2318,23 @@ def test_upsert_detect_types(tmpdir, option):
     ]
 
 
+@pytest.mark.parametrize("option", ("-d", "--detect-types"))
+def test_insert_csv_header_only_with_detect_types(tmpdir, option):
+    """Header-only CSVs (no data rows) used to crash --detect-types because
+    the transform step ran against a table that was never created. Now we
+    skip transform when there's nothing to transform. (#702)"""
+    db_path = str(tmpdir / "test.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "empty", "-", "--csv", option],
+        catch_exceptions=False,
+        input="name,age,weight\n",
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    assert "empty" not in db.table_names()
+
+
 def test_csv_detect_types_creates_real_columns(tmpdir):
     """Test that CSV import creates REAL columns for floats (default behavior)"""
     db_path = str(tmpdir / "test.db")

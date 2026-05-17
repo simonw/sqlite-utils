@@ -1175,7 +1175,10 @@ def insert_upsert_implementation(
                 )
             else:
                 raise
-        if tracker is not None:
+        # An empty CSV (header row but no data rows) never creates the table,
+        # so there's nothing to transform. Without this guard, --detect-types
+        # crashes on header-only input (see #702).
+        if tracker is not None and db[table].exists():
             db.table(table).transform(types=tracker.types)
 
         # Clean up open file-like objects
