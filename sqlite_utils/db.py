@@ -2275,12 +2275,10 @@ class Table(Queryable):
                 "{}_{}".format(index_name, suffix) if suffix else index_name
             )
             sql = (
-                textwrap.dedent(
-                    """
+                textwrap.dedent("""
                 CREATE {unique}INDEX {if_not_exists}{index_name}
                     ON {table_name} ({columns});
-            """
-                )
+            """)
                 .strip()
                 .format(
                     index_name=quote_identifier(created_index_name),
@@ -2475,8 +2473,7 @@ class Table(Queryable):
         See :ref:`python_api_cached_table_counts` for details.
         """
         sql = (
-            textwrap.dedent(
-                """
+            textwrap.dedent("""
         {create_counts_table}
         CREATE TRIGGER IF NOT EXISTS {trigger_insert} AFTER INSERT ON {table}
         BEGIN
@@ -2501,8 +2498,7 @@ class Table(Queryable):
             );
         END;
         INSERT OR REPLACE INTO _counts VALUES ({table_quoted}, (select count(*) from {table}));
-        """
-            )
+        """)
             .strip()
             .format(
                 create_counts_table=_COUNTS_TABLE_CREATE_SQL.format(
@@ -2554,14 +2550,12 @@ class Table(Queryable):
         :param replace: Should any existing FTS index for this table be replaced by the new one?
         """
         create_fts_sql = (
-            textwrap.dedent(
-                """
+            textwrap.dedent("""
             CREATE VIRTUAL TABLE {table_fts} USING {fts_version} (
                 {columns},{tokenize}
                 content={table}
             )
-        """
-            )
+        """)
             .strip()
             .format(
                 table=quote_identifier(self.name),
@@ -2599,8 +2593,7 @@ class Table(Queryable):
             table = quote_identifier(self.name)
             table_fts = quote_identifier(self.name + "_fts")
             triggers = (
-                textwrap.dedent(
-                    """
+                textwrap.dedent("""
                 CREATE TRIGGER {table_ai} AFTER INSERT ON {table} BEGIN
                   INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
                 END;
@@ -2611,8 +2604,7 @@ class Table(Queryable):
                   INSERT INTO {table_fts} ({table_fts}, rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
                   INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
                 END;
-            """
-                )
+            """)
                 .strip()
                 .format(
                     table=table,
@@ -2637,12 +2629,10 @@ class Table(Queryable):
         """
         columns_quoted = ", ".join(quote_identifier(c) for c in columns)
         sql = (
-            textwrap.dedent(
-                """
+            textwrap.dedent("""
             INSERT INTO {table_fts} (rowid, {columns})
                 SELECT rowid, {columns} FROM {table};
-        """
-            )
+        """)
             .strip()
             .format(
                 table=quote_identifier(self.name),
@@ -2659,17 +2649,11 @@ class Table(Queryable):
         if fts_table:
             self.db[fts_table].drop()
         # Now delete the triggers that related to that table
-        sql = (
-            textwrap.dedent(
-                """
+        sql = textwrap.dedent("""
             SELECT name FROM sqlite_master
                 WHERE type = 'trigger'
                 AND (sql LIKE '% INSERT INTO [{}]%' OR sql LIKE '% INSERT INTO "{}"%')
-        """
-            )
-            .strip()
-            .format(fts_table, fts_table)
-        )
+        """).strip().format(fts_table, fts_table)
         trigger_names = []
         for row in self.db.execute(sql).fetchall():
             trigger_names.append(row[0])
@@ -2695,8 +2679,7 @@ class Table(Queryable):
 
     def detect_fts(self) -> Optional[str]:
         "Detect if table has a corresponding FTS virtual table and return it"
-        sql = textwrap.dedent(
-            """
+        sql = textwrap.dedent("""
             SELECT name FROM sqlite_master
                 WHERE rootpage = 0
                 AND (
@@ -2707,8 +2690,7 @@ class Table(Queryable):
                         AND sql LIKE '%VIRTUAL TABLE%USING FTS%'
                     )
                 )
-        """
-        ).strip()
+        """).strip()
         args = {
             "like": '%VIRTUAL TABLE%USING FTS%content="{}"%'.format(self.name),
             "like2": '%VIRTUAL TABLE%USING FTS%content="{}"%'.format(self.name),
@@ -2724,13 +2706,9 @@ class Table(Queryable):
         "Run the ``optimize`` operation against the associated full-text search index table."
         fts_table = self.detect_fts()
         if fts_table is not None:
-            self.db.execute(
-                """
+            self.db.execute("""
                 INSERT INTO {table} ({table}) VALUES ("optimize");
-            """.strip().format(
-                    table=quote_identifier(fts_table)
-                )
-            )
+            """.strip().format(table=quote_identifier(fts_table)))
         return self
 
     def search_sql(
@@ -2768,8 +2746,7 @@ class Table(Queryable):
         )
         fts_table_quoted = quote_identifier(fts_table)
         virtual_table_using = self.db.table(fts_table).virtual_table_using
-        sql = textwrap.dedent(
-            """
+        sql = textwrap.dedent("""
         with {original} as (
             select
                 rowid,
@@ -2786,8 +2763,7 @@ class Table(Queryable):
         order by
             {order_by}
         {limit_offset}
-        """
-        ).strip()
+        """).strip()
         if virtual_table_using == "FTS5":
             rank_implementation = "{}.rank".format(fts_table_quoted)
         else:
