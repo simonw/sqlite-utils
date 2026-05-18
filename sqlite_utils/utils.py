@@ -215,15 +215,52 @@ class UpdateWrapper:
     def __init__(self, wrapped: io.IOBase, update: Callable[[int], None]) -> None:
         self._wrapped = wrapped
         self._update = update
+        # `file_progress` sets the progress bar length to the file size in
+        # bytes, but iterating a text-mode stream yields decoded characters,
+        # so reporting `len(line)` undercounts for any multi-byte encoding
+        # (UTF-16-LE caps the bar at ~50%, UTF-32 at ~25%, etc.). When the
+        # wrapped object is a text wrapper, track progress against the
+        # underlying binary buffer's position instead. See #439.
+        self._byte_source = getattr(wrapped, "buffer", None)
+        self._last_byte_pos = 0
+        if self._byte_source is not None:
+            try:
+                self._last_byte_pos = self._byte_source.tell()
+            except (io.UnsupportedOperation, OSError):
+                self._byte_source = None
+
+    def _advance_to_buffer_pos(self) -> None:
+        # Bring the progress bar up to the current byte position of the
+        # underlying binary buffer (which may have read ahead).
+        assert self._byte_source is not None
+        try:
+            pos = self._byte_source.tell()
+        except OSError:
+            return
+        delta = pos - self._last_byte_pos
+        if delta > 0:
+            self._update(delta)
+            self._last_byte_pos = pos
 
     def __iter__(self) -> Iterator[bytes]:
+        if self._byte_source is None:
+            for line in self._wrapped:
+                self._update(len(line))
+                yield line
+            return
         for line in self._wrapped:
-            self._update(len(line))
+            self._advance_to_buffer_pos()
             yield line
+        # The wrapper may have buffered the last chunk without emitting any
+        # more lines; flush the remaining bytes so the bar reaches 100%.
+        self._advance_to_buffer_pos()
 
     def read(self, size: int = -1) -> bytes:
         data = self._wrapped.read(size)
-        self._update(len(data))
+        if self._byte_source is not None:
+            self._advance_to_buffer_pos()
+        else:
+            self._update(len(data))
         return data
 
 
