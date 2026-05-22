@@ -541,6 +541,77 @@ class Database:
         ).strip()
         self.execute(attach_sql)
 
+    def merge(
+        self,
+        sources: Iterable[Union[str, pathlib.Path, "Database"]],
+        *,
+        pk: Optional[Any] = None,
+        alter: bool = False,
+        replace: bool = False,
+        ignore: bool = False,
+        tables: Optional[Iterable[str]] = None,
+    ) -> "Database":
+        """
+        Merge tables from one or more source databases into this database.
+
+        Tables that do not exist in the destination are created with the source
+        schema and all rows. Tables that already exist have rows inserted into
+        them. Use ``alter=True`` to automatically add any missing columns to
+        existing destination tables.
+
+        Virtual tables (e.g. FTS indexes) in source databases are skipped.
+
+        :param sources: One or more source databases. Each item may be a
+            ``Database`` instance, or a path to a SQLite database file.
+        :param pk: Primary key column(s) to use for all merged tables. When
+            ``None``, each source table's own primary key(s) are used.
+        :param alter: Add any missing columns to existing destination tables.
+        :param replace: Replace rows whose primary key already exists in the
+            destination table.
+        :param ignore: Skip rows whose primary key already exists in the
+            destination table.
+        :param tables: If provided, only merge these named tables. Tables
+            listed here that do not exist in a particular source are silently
+            skipped.
+        :return: ``self`` (the destination database).
+        """
+        for source in sources:
+            if isinstance(source, (str, pathlib.Path)):
+                source = Database(source)
+            source_table_names = source.table_names()
+            # Collect virtual table names so their shadow tables can be skipped too.
+            virtual_table_names = {
+                name
+                for name in source_table_names
+                if source.table(name).virtual_table_using is not None
+            }
+            names_to_merge = list(tables) if tables is not None else source_table_names
+            for table_name in names_to_merge:
+                if table_name not in source_table_names:
+                    continue
+                source_table = source.table(table_name)
+                # Skip virtual tables (e.g. FTS indexes).
+                if source_table.virtual_table_using is not None:
+                    continue
+                # Skip shadow tables created by virtual tables (e.g. docs_fts_data).
+                if any(table_name.startswith(vt + "_") for vt in virtual_table_names):
+                    continue
+                if pk is not None:
+                    effective_pk: Any = pk[0] if len(pk) == 1 else list(pk)
+                elif source_table.use_rowid:
+                    effective_pk = None
+                else:
+                    source_pks = source_table.pks
+                    effective_pk = source_pks[0] if len(source_pks) == 1 else source_pks
+                self[table_name].insert_all(
+                    source_table.rows,
+                    pk=effective_pk,
+                    alter=alter,
+                    replace=replace,
+                    ignore=ignore,
+                )
+        return self
+
     def query(
         self, sql: str, params: Optional[Union[Sequence, Dict[str, Any]]] = None
     ) -> Generator[dict, None, None]:

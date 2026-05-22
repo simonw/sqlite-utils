@@ -1058,6 +1058,45 @@ That will look for SpatiaLite in a set of predictable locations. To load it from
 
     sqlite-utils create-database empty.db --init-spatialite --load-extension /path/to/spatialite.so
 
+.. _cli_merge:
+
+Merging databases
+=================
+
+Use ``sqlite-utils merge`` to merge tables from one or more source databases into a destination database.
+
+Tables that do not exist in the destination are created. Tables that already exist have their rows inserted.
+
+.. code-block:: bash
+
+    sqlite-utils merge combined.db one.db two.db
+
+To automatically add missing columns to existing destination tables, use ``--alter``:
+
+.. code-block:: bash
+
+    sqlite-utils merge combined.db one.db two.db --alter
+
+To replace rows that have conflicting primary keys, use ``--replace``:
+
+.. code-block:: bash
+
+    sqlite-utils merge combined.db one.db two.db --replace
+
+To skip rows that have conflicting primary keys, use ``--ignore``:
+
+.. code-block:: bash
+
+    sqlite-utils merge combined.db one.db two.db --ignore
+
+To merge only specific tables, use ``--table`` (can be specified multiple times):
+
+.. code-block:: bash
+
+    sqlite-utils merge combined.db one.db two.db --table mytable
+
+Virtual tables (such as FTS indexes) and their shadow tables are automatically skipped.
+
 .. _cli_inserting_data:
 
 Inserting JSON data

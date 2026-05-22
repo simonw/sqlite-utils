@@ -1540,6 +1540,63 @@ def create_database(path, enable_wal, init_spatialite, load_extension):
     db.vacuum()
 
 
+@cli.command(name="merge")
+@click.argument(
+    "path",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument(
+    "sources",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False, exists=True),
+    nargs=-1,
+    required=True,
+)
+@click.option("pks", "--pk", help="Column to use as primary key", multiple=True)
+@click.option("--alter", is_flag=True, help="Alter destination tables to add any missing columns")
+@click.option(
+    "--replace", is_flag=True, help="Replace rows with matching primary keys"
+)
+@click.option(
+    "--ignore", is_flag=True, help="Ignore rows with conflicting primary keys"
+)
+@click.option(
+    "tables",
+    "--table",
+    help="Specific tables to merge (can be specified multiple times)",
+    multiple=True,
+)
+@load_extension_option
+def merge_cmd(path, sources, pks, alter, replace, ignore, tables, load_extension):
+    """
+    Merge tables from one or more SOURCE databases into a DEST database.
+
+    Tables that do not exist in DEST are created. Tables that already exist
+    have their rows inserted. Use --alter to add missing columns automatically.
+
+    Example:
+
+    \b
+        sqlite-utils merge combined.db one.db two.db
+        sqlite-utils merge combined.db one.db two.db --alter
+        sqlite-utils merge combined.db one.db two.db --replace --table mytable
+    """
+    db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
+    _load_extensions(db, load_extension)
+    try:
+        db.merge(
+            sources,
+            pk=list(pks) if pks else None,
+            alter=alter,
+            replace=replace,
+            ignore=ignore,
+            tables=list(tables) if tables else None,
+        )
+    except OperationalError as e:
+        raise click.ClickException(str(e))
+
+
 @cli.command(name="create-table")
 @click.argument(
     "path",
