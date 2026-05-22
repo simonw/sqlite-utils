@@ -670,6 +670,22 @@ def test_insert_all_with_extra_columns_in_later_chunks(fresh_db):
     ]
 
 
+@pytest.mark.parametrize("num_rows", (0, 1, 2, 3, 10))
+def test_insert_all_pk_not_in_records(fresh_db, num_rows):
+    # https://github.com/simonw/sqlite-utils/issues/732
+    # Naming a pk= column that is absent from the records should behave the
+    # same regardless of how many rows are inserted - previously a single row
+    # raised a KeyError while other row counts did not.
+    fresh_db.conn.execute("CREATE TABLE t (a TEXT, b INT, PRIMARY KEY (a, b))")
+    rows = [{"a": "x{}".format(i), "b": i} for i in range(num_rows)]
+    table = fresh_db.table("t")
+    table.insert_all(rows, pk="not_a_column", alter=True)
+    assert table.count == num_rows
+    if num_rows == 1:
+        # Falls back to the rowid since the named pk column does not exist
+        assert table.last_pk == table.last_rowid
+
+
 def test_bulk_insert_more_than_999_values(fresh_db):
     "Inserting 100 items with 11 columns should work"
     fresh_db["big"].insert_all(
