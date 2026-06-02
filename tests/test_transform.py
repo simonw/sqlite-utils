@@ -659,3 +659,51 @@ def test_transform_with_unique_constraint_implicit_index(fresh_db):
         "You must manually drop this index prior to running this transformation and manually recreate the new index after running this transformation."
         in str(excinfo.value)
     )
+
+
+def test_transform_recreates_views(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
+    fresh_db.create_view("dog_names", "select id, name from dogs")
+
+    dogs.transform(drop={"age"})
+
+    assert list(fresh_db.query("select * from dog_names")) == [
+        {"id": 1, "name": "Cleo"}
+    ]
+
+
+def test_transform_recreates_triggers_on_views(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
+    fresh_db.execute("create table dog_log (id integer primary key, name text)")
+    fresh_db.create_view("dog_names", "select id, name from dogs")
+    fresh_db.execute("""
+        create trigger dog_names_insert
+        instead of insert on dog_names
+        begin
+            insert into dog_log (id, name) values (new.id, new.name);
+        end;
+    """)
+
+    dogs.transform(drop={"age"})
+
+    fresh_db.execute(
+        "insert into dog_names (id, name) values (?, ?)",
+        (2, "Mabel"),
+    )
+
+    assert list(fresh_db["dog_log"].rows) == [{"id": 2, "name": "Mabel"}]
+
+
+def test_transform_does_not_execute_unrelated_views(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
+    fresh_db["other"].insert({"x": 1})
+    fresh_db.execute(
+        "create view other_values as select app_func(x) as value from other"
+    )
+
+    dogs.transform(drop={"age"})
+
+    assert "other_values" in fresh_db.view_names()
