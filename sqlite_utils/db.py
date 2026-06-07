@@ -2267,14 +2267,22 @@ class Table(Queryable):
                 )
             lookup_columns = [(rename.get(col) or col) for col in columns]
             lookup_table.create_index(lookup_columns, unique=True, if_not_exists=True)
+            # Don't create a lookup row for the all-NULL combination: a row whose
+            # extracted columns are entirely NULL represents "no value", so it
+            # should keep a NULL foreign key rather than point at a NULL lookup row
+            # (#186). Rows with a partial NULL (some extracted columns set, others
+            # NULL) are a genuine distinct value and are still extracted.
             self.db.execute(
-                "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {}".format(
+                "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {} WHERE NOT ({all_null})".format(
                     quote_identifier(table),
                     quote_identifier(self.name),
                     lookup_columns=", ".join(
                         quote_identifier(c) for c in lookup_columns
                     ),
                     table_cols=", ".join(quote_identifier(c) for c in columns),
+                    all_null=" AND ".join(
+                        "{} IS NULL".format(quote_identifier(c)) for c in columns
+                    ),
                 )
             )
 
