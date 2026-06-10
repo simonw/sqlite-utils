@@ -3464,15 +3464,15 @@ class Table(Queryable):
         if upsert and (not pk and not hash_id):
             raise PrimaryKeyRequired("upsert() requires a pk")
 
-        assert not (hash_id and pk), "Use either pk= or hash_id="
+        if hash_id and pk:
+            raise ValueError("Use either pk= or hash_id=")
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
         if hash_id:
             pk = hash_id
 
-        assert not (
-            ignore and replace
-        ), "Use either ignore=True or replace=True, not both"
+        if ignore and replace:
+            raise ValueError("Use either ignore=True or replace=True, not both")
         all_columns = []
         first = True
         num_records_processed = 0
