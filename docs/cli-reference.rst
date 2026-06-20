@@ -20,7 +20,7 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         "query", "memory", "insert", "upsert", "bulk", "search", "transform", "extract",
         "schema", "insert-files", "analyze-tables", "convert", "tables", "views", "rows",
         "triggers", "indexes", "create-database", "create-table", "create-index",
-        "enable-fts", "populate-fts", "rebuild-fts", "disable-fts"
+        "migrate", "enable-fts", "populate-fts", "rebuild-fts", "disable-fts"
     ]
     refs = {
         "query": "cli_query",
@@ -49,6 +49,7 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         "enable-wal": "cli_wal",
         "enable-counts": "cli_enable_counts",
         "bulk": "cli_bulk",
+        "migrate": "cli_migrate",
         "create-database": "cli_create_database",
         "create-table": "cli_create_table",
         "drop-table": "cli_drop_table",
@@ -963,6 +964,40 @@ See :ref:`cli_create_index`.
       --analyze                  Run ANALYZE after creating the index
       --load-extension TEXT      Path to SQLite extension, with optional :entrypoint
       -h, --help                 Show this message and exit.
+
+
+.. _cli_ref_migrate:
+
+migrate
+=======
+
+See :ref:`cli_migrate`.
+
+::
+
+    Usage: sqlite-utils migrate [OPTIONS] DB_PATH [MIGRATIONS]...
+
+      Apply pending database migrations.
+
+      Usage:
+
+          sqlite-utils migrate database.db
+
+      This will find the migrations.py file in the current directory or
+      subdirectories and apply any pending migrations.
+
+      Or pass paths to one or more migrations.py files directly:
+
+          sqlite-utils migrate database.db path/to/migrations.py
+
+      Pass --list to see a list of applied and pending migrations without applying
+      them.
+
+    Options:
+      --stop-before TEXT  Stop before applying this migration
+      --list              List migrations without running them
+      -v, --verbose       Show verbose output
+      -h, --help          Show this message and exit.
 
 
 .. _cli_ref_enable_fts:

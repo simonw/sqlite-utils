@@ -1,4 +1,5 @@
 import base64
+import difflib
 from typing import Any
 import click
 from click_default_group import DefaultGroup
@@ -3252,6 +3253,125 @@ def create_spatial_index(db_path, table, column_name, load_extension):
     db.table(table).create_spatial_index(column_name)
 
 
+def _find_migration_files(migrations):
+    if not migrations:
+        migrations = [pathlib.Path(".").resolve()]
+    files = set()
+    for path_str in migrations:
+        path = pathlib.Path(path_str)
+        if path.is_dir():
+            files.update(path.rglob("migrations.py"))
+        else:
+            files.add(path)
+    return sorted(files)
+
+
+def _compatible_migration_set(obj):
+    return isinstance(obj, sqlite_utils.Migrations) or all(
+        hasattr(obj, attr) for attr in ("name", "applied", "pending", "apply")
+    )
+
+
+def _load_migration_sets(files):
+    migration_sets = []
+    for filepath in files:
+        code = filepath.read_text()
+        namespace = {
+            "__file__": str(filepath),
+            "__name__": "__sqlite_utils_migration__",
+        }
+        exec(code, namespace)
+        migration_sets.extend(
+            obj for obj in namespace.values() if _compatible_migration_set(obj)
+        )
+    return migration_sets
+
+
+def _display_migration_list(db, migration_sets):
+    for migration_set in migration_sets:
+        click.echo("Migrations for: {}".format(migration_set.name))
+        click.echo()
+        click.echo("  Applied:")
+        for migration in migration_set.applied(db):
+            click.echo("    {} - {}".format(migration.name, migration.applied_at))
+        click.echo()
+        click.echo("  Pending:")
+        output = False
+        for migration in migration_set.pending(db):
+            output = True
+            click.echo("    {}".format(migration.name))
+        if not output:
+            click.echo("    (none)")
+        click.echo()
+
+
+@click.command()
+@click.argument(
+    "db_path", type=click.Path(dir_okay=False, readable=True, writable=True)
+)
+@click.argument("migrations", type=click.Path(dir_okay=True, exists=True), nargs=-1)
+@click.option("--stop-before", help="Stop before applying this migration")
+@click.option(
+    "list_", "--list", is_flag=True, help="List migrations without running them"
+)
+@click.option("-v", "--verbose", is_flag=True, help="Show verbose output")
+def migrate(db_path, migrations, stop_before, list_, verbose):
+    """
+    Apply pending database migrations.
+
+    Usage:
+
+        sqlite-utils migrate database.db
+
+    This will find the migrations.py file in the current directory
+    or subdirectories and apply any pending migrations.
+
+    Or pass paths to one or more migrations.py files directly:
+
+        sqlite-utils migrate database.db path/to/migrations.py
+
+    Pass --list to see a list of applied and pending migrations
+    without applying them.
+    """
+    files = _find_migration_files(migrations)
+    migration_sets = _load_migration_sets(files)
+    if not migration_sets:
+        raise click.ClickException("No migrations.py files found")
+
+    if stop_before and len(migration_sets) > 1:
+        raise click.ClickException(
+            "--stop-before can only be used with a single migrations.py file"
+        )
+
+    db = sqlite_utils.Database(db_path)
+    _register_db_for_cleanup(db)
+
+    if list_:
+        _display_migration_list(db, migration_sets)
+        return
+
+    prev_schema = db.schema
+    if verbose:
+        click.echo("Migrating {}".format(db_path))
+        click.echo("\nSchema before:\n")
+        click.echo(textwrap.indent(prev_schema, "  ") or "  (empty)")
+        click.echo()
+    for migration_set in migration_sets:
+        migration_set.apply(db, stop_before=stop_before)
+    if verbose:
+        click.echo("Schema after:\n")
+        post_schema = db.schema
+        if post_schema == prev_schema:
+            click.echo("  (unchanged)")
+        else:
+            click.echo(textwrap.indent(post_schema, "  "))
+            click.echo("\nSchema diff:\n")
+            diff = list(
+                difflib.unified_diff(prev_schema.splitlines(), post_schema.splitlines())
+            )
+            click.echo("\n".join(diff[3:]))
+
+
 @cli.command(name="plugins")
 def plugins_list():
     "List installed plugins"
@@ -3259,6 +3379,7 @@ def plugins_list():
 
 
 pm.hook.register_commands(cli=cli)
+cli.add_command(migrate)
 
 
 def _render_common(title, values):

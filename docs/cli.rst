@@ -1058,6 +1058,29 @@ That will look for SpatiaLite in a set of predictable locations. To load it from
 
     sqlite-utils create-database empty.db --init-spatialite --load-extension /path/to/spatialite.so
 
+.. _cli_migrate:
+
+Running migrations
+==================
+
+The ``migrate`` command applies pending Python migrations to a database. For the full migration file format and Python API, see :ref:`migrations`.
+
+.. code-block:: bash
+
+    sqlite-utils migrate creatures.db path/to/migrations.py
+
+If you omit the migration path it will search the current directory and subdirectories for files called ``migrations.py``:
+
+.. code-block:: bash
+
+    sqlite-utils migrate creatures.db
+
+Use ``--list`` to list applied and pending migrations without running them:
+
+.. code-block:: bash
+
+    sqlite-utils migrate creatures.db --list
+
 .. _cli_inserting_data:
 
 Inserting JSON data
