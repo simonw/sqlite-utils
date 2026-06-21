@@ -6,7 +6,7 @@
 
 ``sqlite-utils`` includes a migration system for applying repeatable changes to SQLite database files.
 
-A migration is a Python function that receives a :class:`sqlite_utils.Database` instance and then executes Python code to modify that database - creating or transforming tables, adding indexes, inserting rows, or any other operation suppored by SQLite.
+A migration is a Python function that receives a :class:`sqlite_utils.Database` instance and then executes Python code to modify that database - creating or transforming tables, adding indexes, inserting rows, or any other operation supported by SQLite.
 
 Migrations are grouped into named sets using the :class:`sqlite_utils.Migrations` class, and each applied migration is recorded in the ``_sqlite_migrations`` table in that database.
 
