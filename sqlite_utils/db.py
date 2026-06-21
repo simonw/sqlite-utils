@@ -196,6 +196,19 @@ DEFAULT = Default()
 Tracer = Callable[[str, Optional[Union[Sequence[Any], Dict[str, Any]]]], None]
 
 
+def _iter_complete_sql_statements(sql: str) -> Generator[str, None, None]:
+    statement = []
+    for char in sql:
+        statement.append(char)
+        statement_sql = "".join(statement).strip()
+        if statement_sql and sqlite3.complete_statement(statement_sql):
+            yield statement_sql
+            statement = []
+    statement_sql = "".join(statement).strip()
+    if statement_sql:
+        yield statement_sql
+
+
 COLUMN_TYPE_MAPPING: Dict[Any, str] = {
     float: "REAL",
     int: "INTEGER",
@@ -407,6 +420,38 @@ class Database:
         self.conn.close()
 
     @contextlib.contextmanager
+    def atomic(self) -> Generator["Database", None, None]:
+        """
+        Context manager for wrapping multiple database operations in a transaction.
+
+        Nested blocks use SQLite savepoints.
+        """
+        if self.conn.in_transaction:
+            savepoint = "sqlite_utils_{}".format(secrets.token_hex(16))
+            self.conn.execute("SAVEPOINT {};".format(savepoint))
+            try:
+                yield self
+            except BaseException:
+                self.conn.execute("ROLLBACK TO SAVEPOINT {};".format(savepoint))
+                self.conn.execute("RELEASE SAVEPOINT {};".format(savepoint))
+                raise
+            else:
+                self.conn.execute("RELEASE SAVEPOINT {};".format(savepoint))
+        else:
+            self.conn.execute("BEGIN")
+            try:
+                yield self
+            except BaseException:
+                self.conn.rollback()
+                raise
+            else:
+                try:
+                    self.conn.commit()
+                except BaseException:
+                    self.conn.rollback()
+                    raise
+
+    @contextlib.contextmanager
     def ensure_autocommit_off(self) -> Generator[None, None, None]:
         """
         Ensure autocommit is off for this database connection.
@@ -581,6 +626,15 @@ class Database:
         """
         if self._tracer:
             self._tracer(sql, None)
+        return self._executescript(sql)
+
+    def _executescript(self, sql: str) -> sqlite3.Cursor:
+        if self.conn.in_transaction:
+            cursor = self.conn.cursor()
+            # avoid sqlite3.executescript()'s implicit commit:
+            for statement in _iter_complete_sql_statements(sql):
+                cursor.execute(statement)
+            return cursor
         return self.conn.executescript(sql)
 
     def table(self, table_name: str, **kwargs: Any) -> "Table":
@@ -729,7 +783,7 @@ class Database:
         if not hasattr(self, "_supports_strict"):
             try:
                 table_name = "t{}".format(secrets.token_hex(16))
-                with self.conn:
+                with self.atomic():
                     self.conn.execute(
                         "create table {} (name text) strict".format(table_name)
                     )
@@ -745,7 +799,7 @@ class Database:
         if not hasattr(self, "_supports_on_conflict"):
             table_name = "t{}".format(secrets.token_hex(16))
             try:
-                with self.conn:
+                with self.atomic():
                     self.conn.execute(
                         "create table {} (id integer primary key, name text)".format(
                             table_name
@@ -797,7 +851,7 @@ class Database:
                 self.execute("PRAGMA journal_mode=delete;")
 
     def _ensure_counts_table(self) -> None:
-        with self.conn:
+        with self.atomic():
             self.execute(_COUNTS_TABLE_CREATE_SQL.format(self._counts_table_name))
 
     def enable_counts(self) -> None:
@@ -833,7 +887,7 @@ class Database:
     def reset_counts(self) -> None:
         "Re-calculate cached counts for tables."
         tables = [table for table in self.tables if table.has_counts_triggers]
-        with self.conn:
+        with self.atomic():
             self._ensure_counts_table()
             counts_table = self.table(self._counts_table_name)
             counts_table.delete_where()
@@ -1288,7 +1342,8 @@ class Database:
         for table, fks in by_table.items():
             self.table(table).transform(add_foreign_keys=fks)
 
-        self.vacuum()
+        if not self.conn.in_transaction:
+            self.vacuum()
 
     def index_foreign_keys(self) -> None:
         "Create indexes for every foreign key column on every table in the database."
@@ -1820,7 +1875,7 @@ class Table(Queryable):
             self._defaults["strict"] = strict
 
         columns = {name: value for (name, value) in columns.items()}
-        with self.db.conn:
+        with self.db.atomic():
             self.db.create_table(
                 self.name,
                 columns,
@@ -1848,7 +1903,7 @@ class Table(Queryable):
         """
         if not self.exists():
             raise NoTable(f"Table {self.name} does not exist")
-        with self.db.conn:
+        with self.db.atomic():
             sql = "CREATE TABLE {} AS SELECT * FROM {};".format(
                 quote_identifier(new_name),
                 quote_identifier(self.name),
@@ -1905,20 +1960,40 @@ class Table(Queryable):
             column_order=column_order,
             keep_table=keep_table,
         )
-        pragma_foreign_keys_was_on = self.db.execute("PRAGMA foreign_keys").fetchone()[
-            0
-        ]
+        pragma_foreign_keys_was_on = bool(
+            self.db.execute("PRAGMA foreign_keys").fetchone()[0]
+        )
+        already_in_transaction = self.db.conn.in_transaction
+        should_disable_foreign_keys = (
+            pragma_foreign_keys_was_on and not already_in_transaction
+        )
+        should_defer_foreign_keys = (
+            pragma_foreign_keys_was_on and already_in_transaction
+        )
+        defer_foreign_keys_was_on = False
         try:
-            if pragma_foreign_keys_was_on:
+            if should_disable_foreign_keys:
                 self.db.execute("PRAGMA foreign_keys=0;")
-            with self.db.conn:
+            elif should_defer_foreign_keys:
+                defer_foreign_keys_was_on = bool(
+                    self.db.execute("PRAGMA defer_foreign_keys").fetchone()[0]
+                )
+                if not defer_foreign_keys_was_on:
+                    self.db.execute("PRAGMA defer_foreign_keys=ON;")
+            with self.db.atomic():
                 for sql in sqls:
                     self.db.execute(sql)
                 # Run the foreign_key_check before we commit
                 if pragma_foreign_keys_was_on:
-                    self.db.execute("PRAGMA foreign_key_check;")
+                    foreign_key_violations = self.db.execute(
+                        "PRAGMA foreign_key_check;"
+                    ).fetchall()
+                    if foreign_key_violations:
+                        raise sqlite3.IntegrityError("FOREIGN KEY constraint failed")
         finally:
-            if pragma_foreign_keys_was_on:
+            if should_defer_foreign_keys and not defer_foreign_keys_was_on:
+                self.db.execute("PRAGMA defer_foreign_keys=OFF;")
+            if should_disable_foreign_keys:
                 self.db.execute("PRAGMA foreign_keys=1;")
         return self
 
@@ -2158,86 +2233,89 @@ class Table(Queryable):
                     columns, list(self.columns_dict.keys())
                 )
             )
-        table = table or "_".join(columns)
-        lookup_table = self.db.table(table)
-        fk_column = fk_column or "{}_id".format(table)
-        magic_lookup_column = "{}_{}".format(fk_column, os.urandom(6).hex())
+        with self.db.atomic():
+            table = table or "_".join(columns)
+            lookup_table = self.db.table(table)
+            fk_column = fk_column or "{}_id".format(table)
+            magic_lookup_column = "{}_{}".format(fk_column, os.urandom(6).hex())
 
-        # Populate the lookup table with all of the extracted unique values
-        lookup_columns_definition = {
-            (rename.get(col) or col): typ
-            for col, typ in self.columns_dict.items()
-            if col in columns
-        }
-        if lookup_table.exists():
-            if not set(lookup_columns_definition.items()).issubset(
-                lookup_table.columns_dict.items()
-            ):
-                raise InvalidColumns(
-                    "Lookup table {} already exists but does not have columns {}".format(
-                        table, lookup_columns_definition
+            # Populate the lookup table with all of the extracted unique values
+            lookup_columns_definition = {
+                (rename.get(col) or col): typ
+                for col, typ in self.columns_dict.items()
+                if col in columns
+            }
+            if lookup_table.exists():
+                if not set(lookup_columns_definition.items()).issubset(
+                    lookup_table.columns_dict.items()
+                ):
+                    raise InvalidColumns(
+                        "Lookup table {} already exists but does not have columns {}".format(
+                            table, lookup_columns_definition
+                        )
                     )
-                )
-        else:
-            lookup_table.create(
-                {
-                    **{
-                        "id": int,
-                    },
-                    **lookup_columns_definition,
-                },
-                pk="id",
-            )
-        lookup_columns = [(rename.get(col) or col) for col in columns]
-        lookup_table.create_index(lookup_columns, unique=True, if_not_exists=True)
-        self.db.execute(
-            "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {}".format(
-                quote_identifier(table),
-                quote_identifier(self.name),
-                lookup_columns=", ".join(quote_identifier(c) for c in lookup_columns),
-                table_cols=", ".join(quote_identifier(c) for c in columns),
-            )
-        )
-
-        # Now add the new fk_column
-        self.add_column(magic_lookup_column, int)
-
-        # And populate it
-        self.db.execute(
-            "UPDATE {} SET {} = (SELECT id FROM {} WHERE {where})".format(
-                quote_identifier(self.name),
-                quote_identifier(magic_lookup_column),
-                quote_identifier(table),
-                where=" AND ".join(
-                    "{}.{} IS {}.{}".format(
-                        quote_identifier(self.name),
-                        quote_identifier(column),
-                        quote_identifier(table),
-                        quote_identifier(rename.get(column) or column),
-                    )
-                    for column in columns
-                ),
-            )
-        )
-        # Figure out the right column order
-        column_order = []
-        for c in self.columns:
-            if c.name in columns and magic_lookup_column not in column_order:
-                column_order.append(magic_lookup_column)
-            elif c.name == magic_lookup_column:
-                continue
             else:
-                column_order.append(c.name)
+                lookup_table.create(
+                    {
+                        **{
+                            "id": int,
+                        },
+                        **lookup_columns_definition,
+                    },
+                    pk="id",
+                )
+            lookup_columns = [(rename.get(col) or col) for col in columns]
+            lookup_table.create_index(lookup_columns, unique=True, if_not_exists=True)
+            self.db.execute(
+                "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {}".format(
+                    quote_identifier(table),
+                    quote_identifier(self.name),
+                    lookup_columns=", ".join(
+                        quote_identifier(c) for c in lookup_columns
+                    ),
+                    table_cols=", ".join(quote_identifier(c) for c in columns),
+                )
+            )
 
-        # Drop the unnecessary columns and rename lookup column
-        self.transform(
-            drop=set(columns),
-            rename={magic_lookup_column: fk_column},
-            column_order=column_order,
-        )
+            # Now add the new fk_column
+            self.add_column(magic_lookup_column, int)
 
-        # And add the foreign key constraint
-        self.add_foreign_key(fk_column, table, "id")
+            # And populate it
+            self.db.execute(
+                "UPDATE {} SET {} = (SELECT id FROM {} WHERE {where})".format(
+                    quote_identifier(self.name),
+                    quote_identifier(magic_lookup_column),
+                    quote_identifier(table),
+                    where=" AND ".join(
+                        "{}.{} IS {}.{}".format(
+                            quote_identifier(self.name),
+                            quote_identifier(column),
+                            quote_identifier(table),
+                            quote_identifier(rename.get(column) or column),
+                        )
+                        for column in columns
+                    ),
+                )
+            )
+            # Figure out the right column order
+            column_order = []
+            for c in self.columns:
+                if c.name in columns and magic_lookup_column not in column_order:
+                    column_order.append(magic_lookup_column)
+                elif c.name == magic_lookup_column:
+                    continue
+                else:
+                    column_order.append(c.name)
+
+            # Drop the unnecessary columns and rename lookup column
+            self.transform(
+                drop=set(columns),
+                rename={magic_lookup_column: fk_column},
+                column_order=column_order,
+            )
+
+            # And add the foreign key constraint
+            self.add_foreign_key(fk_column, table, "id")
         return self
 
     def create_index(
@@ -2521,8 +2599,8 @@ class Table(Queryable):
                 ),
             )
         )
-        with self.db.conn:
-            self.db.conn.executescript(sql)
+        with self.db.atomic():
+            self.db._executescript(sql)
         self.db.use_counts_table = True
 
     @property
@@ -2663,7 +2741,7 @@ class Table(Queryable):
         trigger_names = []
         for row in self.db.execute(sql).fetchall():
             trigger_names.append(row[0])
-        with self.db.conn:
+        with self.db.atomic():
             for trigger_name in trigger_names:
                 self.db.execute(
                     "DROP TRIGGER IF EXISTS {}".format(quote_identifier(trigger_name))
@@ -2862,7 +2940,7 @@ class Table(Queryable):
         sql = "delete from {} where {wheres}".format(
             quote_identifier(self.name), wheres=" and ".join(wheres)
         )
-        with self.db.conn:
+        with self.db.atomic():
             self.db.execute(sql, pk_values)
         return self
 
@@ -2935,7 +3013,7 @@ class Table(Queryable):
             sets=", ".join(sets),
             wheres=" and ".join(wheres),
         )
-        with self.db.conn:
+        with self.db.atomic():
             try:
                 rowcount = self.db.execute(sql, args).rowcount
             except OperationalError as e:
@@ -3024,7 +3102,7 @@ class Table(Queryable):
                 ),
                 where=" where {}".format(where) if where is not None else "",
             )
-            with self.db.conn:
+            with self.db.atomic():
                 self.db.execute(sql, where_args or [])
                 if drop:
                     self.transform(drop=columns)
@@ -3072,7 +3150,7 @@ class Table(Queryable):
         with progressbar(
             length=self.count, silent=not show_progress, label="2: Updating"
         ) as bar:
-            with self.db.conn:
+            with self.db.atomic():
                 for pk, updates in pk_to_values.items():
                     self.update(pk, updates)
                     bar.update(1)
@@ -3291,7 +3369,7 @@ class Table(Queryable):
             list_mode,
         )
         result = None
-        with self.db.conn:
+        with self.db.atomic():
             for query, params in queries_and_params:
                 try:
                     result = self.db.execute(query, params)
@@ -3528,7 +3606,8 @@ class Table(Queryable):
         self.last_rowid = None
         self.last_pk = None
         if truncate and self.exists():
-            self.db.execute("DELETE FROM {};".format(quote_identifier(self.name)))
+            with self.db.atomic():
+                self.db.execute("DELETE FROM {};".format(quote_identifier(self.name)))
         result = None
         for chunk in chunks(itertools.chain([first_record], records_iter), batch_size):
             chunk = list(chunk)

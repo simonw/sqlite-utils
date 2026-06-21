@@ -239,6 +239,35 @@ The ``db.execute()`` and ``db.executescript()`` methods provide wrappers around 
 
 Other cursor methods such as ``.fetchone()`` and ``.fetchall()`` are also available, see the `standard library documentation <https://docs.python.org/3/library/sqlite3.html#sqlite3.Cursor>`__.
 
+.. _python_api_atomic:
+
+Transactions with db.atomic()
+-----------------------------
+
+Use ``db.atomic()`` to group multiple operations in a transaction:
+
+.. code-block:: python
+
+    with db.atomic():
+        db.table("dogs").insert({"id": 1, "name": "Cleo"}, pk="id")
+        db.table("dogs").insert({"id": 2, "name": "Pancakes"})
+
+If an exception is raised, changes made inside the block will be rolled back.
+
+``db.atomic()`` can be nested. Nested blocks use SQLite savepoints, so an exception in an inner block can roll back to that savepoint without rolling back the entire outer transaction:
+
+.. code-block:: python
+
+    with db.atomic():
+        db.table("dogs").insert({"id": 1, "name": "Cleo"}, pk="id")
+        try:
+            with db.atomic():
+                db.table("dogs").insert({"id": 2, "name": "Pancakes"})
+                raise ValueError("skip this one")
+        except ValueError:
+            pass
+        db.table("dogs").insert({"id": 3, "name": "Marnie"})
+
 .. _python_api_parameters:
 
 Passing parameters
@@ -955,7 +984,7 @@ You can delete all records in a table that match a specific WHERE statement usin
 
     >>> db = sqlite_utils.Database("dogs.db")
     >>> # Delete every dog with age less than 3
-    >>> with db.conn:
+    >>> with db.atomic():
     >>>     db.table("dogs").delete_where("age < ?", [3])
 
 Calling ``table.delete_where()`` with no other arguments will delete every row in the table.
