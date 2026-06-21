@@ -18,6 +18,7 @@ def ensure_plugins_loaded() -> None:
 
 
 def get_plugins() -> List[Dict[str, Union[str, List[str]]]]:
+    ensure_plugins_loaded()
     plugins: List[Dict[str, Union[str, List[str]]]] = []
     plugin_to_distinfo = dict(pm.list_plugin_distinfo())
     for plugin in pm.get_plugins():
