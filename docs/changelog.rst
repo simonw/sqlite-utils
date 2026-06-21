@@ -4,13 +4,22 @@
  Changelog
 ===========
 
-.. _v_unreleased:
+.. _v4_0rc1:
 
-Unreleased
-----------
+4.0rc1 (2026-06-21)
+-------------------
 
-- New ``db.atomic()`` context manager for transactions, with nested transaction support using SQLite savepoints. Internal multi-step operations such as ``table.transform()`` now use this mechanism to avoid unexpectedly committing an existing transaction.
-- New :ref:`database migrations system <migrations>`, incorporating functionality that was previously provided by the separate `sqlite-migrate <https://github.com/simonw/sqlite-migrate>`__ plugin. Define migration sets using the new :class:`sqlite_utils.Migrations` class and apply them using the ``sqlite-utils migrate`` command or the :ref:`migrations Python API <migrations_python>`.  (:issue:`752`)
+- New :ref:`database migrations system <migrations>`, incorporating functionality that was previously provided by the separate `sqlite-migrate <https://github.com/simonw/sqlite-migrate>`__ plugin. Define migration sets using the new :class:`sqlite_utils.Migrations` class and apply them using the ``sqlite-utils migrate`` command or the :ref:`migrations Python API <migrations_python>`. (:issue:`752`)
+- New ``db.atomic()`` :ref:`context manager providing nested transaction support <python_api_atomic>` using SQLite transactions and savepoints. Internal multi-step operations such as ``table.transform()`` now use this mechanism to avoid unexpectedly committing an existing transaction. (:issue:`755`)
+- ``Database`` objects can now be :ref:`used as context managers <python_api_close>`, automatically closing the connection when the ``with`` block exits. The CLI also now closes database and file handles more reliably, resolving a number of ``ResourceWarning`` warnings. (:issue:`692`)
+- The ``sqlite-utils convert`` command can now accept a direct callable reference such as ``r.parsedate`` or ``json.loads --import json`` as the conversion code, as an alternative to calling it explicitly with ``r.parsedate(value)``. (:issue:`686`)
+- Fixed a bug where CSV or TSV files with only a header row could crash ``sqlite-utils insert`` and ``sqlite-utils memory`` when type detection was enabled. Thanks, `Rami Abdelrazzaq <https://github.com/RamiNoodle733>`__. (:issue:`702`, `#707 <https://github.com/simonw/sqlite-utils/pull/707>`__)
+- Fixed a bug where installed plugins could be loaded while running the test suite, despite the test-mode safeguard that disables plugin loading. Thanks, `Rami Abdelrazzaq <https://github.com/RamiNoodle733>`__. (:issue:`713`, `#719 <https://github.com/simonw/sqlite-utils/pull/719>`__)
+- ``table.detect_fts()`` now recognizes legacy FTS virtual tables that quote the ``content=`` table name using square brackets, allowing ``table.enable_fts(..., replace=True)`` to replace them correctly. (:issue:`694`)
+- Now depends on Click 8.3.1 or later, removing compatibility workarounds for Click's ``Sentinel`` default values. (:issue:`666`)
+- Improved type annotations throughout the package, with ``ty`` now run in CI. (:issue:`697`)
+- Development tooling now uses ``uv`` dependency groups, with separate ``dev`` and ``docs`` groups. (:issue:`691`)
+- The test suite now runs against Python 3.15-dev. (:issue:`738`)
 
 .. _v3_39:
 
@@ -18,8 +27,8 @@ Unreleased
 -----------------
 
 - Fixed a bug with ``sqlite-utils install`` when the tool had been installed using ``uv``. (:issue:`687`)
-- The ```--functions``` argument now optionally accepts a path to a Python file as an alternative to a string full of code, and can be specified multiple times - see :ref:`cli_query_functions`.  (:issue:`659`)
-- ``sqlite-utils`` now requires on Python 3.10 or higher.
+- The ``--functions`` argument now optionally accepts a path to a Python file as an alternative to a string full of code, and can be specified multiple times - see :ref:`cli_query_functions`. (:issue:`659`)
+- ``sqlite-utils`` now requires Python 3.10 or higher.
 
 .. _v4_0a1:
 
