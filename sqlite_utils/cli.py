@@ -11,6 +11,7 @@ import sqlite_utils
 from sqlite_utils.db import (
     AlterError,
     BadMultiValues,
+    DEFAULT,
     DescIndex,
     NoTable,
     quote_identifier,
@@ -2579,7 +2580,6 @@ def transform(
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     types = {}
-    kwargs = {}
     for column, ctype in type:
         if ctype.upper() not in VALID_COLUMN_TYPES:
             raise click.ClickException(
@@ -2599,29 +2599,46 @@ def transform(
     for column in default_none:
         default_dict[column] = None
 
-    kwargs["types"] = types
-    kwargs["drop"] = set(drop)
-    kwargs["rename"] = dict(rename)
-    kwargs["column_order"] = column_order or None
-    kwargs["not_null"] = not_null_dict
+    drop_set = set(drop)
+    rename_dict = dict(rename)
+    column_order_list = list(column_order) or None
+    drop_foreign_keys_value = drop_foreign_keys or None
+    add_foreign_keys_value = add_foreign_keys or None
+    pk_value = DEFAULT
     if pk:
         if len(pk) == 1:
-            kwargs["pk"] = pk[0]
+            pk_value = pk[0]
         else:
-            kwargs["pk"] = pk
+            pk_value = pk
     elif pk_none:
-        kwargs["pk"] = None
-    kwargs["defaults"] = default_dict
-    if drop_foreign_keys:
-        kwargs["drop_foreign_keys"] = drop_foreign_keys
-    if add_foreign_keys:
-        kwargs["add_foreign_keys"] = add_foreign_keys
+        pk_value = None
 
+    table_obj = db.table(table)
     if sql:
-        for line in db.table(table).transform_sql(**kwargs):
+        for line in table_obj.transform_sql(
+            types=types,
+            drop=drop_set,
+            rename=rename_dict,
+            column_order=column_order_list,
+            not_null=not_null_dict,
+            pk=pk_value,
+            defaults=default_dict,
+            drop_foreign_keys=drop_foreign_keys_value,
+            add_foreign_keys=add_foreign_keys_value,
+        ):
             click.echo(line)
     else:
-        db.table(table).transform(**kwargs)
+        table_obj.transform(
+            types=types,
+            drop=drop_set,
+            rename=rename_dict,
+            column_order=column_order_list,
+            not_null=not_null_dict,
+            pk=pk_value,
+            defaults=default_dict,
+            drop_foreign_keys=drop_foreign_keys_value,
+            add_foreign_keys=add_foreign_keys_value,
+        )
 
 
 @cli.command()
