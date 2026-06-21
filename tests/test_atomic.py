@@ -1,6 +1,44 @@
 import pytest
 
+from sqlite_utils.db import _iter_complete_sql_statements
 from sqlite_utils.utils import sqlite3
+
+
+@pytest.mark.parametrize(
+    "sql,expected",
+    (
+        (
+            "CREATE TABLE t(id); INSERT INTO t VALUES (1)",
+            ["CREATE TABLE t(id);", "INSERT INTO t VALUES (1)"],
+        ),
+        (
+            "INSERT INTO t VALUES ('a;b');",
+            ["INSERT INTO t VALUES ('a;b');"],
+        ),
+        (
+            "-- comment;\nCREATE TABLE t(id);",
+            ["-- comment;\nCREATE TABLE t(id);"],
+        ),
+        (
+            """
+            CREATE TRIGGER t_ai AFTER INSERT ON t
+            BEGIN
+                UPDATE t SET value = 'a;b' WHERE id = new.id;
+                INSERT INTO log VALUES ('x;y');
+            END;
+            """,
+            [
+                "CREATE TRIGGER t_ai AFTER INSERT ON t\n"
+                "            BEGIN\n"
+                "                UPDATE t SET value = 'a;b' WHERE id = new.id;\n"
+                "                INSERT INTO log VALUES ('x;y');\n"
+                "            END;"
+            ],
+        ),
+    ),
+)
+def test_iter_complete_sql_statements(sql, expected):
+    assert list(_iter_complete_sql_statements(sql)) == expected
 
 
 def test_atomic_commits(fresh_db):
@@ -54,9 +92,10 @@ def test_executescript_does_not_commit_open_atomic_block(fresh_db):
                 CREATE TABLE dogs(id INTEGER PRIMARY KEY, name TEXT);
                 CREATE TRIGGER dogs_ai AFTER INSERT ON dogs
                 BEGIN
-                    UPDATE dogs SET name = upper(new.name) WHERE id = new.id;
+                    UPDATE dogs SET name = upper(new.name) || '; updated' WHERE id = new.id;
                 END;
-                INSERT INTO dogs VALUES (1, 'Cleo');
+                -- This comment has a semicolon;
+                INSERT INTO dogs VALUES (1, 'Cleo; the first');
             """)
             raise RuntimeError("boom")
 

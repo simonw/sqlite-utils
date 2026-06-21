@@ -196,6 +196,19 @@ DEFAULT = Default()
 Tracer = Callable[[str, Optional[Union[Sequence[Any], Dict[str, Any]]]], None]
 
 
+def _iter_complete_sql_statements(sql: str) -> Generator[str, None, None]:
+    statement = []
+    for char in sql:
+        statement.append(char)
+        statement_sql = "".join(statement).strip()
+        if statement_sql and sqlite3.complete_statement(statement_sql):
+            yield statement_sql
+            statement = []
+    statement_sql = "".join(statement).strip()
+    if statement_sql:
+        yield statement_sql
+
+
 COLUMN_TYPE_MAPPING: Dict[Any, str] = {
     float: "REAL",
     int: "INTEGER",
@@ -618,16 +631,9 @@ class Database:
     def _executescript(self, sql: str) -> sqlite3.Cursor:
         if self.conn.in_transaction:
             cursor = self.conn.cursor()
-            statement = []
-            for char in sql:
-                statement.append(char)
-                statement_sql = "".join(statement).strip()
-                if statement_sql and sqlite3.complete_statement(statement_sql):
-                    cursor.execute(statement_sql)
-                    statement = []
-            statement_sql = "".join(statement).strip()
-            if statement_sql:
-                cursor.execute(statement_sql)
+            # avoid sqlite3.executescript()'s implicit commit:
+            for statement in _iter_complete_sql_statements(sql):
+                cursor.execute(statement)
             return cursor
         return self.conn.executescript(sql)
 
