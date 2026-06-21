@@ -414,9 +414,7 @@ class Database:
         Nested blocks use SQLite savepoints.
         """
         if self.conn.in_transaction:
-            savepoint = quote_identifier(
-                "sqlite_utils_{}".format(secrets.token_hex(16))
-            )
+            savepoint = "sqlite_utils_{}".format(secrets.token_hex(16))
             self.conn.execute("SAVEPOINT {};".format(savepoint))
             try:
                 yield self
