@@ -1177,7 +1177,7 @@ def insert_upsert_implementation(
                 )
             else:
                 raise
-        if tracker is not None:
+        if tracker is not None and db.table(table).exists():
             db.table(table).transform(types=tracker.types)
 
         # Clean up open file-like objects
@@ -2034,7 +2034,7 @@ def memory(
                 rows = (_flatten(row) for row in rows)
 
             db.table(file_table).insert_all(rows, alter=True)
-            if tracker is not None:
+            if tracker is not None and db.table(file_table).exists():
                 db.table(file_table).transform(types=tracker.types)
             # Add convenient t / t1 / t2 views
             view_names = ["t{}".format(i + 1)]
