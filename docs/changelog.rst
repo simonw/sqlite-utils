@@ -4,6 +4,13 @@
  Changelog
 ===========
 
+.. _v_unreleased:
+
+Unreleased
+----------
+
+- New :ref:`database migrations system <migrations>`, incorporating functionality that was previously provided by the separate `sqlite-migrate <https://github.com/simonw/sqlite-migrate>`__ plugin. Define migration sets using the new :class:`sqlite_utils.Migrations` class and apply them using the ``sqlite-utils migrate`` command or the :ref:`migrations Python API <migrations_python>`.  (:issue:`752`)
+
 .. _v3_39:
 
 3.39 (2025-11-24)
@@ -182,7 +189,7 @@ This release introduces a new :ref:`plugin system <plugins>`. Read more about th
 - Conversion functions passed to :ref:`table.convert(...) <python_api_convert>` can now return lists or dictionaries, which will be inserted into the database as JSON strings. (:issue:`495`)
 - ``sqlite-utils install`` and ``sqlite-utils uninstall`` commands for installing packages into the same virtual environment as ``sqlite-utils``, :ref:`described here <cli_install>`. (:issue:`483`)
 - New :ref:`sqlite_utils.utils.flatten() <reference_utils_flatten>` utility function. (:issue:`500`)
-- Documentation on :ref:`using Just <contributing_just>` to run tests, linters and build documentation. 
+- Documentation on :ref:`using Just <contributing_just>` to run tests, linters and build documentation.
 - Documentation now covers the :ref:`release_process` for this package.
 
 .. _v3_29:
