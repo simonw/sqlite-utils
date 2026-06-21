@@ -420,6 +420,29 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
     assert all(q[0].startswith("select ") for q in queries)
 
 
+def test_enable_fts_replace_handles_legacy_bracket_quoted_content_table():
+    db = Database(memory=True)
+    db["books"].insert(
+        {
+            "id": 1,
+            "title": "Habits of Australian Marsupials",
+            "author": "Marlee Hawkins",
+        },
+        pk="id",
+    )
+    db.executescript("""
+        CREATE VIRTUAL TABLE [books_fts] USING FTS5 (
+            [title],
+            content=[books]
+        );
+    """)
+
+    db["books"].enable_fts(["title", "author"], replace=True)
+
+    assert db["books_fts"].columns_dict.keys() == {"title", "author"}
+    assert 'content="books"' in db["books_fts"].schema
+
+
 def test_enable_fts_error_message_on_views():
     db = Database(memory=True)
     db.create_view("hello", "select 1 + 1")

@@ -2776,7 +2776,7 @@ class Table(Queryable):
                 )
         """).strip()
         args = {
-            "like": '%VIRTUAL TABLE%USING FTS%content="{}"%'.format(self.name),
+            "like": "%VIRTUAL TABLE%USING FTS%content=[{}]%".format(self.name),
             "like2": '%VIRTUAL TABLE%USING FTS%content="{}"%'.format(self.name),
             "table": self.name,
         }
