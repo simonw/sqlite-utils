@@ -1734,6 +1734,29 @@ def test_transform(db_path, args, expected_schema):
     assert schema == expected_schema
 
 
+def test_transform_sql(db_path):
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert(
+            {"id": 1, "age": 4, "name": "Cleo"},
+            not_null={"age"},
+            defaults={"age": 1},
+            pk="id",
+        )
+    original_schema = db["dogs"].schema
+
+    result = CliRunner().invoke(
+        cli.cli, ["transform", db_path, "dogs", "--drop", "name", "--sql"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert 'CREATE TABLE "dogs_new_' in result.output
+    assert '"age" INTEGER NOT NULL DEFAULT' in result.output
+    assert 'DROP TABLE "dogs";' in result.output
+    assert 'ALTER TABLE "dogs_new_' in result.output
+    assert db["dogs"].schema == original_schema
+
+
 @pytest.mark.parametrize(
     "extra_args,expected_schema",
     (
