@@ -8,6 +8,8 @@
 
 A migration is a Python function that receives a :class:`sqlite_utils.Database` instance. Migrations are grouped into named sets using the :class:`sqlite_utils.Migrations` class, and each applied migration is recorded in the ``_sqlite_migrations`` table in that database.
 
+.. _migrations_python:
+
 Applying migrations in Python
 =============================
 

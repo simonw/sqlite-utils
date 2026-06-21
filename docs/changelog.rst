@@ -9,7 +9,7 @@
 Unreleased
 ----------
 
-- New ``sqlite-utils migrate`` command for applying Python database migrations, incorporating functionality that was previously provided by the separate `sqlite-migrate <https://github.com/simonw/sqlite-migrate>`__ plugin. Define migration sets using the new :class:`sqlite_utils.Migrations` class and apply them using ``sqlite-utils migrate database.db migrations.py`` or the :ref:`migrations Python API <migrations_python>`. See :ref:`migrations` for details. (:issue:`752`)
+- New :ref:`database migrations system <migrations>`, incorporating functionality that was previously provided by the separate `sqlite-migrate <https://github.com/simonw/sqlite-migrate>`__ plugin. Define migration sets using the new :class:`sqlite_utils.Migrations` class and apply them using the ``sqlite-utils migrate`` command or the :ref:`migrations Python API <migrations_python>`.  (:issue:`752`)
 
 .. _v3_39:
 
