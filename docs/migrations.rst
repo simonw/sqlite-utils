@@ -120,13 +120,23 @@ Example output:
 Stopping before a migration
 ===========================
 
-When applying a single migration set, you can stop before a named migration:
+When applying migrations using the CLI, you can stop before a named migration:
 
 .. code-block:: bash
 
     sqlite-utils migrate creatures.db path/to/migrations.py --stop-before add_weight
 
-This applies any pending migrations before ``add_weight`` and leaves ``add_weight`` and later migrations pending.
+This applies any pending migrations before ``add_weight`` and leaves ``add_weight`` and later migrations pending. An unqualified migration name matches in any migration set.
+
+You can also target a specific migration set using ``migration_set:migration_name``. This is useful if a migrations file contains more than one migration set, or if multiple sets use the same migration name:
+
+.. code-block:: bash
+
+    sqlite-utils migrate creatures.db path/to/migrations.py \
+      --stop-before creatures:add_weight \
+      --stop-before sales:drop_index
+
+The ``--stop-before`` option can be passed more than once.
 
 Verbose output
 ==============

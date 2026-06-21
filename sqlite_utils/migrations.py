@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 import datetime
 from typing import Callable, cast, TYPE_CHECKING
@@ -69,14 +70,20 @@ class Migrations:
             )
         ]
 
-    def apply(self, db: "Database", *, stop_before: str | None = None):
+    def apply(self, db: "Database", *, stop_before: str | Iterable[str] | None = None):
         """
         Apply any pending migrations to the database.
         """
         self.ensure_migrations_table(db)
+        if stop_before is None:
+            stop_before_names = set()
+        elif isinstance(stop_before, str):
+            stop_before_names = {stop_before}
+        else:
+            stop_before_names = set(stop_before)
         for migration in self.pending(db):
             name = migration.name
-            if name == stop_before:
+            if name in stop_before_names:
                 return
             migration.fn(db)
             _table(db, self.migrations_table).insert(

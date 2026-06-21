@@ -993,8 +993,12 @@ See :ref:`cli_migrate`.
       Pass --list to see a list of applied and pending migrations without applying
       them.
 
+      Use --stop-before migration_set:name to stop before a migration. This option
+      can be used multiple times.
+
     Options:
-      --stop-before TEXT  Stop before applying this migration
+      --stop-before TEXT  Stop before applying this migration. Use set:name to
+                          target a migration set.
       --list              List migrations without running them
       -v, --verbose       Show verbose output
       -h, --help          Show this message and exit.

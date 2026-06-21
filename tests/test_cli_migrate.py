@@ -29,6 +29,39 @@ def two_migrations(tmpdir):
     return path, migrations_py
 
 
+@pytest.fixture
+def two_sets_same_migration_name(tmpdir):
+    path = pathlib.Path(tmpdir)
+    migrations_py = path / "migrations.py"
+    migrations_py.write_text(
+        """
+from sqlite_utils import Migrations
+
+creatures = Migrations("creatures")
+
+@creatures()
+def create_table(db):
+    db["creatures"].insert({"name": "Cleo"})
+
+@creatures()
+def add_weight(db):
+    db["creature_weights"].insert({"weight": 4.2})
+
+sales = Migrations("sales")
+
+@sales()
+def create_table(db):
+    db["sales"].insert({"id": 1})
+
+@sales()
+def add_weight(db):
+    db["sales_weights"].insert({"weight": 10})
+""",
+        "utf-8",
+    )
+    return path, migrations_py
+
+
 @pytest.mark.parametrize("arg", ("TMPDIR", "TMPDIR/foo/migrations.py", "TMPDIR/foo/"))
 def test_basic(two_migrations, arg):
     path, _ = two_migrations
@@ -194,7 +227,7 @@ def test_stop_before(two_migrations):
     assert not db["bar"].exists()
 
 
-def test_stop_before_error(two_migrations):
+def test_stop_before_multiple_sets_unqualified(two_migrations):
     path, _ = two_migrations
     db_path = str(path / "test.db")
     (path / "foo" / "migrations2.py").write_text(
@@ -220,8 +253,51 @@ def foo(db):
             "foo",
         ],
     )
-    assert result.exit_code == 1
-    assert (
-        "--stop-before can only be used with a single migrations.py file"
-        in result.output
+    assert result.exit_code == 0, result.output
+    db = sqlite_utils.Database(db_path)
+    assert db.table_names() == ["_sqlite_migrations"]
+    assert list(db["_sqlite_migrations"].rows) == []
+
+
+def test_stop_before_qualified_only_affects_named_set(two_sets_same_migration_name):
+    path, migrations_py = two_sets_same_migration_name
+    db_path = str(path / "test.db")
+    result = CliRunner().invoke(
+        sqlite_utils.cli.cli,
+        [
+            "migrate",
+            db_path,
+            str(migrations_py),
+            "--stop-before",
+            "creatures:add_weight",
+        ],
     )
+    assert result.exit_code == 0, result.output
+    db = sqlite_utils.Database(db_path)
+    assert db["creatures"].exists()
+    assert not db["creature_weights"].exists()
+    assert db["sales"].exists()
+    assert db["sales_weights"].exists()
+
+
+def test_stop_before_multiple_qualified(two_sets_same_migration_name):
+    path, migrations_py = two_sets_same_migration_name
+    db_path = str(path / "test.db")
+    result = CliRunner().invoke(
+        sqlite_utils.cli.cli,
+        [
+            "migrate",
+            db_path,
+            str(migrations_py),
+            "--stop-before",
+            "creatures:add_weight",
+            "--stop-before",
+            "sales:add_weight",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    db = sqlite_utils.Database(db_path)
+    assert db["creatures"].exists()
+    assert not db["creature_weights"].exists()
+    assert db["sales"].exists()
+    assert not db["sales_weights"].exists()

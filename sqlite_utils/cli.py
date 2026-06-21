@@ -3322,12 +3322,28 @@ def _display_migration_list(db, migration_sets):
         click.echo()
 
 
+def _stop_before_for_migration_set(stop_before, migration_set_name):
+    matches = []
+    for value in stop_before:
+        set_name, separator, migration_name = value.partition(":")
+        if separator:
+            if set_name == migration_set_name:
+                matches.append(migration_name)
+        else:
+            matches.append(value)
+    return matches
+
+
 @click.command()
 @click.argument(
     "db_path", type=click.Path(dir_okay=False, readable=True, writable=True)
 )
 @click.argument("migrations", type=click.Path(dir_okay=True, exists=True), nargs=-1)
-@click.option("--stop-before", help="Stop before applying this migration")
+@click.option(
+    "--stop-before",
+    multiple=True,
+    help="Stop before applying this migration. Use set:name to target a migration set.",
+)
 @click.option(
     "list_", "--list", is_flag=True, help="List migrations without running them"
 )
@@ -3349,16 +3365,14 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
 
     Pass --list to see a list of applied and pending migrations
     without applying them.
+
+    Use --stop-before migration_set:name to stop before a
+    migration. This option can be used multiple times.
     """
     files = _find_migration_files(migrations)
     migration_sets = _load_migration_sets(files)
     if not migration_sets:
         raise click.ClickException("No migrations.py files found")
-
-    if stop_before and len(migration_sets) > 1:
-        raise click.ClickException(
-            "--stop-before can only be used with a single migrations.py file"
-        )
 
     db = sqlite_utils.Database(db_path)
     _register_db_for_cleanup(db)
@@ -3374,7 +3388,10 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
         click.echo(textwrap.indent(prev_schema, "  ") or "  (empty)")
         click.echo()
     for migration_set in migration_sets:
-        migration_set.apply(db, stop_before=stop_before)
+        migration_set.apply(
+            db,
+            stop_before=_stop_before_for_migration_set(stop_before, migration_set.name),
+        )
     if verbose:
         click.echo("Schema after:\n")
         post_schema = db.schema

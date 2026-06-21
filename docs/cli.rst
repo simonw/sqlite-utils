@@ -1081,6 +1081,14 @@ Use ``--list`` to list applied and pending migrations without running them:
 
     sqlite-utils migrate creatures.db --list
 
+Use ``--stop-before`` to stop before a named migration. The option can be passed more than once, and can target a specific migration set using ``migration_set:migration_name``:
+
+.. code-block:: bash
+
+    sqlite-utils migrate creatures.db path/to/migrations.py \
+      --stop-before creatures:add_weight \
+      --stop-before sales:drop_index
+
 .. _cli_inserting_data:
 
 Inserting JSON data
