@@ -1,19 +1,29 @@
 .. _migrations:
 
-====================
+=====================
  Database migrations
-====================
+=====================
 
-``sqlite-utils`` includes a small migration system for applying repeatable changes to SQLite database files.
+``sqlite-utils`` includes a migration system for applying repeatable changes to SQLite database files.
 
-A migration is a Python function that receives a :class:`sqlite_utils.Database` instance. Migrations are grouped into named sets using the :class:`sqlite_utils.Migrations` class, and each applied migration is recorded in the ``_sqlite_migrations`` table in that database.
+A migration is a Python function that receives a :class:`sqlite_utils.Database` instance and then executes Python code to modify that database - creating or transforming tables, adding indexes, inserting rows, or any other operation suppored by SQLite.
 
-.. _migrations_python:
+Migrations are grouped into named sets using the :class:`sqlite_utils.Migrations` class, and each applied migration is recorded in the ``_sqlite_migrations`` table in that database.
 
-Applying migrations in Python
-=============================
+This means you can run the migrate operation multiple times and it will only apply migrations that have not previously been recorded.
 
-Create a :class:`sqlite_utils.Migrations` object, decorate migration functions with it and call ``.apply(db)`` against a :class:`sqlite_utils.Database` instance:
+.. _migrations_define:
+
+Defining migrations
+===================
+
+Ordered migration sets are defined by first creating a :class:`sqlite_utils.Migrations` object.
+
+Individual migrations are Python functions that are then registered with that migration set. Each migration function is passed a single argument that is a :ref:`sqlite_utils.Database <reference_db_database>` instance.
+
+The name passed to ``Migrations("creatures")`` identifies that set of migrations. Use a name that is unique for your project, since multiple migration sets can be applied to the same database.
+
+Here is a simple example of a ``migrations.py`` file which creates a table, then adds an extra column to that table in a second migration:
 
 .. code-block:: python
 
@@ -32,14 +42,21 @@ Create a :class:`sqlite_utils.Migrations` object, decorate migration functions w
     def add_weight(db):
         db["creatures"].add_column("weight", float)
 
+.. _migrations_python:
+
+Applying migrations in Python
+=============================
+
+Once you have a ``Migrations(name)`` collection with one or more migrations registered to it, you can eexcute them in Python code like this:
+
+.. code-block:: python
+
     db = Database("creatures.db")
     migrations.apply(db)
 
 Running ``migrations.apply(db)`` repeatedly is safe. Migrations that already have a matching ``migration_set`` and ``name`` row in ``_sqlite_migrations`` will be skipped.
 
-The name passed to ``Migrations("creatures")`` identifies that set of migrations. Use a name that is unique for your project, since multiple migration sets can be applied to the same database.
-
-Migration functions are applied in the order their decorators run. The function name is used as the migration name unless you pass one explicitly:
+Migration functions are applied in the order that they were registered. The function name is used as the migration name unless you pass one explicitly:
 
 .. code-block:: python
 
@@ -47,33 +64,11 @@ Migration functions are applied in the order their decorators run. The function 
     def create_table(db):
         db["creatures"].create({"id": int, "name": str}, pk="id")
 
-You can also stop before a named migration:
+When you apply a sit of migrations you can stop part way through by specifying a ``stop_before=`` migration name:
 
 .. code-block:: python
 
     migrations.apply(db, stop_before="add_weight")
-
-Migration files
-===============
-
-The ``sqlite-utils migrate`` command looks for migration sets in Python files, usually named ``migrations.py``. A migration file should define one or more :class:`sqlite_utils.Migrations` objects:
-
-.. code-block:: python
-
-    from sqlite_utils import Migrations
-
-    migrations = Migrations("creatures")
-
-    @migrations()
-    def create_table(db):
-        db["creatures"].create(
-            {"id": int, "name": str, "species": str},
-            pk="id",
-        )
-
-    @migrations()
-    def add_weight(db):
-        db["creatures"].add_column("weight", float)
 
 Applying migrations using the CLI
 =================================
@@ -145,7 +140,7 @@ Use ``--verbose`` or ``-v`` to show the schema before and after migrations are a
 Migrating from sqlite-migrate
 =============================
 
-This system uses the same migration table format as the separate ``sqlite-migrate`` package. To use existing migration files directly with ``sqlite-utils``, update their import from ``sqlite_migrate`` to ``sqlite_utils``:
+This system uses the same migration table format as the older `sqlite-migrate <https://github.com/simonw/sqlite-migrate>`__ package. To use existing migration files directly with ``sqlite-utils``, update their import from ``sqlite_migrate`` to ``sqlite_utils``:
 
 .. code-block:: python
 
