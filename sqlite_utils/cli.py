@@ -16,7 +16,7 @@ from sqlite_utils.db import (
     NoTable,
     quote_identifier,
 )
-from sqlite_utils.plugins import pm, get_plugins
+from sqlite_utils.plugins import ensure_plugins_loaded, pm, get_plugins
 from sqlite_utils.utils import maximize_csv_field_size_limit
 from sqlite_utils import recipes
 import textwrap
@@ -3412,6 +3412,7 @@ def plugins_list():
     click.echo(json.dumps(get_plugins(), indent=2))
 
 
+ensure_plugins_loaded()
 pm.hook.register_commands(cli=cli)
 cli.add_command(migrate)
 

@@ -2,6 +2,7 @@ from click.testing import CliRunner
 import click
 import importlib
 import pytest
+import sys
 from sqlite_utils import cli, Database, hookimpl, plugins
 
 
@@ -14,6 +15,36 @@ def _supports_pragma_function_list():
         return False
     finally:
         db.close()
+
+
+def test_get_plugins_loads_setuptools_entrypoints_once(monkeypatch):
+    calls = []
+    monkeypatch.delattr(sys, "_called_from_test", raising=False)
+    monkeypatch.setattr(plugins, "_plugins_loaded", False)
+    monkeypatch.setattr(
+        plugins.pm,
+        "load_setuptools_entrypoints",
+        lambda group: calls.append(group) or 0,
+    )
+
+    plugins.get_plugins()
+    plugins.get_plugins()
+
+    assert calls == ["sqlite_utils"]
+
+
+def test_get_plugins_does_not_load_setuptools_entrypoints_in_tests(monkeypatch):
+    calls = []
+    monkeypatch.setattr(sys, "_called_from_test", True, raising=False)
+    monkeypatch.setattr(plugins, "_plugins_loaded", False)
+    monkeypatch.setattr(
+        plugins.pm,
+        "load_setuptools_entrypoints",
+        lambda group: calls.append(group) or 0,
+    )
+
+    assert plugins.get_plugins() == []
+    assert calls == []
 
 
 def test_register_commands():

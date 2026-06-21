@@ -41,7 +41,7 @@ from typing import (
     Tuple,
 )
 import uuid
-from sqlite_utils.plugins import pm
+from sqlite_utils.plugins import ensure_plugins_loaded, pm
 
 try:
     iterdump = importlib.import_module("sqlite_dump").iterdump
@@ -401,6 +401,7 @@ class Database:
         self._registered_functions: set = set()
         self.use_counts_table = use_counts_table
         if execute_plugins:
+            ensure_plugins_loaded()
             pm.hook.prepare_connection(conn=self.conn)
         self.strict = strict
 
