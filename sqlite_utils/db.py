@@ -1905,6 +1905,17 @@ class Table(Queryable):
             column_order=column_order,
             keep_table=keep_table,
         )
+        views = self.db.execute(
+            "select name, sql from sqlite_master where type = 'view' "
+            "and sql is not null order by rowid"
+        ).fetchall()
+        view_triggers = []
+        if views:
+            view_triggers = self.db.execute(
+                "select name, sql from sqlite_master where type = 'trigger' "
+                "and sql is not null and tbl_name in "
+                "(select name from sqlite_master where type = 'view') order by rowid"
+            ).fetchall()
         pragma_foreign_keys_was_on = self.db.execute("PRAGMA foreign_keys").fetchone()[
             0
         ]
@@ -1912,11 +1923,26 @@ class Table(Queryable):
             if pragma_foreign_keys_was_on:
                 self.db.execute("PRAGMA foreign_keys=0;")
             with self.db.conn:
+                if views and not self.db.conn.in_transaction:
+                    self.db.execute("BEGIN;")
+                for view_name, _ in views:
+                    self.db.execute("DROP VIEW {}".format(quote_identifier(view_name)))
                 for sql in sqls:
                     self.db.execute(sql)
                 # Run the foreign_key_check before we commit
                 if pragma_foreign_keys_was_on:
                     self.db.execute("PRAGMA foreign_key_check;")
+                for view_name, view_sql in views:
+                    try:
+                        self.db.execute(view_sql)
+                    except sqlite3.OperationalError as e:
+                        raise TransformError(
+                            f"View '{view_name}' could not be recreated after transforming table '{self.name}'. "
+                            "It may reference columns that were dropped or renamed. "
+                            "You must recreate this view manually."
+                        ) from e
+                for _, trigger_sql in view_triggers:
+                    self.db.execute(trigger_sql)
         finally:
             if pragma_foreign_keys_was_on:
                 self.db.execute("PRAGMA foreign_keys=1;")
