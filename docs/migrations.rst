@@ -47,7 +47,7 @@ Here is a simple example of a ``migrations.py`` file which creates a table, then
 Applying migrations in Python
 =============================
 
-Once you have a ``Migrations(name)`` collection with one or more migrations registered to it, you can eexcute them in Python code like this:
+Once you have a ``Migrations(name)`` collection with one or more migrations registered to it, you can execute them in Python code like this:
 
 .. code-block:: python
 
@@ -64,7 +64,7 @@ Migration functions are applied in the order that they were registered. The func
     def create_table(db):
         db["creatures"].create({"id": int, "name": str}, pk="id")
 
-When you apply a sit of migrations you can stop part way through by specifying a ``stop_before=`` migration name:
+When you apply a set of migrations you can stop part way through by specifying a ``stop_before=`` migration name:
 
 .. code-block:: python
 
@@ -120,7 +120,7 @@ Example output:
 Stopping before a migration
 ===========================
 
-When applying a single migration file, you can stop before a named migration:
+When applying a single migration set, you can stop before a named migration:
 
 .. code-block:: bash
 
