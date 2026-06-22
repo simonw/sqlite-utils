@@ -3179,6 +3179,20 @@ class Table(Queryable):
         return a list of ``(sql, parameters)`` 2-tuples which, when executed in
         order, perform the desired INSERT / UPSERT / REPLACE operation.
         """
+        # Dict-mode insert({}) has no explicit columns; SQLite spells that as
+        # DEFAULT VALUES. List mode with no columns is a different input shape.
+        if not list_mode and not all_columns:
+            or_clause = ""
+            if replace:
+                or_clause = " OR REPLACE"
+            elif ignore:
+                or_clause = " OR IGNORE"
+            sql = (
+                f"INSERT{or_clause} INTO {quote_identifier(self.name)} "
+                "DEFAULT VALUES"
+            )
+            return [(sql, []) for _ in chunk]
+
         if hash_id_columns and hash_id is None:
             hash_id = "id"
 
@@ -3603,7 +3617,11 @@ class Table(Queryable):
         assert (
             num_columns <= SQLITE_MAX_VARS
         ), "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
-        batch_size = max(1, min(batch_size, SQLITE_MAX_VARS // num_columns))
+        batch_size = (
+            1
+            if num_columns == 0
+            else max(1, min(batch_size, SQLITE_MAX_VARS // num_columns))
+        )
         self.last_rowid = None
         self.last_pk = None
         if truncate and self.exists():
