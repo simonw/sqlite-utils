@@ -950,6 +950,26 @@ def test_insert_hash_id(fresh_db):
     assert dogs.count == 1
 
 
+def test_insert_all_pk_and_hash_id_raises_value_error(fresh_db):
+    # pk= and hash_id= are mutually exclusive. This must raise a ValueError
+    # rather than a bare AssertionError, which is silently stripped under
+    # python -O and so would let the contradictory call through.
+    with pytest.raises(ValueError, match="Use either pk= or hash_id="):
+        fresh_db["dogs"].insert_all(
+            [{"id": 1, "name": "Cleo"}], pk="id", hash_id="hash"
+        )
+
+
+def test_insert_all_ignore_and_replace_raises_value_error(fresh_db):
+    # ignore=True and replace=True are mutually exclusive.
+    with pytest.raises(
+        ValueError, match="Use either ignore=True or replace=True, not both"
+    ):
+        fresh_db["dogs"].insert_all(
+            [{"id": 1, "name": "Cleo"}], ignore=True, replace=True
+        )
+
+
 @pytest.mark.parametrize("use_table_factory", [True, False])
 def test_insert_hash_id_columns(fresh_db, use_table_factory):
     if use_table_factory:
