@@ -116,7 +116,7 @@ See :ref:`cli_query`.
       --arrays                    Output rows as arrays instead of objects
       --csv                       Output CSV
       --tsv                       Output TSV
-      --no-headers                Omit CSV headers
+      --no-headers                Omit headers from CSV/TSV and table/--fmt output
       -t, --table                 Output as a formatted table
       --fmt TEXT                  Table format - one of asciidoc, colon_grid,
                                   double_grid, double_outline, fancy_grid,
@@ -185,7 +185,7 @@ See :ref:`cli_memory`.
       --arrays                    Output rows as arrays instead of objects
       --csv                       Output CSV
       --tsv                       Output TSV
-      --no-headers                Omit CSV headers
+      --no-headers                Omit headers from CSV/TSV and table/--fmt output
       -t, --table                 Output as a formatted table
       --fmt TEXT                  Table format - one of asciidoc, colon_grid,
                                   double_grid, double_outline, fancy_grid,
@@ -424,7 +424,7 @@ See :ref:`cli_search`.
       --arrays               Output rows as arrays instead of objects
       --csv                  Output CSV
       --tsv                  Output TSV
-      --no-headers           Omit CSV headers
+      --no-headers           Omit headers from CSV/TSV and table/--fmt output
       -t, --table            Output as a formatted table
       --fmt TEXT             Table format - one of asciidoc, colon_grid,
                              double_grid, double_outline, fancy_grid, fancy_outline,
@@ -690,7 +690,7 @@ See :ref:`cli_tables`.
       --arrays               Output rows as arrays instead of objects
       --csv                  Output CSV
       --tsv                  Output TSV
-      --no-headers           Omit CSV headers
+      --no-headers           Omit headers from CSV/TSV and table/--fmt output
       -t, --table            Output as a formatted table
       --fmt TEXT             Table format - one of asciidoc, colon_grid,
                              double_grid, double_outline, fancy_grid, fancy_outline,
@@ -732,7 +732,7 @@ See :ref:`cli_views`.
       --arrays               Output rows as arrays instead of objects
       --csv                  Output CSV
       --tsv                  Output TSV
-      --no-headers           Omit CSV headers
+      --no-headers           Omit headers from CSV/TSV and table/--fmt output
       -t, --table            Output as a formatted table
       --fmt TEXT             Table format - one of asciidoc, colon_grid,
                              double_grid, double_outline, fancy_grid, fancy_outline,
@@ -779,7 +779,7 @@ See :ref:`cli_rows`.
       --arrays                    Output rows as arrays instead of objects
       --csv                       Output CSV
       --tsv                       Output TSV
-      --no-headers                Omit CSV headers
+      --no-headers                Omit headers from CSV/TSV and table/--fmt output
       -t, --table                 Output as a formatted table
       --fmt TEXT                  Table format - one of asciidoc, colon_grid,
                                   double_grid, double_outline, fancy_grid,
@@ -819,7 +819,7 @@ See :ref:`cli_triggers`.
       --arrays               Output rows as arrays instead of objects
       --csv                  Output CSV
       --tsv                  Output TSV
-      --no-headers           Omit CSV headers
+      --no-headers           Omit headers from CSV/TSV and table/--fmt output
       -t, --table            Output as a formatted table
       --fmt TEXT             Table format - one of asciidoc, colon_grid,
                              double_grid, double_outline, fancy_grid, fancy_outline,
@@ -859,7 +859,7 @@ See :ref:`cli_indexes`.
       --arrays               Output rows as arrays instead of objects
       --csv                  Output CSV
       --tsv                  Output TSV
-      --no-headers           Omit CSV headers
+      --no-headers           Omit headers from CSV/TSV and table/--fmt output
       -t, --table            Output as a formatted table
       --fmt TEXT             Table format - one of asciidoc, colon_grid,
                              double_grid, double_outline, fancy_grid, fancy_outline,
