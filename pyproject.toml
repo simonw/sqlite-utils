@@ -34,6 +34,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "black>=26.3.1",
+    "click>=8.4.2",
     "cogapp",
     "hypothesis",
     "pytest",
