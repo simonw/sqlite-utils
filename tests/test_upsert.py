@@ -49,6 +49,53 @@ def test_upsert_error_if_no_pk(fresh_db):
         table.upsert({"id": 1, "name": "Cleo"})
 
 
+def test_upsert_error_if_existing_table_has_no_pk(fresh_db):
+    table = fresh_db.create_table("table", {"id": int, "name": str})
+    with pytest.raises(PrimaryKeyRequired):
+        table.upsert({"id": 1, "name": "Cleo"})
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert_uses_compound_pk_from_existing_table(use_old_upsert):
+    # https://github.com/simonw/sqlite-utils/issues/629
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    db.execute("""
+        create table summary (
+            Source text,
+            Object text,
+            Category text,
+            Count integer,
+            primary key (Source, Object, Category)
+        )
+        """)
+    table = db["summary"]
+    table.upsert(
+        {
+            "Source": "Client A",
+            "Object": "Accounts",
+            "Category": "All",
+            "Count": 3,
+        }
+    )
+    assert table.last_pk == ("Client A", "Accounts", "All")
+    table.upsert(
+        {
+            "Source": "Client A",
+            "Object": "Accounts",
+            "Category": "All",
+            "Count": 4,
+        }
+    )
+    assert list(table.rows) == [
+        {
+            "Source": "Client A",
+            "Object": "Accounts",
+            "Category": "All",
+            "Count": 4,
+        }
+    ]
+
+
 def test_upsert_with_hash_id(fresh_db):
     table = fresh_db["table"]
     table.upsert({"foo": "bar"}, hash_id="pk")
