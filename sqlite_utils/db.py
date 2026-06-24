@@ -497,15 +497,13 @@ class Database:
         finally:
             self._tracer = prev_tracer
 
-    def __getitem__(self, table_name: str) -> Union["Table", "View"]:
+    def __getitem__(self, table_name: str) -> "Table":
         """
         ``db[table_name]`` returns a :class:`.Table` object for the table with the specified name.
         If the table does not exist yet it will be created the first time data is inserted into it.
 
         :param table_name: The name of the table
         """
-        if table_name in self.view_names():
-            return self.view(table_name)
         return self.table(table_name)
 
     def __repr__(self) -> str:
