@@ -3106,12 +3106,12 @@ def convert(
         db.conn.create_function("preview_transform", 1, preview)
         sql = """
             select
-                [{column}] as value,
-                preview_transform([{column}]) as preview
-            from [{table}]{where} limit 10
+                {column} as value,
+                preview_transform({column}) as preview
+            from {table}{where} limit 10
         """.format(
-            column=columns[0],
-            table=table,
+            column=quote_identifier(columns[0]),
+            table=quote_identifier(table),
             where=" where {}".format(where) if where is not None else "",
         )
         for row in db.conn.execute(sql, where_args).fetchall():
