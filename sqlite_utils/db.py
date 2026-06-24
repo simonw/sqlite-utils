@@ -2267,32 +2267,49 @@ class Table(Queryable):
                 )
             lookup_columns = [(rename.get(col) or col) for col in columns]
             lookup_table.create_index(lookup_columns, unique=True, if_not_exists=True)
+            # Don't create a lookup row for the all-NULL combination: a row whose
+            # extracted columns are entirely NULL represents "no value", so it
+            # should keep a NULL foreign key rather than point at a NULL lookup row
+            # (#186). Rows with a partial NULL (some extracted columns set, others
+            # NULL) are a genuine distinct value and are still extracted.
             self.db.execute(
-                "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {}".format(
+                "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {} WHERE NOT ({all_null})".format(
                     quote_identifier(table),
                     quote_identifier(self.name),
                     lookup_columns=", ".join(
                         quote_identifier(c) for c in lookup_columns
                     ),
                     table_cols=", ".join(quote_identifier(c) for c in columns),
+                    all_null=" AND ".join(
+                        "{} IS NULL".format(quote_identifier(c)) for c in columns
+                    ),
                 )
             )
 
             # Now add the new fk_column
             self.add_column(magic_lookup_column, int)
 
-            # And populate it
+            # And populate it. The trailing ``WHERE NOT (<all columns NULL>)`` leaves
+            # all-NULL source rows with a NULL foreign key even when the lookup table
+            # already contains an all-NULL row (e.g. a reused or legacy lookup table)
+            # — the IS-based join would otherwise match that row and link to it (#186).
             self.db.execute(
-                "UPDATE {} SET {} = (SELECT id FROM {} WHERE {where})".format(
-                    quote_identifier(self.name),
-                    quote_identifier(magic_lookup_column),
-                    quote_identifier(table),
+                "UPDATE {table_name} SET {fk} = (SELECT id FROM {lookup} WHERE {where}) WHERE NOT ({all_null})".format(
+                    table_name=quote_identifier(self.name),
+                    fk=quote_identifier(magic_lookup_column),
+                    lookup=quote_identifier(table),
                     where=" AND ".join(
                         "{}.{} IS {}.{}".format(
                             quote_identifier(self.name),
                             quote_identifier(column),
                             quote_identifier(table),
                             quote_identifier(rename.get(column) or column),
+                        )
+                        for column in columns
+                    ),
+                    all_null=" AND ".join(
+                        "{}.{} IS NULL".format(
+                            quote_identifier(self.name), quote_identifier(column)
                         )
                         for column in columns
                     ),

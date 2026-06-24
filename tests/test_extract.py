@@ -177,6 +177,8 @@ def test_extract_error_on_incompatible_existing_lookup_table(fresh_db):
 
 
 def test_extract_works_with_null_values(fresh_db):
+    # A NULL extracted value represents "no value", so it should keep a NULL
+    # foreign key rather than be turned into a lookup row of its own (#186).
     fresh_db["listens"].insert_all(
         [
             {"id": 1, "track_title": "foo", "album_title": "bar"},
@@ -189,9 +191,70 @@ def test_extract_works_with_null_values(fresh_db):
     )
     assert list(fresh_db["listens"].rows) == [
         {"id": 1, "track_title": "foo", "album_id": 1},
-        {"id": 2, "track_title": "baz", "album_id": 2},
+        {"id": 2, "track_title": "baz", "album_id": None},
     ]
     assert list(fresh_db["albums"].rows) == [
         {"id": 1, "album_title": "bar"},
-        {"id": 2, "album_title": None},
+    ]
+
+
+def test_extract_does_not_create_lookup_row_for_all_null(fresh_db):
+    # Single-column: every NULL keeps a NULL fk and no NULL lookup row is made.
+    fresh_db["creatures"].insert_all(
+        [
+            {"id": 1, "name": "Simon", "type": None},
+            {"id": 2, "name": "Natalie", "type": None},
+            {"id": 3, "name": "Cleo", "type": "dog"},
+        ],
+        pk="id",
+    )
+    fresh_db["creatures"].extract("type")
+    assert list(fresh_db["creatures"].rows) == [
+        {"id": 1, "name": "Simon", "type_id": None},
+        {"id": 2, "name": "Natalie", "type_id": None},
+        {"id": 3, "name": "Cleo", "type_id": 1},
+    ]
+    assert list(fresh_db["type"].rows) == [{"id": 1, "type": "dog"}]
+
+
+def test_extract_multi_column_keeps_partial_null_but_not_all_null(fresh_db):
+    # Multi-column: a row whose extracted columns are *all* NULL keeps a NULL
+    # fk, but a partial-NULL combination is a genuine distinct value and is
+    # still extracted (and shared between matching rows) (#186).
+    fresh_db["t"].insert_all(
+        [
+            {"id": 1, "a": "x", "b": None},
+            {"id": 2, "a": "x", "b": None},
+            {"id": 3, "a": None, "b": None},
+            {"id": 4, "a": "y", "b": "z"},
+        ],
+        pk="id",
+    )
+    fresh_db["t"].extract(["a", "b"], table="ab", fk_column="ab_id")
+    rows = list(fresh_db["t"].rows)
+    assert rows[2]["ab_id"] is None  # all-NULL row -> NULL fk
+    assert rows[0]["ab_id"] == rows[1]["ab_id"] is not None  # partial NULL shared
+    assert rows[3]["ab_id"] not in (None, rows[0]["ab_id"])
+    # The lookup table must not contain an all-NULL row.
+    assert not any(row["a"] is None and row["b"] is None for row in fresh_db["ab"].rows)
+
+
+def test_extract_all_null_stays_null_with_preexisting_null_lookup_row(fresh_db):
+    # Reusing a lookup table that already contains an all-NULL row (e.g. created
+    # by an older sqlite-utils version) must still leave all-NULL source rows with
+    # a NULL foreign key — the IS-based join must not link them to that row (#186).
+    fresh_db["type"].insert_all(
+        [{"id": 1, "type": None}, {"id": 2, "type": "dog"}], pk="id"
+    )
+    fresh_db["creatures"].insert_all(
+        [
+            {"id": 1, "name": "Simon", "type": None},
+            {"id": 2, "name": "Cleo", "type": "dog"},
+        ],
+        pk="id",
+    )
+    fresh_db["creatures"].extract("type")
+    assert list(fresh_db["creatures"].rows) == [
+        {"id": 1, "name": "Simon", "type_id": None},
+        {"id": 2, "name": "Cleo", "type_id": 2},
     ]
