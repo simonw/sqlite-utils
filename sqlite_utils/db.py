@@ -3711,12 +3711,20 @@ class Table(Queryable):
                 if (hash_id or pk) and self.last_rowid:
                     # Set self.last_pk to the pk(s) for that rowid
                     row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
-                    if hash_id:
-                        self.last_pk = row[hash_id]
-                    elif isinstance(pk, str):
-                        self.last_pk = row[pk]
+                    pk_cols = (
+                        [hash_id]
+                        if hash_id
+                        else ([pk] if isinstance(pk, str) else list(pk))
+                    )
+                    if all(col in row for col in pk_cols):
+                        if hash_id or isinstance(pk, str):
+                            self.last_pk = row[pk_cols[0]]
+                        else:
+                            self.last_pk = tuple(row[col] for col in pk_cols)
                     else:
-                        self.last_pk = tuple(row[p] for p in pk)
+                        # Named pk column(s) are not present in the table - fall
+                        # back to the rowid, matching the multi-row behaviour
+                        self.last_pk = self.last_rowid
                 else:
                     self.last_pk = self.last_rowid
             else:
