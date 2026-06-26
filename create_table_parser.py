@@ -169,6 +169,7 @@ class Table:
     if_not_exists: bool = False
     without_rowid: bool = False
     strict: bool = False
+    select: str = ""                      # SELECT query for CREATE TABLE ... AS SELECT
 
     def __post_init__(self):
         self._by_name = {c.name: c for c in self.columns}
@@ -367,6 +368,41 @@ def _locate_body(sql):
     return open_idx, -1
 
 
+def _split_create_table_as_select(sql):
+    """Return (create-table header, select-query) for CTAS, else (sql, "")."""
+    i, n, depth = 0, len(sql), 0
+    while i < n:
+        c = sql[i]
+        if c in ("'", '"', '`'):
+            i += 1
+            while i < n:
+                if sql[i] == c:
+                    if i + 1 < n and sql[i + 1] == c:
+                        i += 2; continue
+                    i += 1; break
+                i += 1
+            continue
+        if c == '[':
+            while i < n and sql[i] != ']':
+                i += 1
+            i += 1; continue
+        if c == '(':
+            if depth == 0:
+                return sql, ""
+            depth += 1
+        elif c == ')':
+            depth -= 1
+        elif depth == 0 and (c.isalpha() or c == '_'):
+            start = i
+            while i < n and (sql[i].isalnum() or sql[i] in '_$'):
+                i += 1
+            if sql[start:i].upper() == "AS":
+                return sql[:start].rstrip(), sql[i:].strip()
+            continue
+        i += 1
+    return sql, ""
+
+
 def _leading_ident(part):
     toks = _tokenize(part)
     return _unquote(toks[0][1]) if toks else ""
@@ -429,16 +465,17 @@ class _TableParser:
 
     # -- entry --
     def parse(self) -> Table:
-        open_idx, close_idx = _locate_body(self.sql)
-        header = self.sql[:open_idx] if open_idx != -1 else self.sql
+        create_sql, select = _split_create_table_as_select(self.sql)
+        open_idx, close_idx = _locate_body(create_sql)
+        header = create_sql[:open_idx] if open_idx != -1 else create_sql
         info = self._parse_header(header)
 
-        if open_idx != -1 and not info["as_select"]:
-            body = self.sql[open_idx + 1:close_idx] if close_idx != -1 else self.sql[open_idx + 1:]
+        if open_idx != -1:
+            body = create_sql[open_idx + 1:close_idx] if close_idx != -1 else create_sql[open_idx + 1:]
             self.toks = _tokenize(body)
             self._body()
 
-        trailer = self.sql[close_idx + 1:] if close_idx != -1 else ""
+        trailer = create_sql[close_idx + 1:] if close_idx != -1 else ""
         ups = [t[1].upper() for t in _tokenize(trailer) if t[0] == "word"]
 
         return Table(
@@ -446,14 +483,14 @@ class _TableParser:
             schema=info["schema"], temporary=info["temporary"],
             if_not_exists=info["if_not_exists"],
             without_rowid=("WITHOUT" in ups and "ROWID" in ups),
-            strict=("STRICT" in ups),
+            strict=("STRICT" in ups), select=select,
         )
 
     def _parse_header(self, header):
         toks = _tokenize(header)
         def up(k): return toks[k][1].upper() if 0 <= k < len(toks) and toks[k][0] == "word" else None
         j = 0
-        temporary = if_not_exists = as_select = False
+        temporary = if_not_exists = False
         schema = name = ""
         if up(j) == "CREATE": j += 1
         if up(j) in ("TEMP", "TEMPORARY"): temporary = True; j += 1
@@ -468,10 +505,8 @@ class _TableParser:
                 name = _unquote(toks[j][1]) if j < len(toks) else ""; j += 1
             else:
                 name = first
-        if up(j) == "AS":
-            as_select = True
         return dict(name=name, schema=schema, temporary=temporary,
-                    if_not_exists=if_not_exists, as_select=as_select)
+                    if_not_exists=if_not_exists)
 
     def _body(self):
         if self._at_end():
