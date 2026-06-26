@@ -42,3 +42,4 @@ Contents
    cli-reference
    contributing
    changelog
+   upgrading

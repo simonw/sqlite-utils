@@ -1364,7 +1364,8 @@ def test_create_view():
         )
         assert result.exit_code == 0
         assert (
-            'CREATE VIEW "version" AS select sqlite_version()' == db["version"].schema
+            'CREATE VIEW "version" AS select sqlite_version()'
+            == db.view("version").schema
         )
 
 
@@ -1401,7 +1402,7 @@ def test_create_view_ignore():
         assert result.exit_code == 0
         assert (
             'CREATE VIEW "version" AS select sqlite_version() + 1'
-            == db["version"].schema
+            == db.view("version").schema
         )
 
 
@@ -1422,7 +1423,8 @@ def test_create_view_replace():
         )
         assert result.exit_code == 0
         assert (
-            'CREATE VIEW "version" AS select sqlite_version()' == db["version"].schema
+            'CREATE VIEW "version" AS select sqlite_version()'
+            == db.view("version").schema
         )
 
 
