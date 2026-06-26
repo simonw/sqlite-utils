@@ -11,13 +11,14 @@ accessors (`table["age"]`, `table.primary_key`, `col.not_null`, `table.checks`)
 are derived views over it, so adding a new constraint type means adding a
 dataclass and a property -- nothing else has to change.
 """
+
 from dataclasses import dataclass, field
 from typing import List, Optional
-
 
 # --------------------------------------------------------------------------- #
 # Constraint model
 # --------------------------------------------------------------------------- #
+
 
 class Constraint:
     """Marker base so all constraint kinds share an isinstance() umbrella."""
@@ -25,14 +26,16 @@ class Constraint:
 
 @dataclass
 class Check(Constraint):
-    check: str                       # SQL expression inside CHECK (...)
-    name: str = ""                   # from CONSTRAINT <name>, usually blank
-    column: str = ""                 # owning column, or "" for table-level
-    options: Optional[List] = None   # values iff the check is exactly `col IN (...)`
+    check: str  # SQL expression inside CHECK (...)
+    name: str = ""  # from CONSTRAINT <name>, usually blank
+    column: str = ""  # owning column, or "" for table-level
+    options: Optional[List] = None  # values iff the check is exactly `col IN (...)`
 
     def __repr__(self):
-        return (f"Check(check={self.check!r}, name={self.name!r}, "
-                f"column={self.column!r}, options={self.options!r})")
+        return (
+            f"Check(check={self.check!r}, name={self.name!r}, "
+            f"column={self.column!r}, options={self.options!r})"
+        )
 
 
 @dataclass
@@ -40,7 +43,7 @@ class PrimaryKey(Constraint):
     columns: List[str]
     name: str = ""
     autoincrement: bool = False
-    order: str = ""                  # ASC/DESC for an inline single-column PK
+    order: str = ""  # ASC/DESC for an inline single-column PK
 
 
 @dataclass
@@ -58,7 +61,7 @@ class NotNull(Constraint):
 @dataclass
 class Default(Constraint):
     column: str
-    value: str                       # raw default text, e.g. "0", "'x'", "1 + 2"
+    value: str  # raw default text, e.g. "0", "'x'", "1 + 2"
     name: str = ""
 
 
@@ -79,8 +82,8 @@ class Generated(Constraint):
 
 @dataclass
 class ForeignKey(Constraint):
-    columns: List[str]               # local column(s)
-    table: str                       # referenced table
+    columns: List[str]  # local column(s)
+    table: str  # referenced table
     references: List[str] = field(default_factory=list)  # referenced column(s)
     on_delete: str = "NO ACTION"
     on_update: str = "NO ACTION"
@@ -90,6 +93,7 @@ class ForeignKey(Constraint):
 # --------------------------------------------------------------------------- #
 # Column & Table
 # --------------------------------------------------------------------------- #
+
 
 @dataclass
 class Column:
@@ -163,13 +167,13 @@ class Column:
 class Table:
     name: str
     columns: List[Column] = field(default_factory=list)
-    constraints: List[Constraint] = field(default_factory=list)   # table-level
+    constraints: List[Constraint] = field(default_factory=list)  # table-level
     schema: str = ""
     temporary: bool = False
     if_not_exists: bool = False
     without_rowid: bool = False
     strict: bool = False
-    select: str = ""                      # SELECT query for CREATE TABLE ... AS SELECT
+    select: str = ""  # SELECT query for CREATE TABLE ... AS SELECT
 
     def __post_init__(self):
         self._by_name = {c.name: c for c in self.columns}
@@ -216,7 +220,9 @@ class Table:
     # --- keys ---
     @property
     def primary_key(self) -> List[str]:
-        table_pk = next((c for c in self.constraints if isinstance(c, PrimaryKey)), None)
+        table_pk = next(
+            (c for c in self.constraints if isinstance(c, PrimaryKey)), None
+        )
         if table_pk:
             return list(table_pk.columns)
         return [col.name for col in self.columns if col._inline_primary_key()]
@@ -236,11 +242,12 @@ class Table:
 # Lexical helpers (string / identifier / paren aware)
 # --------------------------------------------------------------------------- #
 
+
 def _unquote(tok):
     tok = (tok or "").strip()
-    if len(tok) >= 2 and tok[0] in ('"', '`', "'") and tok[-1] == tok[0]:
+    if len(tok) >= 2 and tok[0] in ('"', "`", "'") and tok[-1] == tok[0]:
         return tok[1:-1].replace(tok[0] * 2, tok[0])
-    if len(tok) >= 2 and tok[0] == '[' and tok[-1] == ']':
+    if len(tok) >= 2 and tok[0] == "[" and tok[-1] == "]":
         return tok[1:-1]
     return tok
 
@@ -261,25 +268,29 @@ def _split_top_level(body):
     items, depth, start, i, n = [], 0, 0, 0, len(body)
     while i < n:
         c = body[i]
-        if c in ("'", '"', '`'):
+        if c in ("'", '"', "`"):
             i += 1
             while i < n:
                 if body[i] == c:
                     if i + 1 < n and body[i + 1] == c:
-                        i += 2; continue
-                    i += 1; break
+                        i += 2
+                        continue
+                    i += 1
+                    break
                 i += 1
             continue
-        if c == '[':
-            while i < n and body[i] != ']':
+        if c == "[":
+            while i < n and body[i] != "]":
                 i += 1
-            i += 1; continue
-        if c == '(':
+            i += 1
+            continue
+        if c == "(":
             depth += 1
-        elif c == ')':
+        elif c == ")":
             depth -= 1
-        elif c == ',' and depth == 0:
-            items.append(body[start:i]); start = i + 1
+        elif c == "," and depth == 0:
+            items.append(body[start:i])
+            start = i + 1
         i += 1
     items.append(body[start:])
     return [it.strip() for it in items if it.strip()]
@@ -292,49 +303,63 @@ def _tokenize(s):
     while i < n:
         c = s[i]
         if c.isspace():
-            i += 1; continue
-        if c in ("'", '"', '`'):
-            start = i; i += 1
+            i += 1
+            continue
+        if c in ("'", '"', "`"):
+            start = i
+            i += 1
             while i < n:
                 if s[i] == c:
                     if i + 1 < n and s[i + 1] == c:
-                        i += 2; continue
-                    i += 1; break
+                        i += 2
+                        continue
+                    i += 1
+                    break
                 i += 1
-            tokens.append(('string', s[start:i])); continue
-        if c == '[':
-            start = i; i += 1
-            while i < n and s[i] != ']':
+            tokens.append(("string", s[start:i]))
+            continue
+        if c == "[":
+            start = i
+            i += 1
+            while i < n and s[i] != "]":
                 i += 1
             i += 1
-            tokens.append(('string', s[start:i])); continue
-        if c == '(':
-            start = i; depth = 0
+            tokens.append(("string", s[start:i]))
+            continue
+        if c == "(":
+            start = i
+            depth = 0
             while i < n:
                 cc = s[i]
-                if cc in ("'", '"', '`'):
+                if cc in ("'", '"', "`"):
                     i += 1
                     while i < n:
                         if s[i] == cc:
                             if i + 1 < n and s[i + 1] == cc:
-                                i += 2; continue
-                            i += 1; break
+                                i += 2
+                                continue
+                            i += 1
+                            break
                         i += 1
                     continue
-                if cc == '(':
+                if cc == "(":
                     depth += 1
-                elif cc == ')':
+                elif cc == ")":
                     depth -= 1
                     if depth == 0:
-                        i += 1; break
+                        i += 1
+                        break
                 i += 1
-            tokens.append(('group', s[start:i])); continue
-        if c.isalnum() or c in '_$':
+            tokens.append(("group", s[start:i]))
+            continue
+        if c.isalnum() or c in "_$":
             start = i
-            while i < n and (s[i].isalnum() or s[i] in '_$'):
+            while i < n and (s[i].isalnum() or s[i] in "_$"):
                 i += 1
-            tokens.append(('word', s[start:i])); continue
-        tokens.append(('punct', c)); i += 1
+            tokens.append(("word", s[start:i]))
+            continue
+        tokens.append(("punct", c))
+        i += 1
     return tokens
 
 
@@ -343,24 +368,27 @@ def _locate_body(sql):
     i, n, depth, open_idx = 0, len(sql), 0, -1
     while i < n:
         c = sql[i]
-        if c in ("'", '"', '`'):
+        if c in ("'", '"', "`"):
             i += 1
             while i < n:
                 if sql[i] == c:
                     if i + 1 < n and sql[i + 1] == c:
-                        i += 2; continue
-                    i += 1; break
+                        i += 2
+                        continue
+                    i += 1
+                    break
                 i += 1
             continue
-        if c == '[':
-            while i < n and sql[i] != ']':
+        if c == "[":
+            while i < n and sql[i] != "]":
                 i += 1
-            i += 1; continue
-        if c == '(':
+            i += 1
+            continue
+        if c == "(":
             if depth == 0:
                 open_idx = i
             depth += 1
-        elif c == ')':
+        elif c == ")":
             depth -= 1
             if depth == 0:
                 return open_idx, i
@@ -373,28 +401,31 @@ def _split_create_table_as_select(sql):
     i, n, depth = 0, len(sql), 0
     while i < n:
         c = sql[i]
-        if c in ("'", '"', '`'):
+        if c in ("'", '"', "`"):
             i += 1
             while i < n:
                 if sql[i] == c:
                     if i + 1 < n and sql[i + 1] == c:
-                        i += 2; continue
-                    i += 1; break
+                        i += 2
+                        continue
+                    i += 1
+                    break
                 i += 1
             continue
-        if c == '[':
-            while i < n and sql[i] != ']':
+        if c == "[":
+            while i < n and sql[i] != "]":
                 i += 1
-            i += 1; continue
-        if c == '(':
+            i += 1
+            continue
+        if c == "(":
             if depth == 0:
                 return sql, ""
             depth += 1
-        elif c == ')':
+        elif c == ")":
             depth -= 1
-        elif depth == 0 and (c.isalpha() or c == '_'):
+        elif depth == 0 and (c.isalpha() or c == "_"):
             start = i
-            while i < n and (sql[i].isalnum() or sql[i] in '_$'):
+            while i < n and (sql[i].isalnum() or sql[i] in "_$"):
                 i += 1
             if sql[start:i].upper() == "AS":
                 return sql[:start].rstrip(), sql[i:].strip()
@@ -414,8 +445,8 @@ def _parse_options(expr):
     if len(toks) != 3:
         return None
     (k0, v0), (k1, v1), (k2, v2) = toks
-    is_ident = k0 == 'word' or (k0 == 'string' and v0[0] in '"[`')
-    if not (is_ident and k1 == 'word' and v1.upper() == 'IN' and k2 == 'group'):
+    is_ident = k0 == "word" or (k0 == "string" and v0[0] in '"[`')
+    if not (is_ident and k1 == "word" and v1.upper() == "IN" and k2 == "group"):
         return None
     return [_coerce(x) for x in _split_top_level(v2[1:-1])]
 
@@ -425,8 +456,15 @@ def _parse_options(expr):
 # --------------------------------------------------------------------------- #
 
 _TABLE_CONSTRAINT = {"PRIMARY", "UNIQUE", "CHECK", "FOREIGN"}
-_COLUMN_CONSTRAINT = {"PRIMARY", "UNIQUE", "CHECK", "COLLATE", "REFERENCES",
-                      "GENERATED", "AS"}
+_COLUMN_CONSTRAINT = {
+    "PRIMARY",
+    "UNIQUE",
+    "CHECK",
+    "COLLATE",
+    "REFERENCES",
+    "GENERATED",
+    "AS",
+}
 
 
 class _TableParser:
@@ -471,42 +509,65 @@ class _TableParser:
         info = self._parse_header(header)
 
         if open_idx != -1:
-            body = create_sql[open_idx + 1:close_idx] if close_idx != -1 else create_sql[open_idx + 1:]
+            body = (
+                create_sql[open_idx + 1 : close_idx]
+                if close_idx != -1
+                else create_sql[open_idx + 1 :]
+            )
             self.toks = _tokenize(body)
             self._body()
 
-        trailer = create_sql[close_idx + 1:] if close_idx != -1 else ""
+        trailer = create_sql[close_idx + 1 :] if close_idx != -1 else ""
         ups = [t[1].upper() for t in _tokenize(trailer) if t[0] == "word"]
 
         return Table(
-            name=info["name"], columns=self.columns, constraints=self.table_constraints,
-            schema=info["schema"], temporary=info["temporary"],
+            name=info["name"],
+            columns=self.columns,
+            constraints=self.table_constraints,
+            schema=info["schema"],
+            temporary=info["temporary"],
             if_not_exists=info["if_not_exists"],
             without_rowid=("WITHOUT" in ups and "ROWID" in ups),
-            strict=("STRICT" in ups), select=select,
+            strict=("STRICT" in ups),
+            select=select,
         )
 
     def _parse_header(self, header):
         toks = _tokenize(header)
-        def up(k): return toks[k][1].upper() if 0 <= k < len(toks) and toks[k][0] == "word" else None
+
+        def up(k):
+            return (
+                toks[k][1].upper()
+                if 0 <= k < len(toks) and toks[k][0] == "word"
+                else None
+            )
+
         j = 0
         temporary = if_not_exists = False
         schema = name = ""
-        if up(j) == "CREATE": j += 1
-        if up(j) in ("TEMP", "TEMPORARY"): temporary = True; j += 1
-        if up(j) == "TABLE": j += 1
+        if up(j) == "CREATE":
+            j += 1
+        if up(j) in ("TEMP", "TEMPORARY"):
+            temporary = True
+            j += 1
+        if up(j) == "TABLE":
+            j += 1
         if up(j) == "IF" and up(j + 1) == "NOT" and up(j + 2) == "EXISTS":
-            if_not_exists = True; j += 3
+            if_not_exists = True
+            j += 3
         if j < len(toks):
-            first = _unquote(toks[j][1]); j += 1
+            first = _unquote(toks[j][1])
+            j += 1
             if j < len(toks) and toks[j] == ("punct", "."):
                 j += 1
                 schema = first
-                name = _unquote(toks[j][1]) if j < len(toks) else ""; j += 1
+                name = _unquote(toks[j][1]) if j < len(toks) else ""
+                j += 1
             else:
                 name = first
-        return dict(name=name, schema=schema, temporary=temporary,
-                    if_not_exists=if_not_exists)
+        return dict(
+            name=name, schema=schema, temporary=temporary, if_not_exists=if_not_exists
+        )
 
     def _body(self):
         if self._at_end():
@@ -558,22 +619,30 @@ class _TableParser:
             return Check(expr, name=name, column=column, options=_parse_options(expr))
         if self._kw("PRIMARY"):
             self._advance()
-            if self._kw("KEY"): self._advance()
+            if self._kw("KEY"):
+                self._advance()
             order = ""
-            if self._kw("ASC", "DESC"): order = self._advance()[1].upper()
+            if self._kw("ASC", "DESC"):
+                order = self._advance()[1].upper()
             self._conflict_clause()
             auto = False
-            if self._kw("AUTOINCREMENT"): self._advance(); auto = True
+            if self._kw("AUTOINCREMENT"):
+                self._advance()
+                auto = True
             return PrimaryKey([column], name=name, autoincrement=auto, order=order)
         if self._kw("NOT"):
             self._advance()
-            if self._kw("NULL"): self._advance()
+            if self._kw("NULL"):
+                self._advance()
             self._conflict_clause()
             return NotNull(column, name=name)
         if self._kw("NULL"):
-            self._advance(); self._conflict_clause(); return None
+            self._advance()
+            self._conflict_clause()
+            return None
         if self._kw("UNIQUE"):
-            self._advance(); self._conflict_clause()
+            self._advance()
+            self._conflict_clause()
             return Unique([column], name=name)
         if self._kw("DEFAULT"):
             self._advance()
@@ -593,56 +662,83 @@ class _TableParser:
     def _default_value(self):
         k, v = self._peek()
         if k == "group":
-            self._advance(); return v[1:-1].strip()
+            self._advance()
+            return v[1:-1].strip()
         if k == "punct" and v in "+-":
-            self._advance(); return v + (self._advance()[1] or "")
-        self._advance(); return v
+            self._advance()
+            return v + (self._advance()[1] or "")
+        self._advance()
+        return v
 
     def _generated(self, column, name):
         if self._kw("GENERATED"):
             self._advance()
-            if self._kw("ALWAYS"): self._advance()
-        if self._kw("AS"): self._advance()
+            if self._kw("ALWAYS"):
+                self._advance()
+        if self._kw("AS"):
+            self._advance()
         expr = ""
         if self._kind() == "group":
             expr = self._advance()[1][1:-1].strip()
         stored = False
-        if self._kw("STORED"): self._advance(); stored = True
-        elif self._kw("VIRTUAL"): self._advance()
+        if self._kw("STORED"):
+            self._advance()
+            stored = True
+        elif self._kw("VIRTUAL"):
+            self._advance()
         return Generated(column, expr, stored=stored, name=name)
 
     def _conflict_clause(self):
         if self._kw("ON") and self._kw("CONFLICT", offset=1):
-            self._advance(); self._advance()
-            if self._kind() == "word": self._advance()
+            self._advance()
+            self._advance()
+            if self._kind() == "word":
+                self._advance()
 
     def _foreign_key_clause(self, columns, name):
         self._advance()  # REFERENCES
-        table = _unquote(self._advance()[1]) if self._kind() in ("word", "string") else ""
+        table = (
+            _unquote(self._advance()[1]) if self._kind() in ("word", "string") else ""
+        )
         refs = []
         if self._kind() == "group":
-            refs = [_leading_ident(p) for p in _split_top_level(self._advance()[1][1:-1])]
+            refs = [
+                _leading_ident(p) for p in _split_top_level(self._advance()[1][1:-1])
+            ]
         on_delete = on_update = "NO ACTION"
         while True:
             if self._kw("ON"):
                 self._advance()
-                which = (self._advance()[1] or "").upper()   # DELETE | UPDATE
+                which = (self._advance()[1] or "").upper()  # DELETE | UPDATE
                 action = self._fk_action()
-                if which == "DELETE": on_delete = action
-                elif which == "UPDATE": on_update = action
+                if which == "DELETE":
+                    on_delete = action
+                elif which == "UPDATE":
+                    on_update = action
             elif self._kw("MATCH"):
                 self._advance()
-                if self._kind() == "word": self._advance()
-            elif self._kw("DEFERRABLE") or (self._kw("NOT") and self._kw("DEFERRABLE", offset=1)):
-                if self._kw("NOT"): self._advance()
+                if self._kind() == "word":
+                    self._advance()
+            elif self._kw("DEFERRABLE") or (
+                self._kw("NOT") and self._kw("DEFERRABLE", offset=1)
+            ):
+                if self._kw("NOT"):
+                    self._advance()
                 self._advance()  # DEFERRABLE
                 if self._kw("INITIALLY"):
                     self._advance()
-                    if self._kind() == "word": self._advance()
+                    if self._kind() == "word":
+                        self._advance()
             else:
                 break
-        return ForeignKey(columns, table, references=refs,
-                          on_delete=on_delete, on_update=on_update, name=name)
+        return ForeignKey(
+            columns,
+            table,
+            references=refs,
+            on_delete=on_delete,
+            on_update=on_update,
+            name=name,
+        )
 
     def _fk_action(self):
         if self._kw("SET"):
@@ -650,7 +746,8 @@ class _TableParser:
             return "SET " + (self._advance()[1] or "").upper()
         if self._kw("NO"):
             self._advance()
-            if self._kind() == "word": self._advance()
+            if self._kind() == "word":
+                self._advance()
             return "NO ACTION"
         if self._kind() == "word":
             return (self._advance()[1] or "").upper()
@@ -675,10 +772,12 @@ class _TableParser:
             self._advance()
             expr = self._advance()[1][1:-1].strip()
             self.table_constraints.append(
-                Check(expr, name=name, column="", options=_parse_options(expr)))
+                Check(expr, name=name, column="", options=_parse_options(expr))
+            )
         elif self._kw("PRIMARY"):
             self._advance()
-            if self._kw("KEY"): self._advance()
+            if self._kw("KEY"):
+                self._advance()
             cols = self._column_list_group()
             self._conflict_clause()
             self.table_constraints.append(PrimaryKey(cols, name=name))
@@ -689,7 +788,8 @@ class _TableParser:
             self.table_constraints.append(Unique(cols, name=name))
         elif self._kw("FOREIGN"):
             self._advance()
-            if self._kw("KEY"): self._advance()
+            if self._kw("KEY"):
+                self._advance()
             cols = self._column_list_group()
             self.table_constraints.append(self._foreign_key_clause(cols, name))
         # consume any remainder up to the next top-level comma
@@ -698,13 +798,16 @@ class _TableParser:
 
     def _column_list_group(self):
         if self._kind() == "group":
-            return [_leading_ident(p) for p in _split_top_level(self._advance()[1][1:-1])]
+            return [
+                _leading_ident(p) for p in _split_top_level(self._advance()[1][1:-1])
+            ]
         return []
 
 
 # --------------------------------------------------------------------------- #
 # Public API
 # --------------------------------------------------------------------------- #
+
 
 def parse_create_table(create_sql) -> Table:
     """Parse a CREATE TABLE statement into a Table."""
