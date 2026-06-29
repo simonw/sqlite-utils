@@ -2262,6 +2262,30 @@ def test_attach(tmpdir):
     ]
 
 
+def test_attach_filepath_with_apostrophe(tmpdir):
+    foo_path = str(tmpdir / "foo.db")
+    bar_dir = tmpdir / "has'apostrophe"
+    bar_dir.mkdir()
+    bar_path = str(bar_dir / "bar.db")
+    db = Database(foo_path)
+    with db.conn:
+        db["foo"].insert({"id": 1, "text": "foo"})
+    db2 = Database(bar_path)
+    with db2.conn:
+        db2["bar"].insert({"id": 1, "text": "bar"})
+    db.attach("bar", bar_path)
+    sql = "select * from foo union all select * from bar.bar"
+    result = CliRunner().invoke(
+        cli.cli,
+        [foo_path, "--attach", "bar", bar_path, sql],
+        catch_exceptions=False,
+    )
+    assert json.loads(result.output) == [
+        {"id": 1, "text": "foo"},
+        {"id": 1, "text": "bar"},
+    ]
+
+
 def test_csv_insert_bom(tmpdir):
     db_path = str(tmpdir / "test.db")
     bom_csv_path = str(tmpdir / "bom.csv")

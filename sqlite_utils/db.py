@@ -580,12 +580,8 @@ class Database:
         :param alias: Alias name to use
         :param filepath: Path to SQLite database file on disk
         """
-        attach_sql = """
-            ATTACH DATABASE '{}' AS {};
-        """.format(
-            str(pathlib.Path(filepath).resolve()), quote_identifier(alias)
-        ).strip()
-        self.execute(attach_sql)
+        attach_sql = "ATTACH DATABASE ? AS {};".format(quote_identifier(alias))
+        self.execute(attach_sql, [str(pathlib.Path(filepath).resolve())])
 
     def query(
         self, sql: str, params: Optional[Union[Sequence, Dict[str, Any]]] = None
