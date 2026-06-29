@@ -557,6 +557,12 @@ You can also specify a primary key by passing the ``pk=`` parameter to the ``.in
 
 After inserting a row like this, the ``dogs.last_rowid`` property will return the SQLite ``rowid`` assigned to the most recently inserted record.
 
+.. note::
+
+    ``.insert()`` and ``.insert_all()`` commit writes in batches (``.insert()`` writes one-row batches).
+    If you are manually controlling transactions using a SQLite connection context manager, calling these methods
+    may commit earlier than expected.
+
 The ``dogs.last_pk`` property will return the last inserted primary key value, if you specified one. This can be very useful when writing code that creates foreign keys or many-to-many relationships.
 
 .. _python_api_custom_columns:
