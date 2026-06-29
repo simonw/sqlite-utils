@@ -738,6 +738,17 @@ def test_query_json(db_path, sql, args, expected):
     assert expected == result.output.strip()
 
 
+def test_query_json_unicode(db_path):
+    # Regression for #625: JSON output should keep non-ASCII characters
+    # as themselves, not as \u-escapes.
+    db = Database(db_path)
+    with db.conn:
+        db["t"].insert({"id": 1, "text": "Japanese 日本語"})
+    result = CliRunner().invoke(cli.cli, [db_path, "select id, text from t"])
+    assert "日本語" in result.output
+    assert "\\u65e5" not in result.output
+
+
 def test_query_json_empty(db_path):
     result = CliRunner().invoke(
         cli.cli,

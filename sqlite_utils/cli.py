@@ -3473,7 +3473,7 @@ def output_rows(iterator, headers, nl, arrays, json_cols):
             data = dict(zip(headers, data))
         line = "{firstchar}{serialized}{maybecomma}{lastchar}".format(
             firstchar=("[" if first else " ") if not nl else "",
-            serialized=json.dumps(data, default=json_binary),
+            serialized=json.dumps(data, default=json_binary, ensure_ascii=False),
             maybecomma="," if (not nl and not is_last) else "",
             lastchar="]" if (is_last and not nl) else "",
         )
