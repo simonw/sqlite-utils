@@ -3457,6 +3457,8 @@ class Table(Queryable):
         Insert a single record into the table. The table will be created with a schema that matches
         the inserted record if it does not already exist, see :ref:`python_api_creating_tables`.
 
+        This method commits its changes as part of an internal transaction.
+
         - ``record`` - required: a dictionary representing the record to be inserted.
 
         The other parameters are optional, and mostly influence how the new table will be created if
