@@ -117,7 +117,9 @@ def test_query_load_extension(use_spatialite_shortcut):
         ],
     )
     assert result.exit_code == 0, result.stdout
-    assert ["spatialite_version()"] == list(json.loads(result.output)[0].keys())
+    rows = json.loads(result.output)
+    assert len(rows) == 1
+    assert ["spatialite_version()"] == list(rows[0].keys())
 
 
 def test_cli_create_spatialite(tmpdir):
