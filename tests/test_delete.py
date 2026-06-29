@@ -1,3 +1,4 @@
+from sqlite_utils import Database
 def test_delete_rowid_table(fresh_db):
     table = fresh_db["table"]
     table.insert({"foo": 1}).last_pk
@@ -30,6 +31,19 @@ def test_delete_where_all(fresh_db):
     assert table.count == 10
     table.delete_where()
     assert table.count == 0
+
+
+def test_delete_where_all_auto_commits(db_path):
+    db = Database(db_path)
+    table = db["table"]
+    table.insert_all(({"id": i} for i in range(1, 6)), pk="id")
+    assert table.count == 5
+
+    table.delete_where()
+    assert table.count == 0
+
+    reopened = Database(db_path)
+    assert reopened["table"].count == 0
 
 
 def test_delete_where_analyze(fresh_db):
