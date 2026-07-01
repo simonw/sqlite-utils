@@ -176,6 +176,148 @@ class TransformError(Exception):
     pass
 
 
+def _tokenize_sql(sql: str) -> List[Tuple[str, str]]:
+    # Split SQL into (kind, text) tokens. Enough to walk a CREATE TABLE
+    # statement while respecting string literals, quoted identifiers, comments
+    # and nesting - not a full parser.
+    tokens = []
+    i, n = 0, len(sql)
+    while i < n:
+        c = sql[i]
+        if c in " \t\r\n":
+            j = i + 1
+            while j < n and sql[j] in " \t\r\n":
+                j += 1
+            tokens.append(("ws", sql[i:j]))
+        elif sql[i : i + 2] == "--":
+            j = sql.find("\n", i)
+            j = n if j == -1 else j
+            tokens.append(("comment", sql[i:j]))
+        elif sql[i : i + 2] == "/*":
+            j = sql.find("*/", i + 2)
+            j = n if j == -1 else j + 2
+            tokens.append(("comment", sql[i:j]))
+        elif c in "'\"`":
+            j = i + 1
+            while j < n:
+                if sql[j] == c:
+                    if sql[j : j + 2] == c + c:
+                        j += 2
+                        continue
+                    j += 1
+                    break
+                j += 1
+            tokens.append(("string" if c == "'" else "quoted", sql[i:j]))
+        elif c == "[":
+            j = sql.find("]", i + 1)
+            j = n if j == -1 else j + 1
+            tokens.append(("quoted", sql[i:j]))
+        elif c.isalnum() or c in "_$":
+            j = i + 1
+            while j < n and (sql[j].isalnum() or sql[j] in "_$"):
+                j += 1
+            tokens.append(("word", sql[i:j]))
+        else:
+            j = i + 1
+            tokens.append(("punct", c))
+        i = j
+    return tokens
+
+
+def _capture_paren_inner(
+    tokens: List[Tuple[str, str]], open_index: int
+) -> Tuple[str, int]:
+    # tokens[open_index] is the opening "(" - return the text inside the
+    # matching parentheses and the index just past the closing ")".
+    depth = 0
+    parts = []
+    i, n = open_index, len(tokens)
+    while i < n:
+        kind, text = tokens[i]
+        if kind == "punct" and text == "(":
+            depth += 1
+            if depth > 1:
+                parts.append(text)
+        elif kind == "punct" and text == ")":
+            depth -= 1
+            if depth == 0:
+                return "".join(parts), i + 1
+            parts.append(text)
+        else:
+            parts.append(text)
+        i += 1
+    return "".join(parts), i
+
+
+def _extract_check_constraints(create_table_sql: str) -> List[str]:
+    # CHECK constraints (column-level and table-level) live only in the stored
+    # CREATE TABLE SQL, not in any PRAGMA. Return the expression inside each one.
+    # Every CHECK keyword sits at the top level of the table body regardless of
+    # whether it is attached to a column or the table.
+    tokens = _tokenize_sql(create_table_sql)
+    checks = []
+    depth = 0
+    started = False
+    i, n = 0, len(tokens)
+    while i < n:
+        kind, text = tokens[i]
+        if kind == "punct" and text == "(":
+            depth += 1
+            started = True
+        elif kind == "punct" and text == ")":
+            depth -= 1
+            if started and depth == 0:
+                break
+        elif started and depth == 1 and kind == "word" and text.upper() == "CHECK":
+            j = i + 1
+            while j < n and tokens[j][0] in ("ws", "comment"):
+                j += 1
+            if j < n and tokens[j] == ("punct", "("):
+                inner, after = _capture_paren_inner(tokens, j)
+                checks.append(inner.strip())
+                i = after
+                continue
+        i += 1
+    return checks
+
+
+def _unquote_identifier(text: str) -> str:
+    if len(text) >= 2:
+        if text[0] == '"' and text[-1] == '"':
+            return text[1:-1].replace('""', '"')
+        if text[0] == "`" and text[-1] == "`":
+            return text[1:-1].replace("``", "`")
+        if text[0] == "[" and text[-1] == "]":
+            return text[1:-1]
+    return text
+
+
+def _rewrite_check_expression(
+    expression: str, rename: Dict[str, str], drop: Set[str]
+) -> Optional[str]:
+    # Apply column renames to identifiers referenced by a CHECK expression.
+    # Returns None if the expression references a dropped column, in which case
+    # the constraint can no longer be enforced and should be discarded rather
+    # than producing a table that fails to build.
+    rename_lower = {k.lower(): v for k, v in rename.items()}
+    drop_lower = {d.lower() for d in drop}
+    out = []
+    for kind, text in _tokenize_sql(expression):
+        key = None
+        if kind == "word":
+            key = text.lower()
+        elif kind == "quoted":
+            key = _unquote_identifier(text).lower()
+        if key is not None:
+            if key in drop_lower:
+                return None
+            if key in rename_lower:
+                out.append(quote_identifier(rename_lower[key]))
+                continue
+        out.append(text)
+    return "".join(out)
+
+
 ForeignKeyIndicator = Union[
     str,
     ForeignKey,
@@ -977,6 +1119,7 @@ class Database:
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
         strict: bool = False,
+        check_constraints: Optional[List[str]] = None,
     ) -> str:
         """
         Returns the SQL ``CREATE TABLE`` statement for creating the specified table.
@@ -993,6 +1136,7 @@ class Database:
         :param extracts: List or dictionary of columns to be extracted during inserts, see :ref:`python_api_extracts`
         :param if_not_exists: Use ``CREATE TABLE IF NOT EXISTS``
         :param strict: Apply STRICT mode to table
+        :param check_constraints: List of ``CHECK`` constraint expressions to add as table-level constraints, for example ``["age >= 0"]``
         """
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
@@ -1094,15 +1238,21 @@ class Database:
             extra_pk = ",\n   PRIMARY KEY ({pks})".format(
                 pks=", ".join([quote_identifier(p) for p in pk])
             )
+        extra_checks = ""
+        if check_constraints:
+            extra_checks = "".join(
+                ",\n   CHECK ({})".format(check) for check in check_constraints
+            )
         columns_sql = ",\n".join(column_defs)
         sql = """CREATE TABLE {if_not_exists}{table} (
-{columns_sql}{extra_pk}
+{columns_sql}{extra_pk}{extra_checks}
 ){strict};
         """.format(
             if_not_exists="IF NOT EXISTS " if if_not_exists else "",
             table=quote_identifier(name),
             columns_sql=columns_sql,
             extra_pk=extra_pk,
+            extra_checks=extra_checks,
             strict=" STRICT" if strict and self.supports_strict else "",
         )
         return sql
@@ -2136,6 +2286,15 @@ class Table(Queryable):
         if column_order is not None:
             column_order = [rename.get(col) or col for col in column_order]
 
+        # CHECK constraints are not exposed by any PRAGMA, so pull them out of the
+        # stored schema and carry them across, applying any renames and dropping
+        # constraints that reference a removed column.
+        create_table_checks = []
+        for check in _extract_check_constraints(self.schema):
+            rewritten = _rewrite_check_expression(check, rename, set(drop))
+            if rewritten is not None:
+                create_table_checks.append(rewritten)
+
         sqls = []
         sqls.append(
             self.db.create_table_sql(
@@ -2147,6 +2306,7 @@ class Table(Queryable):
                 foreign_keys=create_table_foreign_keys,
                 column_order=column_order,
                 strict=self.strict,
+                check_constraints=create_table_checks or None,
             ).strip()
         )
 
