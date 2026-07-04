@@ -3199,6 +3199,11 @@ class Table(Queryable):
         # Dict-mode insert({}) has no explicit columns; SQLite spells that as
         # DEFAULT VALUES. List mode with no columns is a different input shape.
         if not list_mode and not all_columns:
+            if upsert:
+                raise PrimaryKeyRequired(
+                    "upsert() requires a value for the primary key - "
+                    "an empty record cannot be upserted"
+                )
             or_clause = ""
             if replace:
                 or_clause = " OR REPLACE"
@@ -3286,6 +3291,26 @@ class Table(Queryable):
 
         # Everything from here on is for upsert=True
         pk_cols = [pk] if isinstance(pk, str) else list(pk)
+        # Every record must provide a value for every primary key column - a
+        # NULL primary key never matches ON CONFLICT, so the record would be
+        # inserted as a brand new row instead of upserted
+        missing_pk_cols = [c for c in pk_cols if c not in all_columns]
+        if missing_pk_cols:
+            raise PrimaryKeyRequired(
+                "upsert() requires a value for the primary key column{}: {}".format(
+                    "s" if len(missing_pk_cols) > 1 else "",
+                    ", ".join(missing_pk_cols),
+                )
+            )
+        pk_indexes = [all_columns.index(c) for c in pk_cols]
+        for record_values in values:
+            if any(record_values[i] is None for i in pk_indexes):
+                raise PrimaryKeyRequired(
+                    "upsert() requires a value for the primary key column{}: {}".format(
+                        "s" if len(pk_cols) > 1 else "",
+                        ", ".join(pk_cols),
+                    )
+                )
         non_pk_cols = [c for c in all_columns if c not in pk_cols]
         conflict_sql = ", ".join(quote_identifier(c) for c in pk_cols)
 

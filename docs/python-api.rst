@@ -1021,6 +1021,8 @@ Note that the ``pk`` and ``column_order`` parameters here are optional if you ar
 
 An ``upsert_all()`` method is also available, which behaves like ``insert_all()`` but performs upserts instead.
 
+Every record passed to ``upsert()`` or ``upsert_all()`` must include a value for each primary key column - a record without one could never match an existing row, so a ``sqlite_utils.db.PrimaryKeyRequired`` exception is raised instead of quietly inserting a new row.
+
 .. note::
     ``.upsert()`` and ``.upsert_all()`` in sqlite-utils 1.x worked like ``.insert(..., replace=True)`` and ``.insert_all(..., replace=True)`` do in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
 
