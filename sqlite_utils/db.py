@@ -4317,12 +4317,6 @@ class View(Queryable):
             if not ignore:
                 raise
 
-    def enable_fts(self, *args: object, **kwargs: object) -> None:
-        "``enable_fts()`` is supported on tables but not on views."
-        raise NotImplementedError(
-            "enable_fts() is supported on tables but not on views"
-        )
-
 
 def jsonify_if_needed(value: object) -> object:
     if isinstance(value, decimal.Decimal):

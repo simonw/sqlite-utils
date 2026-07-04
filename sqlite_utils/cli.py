@@ -702,14 +702,14 @@ def enable_fts(
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[table].enable_fts(
+        db.table(table).enable_fts(
             column,
             fts_version=fts_version,
             tokenize=tokenize,
             create_triggers=create_triggers,
             replace=replace,
         )
-    except OperationalError as ex:
+    except (NoTable, OperationalError) as ex:
         raise click.ClickException(str(ex))
 
 

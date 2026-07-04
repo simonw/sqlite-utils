@@ -70,6 +70,8 @@ Python API changes
 
 **table.convert() no longer skips falsey values.** Matching the CLI change above, ``table.convert()`` now converts every value. The ``skip_false`` parameter has been removed - previously it defaulted to ``True``, skipping empty strings and other falsey values.
 
+**View.enable_fts() has been removed.** The ``View`` class previously had an ``enable_fts()`` method that existed only to raise ``NotImplementedError`` - full-text search is not supported for views. Calling it now raises ``AttributeError`` like any other missing method.
+
 **Validation errors raise ValueError.** Invalid arguments to Python API methods - for example ``create_table()`` with no columns, or ``ignore=True`` together with ``replace=True`` - now raise ``ValueError``. They previously raised ``AssertionError`` from bare ``assert`` statements, which were silently skipped under ``python -O``.
 
 **Transaction behavior is now well-defined.** 4.0 introduces the :ref:`db.atomic() <python_api_atomic>` context manager and uses it consistently for every write operation - the full model is described in :ref:`python_api_transactions`. Changes you may notice:
