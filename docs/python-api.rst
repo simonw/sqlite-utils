@@ -146,7 +146,22 @@ The ``Database`` object also works as a context manager, which will automaticall
         db["my_table"].insert({"name": "Example"})
     # Connection is automatically closed here
 
-Exiting the block closes the connection without committing, so any changes that are still inside an open transaction at that point - for example writes made with raw ``db.execute()`` calls - will be rolled back. Commit explicitly, or use methods such as ``.insert()`` and the ``db.atomic()`` context manager which commit their own transactions - see :ref:`python_api_transactions`.
+Exiting the block is equivalent to calling ``db.close()``: the connection is
+closed and any transaction still open at that point is rolled back. This
+matches SQLite's own behavior when a connection closes.
+
+This rarely matters in practice. Every method in this library that writes to
+the database commits its own changes before returning, so a transaction can
+only be left open here if you opened it yourself - through raw ``db.execute()``
+writes or an explicit ``BEGIN``. In that case the decision to commit stays
+with you: committing automatically on exit could silently persist
+half-finished work, for example if your code returned early from the block.
+Commit explicitly with ``db.conn.commit()``, or wrap your writes in
+``db.atomic()`` which commits for you.
+
+Note this differs from the ``sqlite3.Connection`` context manager in the
+standard library, which commits on success but does not close the connection.
+See :ref:`python_api_transactions` for the full transaction model.
 
 .. _python_api_attach:
 
