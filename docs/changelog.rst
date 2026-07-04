@@ -9,6 +9,7 @@
 Unreleased
 ----------
 
+- **Breaking change**: The no-op ``-d/--detect-types`` flag has been removed from the ``insert`` and ``upsert`` commands. Type detection has been the default for CSV/TSV data since 4.0a1, so the flag did nothing - invocations using it should simply drop it. ``--no-detect-types`` remains available to disable detection.
 - **Breaking change**: ``db.query()`` now executes its SQL as soon as it is called, rather than waiting until the returned generator is first iterated. Rows are still fetched lazily during iteration. SQL errors are now raised at the call site, statements such as ``INSERT ... RETURNING`` take effect without needing to iterate over their results, and passing a statement that returns no rows - previously a silent no-op - now raises a ``ValueError`` recommending ``db.execute()`` instead.
 - Fixed a bug where ``table.delete_where()``, ``table.optimize()`` and ``table.rebuild_fts()`` did not commit their changes, leaving the connection inside an open transaction. Their work - and any subsequent writes - could then be silently rolled back when the connection was closed. All three now use ``db.atomic()``, consistent with the other write methods.
 - The ``sqlite-utils drop-table`` command now refuses to drop a view, and ``drop-view`` refuses to drop a table. Previously each would silently drop the wrong type of object if the name matched. Both now exit with an error suggesting the correct command to use.

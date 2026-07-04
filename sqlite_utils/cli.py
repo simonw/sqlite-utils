@@ -941,12 +941,6 @@ def insert_upsert_options(*, require_pk=False):
                     help="Default value that should be set for a column",
                 ),
                 click.option(
-                    "-d",
-                    "--detect-types",
-                    is_flag=True,
-                    help="Detect types for columns in CSV/TSV data (default)",
-                ),
-                click.option(
                     "--no-detect-types",
                     is_flag=True,
                     help="Treat all CSV/TSV columns as TEXT",
@@ -1000,7 +994,6 @@ def insert_upsert_implementation(
     truncate=False,
     not_null=None,
     default=None,
-    detect_types=None,
     no_detect_types=False,
     analyze=False,
     load_extension=None,
@@ -1067,7 +1060,7 @@ def insert_upsert_implementation(
                 )
             else:
                 docs = (dict(zip(headers, row)) for row in reader)
-            # detect_types is now the default, unless --no-detect-types is passed
+            # Type detection is the default, unless --no-detect-types is passed
             if not no_detect_types:
                 tracker = TypeTracker()
                 docs = tracker.wrap(docs)
@@ -1241,7 +1234,6 @@ def insert(
     batch_size,
     stop_after,
     alter,
-    detect_types,
     no_detect_types,
     analyze,
     load_extension,
@@ -1324,7 +1316,6 @@ def insert(
             ignore=ignore,
             replace=replace,
             truncate=truncate,
-            detect_types=detect_types,
             no_detect_types=no_detect_types,
             analyze=analyze,
             load_extension=load_extension,
@@ -1363,7 +1354,6 @@ def upsert(
     alter,
     not_null,
     default,
-    detect_types,
     no_detect_types,
     analyze,
     load_extension,
@@ -1409,7 +1399,6 @@ def upsert(
             upsert=True,
             not_null=not_null,
             default=default,
-            detect_types=detect_types,
             no_detect_types=no_detect_types,
             analyze=analyze,
             load_extension=load_extension,
@@ -1497,7 +1486,6 @@ def bulk(
             upsert=False,
             not_null=set(),
             default={},
-            detect_types=False,
             no_detect_types=True,
             load_extension=load_extension,
             silent=False,

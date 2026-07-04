@@ -2331,18 +2331,14 @@ def test_csv_insert_bom(tmpdir):
     ]
 
 
-@pytest.mark.parametrize("option", (None, "-d", "--detect-types"))
-def test_insert_detect_types(tmpdir, option):
-    """Test that type detection is now the default behavior"""
+def test_insert_detect_types(tmpdir):
+    """Test that type detection is the default behavior"""
     db_path = str(tmpdir / "test.db")
     data = "name,age,weight\nCleo,6,45.5\nDori,1,3.5"
-    extra = []
-    if option:
-        extra = [option]
 
     result = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "creatures", "-", "--csv"] + extra,
+        ["insert", db_path, "creatures", "-", "--csv"],
         catch_exceptions=False,
         input=data,
     )
@@ -2354,17 +2350,27 @@ def test_insert_detect_types(tmpdir, option):
     ]
 
 
-@pytest.mark.parametrize("option", (None, "-d", "--detect-types"))
-def test_upsert_detect_types(tmpdir, option):
-    """Test that type detection is now the default behavior for upsert"""
+@pytest.mark.parametrize("command", ("insert", "upsert"))
+@pytest.mark.parametrize("option", ("-d", "--detect-types"))
+def test_detect_types_flag_removed(tmpdir, command, option):
+    # The old no-op flag was removed in 4.0 - it should now error
     db_path = str(tmpdir / "test.db")
-    data = "id,name,age,weight\n1,Cleo,6,45.5\n2,Dori,1,3.5"
-    extra = []
-    if option:
-        extra = [option]
     result = CliRunner().invoke(
         cli.cli,
-        ["upsert", db_path, "creatures", "-", "--csv", "--pk", "id"] + extra,
+        [command, db_path, "creatures", "-", "--csv", "--pk", "id", option],
+        input="id,name\n1,Cleo",
+    )
+    assert result.exit_code == 2
+    assert "No such option" in result.output
+
+
+def test_upsert_detect_types(tmpdir):
+    """Test that type detection is the default behavior for upsert"""
+    db_path = str(tmpdir / "test.db")
+    data = "id,name,age,weight\n1,Cleo,6,45.5\n2,Dori,1,3.5"
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "creatures", "-", "--csv", "--pk", "id"],
         catch_exceptions=False,
         input=data,
     )
