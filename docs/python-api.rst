@@ -144,6 +144,8 @@ The ``Database`` object also works as a context manager, which will automaticall
         db["my_table"].insert({"name": "Example"})
     # Connection is automatically closed here
 
+Exiting the block closes the connection without committing, so any changes that are still inside an open transaction at that point - for example writes made with raw ``db.execute()`` calls - will be rolled back. Commit explicitly, or use methods such as ``.insert()`` and the ``db.atomic()`` context manager which commit their own transactions.
+
 .. _python_api_attach:
 
 Attaching additional databases

@@ -29,6 +29,21 @@ def test_sqlite_version():
     assert actual == as_string
 
 
+def test_database_context_manager(tmpdir):
+    path = str(tmpdir / "test.db")
+    with Database(path) as db:
+        db["t"].insert({"id": 1})
+        # A raw write left uncommitted on purpose:
+        db.execute("insert into t (id) values (2)")
+    # The connection is closed...
+    with pytest.raises(sqlite3.ProgrammingError):
+        db.execute("select 1")
+    # ... and the uncommitted change was rolled back, not committed
+    db2 = Database(path)
+    assert [r["id"] for r in db2["t"].rows] == [1]
+    db2.close()
+
+
 @pytest.mark.parametrize("memory", [True, False])
 def test_database_close(tmpdir, memory):
     if memory:
