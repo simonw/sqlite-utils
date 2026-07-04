@@ -274,6 +274,12 @@ If an exception is raised, changes made inside the block will be rolled back.
             pass
         db.table("dogs").insert({"id": 3, "name": "Marnie"})
 
+The transaction is opened with a deferred ``BEGIN`` - SQLite takes the necessary locks when the first statement inside the block runs.
+
+The same savepoint mechanism used for nesting applies if the connection is already inside a transaction when ``db.atomic()`` is called - for example if you executed ``BEGIN`` yourself, or made writes using raw ``db.execute()`` calls. In that case the block becomes a savepoint within your transaction: exiting the block releases the savepoint, but nothing is committed to disk until your outer transaction commits.
+
+``db.atomic()`` is designed for connections in Python's default transaction handling mode. Connections created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options are not supported, because ``commit()`` and ``rollback()`` behave differently on those connections.
+
 .. _python_api_parameters:
 
 Passing parameters

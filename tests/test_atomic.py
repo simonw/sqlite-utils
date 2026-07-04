@@ -172,3 +172,20 @@ def test_transform_detects_foreign_key_check_violations(fresh_db):
 
     assert fresh_db["books"].foreign_keys == []
     assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
+
+
+def test_atomic_inside_manual_transaction_uses_savepoint(fresh_db):
+    fresh_db["t"].insert({"id": 1}, pk="id")
+    fresh_db.execute("begin")
+    with fresh_db.atomic():
+        fresh_db["t"].insert({"id": 2}, pk="id")
+    # Nothing is committed until the user's own transaction commits
+    assert fresh_db.conn.in_transaction
+    fresh_db.conn.rollback()
+    assert [r["id"] for r in fresh_db["t"].rows] == [1]
+    # And with a commit instead, the atomic block's writes persist
+    fresh_db.execute("begin")
+    with fresh_db.atomic():
+        fresh_db["t"].insert({"id": 3}, pk="id")
+    fresh_db.conn.commit()
+    assert [r["id"] for r in fresh_db["t"].rows] == [1, 3]
