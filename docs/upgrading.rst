@@ -72,7 +72,7 @@ Python API changes
 
 **Validation errors raise ValueError.** Invalid arguments to Python API methods - for example ``create_table()`` with no columns, or ``ignore=True`` together with ``replace=True`` - now raise ``ValueError``. They previously raised ``AssertionError`` from bare ``assert`` statements, which were silently skipped under ``python -O``.
 
-**Transaction behavior is now well-defined.** 4.0 introduces the :ref:`db.atomic() <python_api_atomic>` context manager and uses it consistently for every write operation. Changes you may notice:
+**Transaction behavior is now well-defined.** 4.0 introduces the :ref:`db.atomic() <python_api_atomic>` context manager and uses it consistently for every write operation - the full model is described in :ref:`python_api_transactions`. Changes you may notice:
 
 - Multi-step operations such as ``table.transform()`` no longer commit an existing transaction you have open - they use savepoints inside it instead.
 - ``db.enable_wal()`` and ``db.disable_wal()`` raise a ``RuntimeError`` if called while a transaction is open, instead of silently committing it.
