@@ -80,6 +80,18 @@ def test_order_does_not_matter(migrations, migrations_not_ordered_alphabetically
     assert db1.schema == db2.schema
 
 
+def test_applied_at_is_a_string(migrations):
+    db = sqlite_utils.Database(memory=True)
+    migrations.apply(db)
+    applied = migrations.applied(db)
+    assert len(applied) == 2
+    for migration in applied:
+        # applied_at is the TEXT timestamp straight from the
+        # _sqlite_migrations table, e.g. "2026-07-04 12:00:00.000000+00:00"
+        assert isinstance(migration.applied_at, str)
+        assert migration.applied_at.endswith("+00:00")
+
+
 def test_failing_migration_rolls_back(migrations):
     @migrations()
     def m003(db):

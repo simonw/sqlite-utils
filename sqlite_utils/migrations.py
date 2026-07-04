@@ -19,7 +19,9 @@ class Migrations:
     @dataclass
     class _AppliedMigration:
         name: str
-        applied_at: datetime.datetime
+        # A string timestamp such as "2026-07-04 12:00:00.000000+00:00" -
+        # stored as TEXT in the _sqlite_migrations table
+        applied_at: str
 
     def __init__(self, name: str):
         """
