@@ -3400,11 +3400,38 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
         click.echo("\nSchema before:\n")
         click.echo(textwrap.indent(prev_schema, "  ") or "  (empty)")
         click.echo()
+    if stop_before:
+        # Every --stop-before value must match at least one known migration
+        known_names = set()
+        for migration_set in migration_sets:
+            names = {m.name for m in migration_set.pending(db)}
+            names.update(m.name for m in migration_set.applied(db))
+            known_names.update(names)
+            known_names.update(
+                "{}:{}".format(migration_set.name, name) for name in names
+            )
+        unknown = [value for value in stop_before if value not in known_names]
+        if unknown:
+            raise click.ClickException(
+                "--stop-before did not match any migrations: {}".format(
+                    ", ".join(unknown)
+                )
+            )
     for migration_set in migration_sets:
-        migration_set.apply(
-            db,
-            stop_before=_stop_before_for_migration_set(stop_before, migration_set.name),
-        )
+        matches = _stop_before_for_migration_set(stop_before, migration_set.name)
+        if isinstance(migration_set, sqlite_utils.Migrations):
+            migration_set.apply(db, stop_before=matches)
+        else:
+            # Legacy sqlite-migrate Migrations objects take a single string
+            # for stop_before, not a list
+            distinct = list(dict.fromkeys(matches))
+            if len(distinct) > 1:
+                raise click.ClickException(
+                    "Migration set '{}' uses the older sqlite-migrate class, "
+                    "which only supports a single --stop-before value - "
+                    "got: {}".format(migration_set.name, ", ".join(distinct))
+                )
+            migration_set.apply(db, stop_before=distinct[0] if distinct else None)
     if verbose:
         click.echo("Schema after:\n")
         post_schema = db.schema
