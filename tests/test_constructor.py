@@ -35,14 +35,17 @@ def test_database_context_manager(tmpdir):
     path = str(tmpdir / "test.db")
     with Database(path) as db:
         db["t"].insert({"id": 1})
-        # A raw write left uncommitted on purpose:
+        # Raw writes commit automatically too
         db.execute("insert into t (id) values (2)")
+        # An explicitly opened transaction left uncommitted on purpose:
+        db.begin()
+        db.execute("insert into t (id) values (3)")
     # The connection is closed...
     with pytest.raises(sqlite3.ProgrammingError):
         db.execute("select 1")
-    # ... and the uncommitted change was rolled back, not committed
+    # ... and the open explicit transaction was rolled back, not committed
     db2 = Database(path)
-    assert [r["id"] for r in db2["t"].rows] == [1]
+    assert [r["id"] for r in db2["t"].rows] == [1, 2]
     db2.close()
 
 

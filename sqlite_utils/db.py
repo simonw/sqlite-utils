@@ -324,6 +324,16 @@ CREATE TABLE IF NOT EXISTS "{}"(
 """.strip()
 
 
+_TRANSACTION_CONTROL_PREFIXES = (
+    "BEGIN",
+    "COMMIT",
+    "END",
+    "ROLLBACK",
+    "SAVEPOINT",
+    "RELEASE",
+)
+
+
 class Database:
     """
     Wrapper for a SQLite database connection that adds a variety of useful utility methods.
@@ -462,13 +472,13 @@ class Database:
             try:
                 yield self
             except BaseException:
-                self.conn.rollback()
+                self.conn.execute("ROLLBACK")
                 raise
             else:
                 try:
-                    self.conn.commit()
+                    self.conn.execute("COMMIT")
                 except BaseException:
-                    self.conn.rollback()
+                    self.conn.execute("ROLLBACK")
                     raise
 
     def begin(self) -> None:
@@ -487,14 +497,16 @@ class Database:
         """
         Commit the current transaction. Does nothing if no transaction is open.
         """
-        self.conn.commit()
+        if self.conn.in_transaction:
+            self.conn.execute("COMMIT")
 
     def rollback(self) -> None:
         """
         Roll back the current transaction, discarding its changes. Does nothing
         if no transaction is open.
         """
-        self.conn.rollback()
+        if self.conn.in_transaction:
+            self.conn.execute("ROLLBACK")
 
     @contextlib.contextmanager
     def ensure_autocommit_off(self) -> Generator[None, None, None]:
@@ -648,6 +660,7 @@ class Database:
         :raises ValueError: if the SQL statement does not return rows - use
           :meth:`execute` for those statements instead
         """
+        was_in_transaction = self.conn.in_transaction
         cursor = self.execute(sql, params or tuple())
         if cursor.description is None:
             raise ValueError(
@@ -659,6 +672,11 @@ class Database:
         def rows() -> Generator[dict, None, None]:
             for row in cursor:
                 yield dict(zip(keys, row))
+            if not was_in_transaction and self.conn.in_transaction:
+                # A row-returning write such as INSERT ... RETURNING opened
+                # an implicit transaction - commit it now that its rows have
+                # been consumed
+                self.conn.execute("COMMIT")
 
         return rows()
 
@@ -668,16 +686,33 @@ class Database:
         """
         Execute SQL query and return a ``sqlite3.Cursor``.
 
+        A write statement - ``INSERT``, ``UPDATE``, ``CREATE TABLE`` and so on -
+        is committed automatically, unless a transaction is already open, in
+        which case it becomes part of that transaction. See
+        :ref:`python_api_transactions`.
+
         :param sql: SQL query to execute
         :param parameters: Parameters to use in that query - an iterable for ``where id = ?``
           parameters, or a dictionary for ``where id = :id``
         """
         if self._tracer:
             self._tracer(sql, parameters)
+        was_in_transaction = self.conn.in_transaction
         if parameters is not None:
-            return self.conn.execute(sql, parameters)
+            cursor = self.conn.execute(sql, parameters)
         else:
-            return self.conn.execute(sql)
+            cursor = self.conn.execute(sql)
+        if (
+            not was_in_transaction
+            and self.conn.in_transaction
+            and cursor.description is None
+            and not sql.lstrip().upper().startswith(_TRANSACTION_CONTROL_PREFIXES)
+        ):
+            # The statement opened an implicit transaction - commit it, so
+            # that execute() behaves consistently with the rest of the
+            # library and identically across connection modes
+            self.conn.execute("COMMIT")
+        return cursor
 
     def executescript(self, sql: str) -> sqlite3.Cursor:
         """

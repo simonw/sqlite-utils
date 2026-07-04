@@ -152,14 +152,13 @@ Exiting the block is equivalent to calling ``db.close()``: the connection is
 closed and any transaction still open at that point is rolled back. This
 matches SQLite's own behavior when a connection closes.
 
-This rarely matters in practice. Every method in this library that writes to
-the database commits its own changes before returning, so a transaction can
-only be left open here if you opened it yourself - through raw ``db.execute()``
-writes or an explicit ``BEGIN``. In that case the decision to commit stays
-with you: committing automatically on exit could silently persist
-half-finished work, for example if your code returned early from the block.
-Commit explicitly with ``db.commit()``, or wrap your writes in
-``db.atomic()`` which commits for you.
+This rarely matters in practice. Everything that writes to the database -
+including raw ``db.execute()`` statements - commits automatically, so a
+transaction can only be open here if you explicitly started one with
+``db.begin()`` and have not yet committed it. In that case the decision to
+commit stays with you: committing automatically on exit could silently
+persist half-finished work, for example if your code returned early from the
+block. Call ``db.commit()`` when the work is complete.
 
 Note this differs from the ``sqlite3.Connection`` context manager in the
 standard library, which commits on success but does not close the connection.
@@ -264,8 +263,8 @@ The ``db.execute()`` and ``db.executescript()`` methods provide wrappers around 
 
 Other cursor methods such as ``.fetchone()`` and ``.fetchall()`` are also available, see the `standard library documentation <https://docs.python.org/3/library/sqlite3.html#sqlite3.Cursor>`__.
 
-.. warning::
-    Unlike the table methods described elsewhere in this documentation, ``db.execute()`` does **not** commit. If you use it to modify the database you are responsible for committing the change yourself - see :ref:`python_api_transactions_execute`.
+.. note::
+    Write statements executed this way are committed automatically, unless a transaction is already open in which case they become part of it - see :ref:`python_api_transactions_execute`.
 
 .. _python_api_parameters:
 
@@ -308,13 +307,12 @@ Every method in this library that writes to the database - ``insert()``, ``upser
     db.table("news").insert({"headline": "Dog wins award"})
     # The new row is already saved - no commit() required
 
-You never need to call ``commit()`` after using these methods, and you do not need to close the database to persist your changes.
+The same applies to raw SQL executed with :ref:`db.execute() <python_api_transactions_execute>` - a write statement is committed as soon as it has run.
 
-There are exactly three situations where you need to think about transactions:
+You never need to call ``commit()``, and you do not need to close the database to persist your changes. There are exactly two situations where you need to think about transactions:
 
 1. You want to group several write operations together, so they either all succeed or all fail - use :ref:`db.atomic() <python_api_atomic>`.
-2. You are executing raw SQL writes with ``db.execute()``, which does *not* commit automatically - see :ref:`python_api_transactions_execute`.
-3. You are :ref:`managing a transaction yourself <python_api_transactions_manual>`, in which case the library will never commit it for you.
+2. You are :ref:`managing a transaction yourself <python_api_transactions_manual>` with ``db.begin()``, in which case nothing is committed until you commit - the library will never commit a transaction you opened.
 
 .. _python_api_atomic:
 
@@ -352,21 +350,23 @@ The transaction is opened with a deferred ``BEGIN`` - SQLite takes the necessary
 Raw SQL writes with db.execute()
 --------------------------------
 
-:ref:`db.execute() <python_api_execute>` is a thin wrapper around the underlying ``sqlite3`` connection, and it follows that connection's rules rather than this library's: a write statement opens a transaction that stays open until something commits it. Commit explicitly with ``db.commit()``:
+Write statements executed with :ref:`db.execute() <python_api_execute>` follow the same rule as everything else: they are committed automatically as soon as they have run.
 
 .. code-block:: python
 
     db.execute("insert into news (headline) values (?)", ["Dog wins award"])
-    db.commit()
+    # Already committed
 
-Or wrap the calls in ``db.atomic()``, which commits for you:
+If a transaction is open - because the call happens inside a ``db.atomic()`` block, or after ``db.begin()`` - the statement becomes part of that transaction instead, and commits when the transaction commits:
 
 .. code-block:: python
 
     with db.atomic():
         db.execute("insert into news (headline) values (?)", ["Dog wins award"])
+        db.execute("insert into news (headline) values (?)", ["Cat unimpressed"])
+    # Both rows committed together
 
-If you do neither, the write can be deceptive: reads on the same connection will see the new row, making it look saved, but the open transaction will be rolled back when the connection closes and the row will be gone.
+One corner case: a row-returning write such as ``INSERT ... RETURNING`` executed through ``db.execute()`` cannot be auto-committed, because its rows have not been read yet - call ``db.commit()`` after fetching them, or use :ref:`db.query() <python_api_query>` for those statements, which commits automatically once you have iterated over the results.
 
 .. _python_api_transactions_manual:
 
@@ -384,7 +384,7 @@ You can take full manual control using the ``db.begin()``, ``db.commit()`` and `
     else:
         db.rollback()
 
-``db.begin()`` raises ``sqlite3.OperationalError`` if a transaction is already open. ``db.commit()`` and ``db.rollback()`` do nothing if there is no open transaction. A raw write executed with ``db.execute()`` (as above) opens a transaction implicitly, without needing ``db.begin()``.
+``db.begin()`` raises ``sqlite3.OperationalError`` if a transaction is already open. ``db.commit()`` and ``db.rollback()`` do nothing if there is no open transaction.
 
 The library will never commit a transaction you opened. If you call write methods such as ``insert()`` - or use ``db.atomic()`` - while your transaction is open, they participate in it using SQLite savepoints instead of committing: exiting an ``atomic()`` block releases its savepoint, but nothing is saved to disk until you commit the outer transaction yourself. If you roll back, their changes are rolled back too.
 

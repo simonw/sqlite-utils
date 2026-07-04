@@ -1140,7 +1140,7 @@ def insert_upsert_implementation(
             else:
                 doc_chunks = [docs]
             for doc_chunk in doc_chunks:
-                with db.conn:
+                with db.atomic():
                     db.conn.cursor().executemany(bulk_sql, doc_chunk)
             return
 

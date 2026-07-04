@@ -76,9 +76,10 @@ Python API changes
 
 **Transaction behavior is now well-defined.** 4.0 introduces the :ref:`db.atomic() <python_api_atomic>` context manager and uses it consistently for every write operation - the full model is described in :ref:`python_api_transactions`. Changes you may notice:
 
+- Write statements executed with raw ``db.execute()`` calls now commit automatically, unless a transaction is already open in which case they join it. Previously they opened an implicit transaction that nothing committed - if your code used ``db.execute()`` for writes and relied on ``db.conn.rollback()`` to undo them, open an explicit transaction with the new ``db.begin()`` method first.
 - Multi-step operations such as ``table.transform()`` no longer commit an existing transaction you have open - they use savepoints inside it instead.
 - ``db.enable_wal()`` and ``db.disable_wal()`` raise a ``sqlite_utils.db.TransactionError`` if called while a transaction is open, instead of silently committing it.
-- Using ``Database`` as a context manager (``with Database(path) as db:``) closes the connection on exit *without* committing - uncommitted changes from raw ``db.execute()`` calls are rolled back.
+- Using ``Database`` as a context manager (``with Database(path) as db:``) closes the connection on exit *without* committing - a transaction you explicitly opened with ``db.begin()`` and did not commit is rolled back.
 - ``Database()`` rejects connections created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options, raising ``sqlite_utils.db.TransactionError``. On those connections every write the library made was silently discarded when the connection closed.
 
 Packaging changes
