@@ -140,9 +140,7 @@ As a special niche feature, if your plugin needs to import some files and then a
 prepare_connection(conn)
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-This hook is called when a new SQLite database connection is created. You can
-use it to `register custom SQL functions <https://docs.python.org/2/library/sqlite3.html#sqlite3.Connection.create_function>`_,
-aggregates and collations. For example:
+This hook is called when a new SQLite database connection is created. You can use it to `register custom SQL functions <https://docs.python.org/2/library/sqlite3.html#sqlite3.Connection.create_function>`_, aggregates and collations. For example:
 
 .. code-block:: python
 
@@ -154,8 +152,7 @@ aggregates and collations. For example:
             "hello", 1, lambda name: f"Hello, {name}!"
         )
 
-This registers a SQL function called ``hello`` which takes a single
-argument and can be called like this:
+This registers a SQL function called ``hello`` which takes a single argument and can be called like this:
 
 .. code-block:: sql
 

@@ -148,21 +148,11 @@ The ``Database`` object also works as a context manager, which will automaticall
         db["my_table"].insert({"name": "Example"})
     # Connection is automatically closed here
 
-Exiting the block is equivalent to calling ``db.close()``: the connection is
-closed and any transaction still open at that point is rolled back. This
-matches SQLite's own behavior when a connection closes.
+Exiting the block is equivalent to calling ``db.close()``: the connection is closed and any transaction still open at that point is rolled back. This matches SQLite's own behavior when a connection closes.
 
-This rarely matters in practice. Everything that writes to the database -
-including raw ``db.execute()`` statements - commits automatically, so a
-transaction can only be open here if you explicitly started one with
-``db.begin()`` and have not yet committed it. In that case the decision to
-commit stays with you: committing automatically on exit could silently
-persist half-finished work, for example if your code returned early from the
-block. Call ``db.commit()`` when the work is complete.
+This rarely matters in practice. Everything that writes to the database - including raw ``db.execute()`` statements - commits automatically, so a transaction can only be open here if you explicitly started one with ``db.begin()`` and have not yet committed it. In that case the decision to commit stays with you: committing automatically on exit could silently persist half-finished work, for example if your code returned early from the block. Call ``db.commit()`` when the work is complete.
 
-Note this differs from the ``sqlite3.Connection`` context manager in the
-standard library, which commits on success but does not close the connection.
-See :ref:`python_api_transactions` for the full transaction model.
+Note this differs from the ``sqlite3.Connection`` context manager in the standard library, which commits on success but does not close the connection. See :ref:`python_api_transactions` for the full transaction model.
 
 .. _python_api_attach:
 
