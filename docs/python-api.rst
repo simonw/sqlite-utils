@@ -219,6 +219,10 @@ The ``db.query(sql)`` function executes a SQL query and returns an iterator over
     # {'name': 'Cleo'}
     # {'name': 'Pancakes'}
 
+The SQL query is executed as soon as ``db.query()`` is called. The resulting rows are fetched lazily as you iterate, so large result sets are not loaded into memory all at once. Because execution is immediate, an error in your SQL will raise an exception straight away, and a statement such as ``INSERT ... RETURNING`` will take effect even if you do not iterate over its results.
+
+``db.query()`` can only be used with SQL that returns rows. Passing a statement that returns no rows - an ``INSERT`` or ``UPDATE`` without a ``RETURNING`` clause, for example - will raise a ``ValueError``. Use :ref:`db.execute() <python_api_execute>` for those statements instead.
+
 .. _python_api_execute:
 
 db.execute(sql, params)

@@ -593,14 +593,28 @@ class Database:
         """
         Execute ``sql`` and return an iterable of dictionaries representing each row.
 
+        The SQL is executed as soon as this method is called - the resulting rows
+        are then fetched lazily as the returned iterable is iterated over.
+
         :param sql: SQL query to execute
         :param params: Parameters to use in that query - an iterable for ``where id = ?``
           parameters, or a dictionary for ``where id = :id``
+        :raises ValueError: if the SQL statement does not return rows - use
+          :meth:`execute` for those statements instead
         """
         cursor = self.execute(sql, params or tuple())
+        if cursor.description is None:
+            raise ValueError(
+                "query() can only be used with SQL that returns rows - "
+                "use execute() for other statements"
+            )
         keys = [d[0] for d in cursor.description]
-        for row in cursor:
-            yield dict(zip(keys, row))
+
+        def rows() -> Generator[dict, None, None]:
+            for row in cursor:
+                yield dict(zip(keys, row))
+
+        return rows()
 
     def execute(
         self, sql: str, parameters: Optional[Union[Sequence, Dict[str, Any]]] = None
