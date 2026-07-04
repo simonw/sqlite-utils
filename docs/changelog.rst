@@ -4,6 +4,18 @@
  Changelog
 ===========
 
+.. _unreleased:
+
+Unreleased
+----------
+
+- **Breaking change**: ``db.query()`` now executes its SQL as soon as it is called, rather than waiting until the returned generator is first iterated. Rows are still fetched lazily during iteration. SQL errors are now raised at the call site, statements such as ``INSERT ... RETURNING`` take effect without needing to iterate over their results, and passing a statement that returns no rows - previously a silent no-op - now raises a ``ValueError`` recommending ``db.execute()`` instead.
+- Fixed a bug where ``table.delete_where()``, ``table.optimize()`` and ``table.rebuild_fts()`` did not commit their changes, leaving the connection inside an open transaction. Their work - and any subsequent writes - could then be silently rolled back when the connection was closed. All three now use ``db.atomic()``, consistent with the other write methods.
+- The ``sqlite-utils drop-table`` command now refuses to drop a view, and ``drop-view`` refuses to drop a table. Previously each would silently drop the wrong type of object if the name matched. Both now exit with an error suggesting the correct command to use.
+- Migrations applied by the new :ref:`migrations system <migrations>` now run inside a transaction, together with the record of the migration having been applied. If a migration raises an exception its changes are rolled back and it stays pending, so it can be safely re-applied after the error is fixed. Migrations that cannot run inside a transaction, such as those executing ``VACUUM``, can opt out using ``@migrations(transactional=False)`` - see :ref:`migrations_transactions`.
+- ``table.upsert()`` and ``table.upsert_all()`` now detect the primary key or compound primary key of an existing table, so the ``pk=`` argument is no longer required when upserting into a table that already has a primary key.
+- ``db.table(table_name).insert({})`` can now be used to insert a row consisting entirely of default values into an existing table, using ``INSERT INTO ... DEFAULT VALUES``. (:issue:`759`)
+
 .. _v4_0rc1:
 
 4.0rc1 (2026-06-21)
