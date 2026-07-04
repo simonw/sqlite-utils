@@ -139,9 +139,9 @@ def test_m2m_lookup(fresh_db):
 
 def test_m2m_requires_either_records_or_lookup(fresh_db):
     people = fresh_db.table("people", pk="id").insert({"name": "Wahyu"})
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         people.m2m("tags")
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         people.m2m("tags", {"tag": "hello"}, lookup={"foo": "bar"})
 
 

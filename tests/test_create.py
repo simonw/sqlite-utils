@@ -108,7 +108,7 @@ def test_create_table_with_defaults(fresh_db):
 
 
 def test_create_table_with_bad_not_null(fresh_db):
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         fresh_db.create_table(
             "players", {"name": str, "score": int}, not_null={"mouse"}
         )
@@ -243,11 +243,11 @@ def test_create_table_column_order(fresh_db, use_table_factory):
         # If you specify a column that doesn't point to a table, you  get an error:
         (("one_id", "two_id", "three_id"), NoObviousTable),
         # Tuples of the wrong length get an error:
-        ((("one_id", "one", "id", "five"), ("two_id", "two", "id")), AssertionError),
+        ((("one_id", "one", "id", "five"), ("two_id", "two", "id")), ValueError),
         # Likewise a bad column:
         ((("one_id", "one", "id2"),), AlterError),
         # Or a list of dicts
-        (({"one_id": "one"},), AssertionError),
+        (({"one_id": "one"},), ValueError),
     ),
 )
 @pytest.mark.parametrize("use_table_factory", [True, False])
@@ -700,7 +700,7 @@ def test_bulk_insert_more_than_999_values(fresh_db):
 def test_error_if_more_than_999_columns(fresh_db, num_columns, should_error):
     record = dict([("c{}".format(i), i) for i in range(num_columns)])
     if should_error:
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             fresh_db["big"].insert(record)
     else:
         fresh_db["big"].insert(record)
@@ -1061,7 +1061,7 @@ def test_create_table_numpy(fresh_db):
 
 def test_cannot_provide_both_filename_and_memory():
     with pytest.raises(
-        AssertionError, match="Either specify a filename_or_conn or pass memory=True"
+        ValueError, match="Either specify a filename_or_conn or pass memory=True"
     ):
         Database("/tmp/foo.db", memory=True)
 
@@ -1214,7 +1214,7 @@ def test_create_if_not_exists(fresh_db):
 
 
 def test_create_if_no_columns(fresh_db):
-    with pytest.raises(AssertionError) as error:
+    with pytest.raises(ValueError) as error:
         fresh_db["t"].create({})
     assert error.value.args[0] == "Tables must have at least one column"
 

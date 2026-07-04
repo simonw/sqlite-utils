@@ -367,9 +367,11 @@ class Database:
         self.memory_name = None
         self.memory = False
         self.use_old_upsert = use_old_upsert
-        assert (filename_or_conn is not None and (not memory and not memory_name)) or (
-            filename_or_conn is None and (memory or memory_name)
-        ), "Either specify a filename_or_conn or pass memory=True"
+        if not (
+            (filename_or_conn is not None and (not memory and not memory_name))
+            or (filename_or_conn is None and (memory or memory_name))
+        ):
+            raise ValueError("Either specify a filename_or_conn or pass memory=True")
         if memory_name:
             uri = "file:{}?mode=memory&cache=shared".format(memory_name)
             self.conn = sqlite3.connect(
@@ -393,7 +395,8 @@ class Database:
                     raise
             self.conn = sqlite3.connect(str(filename_or_conn))
         else:
-            assert not recreate, "recreate cannot be used with connections, only paths"
+            if recreate:
+                raise ValueError("recreate cannot be used with connections, only paths")
             self.conn = cast(sqlite3.Connection, filename_or_conn)
         self._tracer: Optional[Tracer] = tracer
         if recursive_triggers:
@@ -968,20 +971,21 @@ class Database:
                 other_column = table.guess_foreign_column(other_table)
                 fks.append(ForeignKey(name, column, other_table, other_column))
             return fks
-        assert all(
-            isinstance(fk, (tuple, list)) for fk in foreign_keys
-        ), "foreign_keys= should be a list of tuples"
+        if not all(isinstance(fk, (tuple, list)) for fk in foreign_keys):
+            raise ValueError("foreign_keys= should be a list of tuples")
         fks = []
         for tuple_or_list in foreign_keys:
             if len(tuple_or_list) == 4:
-                assert (
-                    tuple_or_list[0] == name
-                ), "First item in {} should have been {}".format(tuple_or_list, name)
-            assert len(tuple_or_list) in (
-                2,
-                3,
-                4,
-            ), "foreign_keys= should be a list of tuple pairs or triples"
+                if tuple_or_list[0] != name:
+                    raise ValueError(
+                        "First item in {} should have been {}".format(
+                            tuple_or_list, name
+                        )
+                    )
+            if len(tuple_or_list) not in (2, 3, 4):
+                raise ValueError(
+                    "foreign_keys= should be a list of tuple pairs or triples"
+                )
             if len(tuple_or_list) in (3, 4):
                 if len(tuple_or_list) == 4:
                     tuple_or_list = cast(Tuple[str, str, str], tuple_or_list[1:])
@@ -1054,17 +1058,20 @@ class Database:
         # Soundness check not_null, and defaults if provided
         not_null = not_null or set()
         defaults = defaults or {}
-        assert columns, "Tables must have at least one column"
-        assert all(
-            n in columns for n in not_null
-        ), "not_null set {} includes items not in columns {}".format(
-            repr(not_null), repr(set(columns.keys()))
-        )
-        assert all(
-            n in columns for n in defaults
-        ), "defaults set {} includes items not in columns {}".format(
-            repr(set(defaults)), repr(set(columns.keys()))
-        )
+        if not columns:
+            raise ValueError("Tables must have at least one column")
+        if not all(n in columns for n in not_null):
+            raise ValueError(
+                "not_null set {} includes items not in columns {}".format(
+                    repr(not_null), repr(set(columns.keys()))
+                )
+            )
+        if not all(n in columns for n in defaults):
+            raise ValueError(
+                "defaults set {} includes items not in columns {}".format(
+                    repr(set(defaults)), repr(set(columns.keys()))
+                )
+            )
         column_items = list(columns.items())
         if column_order is not None:
 
@@ -1295,9 +1302,8 @@ class Database:
         :param ignore: Set to ``True`` to do nothing if a view with this name already exists
         :param replace: Set to ``True`` to replace the view if one with this name already exists
         """
-        assert not (
-            ignore and replace
-        ), "Use one or the other of ignore/replace, not both"
+        if ignore and replace:
+            raise ValueError("Use one or the other of ignore/replace, not both")
         create_sql = "CREATE VIEW {name} AS {sql}".format(
             name=quote_identifier(name), sql=sql
         )
@@ -1342,9 +1348,13 @@ class Database:
           tuples
         """
         # foreign_keys is a list of explicit 4-tuples
-        assert all(
+        if not all(
             len(fk) == 4 and isinstance(fk, (list, tuple)) for fk in foreign_keys
-        ), "foreign_keys must be a list of 4-tuples, (table, column, other_table, other_column)"
+        ):
+            raise ValueError(
+                "foreign_keys must be a list of 4-tuples, "
+                "(table, column, other_table, other_column)"
+            )
 
         foreign_keys_to_create = []
 
@@ -1989,7 +1999,8 @@ class Table(Queryable):
         :param keep_table: If specified, the existing table will be renamed to this and will not be
           dropped
         """
-        assert self.exists(), "Cannot transform a table that doesn't exist yet"
+        if not self.exists():
+            raise ValueError("Cannot transform a table that doesn't exist yet")
         sqls = self.transform_sql(
             types=types,
             rename=rename,
@@ -2161,8 +2172,10 @@ class Table(Queryable):
         elif not not_null:
             pass
         else:
-            assert False, "not_null must be a dict or a set or None, it was {}".format(
-                repr(not_null)
+            raise ValueError(
+                "not_null must be a dict or a set or None, it was {}".format(
+                    repr(not_null)
+                )
             )
         # defaults=
         create_table_defaults = {
@@ -2870,9 +2883,10 @@ class Table(Queryable):
                 "{}.{}".format(original_quoted, quote_identifier(c)) for c in columns
             )
         fts_table = self.detect_fts()
-        assert fts_table, "Full-text search is not configured for table '{}'".format(
-            self.name
-        )
+        if not fts_table:
+            raise ValueError(
+                "Full-text search is not configured for table '{}'".format(self.name)
+            )
         fts_table_quoted = quote_identifier(fts_table)
         virtual_table_using = self.db.table(fts_table).virtual_table_using
         sql = textwrap.dedent("""
@@ -3119,7 +3133,8 @@ class Table(Queryable):
             )
 
         if output is not None:
-            assert len(columns) == 1, "output= can only be used with a single column"
+            if len(columns) != 1:
+                raise ValueError("output= can only be used with a single column")
             if output not in self.columns_dict:
                 self.add_column(output, output_type or "text")
 
@@ -3632,15 +3647,15 @@ class Table(Queryable):
         if upsert and (not pk and not hash_id):
             raise PrimaryKeyRequired("upsert() requires a pk")
 
-        assert not (hash_id and pk), "Use either pk= or hash_id="
+        if hash_id and pk:
+            raise ValueError("Use either pk= or hash_id=")
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
         if hash_id:
             pk = hash_id
 
-        assert not (
-            ignore and replace
-        ), "Use either ignore=True or replace=True, not both"
+        if ignore and replace:
+            raise ValueError("Use either ignore=True or replace=True, not both")
         all_columns = []
         first = True
         num_records_processed = 0
@@ -3689,9 +3704,10 @@ class Table(Queryable):
             first_record = cast(Dict[str, Any], first_record)
             num_columns = len(first_record.keys())
 
-        assert (
-            num_columns <= SQLITE_MAX_VARS
-        ), "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
+        if num_columns > SQLITE_MAX_VARS:
+            raise ValueError(
+                "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
+            )
         batch_size = (
             1
             if num_columns == 0
@@ -3946,10 +3962,12 @@ class Table(Queryable):
         :param extra_values: Additional column values to be used only if creating a new record
         :param strict: Boolean, apply STRICT mode if creating the table.
         """
-        assert isinstance(lookup_values, dict)
-        assert pk is not None
-        if extra_values is not None:
-            assert isinstance(extra_values, dict)
+        if not isinstance(lookup_values, dict):
+            raise ValueError("lookup_values must be a dictionary")
+        if pk is None:
+            raise ValueError("pk cannot be None")
+        if extra_values is not None and not isinstance(extra_values, dict):
+            raise ValueError("extra_values must be a dictionary")
         combined_values = dict(lookup_values)
         if extra_values is not None:
             combined_values.update(extra_values)
@@ -4034,9 +4052,10 @@ class Table(Queryable):
             other_table = self.db.table(other_table, pk=pk)
         our_id = self.last_pk
         if lookup is not None:
-            assert record_or_iterable is None, "Provide lookup= or record, not both"
-        else:
-            assert record_or_iterable is not None, "Provide lookup= or record, not both"
+            if record_or_iterable is not None:
+                raise ValueError("Provide lookup= or record, not both")
+        elif record_or_iterable is None:
+            raise ValueError("Provide lookup= or record, not both")
         tables = list(sorted([self.name, other_table.name]))
         columns = ["{}_id".format(t) for t in tables]
         if m2m_table is not None:
