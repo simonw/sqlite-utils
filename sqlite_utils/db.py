@@ -854,16 +854,35 @@ class Database:
     def enable_wal(self) -> None:
         """
         Sets ``journal_mode`` to ``'wal'`` to enable Write-Ahead Log mode.
+
+        :raises RuntimeError: if called while a transaction is open - the
+          journal mode can only be changed outside of a transaction
         """
         if self.journal_mode != "wal":
+            self._ensure_no_open_transaction("enable_wal()")
             with self.ensure_autocommit_off():
                 self.execute("PRAGMA journal_mode=wal;")
 
     def disable_wal(self) -> None:
-        "Sets ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode."
+        """
+        Sets ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode.
+
+        :raises RuntimeError: if called while a transaction is open - the
+          journal mode can only be changed outside of a transaction
+        """
         if self.journal_mode != "delete":
+            self._ensure_no_open_transaction("disable_wal()")
             with self.ensure_autocommit_off():
                 self.execute("PRAGMA journal_mode=delete;")
+
+    def _ensure_no_open_transaction(self, operation: str) -> None:
+        # Changing journal mode assigns conn.isolation_level, which commits
+        # any open transaction as a side effect - breaking the rollback
+        # guarantee of atomic() and of user-managed transactions
+        if self.conn.in_transaction:
+            raise RuntimeError(
+                "{} cannot be used while a transaction is open".format(operation)
+            )
 
     def _ensure_counts_table(self) -> None:
         with self.atomic():

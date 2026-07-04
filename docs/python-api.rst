@@ -2702,6 +2702,8 @@ You can disable WAL mode using ``.disable_wal()``:
 
     Database("my_database.db").disable_wal()
 
+The journal mode can only be changed outside of a transaction. Calling either method while a transaction is open - inside a ``db.atomic()`` block, for example - raises a ``RuntimeError``, unless the database is already in the requested mode in which case the call is a no-op.
+
 You can check the current journal mode for a database using the ``journal_mode`` property:
 
 .. code-block:: python

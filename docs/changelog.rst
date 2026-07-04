@@ -16,6 +16,7 @@ Unreleased
 - ``table.upsert()`` and ``table.upsert_all()`` now detect the primary key or compound primary key of an existing table, so the ``pk=`` argument is no longer required when upserting into a table that already has a primary key.
 - ``table.upsert()`` and ``table.upsert_all()`` now raise ``PrimaryKeyRequired`` if a record is missing a value for any primary key column, or has a value of ``None`` for one. Previously such records - which can never match an existing row - were quietly inserted as brand new rows, or triggered a confusing ``KeyError`` after the insert had already taken place.
 - ``db.table(table_name).insert({})`` can now be used to insert a row consisting entirely of default values into an existing table, using ``INSERT INTO ... DEFAULT VALUES``. (:issue:`759`)
+- ``db.enable_wal()`` and ``db.disable_wal()`` now raise a ``RuntimeError`` if called while a transaction is open. Previously they would silently commit the open transaction as a side effect of changing the journal mode, breaking the rollback guarantee of ``db.atomic()`` and of user-managed transactions.
 
 .. _v4_0rc1:
 
