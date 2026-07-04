@@ -388,7 +388,7 @@ The library will never commit a transaction you opened. If you call write method
 
 Two related safeguards to be aware of:
 
-- ``db.enable_wal()`` and ``db.disable_wal()`` raise a ``RuntimeError`` if called while a transaction is open, because changing the journal mode would commit it as a side effect.
+- ``db.enable_wal()`` and ``db.disable_wal()`` raise a ``sqlite_utils.db.TransactionError`` if called while a transaction is open, because changing the journal mode would commit it as a side effect.
 - Closing the database - explicitly with ``db.close()``, or by exiting a ``with Database(...) as db:`` block - rolls back any transaction that is still open, see :ref:`python_api_close`.
 
 Supported connection modes
@@ -2798,7 +2798,7 @@ You can disable WAL mode using ``.disable_wal()``:
 
     Database("my_database.db").disable_wal()
 
-The journal mode can only be changed outside of a transaction. Calling either method while a transaction is open - inside a ``db.atomic()`` block, for example - raises a ``RuntimeError``, unless the database is already in the requested mode in which case the call is a no-op.
+The journal mode can only be changed outside of a transaction. Calling either method while a transaction is open - inside a ``db.atomic()`` block, for example - raises a ``sqlite_utils.db.TransactionError``, unless the database is already in the requested mode in which case the call is a no-op.
 
 You can check the current journal mode for a database using the ``journal_mode`` property:
 

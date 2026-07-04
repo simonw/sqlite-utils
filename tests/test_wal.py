@@ -1,5 +1,6 @@
 import pytest
 from sqlite_utils import Database
+from sqlite_utils.db import TransactionError
 
 
 @pytest.fixture
@@ -26,7 +27,7 @@ def test_enable_disable_wal(db_path_tmpdir):
 def test_enable_wal_inside_transaction_raises(db_path_tmpdir):
     db, path, tmpdir = db_path_tmpdir
     db["test"].insert({"id": 1}, pk="id")
-    with pytest.raises(RuntimeError):
+    with pytest.raises(TransactionError):
         with db.atomic():
             db["test"].insert({"id": 2}, pk="id")
             db.enable_wal()
@@ -40,7 +41,7 @@ def test_disable_wal_inside_transaction_raises(db_path_tmpdir):
     db, path, tmpdir = db_path_tmpdir
     db.enable_wal()
     db["test"].insert({"id": 1}, pk="id")
-    with pytest.raises(RuntimeError):
+    with pytest.raises(TransactionError):
         with db.atomic():
             db["test"].insert({"id": 2}, pk="id")
             db.disable_wal()

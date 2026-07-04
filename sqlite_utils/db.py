@@ -301,6 +301,10 @@ class InvalidColumns(Exception):
     "Specified columns do not exist"
 
 
+class TransactionError(Exception):
+    "Operation cannot be performed while a transaction is open"
+
+
 class DescIndex(str):
     pass
 
@@ -891,7 +895,7 @@ class Database:
         """
         Sets ``journal_mode`` to ``'wal'`` to enable Write-Ahead Log mode.
 
-        :raises RuntimeError: if called while a transaction is open - the
+        :raises TransactionError: if called while a transaction is open - the
           journal mode can only be changed outside of a transaction
         """
         if self.journal_mode != "wal":
@@ -903,7 +907,7 @@ class Database:
         """
         Sets ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode.
 
-        :raises RuntimeError: if called while a transaction is open - the
+        :raises TransactionError: if called while a transaction is open - the
           journal mode can only be changed outside of a transaction
         """
         if self.journal_mode != "delete":
@@ -916,7 +920,7 @@ class Database:
         # any open transaction as a side effect - breaking the rollback
         # guarantee of atomic() and of user-managed transactions
         if self.conn.in_transaction:
-            raise RuntimeError(
+            raise TransactionError(
                 "{} cannot be used while a transaction is open".format(operation)
             )
 
