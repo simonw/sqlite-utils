@@ -1,6 +1,7 @@
 import pytest
-import sqlite3
 import types
+
+from sqlite_utils.utils import sqlite3
 
 
 def test_query(fresh_db):
