@@ -455,6 +455,31 @@ class Database:
                     self.conn.rollback()
                     raise
 
+    def begin(self) -> None:
+        """
+        Start a transaction with ``BEGIN``, taking manual control of transaction
+        handling. End it by calling :meth:`commit` or :meth:`rollback`.
+
+        Raises ``sqlite3.OperationalError`` if a transaction is already open.
+
+        Most code should use the :meth:`atomic` context manager instead, which
+        commits and rolls back automatically. See :ref:`python_api_transactions`.
+        """
+        self.execute("BEGIN")
+
+    def commit(self) -> None:
+        """
+        Commit the current transaction. Does nothing if no transaction is open.
+        """
+        self.conn.commit()
+
+    def rollback(self) -> None:
+        """
+        Roll back the current transaction, discarding its changes. Does nothing
+        if no transaction is open.
+        """
+        self.conn.rollback()
+
     @contextlib.contextmanager
     def ensure_autocommit_off(self) -> Generator[None, None, None]:
         """

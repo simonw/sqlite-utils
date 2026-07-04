@@ -156,7 +156,7 @@ only be left open here if you opened it yourself - through raw ``db.execute()``
 writes or an explicit ``BEGIN``. In that case the decision to commit stays
 with you: committing automatically on exit could silently persist
 half-finished work, for example if your code returned early from the block.
-Commit explicitly with ``db.conn.commit()``, or wrap your writes in
+Commit explicitly with ``db.commit()``, or wrap your writes in
 ``db.atomic()`` which commits for you.
 
 Note this differs from the ``sqlite3.Connection`` context manager in the
@@ -350,12 +350,12 @@ The transaction is opened with a deferred ``BEGIN`` - SQLite takes the necessary
 Raw SQL writes with db.execute()
 --------------------------------
 
-:ref:`db.execute() <python_api_execute>` is a thin wrapper around the underlying ``sqlite3`` connection, and it follows that connection's rules rather than this library's: a write statement opens a transaction that stays open until something commits it. Commit explicitly:
+:ref:`db.execute() <python_api_execute>` is a thin wrapper around the underlying ``sqlite3`` connection, and it follows that connection's rules rather than this library's: a write statement opens a transaction that stays open until something commits it. Commit explicitly with ``db.commit()``:
 
 .. code-block:: python
 
     db.execute("insert into news (headline) values (?)", ["Dog wins award"])
-    db.conn.commit()
+    db.commit()
 
 Or wrap the calls in ``db.atomic()``, which commits for you:
 
@@ -371,7 +371,18 @@ If you do neither, the write can be deceptive: reads on the same connection will
 Managing transactions yourself
 ------------------------------
 
-You can take full manual control using ``db.execute("begin")`` (or any raw write, as above) followed by ``db.conn.commit()`` or ``db.conn.rollback()``.
+You can take full manual control using the ``db.begin()``, ``db.commit()`` and ``db.rollback()`` methods:
+
+.. code-block:: python
+
+    db.begin()
+    db.table("news").insert({"headline": "Dog wins award"})
+    if all_looks_good:
+        db.commit()
+    else:
+        db.rollback()
+
+``db.begin()`` raises ``sqlite3.OperationalError`` if a transaction is already open. ``db.commit()`` and ``db.rollback()`` do nothing if there is no open transaction. A raw write executed with ``db.execute()`` (as above) opens a transaction implicitly, without needing ``db.begin()``.
 
 The library will never commit a transaction you opened. If you call write methods such as ``insert()`` - or use ``db.atomic()`` - while your transaction is open, they participate in it using SQLite savepoints instead of committing: exiting an ``atomic()`` block releases its savepoint, but nothing is saved to disk until you commit the outer transaction yourself. If you roll back, their changes are rolled back too.
 

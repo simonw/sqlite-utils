@@ -26,6 +26,7 @@ Everything else:
 - ``table.upsert()`` and ``table.upsert_all()`` now detect the primary key or compound primary key of an existing table, so the ``pk=`` argument is no longer required when upserting into a table that already has a primary key.
 - ``db.table(table_name).insert({})`` can now be used to insert a row consisting entirely of default values into an existing table, using ``INSERT INTO ... DEFAULT VALUES``. (:issue:`759`)
 - Improvements to the ``sqlite-utils migrate`` command: ``--stop-before`` values that do not match any known migration are now an error instead of being silently ignored, ``--stop-before`` now works correctly with migration files that still use the older ``sqlite_migrate.Migrations`` class, and ``--list`` is now a read-only operation that no longer creates the database file or the migrations tracking table. ``migrations.applied()`` now returns migrations in the order they were applied.
+- New ``db.begin()``, ``db.commit()`` and ``db.rollback()`` methods for taking manual control of transactions, as an alternative to the ``db.atomic()`` context manager.
 - New documentation: :ref:`python_api_transactions` describes how transactions work and when changes are committed, and a new :ref:`upgrading` page details the changes needed to move between major versions.
 
 .. _v4_0rc1:

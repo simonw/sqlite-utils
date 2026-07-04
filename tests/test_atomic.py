@@ -1,6 +1,6 @@
 import pytest
 
-from sqlite_utils.db import _iter_complete_sql_statements
+from sqlite_utils.db import Database, _iter_complete_sql_statements
 from sqlite_utils.utils import sqlite3
 
 
@@ -189,3 +189,35 @@ def test_atomic_inside_manual_transaction_uses_savepoint(fresh_db):
         fresh_db["t"].insert({"id": 3}, pk="id")
     fresh_db.conn.commit()
     assert [r["id"] for r in fresh_db["t"].rows] == [1, 3]
+
+
+def test_begin_commit_rollback(tmpdir):
+    path = str(tmpdir / "test.db")
+    db = Database(path)
+    db["t"].insert({"id": 1}, pk="id")
+    db.begin()
+    db["t"].insert({"id": 2}, pk="id")
+    assert db.conn.in_transaction
+    db.rollback()
+    assert not db.conn.in_transaction
+    assert [r["id"] for r in db["t"].rows] == [1]
+    db.begin()
+    db["t"].insert({"id": 3}, pk="id")
+    db.commit()
+    db.close()
+    db2 = Database(path)
+    assert [r["id"] for r in db2["t"].rows] == [1, 3]
+    db2.close()
+
+
+def test_begin_inside_transaction_errors(fresh_db):
+    fresh_db.begin()
+    with pytest.raises(sqlite3.OperationalError):
+        fresh_db.begin()
+    fresh_db.rollback()
+
+
+def test_commit_and_rollback_without_transaction_are_noops(fresh_db):
+    fresh_db.commit()
+    fresh_db.rollback()
+    assert not fresh_db.conn.in_transaction
