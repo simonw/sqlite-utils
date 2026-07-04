@@ -499,10 +499,12 @@ class Database:
 
     def __getitem__(self, table_name: str) -> Union["Table", "View"]:
         """
-        ``db[table_name]`` returns a :class:`.Table` object for the table with the specified name.
-        If the table does not exist yet it will be created the first time data is inserted into it.
+        ``db[name]`` returns a :class:`.Table` object for the table with the specified name,
+        or a :class:`.View` object if the name matches an existing SQL view.
+        If neither exists yet, a table is assumed - it will be created the first
+        time data is inserted into it.
 
-        :param table_name: The name of the table
+        :param table_name: The name of the table or view
         """
         if table_name in self.view_names():
             return self.view(table_name)
@@ -672,6 +674,12 @@ class Database:
         :param view_name: Name of the view
         """
         if view_name not in self.view_names():
+            if view_name in self.table_names():
+                raise NoView(
+                    "View {name} does not exist - {name} is a table".format(
+                        name=view_name
+                    )
+                )
             raise NoView("View {} does not exist".format(view_name))
         return View(self, view_name)
 
@@ -1618,7 +1626,8 @@ class Table(Queryable):
     :param not_null: List of columns that cannot be null
     :param defaults: Dictionary of column names and default values
     :param batch_size: Integer number of rows to insert at a time
-    :param hash_id: If True, use a hash of the row values as the primary key
+    :param hash_id: Name of a column to create and use as a primary key, where the
+      value of that primary key is derived from a hash of the row values
     :param hash_id_columns: List of columns to use for the hash_id
     :param alter: If True, automatically alter the table if it doesn't match the schema
     :param ignore: If True, ignore rows that already exist when inserting

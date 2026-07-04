@@ -1155,6 +1155,8 @@ def insert_upsert_implementation(
             db.table(table).insert_all(
                 docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
             )
+        except NoTable as e:
+            raise click.ClickException(str(e))
         except Exception as e:
             if (
                 isinstance(e, OperationalError)

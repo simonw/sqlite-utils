@@ -1382,7 +1382,10 @@ def test_bad_table_and_view_exceptions(fresh_db):
     assert ex.value.args[0] == "Table v is actually a view"
     with pytest.raises(NoView) as ex2:
         fresh_db.view("t")
-    assert ex2.value.args[0] == "View t does not exist"
+    assert ex2.value.args[0] == "View t does not exist - t is a table"
+    with pytest.raises(NoView) as ex3:
+        fresh_db.view("missing")
+    assert ex3.value.args[0] == "View missing does not exist"
 
 
 # Tests for issue #655: Table configuration should be stored in _defaults

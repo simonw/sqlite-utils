@@ -198,3 +198,19 @@ def test_pending_and_applied_are_read_only(migrations):
     assert migrations.applied(db) == []
     # Neither call should have created the tracking table
     assert db.table_names() == []
+
+
+def test_duplicate_migration_name_errors():
+    migrations = Migrations("test")
+
+    @migrations()
+    def m001(db):
+        pass
+
+    with pytest.raises(ValueError) as ex:
+
+        @migrations(name="m001")
+        def m001_again(db):
+            pass
+
+    assert "m001" in str(ex.value)

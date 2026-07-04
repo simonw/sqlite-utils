@@ -44,8 +44,15 @@ class Migrations:
         """
 
         def inner(func: Callable) -> Callable:
+            migration_name = name or getattr(func, "__name__")
+            if any(m.name == migration_name for m in self._migrations):
+                raise ValueError(
+                    "Migration '{}' is already registered in set '{}'".format(
+                        migration_name, self.name
+                    )
+                )
             self._migrations.append(
-                self._Migration(name or getattr(func, "__name__"), func, transactional)
+                self._Migration(migration_name, func, transactional)
             )
             return func
 
