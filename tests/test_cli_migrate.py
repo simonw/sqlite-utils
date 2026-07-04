@@ -426,3 +426,40 @@ def test_stop_before_multiple_values_for_legacy_set_errors(tmpdir):
     )
     assert result.exit_code == 1
     assert "single --stop-before" in result.output
+
+
+def test_list_does_not_create_database_file(two_migrations):
+    path, _ = two_migrations
+    db_path = path / "test.db"
+    runner = CliRunner()
+    result = runner.invoke(
+        sqlite_utils.cli.cli, ["migrate", str(db_path), str(path), "--list"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "Pending:\n    foo\n    bar" in result.output
+    # Listing migrations must not create the database file
+    assert not db_path.exists()
+
+
+def test_list_does_not_upgrade_legacy_migrations_table(two_migrations):
+    path, _ = two_migrations
+    db_path = str(path / "test.db")
+    db = sqlite_utils.Database(db_path)
+    db["_sqlite_migrations"].create(
+        {"migration_set": str, "name": str, "applied_at": str},
+        pk=("migration_set", "name"),
+    )
+    db["_sqlite_migrations"].insert(
+        {"migration_set": "hello", "name": "foo", "applied_at": "x"}
+    )
+    db.close()
+    runner = CliRunner()
+    result = runner.invoke(
+        sqlite_utils.cli.cli, ["migrate", db_path, str(path), "--list"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "foo - x" in result.output
+    # --list must not perform the one-way legacy schema upgrade
+    db2 = sqlite_utils.Database(db_path)
+    assert db2["_sqlite_migrations"].pks == ["migration_set", "name"]
+    db2.close()

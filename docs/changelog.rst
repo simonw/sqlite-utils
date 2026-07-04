@@ -17,6 +17,7 @@ Unreleased
 - ``table.upsert()`` and ``table.upsert_all()`` now raise ``PrimaryKeyRequired`` if a record is missing a value for any primary key column, or has a value of ``None`` for one. Previously such records - which can never match an existing row - were quietly inserted as brand new rows, or triggered a confusing ``KeyError`` after the insert had already taken place.
 - ``db.table(table_name).insert({})`` can now be used to insert a row consisting entirely of default values into an existing table, using ``INSERT INTO ... DEFAULT VALUES``. (:issue:`759`)
 - ``db.enable_wal()`` and ``db.disable_wal()`` now raise a ``RuntimeError`` if called while a transaction is open. Previously they would silently commit the open transaction as a side effect of changing the journal mode, breaking the rollback guarantee of ``db.atomic()`` and of user-managed transactions.
+- Improvements to the ``sqlite-utils migrate`` command: ``--stop-before`` values that do not match any known migration are now an error instead of being silently ignored, ``--stop-before`` now works correctly with migration files that still use the older ``sqlite_migrate.Migrations`` class, and ``--list`` is now a read-only operation that no longer creates the database file or the migrations tracking table. ``migrations.applied()`` now returns migrations in the order they were applied.
 
 .. _v4_0rc1:
 

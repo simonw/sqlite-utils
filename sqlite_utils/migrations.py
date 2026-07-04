@@ -54,14 +54,10 @@ class Migrations:
     def pending(self, db: "Database") -> list["Migrations._Migration"]:
         """
         Return a list of pending migrations.
+
+        This is a read-only operation - it does not write to the database.
         """
-        self.ensure_migrations_table(db)
-        already_applied = {
-            r["name"]
-            for r in db[self.migrations_table].rows_where(
-                "migration_set = ?", [self.name]
-            )
-        }
+        already_applied = {migration.name for migration in self.applied(db)}
         return [
             migration
             for migration in self._migrations
@@ -70,13 +66,17 @@ class Migrations:
 
     def applied(self, db: "Database") -> list["Migrations._AppliedMigration"]:
         """
-        Return a list of applied migrations.
+        Return a list of applied migrations, in the order they were applied.
+
+        This is a read-only operation - it does not write to the database.
         """
-        self.ensure_migrations_table(db)
+        table = _table(db, self.migrations_table)
+        if not table.exists():
+            return []
         return [
             self._AppliedMigration(name=row["name"], applied_at=row["applied_at"])
-            for row in db[self.migrations_table].rows_where(
-                "migration_set = ?", [self.name]
+            for row in table.rows_where(
+                "migration_set = ?", [self.name], order_by="rowid"
             )
         ]
 

@@ -117,7 +117,7 @@ Running the command repeatedly is safe. Migrations that already have a matching 
 Listing migrations
 ==================
 
-Use ``--list`` to show applied and pending migrations without running them:
+Use ``--list`` to show applied and pending migrations without running them. This is a read-only operation - it will not create the database file or the ``_sqlite_migrations`` table:
 
 .. code-block:: bash
 

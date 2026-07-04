@@ -3387,12 +3387,18 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
     if not migration_sets:
         raise click.ClickException("No migrations.py files found")
 
-    db = sqlite_utils.Database(db_path)
-    _register_db_for_cleanup(db)
-
     if list_:
+        if pathlib.Path(db_path).exists():
+            db = sqlite_utils.Database(db_path)
+        else:
+            # Listing is read-only - don't create the database file
+            db = sqlite_utils.Database(memory=True)
+        _register_db_for_cleanup(db)
         _display_migration_list(db, migration_sets)
         return
+
+    db = sqlite_utils.Database(db_path)
+    _register_db_for_cleanup(db)
 
     prev_schema = db.schema
     if verbose:

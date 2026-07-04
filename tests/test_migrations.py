@@ -190,3 +190,11 @@ def test_upgrades_sqlite_migrations(migrations, create_table, pk):
     assert db["_sqlite_migrations"].pks == ([pk] if isinstance(pk, str) else list(pk))
     migrations.apply(db)
     assert db["_sqlite_migrations"].pks == ["id"]
+
+
+def test_pending_and_applied_are_read_only(migrations):
+    db = sqlite_utils.Database(memory=True)
+    assert [m.name for m in migrations.pending(db)] == ["m001", "m002"]
+    assert migrations.applied(db) == []
+    # Neither call should have created the tracking table
+    assert db.table_names() == []
