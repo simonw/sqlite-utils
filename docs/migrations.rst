@@ -70,6 +70,25 @@ When you apply a set of migrations you can stop part way through by specifying a
 
     migrations.apply(db, stop_before="add_weight")
 
+.. _migrations_transactions:
+
+Migrations and transactions
+===========================
+
+Each migration runs inside a transaction, together with the ``_sqlite_migrations`` record of it having been applied. If a migration function raises an exception, everything it did is rolled back, no record is written and the migration stays pending - so fixing the error and re-applying will run that migration again from a clean state. Migrations that completed earlier in the same ``apply()`` run stay applied.
+
+Some operations cannot run inside a transaction, for example ``VACUUM`` or changing the journal mode with ``db.enable_wal()``. Register migrations like these with ``transactional=False``:
+
+.. code-block:: python
+
+    @migrations(transactional=False)
+    def compact(db):
+        db.execute("VACUUM")
+
+A migration registered with ``transactional=False`` runs without a wrapping transaction, so if it fails part way through any changes it already made will not be rolled back, and re-applying will run the whole function again.
+
+Avoid calling ``db.conn.commit()`` or otherwise managing transactions manually inside a transactional migration - register the migration with ``transactional=False`` if it needs to control its own transactions.
+
 Applying migrations using the CLI
 =================================
 
