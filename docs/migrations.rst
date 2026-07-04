@@ -87,7 +87,7 @@ Some operations cannot run inside a transaction, for example ``VACUUM`` or chang
 
 A migration registered with ``transactional=False`` runs without a wrapping transaction, so if it fails part way through any changes it already made will not be rolled back, and re-applying will run the whole function again.
 
-Avoid calling ``db.conn.commit()`` or otherwise managing transactions manually inside a transactional migration - register the migration with ``transactional=False`` if it needs to control its own transactions.
+Avoid calling ``db.conn.commit()`` or otherwise managing transactions manually inside a transactional migration - register the migration with ``transactional=False`` if it needs to control its own transactions. Using ``with db.atomic():`` blocks inside a migration is fine: they nest as savepoints within the migration's transaction, so the migration as a whole still commits or rolls back as a single unit. See :ref:`python_api_transactions`.
 
 Applying migrations using the CLI
 =================================
