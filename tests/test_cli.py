@@ -1467,6 +1467,24 @@ def test_drop_table_error():
         assert result.exit_code == 0
 
 
+def test_drop_table_on_view_errors():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["t"].insert({"id": 1})
+        db.create_view("v", "select * from t")
+        result = runner.invoke(cli.cli, ["drop-table", "test.db", "v"])
+        assert result.exit_code == 1
+        assert 'Error: "v" is a view, not a table - use drop-view to drop it' == (
+            result.output.strip()
+        )
+        assert "v" in db.view_names()
+        # --ignore exits cleanly but must still not drop the view
+        result = runner.invoke(cli.cli, ["drop-table", "test.db", "v", "--ignore"])
+        assert result.exit_code == 0
+        assert "v" in db.view_names()
+
+
 def test_drop_view():
     runner = CliRunner()
     with runner.isolated_filesystem():
@@ -1483,6 +1501,23 @@ def test_drop_view():
         )
         assert result.exit_code == 0
         assert "hello" not in db.view_names()
+
+
+def test_drop_view_on_table_errors():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["t"].insert({"id": 1})
+        result = runner.invoke(cli.cli, ["drop-view", "test.db", "t"])
+        assert result.exit_code == 1
+        assert 'Error: "t" is a table, not a view - use drop-table to drop it' == (
+            result.output.strip()
+        )
+        assert "t" in db.table_names()
+        # --ignore exits cleanly but must still not drop the table
+        result = runner.invoke(cli.cli, ["drop-view", "test.db", "t", "--ignore"])
+        assert result.exit_code == 0
+        assert "t" in db.table_names()
 
 
 def test_drop_view_error():

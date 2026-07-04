@@ -14,6 +14,7 @@ from sqlite_utils.db import (
     DEFAULT,
     DescIndex,
     NoTable,
+    NoView,
     quote_identifier,
 )
 from sqlite_utils.plugins import ensure_plugins_loaded, pm, get_plugins
@@ -1725,7 +1726,13 @@ def drop_table(path, table, ignore, load_extension):
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[table].drop(ignore=ignore)
+        db.table(table).drop(ignore=ignore)
+    except NoTable:
+        # A view exists with this name
+        if not ignore:
+            raise click.ClickException(
+                '"{}" is a view, not a table - use drop-view to drop it'.format(table)
+            )
     except OperationalError:
         raise click.ClickException('Table "{}" does not exist'.format(table))
 
@@ -1797,8 +1804,14 @@ def drop_view(path, view, ignore, load_extension):
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[view].drop(ignore=ignore)
-    except OperationalError:
+        db.view(view).drop(ignore=ignore)
+    except NoView:
+        if ignore:
+            return
+        if view in db.table_names():
+            raise click.ClickException(
+                '"{}" is a table, not a view - use drop-table to drop it'.format(view)
+            )
         raise click.ClickException('View "{}" does not exist'.format(view))
 
 
