@@ -33,6 +33,8 @@ Here's how to create a new SQLite database file containing a new ``chickens`` ta
         "color": "black",
     }])
 
+The inserted rows are saved to the database file straight away - methods like ``insert_all()`` commit their own changes, so no ``commit()`` call is needed. See :ref:`python_api_transactions` for how this works.
+
 You can loop through those rows like this:
 
 .. code-block:: python
@@ -93,6 +95,8 @@ Instead of a file path you can pass in an existing SQLite connection:
 
     db = Database(sqlite3.connect("my_database.db"))
 
+The connection must use Python's default transaction handling. Connections created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options are rejected with a ``sqlite_utils.db.TransactionError`` - see :ref:`python_api_transactions_modes`.
+
 If you want to create an in-memory database, you can do so like this:
 
 .. code-block:: python
@@ -143,6 +147,12 @@ The ``Database`` object also works as a context manager, which will automaticall
     with Database("my_database.db") as db:
         db["my_table"].insert({"name": "Example"})
     # Connection is automatically closed here
+
+Exiting the block is equivalent to calling ``db.close()``: the connection is closed and any transaction still open at that point is rolled back. This matches SQLite's own behavior when a connection closes.
+
+This rarely matters in practice. Everything that writes to the database - including raw ``db.execute()`` statements - commits automatically, so a transaction can only be open here if you explicitly started one with ``db.begin()`` and have not yet committed it. In that case the decision to commit stays with you: committing automatically on exit could silently persist half-finished work, for example if your code returned early from the block. Call ``db.commit()`` when the work is complete.
+
+Note this differs from the ``sqlite3.Connection`` context manager in the standard library, which commits on success but does not close the connection. See :ref:`python_api_transactions` for the full transaction model.
 
 .. _python_api_attach:
 
@@ -219,6 +229,10 @@ The ``db.query(sql)`` function executes a SQL query and returns an iterator over
     # {'name': 'Cleo'}
     # {'name': 'Pancakes'}
 
+The SQL query is executed as soon as ``db.query()`` is called. The resulting rows are fetched lazily as you iterate, so large result sets are not loaded into memory all at once. Because execution is immediate, an error in your SQL will raise an exception straight away, and a statement such as ``INSERT ... RETURNING`` will take effect even if you do not iterate over its results.
+
+``db.query()`` can only be used with SQL that returns rows. Passing a statement that returns no rows - an ``INSERT`` or ``UPDATE`` without a ``RETURNING`` clause, for example - will raise a ``ValueError``. Use :ref:`db.execute() <python_api_execute>` for those statements instead.
+
 .. _python_api_execute:
 
 db.execute(sql, params)
@@ -239,34 +253,8 @@ The ``db.execute()`` and ``db.executescript()`` methods provide wrappers around 
 
 Other cursor methods such as ``.fetchone()`` and ``.fetchall()`` are also available, see the `standard library documentation <https://docs.python.org/3/library/sqlite3.html#sqlite3.Cursor>`__.
 
-.. _python_api_atomic:
-
-Transactions with db.atomic()
------------------------------
-
-Use ``db.atomic()`` to group multiple operations in a transaction:
-
-.. code-block:: python
-
-    with db.atomic():
-        db.table("dogs").insert({"id": 1, "name": "Cleo"}, pk="id")
-        db.table("dogs").insert({"id": 2, "name": "Pancakes"})
-
-If an exception is raised, changes made inside the block will be rolled back.
-
-``db.atomic()`` can be nested. Nested blocks use SQLite savepoints, so an exception in an inner block can roll back to that savepoint without rolling back the entire outer transaction:
-
-.. code-block:: python
-
-    with db.atomic():
-        db.table("dogs").insert({"id": 1, "name": "Cleo"}, pk="id")
-        try:
-            with db.atomic():
-                db.table("dogs").insert({"id": 2, "name": "Pancakes"})
-                raise ValueError("skip this one")
-        except ValueError:
-            pass
-        db.table("dogs").insert({"id": 3, "name": "Marnie"})
+.. note::
+    Write statements executed this way are committed automatically, unless a transaction is already open in which case they become part of it - see :ref:`python_api_transactions_execute`.
 
 .. _python_api_parameters:
 
@@ -295,6 +283,114 @@ Named parameters using ``:name`` can be filled using a dictionary:
     # dog is now {'rowid': 1, 'name': 'Cleopaws'}
 
 In this example ``next()`` is used to retrieve the first result in the iterator returned by the ``db.query()`` method.
+
+.. _python_api_transactions:
+
+Transactions and saving your changes
+====================================
+
+Every method in this library that writes to the database - ``insert()``, ``upsert()``, ``update()``, ``delete()``, ``delete_where()``, ``transform()``, ``create_table()``, ``create_index()``, ``enable_fts()`` and the rest - runs inside its own transaction and commits it before returning. Your changes are saved to disk as soon as the method call finishes:
+
+.. code-block:: python
+
+    db = Database("data.db")
+    db.table("news").insert({"headline": "Dog wins award"})
+    # The new row is already saved - no commit() required
+
+The same applies to raw SQL executed with :ref:`db.execute() <python_api_transactions_execute>` - a write statement is committed as soon as it has run.
+
+You never need to call ``commit()``, and you do not need to close the database to persist your changes. There are exactly two situations where you need to think about transactions:
+
+1. You want to group several write operations together, so they either all succeed or all fail - use :ref:`db.atomic() <python_api_atomic>`.
+2. You are :ref:`managing a transaction yourself <python_api_transactions_manual>` with ``db.begin()``, in which case nothing is committed until you commit - the library will never commit a transaction you opened.
+
+.. _python_api_atomic:
+
+Grouping changes with db.atomic()
+---------------------------------
+
+Use ``db.atomic()`` to group multiple operations in a single transaction:
+
+.. code-block:: python
+
+    with db.atomic():
+        db.table("dogs").insert({"id": 1, "name": "Cleo"}, pk="id")
+        db.table("dogs").insert({"id": 2, "name": "Pancakes"})
+
+The transaction commits when the block exits. If an exception is raised, changes made inside the block will be rolled back.
+
+``db.atomic()`` can be nested. Nested blocks use SQLite savepoints, so an exception in an inner block can roll back to that savepoint without rolling back the entire outer transaction:
+
+.. code-block:: python
+
+    with db.atomic():
+        db.table("dogs").insert({"id": 1, "name": "Cleo"}, pk="id")
+        try:
+            with db.atomic():
+                db.table("dogs").insert({"id": 2, "name": "Pancakes"})
+                raise ValueError("skip this one")
+        except ValueError:
+            pass
+        db.table("dogs").insert({"id": 3, "name": "Marnie"})
+
+The transaction is opened with a deferred ``BEGIN`` - SQLite takes the necessary locks when the first statement inside the block runs.
+
+.. _python_api_transactions_execute:
+
+Raw SQL writes with db.execute()
+--------------------------------
+
+Write statements executed with :ref:`db.execute() <python_api_execute>` follow the same rule as everything else: they are committed automatically as soon as they have run.
+
+.. code-block:: python
+
+    db.execute("insert into news (headline) values (?)", ["Dog wins award"])
+    # Already committed
+
+If a transaction is open - because the call happens inside a ``db.atomic()`` block, or after ``db.begin()`` - the statement becomes part of that transaction instead, and commits when the transaction commits:
+
+.. code-block:: python
+
+    with db.atomic():
+        db.execute("insert into news (headline) values (?)", ["Dog wins award"])
+        db.execute("insert into news (headline) values (?)", ["Cat unimpressed"])
+    # Both rows committed together
+
+One corner case: a row-returning write such as ``INSERT ... RETURNING`` executed through ``db.execute()`` cannot be auto-committed, because its rows have not been read yet - call ``db.commit()`` after fetching them, or use :ref:`db.query() <python_api_query>` for those statements, which commits automatically once you have iterated over the results.
+
+.. _python_api_transactions_manual:
+
+Managing transactions yourself
+------------------------------
+
+You can take full manual control using the ``db.begin()``, ``db.commit()`` and ``db.rollback()`` methods:
+
+.. code-block:: python
+
+    db.begin()
+    db.table("news").insert({"headline": "Dog wins award"})
+    if all_looks_good:
+        db.commit()
+    else:
+        db.rollback()
+
+``db.begin()`` raises ``sqlite3.OperationalError`` if a transaction is already open. ``db.commit()`` and ``db.rollback()`` do nothing if there is no open transaction.
+
+The library will never commit a transaction you opened. If you call write methods such as ``insert()`` - or use ``db.atomic()`` - while your transaction is open, they participate in it using SQLite savepoints instead of committing: exiting an ``atomic()`` block releases its savepoint, but nothing is saved to disk until you commit the outer transaction yourself. If you roll back, their changes are rolled back too.
+
+Two related safeguards to be aware of:
+
+- ``db.enable_wal()`` and ``db.disable_wal()`` raise a ``sqlite_utils.db.TransactionError`` if called while a transaction is open, because changing the journal mode would commit it as a side effect.
+- Closing the database - explicitly with ``db.close()``, or by exiting a ``with Database(...) as db:`` block - rolls back any transaction that is still open, see :ref:`python_api_close`.
+
+.. _python_api_transactions_modes:
+
+Supported connection modes
+--------------------------
+
+``db.atomic()`` and the automatic per-method transactions require a connection in Python's default transaction handling mode. Passing a connection created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options to ``Database()`` raises a ``sqlite_utils.db.TransactionError``.
+
+This is because ``commit()`` and ``rollback()`` behave differently on those connections - under ``autocommit=True`` they are documented no-ops - which would cause every write made by this library to be silently discarded when the connection closed, rather than failing loudly.
 
 .. _python_api_table:
 
@@ -984,8 +1080,7 @@ You can delete all records in a table that match a specific WHERE statement usin
 
     >>> db = sqlite_utils.Database("dogs.db")
     >>> # Delete every dog with age less than 3
-    >>> with db.atomic():
-    >>>     db.table("dogs").delete_where("age < ?", [3])
+    >>> db.table("dogs").delete_where("age < ?", [3])
 
 Calling ``table.delete_where()`` with no other arguments will delete every row in the table.
 
@@ -1017,6 +1112,8 @@ Any existing columns that are not referenced in the dictionary passed to ``.upse
 Note that the ``pk`` and ``column_order`` parameters here are optional if you are certain that the table has already been created. You should pass them if the table may not exist at the time the first upsert is performed.
 
 An ``upsert_all()`` method is also available, which behaves like ``insert_all()`` but performs upserts instead.
+
+Every record passed to ``upsert()`` or ``upsert_all()`` must include a value for each primary key column - a record without one could never match an existing row, so a ``sqlite_utils.db.PrimaryKeyRequired`` exception is raised instead of quietly inserting a new row.
 
 .. note::
     ``.upsert()`` and ``.upsert_all()`` in sqlite-utils 1.x worked like ``.insert(..., replace=True)`` and ``.insert_all(..., replace=True)`` do in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
@@ -2696,6 +2793,8 @@ You can disable WAL mode using ``.disable_wal()``:
 .. code-block:: python
 
     Database("my_database.db").disable_wal()
+
+The journal mode can only be changed outside of a transaction. Calling either method while a transaction is open - inside a ``db.atomic()`` block, for example - raises a ``sqlite_utils.db.TransactionError``, unless the database is already in the requested mode in which case the call is a no-op.
 
 You can check the current journal mode for a database using the ``journal_mode`` property:
 

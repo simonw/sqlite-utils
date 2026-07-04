@@ -1,6 +1,6 @@
 import pytest
 
-from sqlite_utils.db import _iter_complete_sql_statements
+from sqlite_utils.db import Database, _iter_complete_sql_statements
 from sqlite_utils.utils import sqlite3
 
 
@@ -172,3 +172,93 @@ def test_transform_detects_foreign_key_check_violations(fresh_db):
 
     assert fresh_db["books"].foreign_keys == []
     assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
+
+
+def test_atomic_inside_manual_transaction_uses_savepoint(fresh_db):
+    fresh_db["t"].insert({"id": 1}, pk="id")
+    fresh_db.execute("begin")
+    with fresh_db.atomic():
+        fresh_db["t"].insert({"id": 2}, pk="id")
+    # Nothing is committed until the user's own transaction commits
+    assert fresh_db.conn.in_transaction
+    fresh_db.rollback()
+    assert [r["id"] for r in fresh_db["t"].rows] == [1]
+    # And with a commit instead, the atomic block's writes persist
+    fresh_db.execute("begin")
+    with fresh_db.atomic():
+        fresh_db["t"].insert({"id": 3}, pk="id")
+    fresh_db.commit()
+    assert [r["id"] for r in fresh_db["t"].rows] == [1, 3]
+
+
+def test_begin_commit_rollback(tmpdir):
+    path = str(tmpdir / "test.db")
+    db = Database(path)
+    db["t"].insert({"id": 1}, pk="id")
+    db.begin()
+    db["t"].insert({"id": 2}, pk="id")
+    assert db.conn.in_transaction
+    db.rollback()
+    assert not db.conn.in_transaction
+    assert [r["id"] for r in db["t"].rows] == [1]
+    db.begin()
+    db["t"].insert({"id": 3}, pk="id")
+    db.commit()
+    db.close()
+    db2 = Database(path)
+    assert [r["id"] for r in db2["t"].rows] == [1, 3]
+    db2.close()
+
+
+def test_begin_inside_transaction_errors(fresh_db):
+    fresh_db.begin()
+    with pytest.raises(sqlite3.OperationalError):
+        fresh_db.begin()
+    fresh_db.rollback()
+
+
+def test_commit_and_rollback_without_transaction_are_noops(fresh_db):
+    fresh_db.commit()
+    fresh_db.rollback()
+    assert not fresh_db.conn.in_transaction
+
+
+def test_execute_write_commits_immediately(tmpdir):
+    path = str(tmpdir / "test.db")
+    db = Database(path)
+    db["t"].insert({"id": 1}, pk="id")
+    db.execute("insert into t (id) values (2)")
+    # No implicit transaction is left open
+    assert not db.conn.in_transaction
+    # A completely separate connection sees the row straight away
+    other = sqlite3.connect(path)
+    assert other.execute("select count(*) from t").fetchone()[0] == 2
+    other.close()
+    db.close()
+
+
+def test_execute_write_respects_explicit_transaction(fresh_db):
+    fresh_db["t"].insert({"id": 1}, pk="id")
+    fresh_db.begin()
+    fresh_db.execute("insert into t (id) values (2)")
+    # Still inside the explicit transaction - not committed
+    assert fresh_db.conn.in_transaction
+    fresh_db.rollback()
+    assert [r["id"] for r in fresh_db["t"].rows] == [1]
+
+
+def test_query_returning_commits_after_iteration(tmpdir):
+    if sqlite3.sqlite_version_info < (3, 35, 0):
+        import pytest as _pytest
+
+        _pytest.skip("RETURNING requires SQLite 3.35.0 or higher")
+    path = str(tmpdir / "test.db")
+    db = Database(path)
+    db["t"].insert({"id": 1}, pk="id")
+    rows = list(db.query("insert into t (id) values (2) returning id"))
+    assert rows == [{"id": 2}]
+    assert not db.conn.in_transaction
+    other = sqlite3.connect(path)
+    assert other.execute("select count(*) from t").fetchone()[0] == 2
+    other.close()
+    db.close()

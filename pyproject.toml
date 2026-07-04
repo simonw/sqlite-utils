@@ -72,7 +72,8 @@ CI = "https://github.com/simonw/sqlite-utils/actions"
 sqlite-utils = "sqlite_utils.cli:cli"
 
 [build-system]
-requires = ["setuptools"]
+# setuptools 77+ is needed for the PEP 639 license = "Apache-2.0" expression
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.flake8]

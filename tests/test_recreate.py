@@ -15,7 +15,7 @@ def test_recreate_ignored_for_in_memory():
 def test_recreate_not_allowed_for_connection():
     conn = sqlite3.connect(":memory:")
     try:
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             Database(conn, recreate=True)
     finally:
         conn.close()

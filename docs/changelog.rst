@@ -4,6 +4,33 @@
  Changelog
 ===========
 
+.. _unreleased:
+
+Unreleased
+----------
+
+Breaking changes:
+
+- Write statements executed with ``db.execute()`` are now committed automatically, unless a transaction is already open in which case they join it. Previously they opened an implicit transaction that stayed open until something committed it - writes appeared to work when read on the same connection but were silently rolled back when the connection closed. Code that relied on rolling back uncommitted ``db.execute()`` writes should use the new ``db.begin()`` method to open an explicit transaction first. The transaction model is documented in full at :ref:`python_api_transactions`.
+- ``db.query()`` now executes its SQL as soon as it is called, rather than waiting until the returned generator is first iterated. Rows are still fetched lazily during iteration. SQL errors are now raised at the call site, statements such as ``INSERT ... RETURNING`` take effect without needing to iterate over their results, and passing a statement that returns no rows - previously a silent no-op - now raises a ``ValueError`` recommending ``db.execute()`` instead.
+- Python API validation errors now raise ``ValueError`` instead of ``AssertionError``. Previously invalid arguments - such as ``create_table()`` with no columns, ``transform()`` on a table that does not exist, or passing both ``ignore=True`` and ``replace=True`` - were rejected using bare ``assert`` statements, which are silently skipped when Python runs with the ``-O`` flag. Code that caught ``AssertionError`` for these cases should catch ``ValueError`` instead.
+- ``table.upsert()`` and ``table.upsert_all()`` now raise ``PrimaryKeyRequired`` if a record is missing a value for any primary key column, or has a value of ``None`` for one. Previously such records - which can never match an existing row - were quietly inserted as brand new rows, or triggered a confusing ``KeyError`` after the insert had already taken place.
+- ``db.enable_wal()`` and ``db.disable_wal()`` now raise a ``sqlite_utils.db.TransactionError`` if called while a transaction is open. Previously they would silently commit the open transaction as a side effect of changing the journal mode, breaking the rollback guarantee of ``db.atomic()`` and of user-managed transactions.
+- The ``View`` class no longer has an ``enable_fts()`` method. It existed only to raise ``NotImplementedError``, since full-text search is not supported for views - calling it now raises ``AttributeError`` instead, and the method no longer appears in the API reference. The ``sqlite-utils enable-fts`` command shows a clean error when pointed at a view.
+- The no-op ``-d/--detect-types`` flag has been removed from the ``insert`` and ``upsert`` commands. Type detection has been the default for CSV/TSV data since 4.0a1, so the flag did nothing - invocations using it should simply drop it. ``--no-detect-types`` remains available to disable detection.
+- ``Database()`` now raises a ``sqlite_utils.db.TransactionError`` if passed a connection created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options. ``commit()`` and ``rollback()`` behave differently on those connections, which previously caused every write made by the library to be silently discarded when the connection closed.
+
+Everything else:
+
+- Fixed a bug where ``table.delete_where()``, ``table.optimize()`` and ``table.rebuild_fts()`` did not commit their changes, leaving the connection inside an open transaction. Their work - and any subsequent writes - could then be silently rolled back when the connection was closed. All three now use ``db.atomic()``, consistent with the other write methods.
+- The ``sqlite-utils drop-table`` command now refuses to drop a view, and ``drop-view`` refuses to drop a table. Previously each would silently drop the wrong type of object if the name matched. Both now exit with an error suggesting the correct command to use.
+- Migrations applied by the new :ref:`migrations system <migrations>` now run inside a transaction, together with the record of the migration having been applied. If a migration raises an exception its changes are rolled back and it stays pending, so it can be safely re-applied after the error is fixed. Migrations that cannot run inside a transaction, such as those executing ``VACUUM``, can opt out using ``@migrations(transactional=False)`` - see :ref:`migrations_transactions`.
+- ``table.upsert()`` and ``table.upsert_all()`` now detect the primary key or compound primary key of an existing table, so the ``pk=`` argument is no longer required when upserting into a table that already has a primary key.
+- ``db.table(table_name).insert({})`` can now be used to insert a row consisting entirely of default values into an existing table, using ``INSERT INTO ... DEFAULT VALUES``. (:issue:`759`)
+- Improvements to the ``sqlite-utils migrate`` command: ``--stop-before`` values that do not match any known migration are now an error instead of being silently ignored, ``--stop-before`` now works correctly with migration files that still use the older ``sqlite_migrate.Migrations`` class, and ``--list`` is now a read-only operation that no longer creates the database file or the migrations tracking table. ``migrations.applied()`` now returns migrations in the order they were applied.
+- New ``db.begin()``, ``db.commit()`` and ``db.rollback()`` methods for taking manual control of transactions, as an alternative to the ``db.atomic()`` context manager.
+- New documentation: :ref:`python_api_transactions` describes how transactions work and when changes are committed, and a new :ref:`upgrading` page details the changes needed to move between major versions.
+
 .. _v4_0rc1:
 
 4.0rc1 (2026-06-21)

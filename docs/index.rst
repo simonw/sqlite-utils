@@ -40,5 +40,6 @@ Contents
    plugins
    reference
    cli-reference
+   upgrading
    contributing
    changelog

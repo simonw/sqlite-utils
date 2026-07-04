@@ -336,6 +336,24 @@ def test_rebuild_fts(fresh_db):
     assert len(rows2) == 2
 
 
+@pytest.mark.parametrize("method", ["optimize", "rebuild_fts"])
+def test_optimize_and_rebuild_fts_commit(tmpdir, method):
+    path = str(tmpdir / "test.db")
+    db = Database(path)
+    table = db["searchable"]
+    table.insert(search_records[0])
+    table.enable_fts(["text", "country"])
+    getattr(table, method)()
+    # The connection must not be left inside an open transaction,
+    # otherwise this and all subsequent writes are lost on close
+    assert not db.conn.in_transaction
+    table.insert(search_records[1])
+    db.close()
+    db2 = Database(path)
+    assert db2["searchable"].count == 2
+    db2.close()
+
+
 @pytest.mark.parametrize("invalid_table", ["does_not_exist", "not_searchable"])
 def test_rebuild_fts_invalid(fresh_db, invalid_table):
     fresh_db["not_searchable"].insert({"foo": "bar"})
@@ -443,12 +461,12 @@ def test_enable_fts_replace_handles_legacy_bracket_quoted_content_table():
     assert 'content="books"' in db["books_fts"].schema
 
 
-def test_enable_fts_error_message_on_views():
+def test_view_has_no_enable_fts():
     db = Database(memory=True)
     db.create_view("hello", "select 1 + 1")
-    with pytest.raises(NotImplementedError) as e:
-        db["hello"].enable_fts()  # type: ignore[call-arg]
-        assert e.value.args[0] == "enable_fts() is supported on tables but not on views"
+    # Views deliberately do not have an enable_fts() method
+    with pytest.raises(AttributeError):
+        db["hello"].enable_fts()  # type: ignore[union-attr]
 
 
 @pytest.mark.parametrize(
@@ -700,3 +718,17 @@ def test_search_quote(fresh_db):
         list(table.search(query))
     # No exception with quote=True
     list(table.search(query, quote=True))
+
+
+def test_enable_fts_cli_on_view_errors(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    db["t"].insert({"text": "hello"})
+    db.create_view("v", "select * from t")
+    db.close()
+    from click.testing import CliRunner
+    from sqlite_utils import cli as cli_module
+
+    result = CliRunner().invoke(cli_module.cli, ["enable-fts", db_path, "v", "text"])
+    assert result.exit_code == 1
+    assert result.output.strip() == "Error: Table v is actually a view"

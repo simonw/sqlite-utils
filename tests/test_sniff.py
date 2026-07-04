@@ -6,7 +6,7 @@ import pytest
 sniff_dir = pathlib.Path(__file__).parent / "sniff"
 
 
-@pytest.mark.parametrize("filepath", sniff_dir.glob("example*"))
+@pytest.mark.parametrize("filepath", sorted(sniff_dir.glob("example*")))
 def test_sniff(tmpdir, filepath):
     db_path = str(tmpdir / "test.db")
     runner = CliRunner()

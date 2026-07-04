@@ -1467,6 +1467,24 @@ def test_drop_table_error():
         assert result.exit_code == 0
 
 
+def test_drop_table_on_view_errors():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["t"].insert({"id": 1})
+        db.create_view("v", "select * from t")
+        result = runner.invoke(cli.cli, ["drop-table", "test.db", "v"])
+        assert result.exit_code == 1
+        assert 'Error: "v" is a view, not a table - use drop-view to drop it' == (
+            result.output.strip()
+        )
+        assert "v" in db.view_names()
+        # --ignore exits cleanly but must still not drop the view
+        result = runner.invoke(cli.cli, ["drop-table", "test.db", "v", "--ignore"])
+        assert result.exit_code == 0
+        assert "v" in db.view_names()
+
+
 def test_drop_view():
     runner = CliRunner()
     with runner.isolated_filesystem():
@@ -1483,6 +1501,23 @@ def test_drop_view():
         )
         assert result.exit_code == 0
         assert "hello" not in db.view_names()
+
+
+def test_drop_view_on_table_errors():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["t"].insert({"id": 1})
+        result = runner.invoke(cli.cli, ["drop-view", "test.db", "t"])
+        assert result.exit_code == 1
+        assert 'Error: "t" is a table, not a view - use drop-table to drop it' == (
+            result.output.strip()
+        )
+        assert "t" in db.table_names()
+        # --ignore exits cleanly but must still not drop the table
+        result = runner.invoke(cli.cli, ["drop-view", "test.db", "t", "--ignore"])
+        assert result.exit_code == 0
+        assert "t" in db.table_names()
 
 
 def test_drop_view_error():
@@ -2296,18 +2331,14 @@ def test_csv_insert_bom(tmpdir):
     ]
 
 
-@pytest.mark.parametrize("option", (None, "-d", "--detect-types"))
-def test_insert_detect_types(tmpdir, option):
-    """Test that type detection is now the default behavior"""
+def test_insert_detect_types(tmpdir):
+    """Test that type detection is the default behavior"""
     db_path = str(tmpdir / "test.db")
     data = "name,age,weight\nCleo,6,45.5\nDori,1,3.5"
-    extra = []
-    if option:
-        extra = [option]
 
     result = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "creatures", "-", "--csv"] + extra,
+        ["insert", db_path, "creatures", "-", "--csv"],
         catch_exceptions=False,
         input=data,
     )
@@ -2319,17 +2350,27 @@ def test_insert_detect_types(tmpdir, option):
     ]
 
 
-@pytest.mark.parametrize("option", (None, "-d", "--detect-types"))
-def test_upsert_detect_types(tmpdir, option):
-    """Test that type detection is now the default behavior for upsert"""
+@pytest.mark.parametrize("command", ("insert", "upsert"))
+@pytest.mark.parametrize("option", ("-d", "--detect-types"))
+def test_detect_types_flag_removed(tmpdir, command, option):
+    # The old no-op flag was removed in 4.0 - it should now error
     db_path = str(tmpdir / "test.db")
-    data = "id,name,age,weight\n1,Cleo,6,45.5\n2,Dori,1,3.5"
-    extra = []
-    if option:
-        extra = [option]
     result = CliRunner().invoke(
         cli.cli,
-        ["upsert", db_path, "creatures", "-", "--csv", "--pk", "id"] + extra,
+        [command, db_path, "creatures", "-", "--csv", "--pk", "id", option],
+        input="id,name\n1,Cleo",
+    )
+    assert result.exit_code == 2
+    assert "No such option" in result.output
+
+
+def test_upsert_detect_types(tmpdir):
+    """Test that type detection is the default behavior for upsert"""
+    db_path = str(tmpdir / "test.db")
+    data = "id,name,age,weight\n1,Cleo,6,45.5\n2,Dori,1,3.5"
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "creatures", "-", "--csv", "--pk", "id"],
         catch_exceptions=False,
         input=data,
     )

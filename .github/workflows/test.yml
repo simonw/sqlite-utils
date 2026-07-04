@@ -41,6 +41,9 @@ jobs:
     - name: Run tests
       run: |
         pytest -v
+    - name: Run autocommit tests just on 3.14/Ubuntu
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14'
+      run: pytest --sqlite-autocommit
     - name: run mypy
       run: mypy sqlite_utils tests
     - name: run flake8

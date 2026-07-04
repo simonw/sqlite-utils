@@ -301,6 +301,10 @@ class InvalidColumns(Exception):
     "Specified columns do not exist"
 
 
+class TransactionError(Exception):
+    "Operation cannot be performed while a transaction is open"
+
+
 class DescIndex(str):
     pass
 
@@ -318,6 +322,16 @@ CREATE TABLE IF NOT EXISTS "{}"(
    count INTEGER DEFAULT 0
 );
 """.strip()
+
+
+_TRANSACTION_CONTROL_PREFIXES = (
+    "BEGIN",
+    "COMMIT",
+    "END",
+    "ROLLBACK",
+    "SAVEPOINT",
+    "RELEASE",
+)
 
 
 class Database:
@@ -367,9 +381,11 @@ class Database:
         self.memory_name = None
         self.memory = False
         self.use_old_upsert = use_old_upsert
-        assert (filename_or_conn is not None and (not memory and not memory_name)) or (
-            filename_or_conn is None and (memory or memory_name)
-        ), "Either specify a filename_or_conn or pass memory=True"
+        if not (
+            (filename_or_conn is not None and (not memory and not memory_name))
+            or (filename_or_conn is None and (memory or memory_name))
+        ):
+            raise ValueError("Either specify a filename_or_conn or pass memory=True")
         if memory_name:
             uri = "file:{}?mode=memory&cache=shared".format(memory_name)
             self.conn = sqlite3.connect(
@@ -393,8 +409,21 @@ class Database:
                     raise
             self.conn = sqlite3.connect(str(filename_or_conn))
         else:
-            assert not recreate, "recreate cannot be used with connections, only paths"
+            if recreate:
+                raise ValueError("recreate cannot be used with connections, only paths")
             self.conn = cast(sqlite3.Connection, filename_or_conn)
+            # Python 3.12+ autocommit=True/False connections make commit()
+            # and rollback() behave differently, silently breaking the
+            # transaction handling used by every write method
+            autocommit = getattr(self.conn, "autocommit", None)
+            if autocommit is not None and autocommit != getattr(
+                sqlite3, "LEGACY_TRANSACTION_CONTROL", -1
+            ):
+                raise TransactionError(
+                    "sqlite-utils requires a connection that uses the default "
+                    "transaction handling - connections created with "
+                    "autocommit=True or autocommit=False are not supported"
+                )
         self._tracer: Optional[Tracer] = tracer
         if recursive_triggers:
             self.execute("PRAGMA recursive_triggers=on;")
@@ -443,14 +472,41 @@ class Database:
             try:
                 yield self
             except BaseException:
-                self.conn.rollback()
+                self.conn.execute("ROLLBACK")
                 raise
             else:
                 try:
-                    self.conn.commit()
+                    self.conn.execute("COMMIT")
                 except BaseException:
-                    self.conn.rollback()
+                    self.conn.execute("ROLLBACK")
                     raise
+
+    def begin(self) -> None:
+        """
+        Start a transaction with ``BEGIN``, taking manual control of transaction
+        handling. End it by calling :meth:`commit` or :meth:`rollback`.
+
+        Raises ``sqlite3.OperationalError`` if a transaction is already open.
+
+        Most code should use the :meth:`atomic` context manager instead, which
+        commits and rolls back automatically. See :ref:`python_api_transactions`.
+        """
+        self.execute("BEGIN")
+
+    def commit(self) -> None:
+        """
+        Commit the current transaction. Does nothing if no transaction is open.
+        """
+        if self.conn.in_transaction:
+            self.conn.execute("COMMIT")
+
+    def rollback(self) -> None:
+        """
+        Roll back the current transaction, discarding its changes. Does nothing
+        if no transaction is open.
+        """
+        if self.conn.in_transaction:
+            self.conn.execute("ROLLBACK")
 
     @contextlib.contextmanager
     def ensure_autocommit_off(self) -> Generator[None, None, None]:
@@ -499,10 +555,12 @@ class Database:
 
     def __getitem__(self, table_name: str) -> Union["Table", "View"]:
         """
-        ``db[table_name]`` returns a :class:`.Table` object for the table with the specified name.
-        If the table does not exist yet it will be created the first time data is inserted into it.
+        ``db[name]`` returns a :class:`.Table` object for the table with the specified name,
+        or a :class:`.View` object if the name matches an existing SQL view.
+        If neither exists yet, a table is assumed - it will be created the first
+        time data is inserted into it.
 
-        :param table_name: The name of the table
+        :param table_name: The name of the table or view
         """
         if table_name in self.view_names():
             return self.view(table_name)
@@ -593,14 +651,34 @@ class Database:
         """
         Execute ``sql`` and return an iterable of dictionaries representing each row.
 
+        The SQL is executed as soon as this method is called - the resulting rows
+        are then fetched lazily as the returned iterable is iterated over.
+
         :param sql: SQL query to execute
         :param params: Parameters to use in that query - an iterable for ``where id = ?``
           parameters, or a dictionary for ``where id = :id``
+        :raises ValueError: if the SQL statement does not return rows - use
+          :meth:`execute` for those statements instead
         """
+        was_in_transaction = self.conn.in_transaction
         cursor = self.execute(sql, params or tuple())
+        if cursor.description is None:
+            raise ValueError(
+                "query() can only be used with SQL that returns rows - "
+                "use execute() for other statements"
+            )
         keys = [d[0] for d in cursor.description]
-        for row in cursor:
-            yield dict(zip(keys, row))
+
+        def rows() -> Generator[dict, None, None]:
+            for row in cursor:
+                yield dict(zip(keys, row))
+            if not was_in_transaction and self.conn.in_transaction:
+                # A row-returning write such as INSERT ... RETURNING opened
+                # an implicit transaction - commit it now that its rows have
+                # been consumed
+                self.conn.execute("COMMIT")
+
+        return rows()
 
     def execute(
         self, sql: str, parameters: Optional[Union[Sequence, Dict[str, Any]]] = None
@@ -608,16 +686,33 @@ class Database:
         """
         Execute SQL query and return a ``sqlite3.Cursor``.
 
+        A write statement - ``INSERT``, ``UPDATE``, ``CREATE TABLE`` and so on -
+        is committed automatically, unless a transaction is already open, in
+        which case it becomes part of that transaction. See
+        :ref:`python_api_transactions`.
+
         :param sql: SQL query to execute
         :param parameters: Parameters to use in that query - an iterable for ``where id = ?``
           parameters, or a dictionary for ``where id = :id``
         """
         if self._tracer:
             self._tracer(sql, parameters)
+        was_in_transaction = self.conn.in_transaction
         if parameters is not None:
-            return self.conn.execute(sql, parameters)
+            cursor = self.conn.execute(sql, parameters)
         else:
-            return self.conn.execute(sql)
+            cursor = self.conn.execute(sql)
+        if (
+            not was_in_transaction
+            and self.conn.in_transaction
+            and cursor.description is None
+            and not sql.lstrip().upper().startswith(_TRANSACTION_CONTROL_PREFIXES)
+        ):
+            # The statement opened an implicit transaction - commit it, so
+            # that execute() behaves consistently with the rest of the
+            # library and identically across connection modes
+            self.conn.execute("COMMIT")
+        return cursor
 
     def executescript(self, sql: str) -> sqlite3.Cursor:
         """
@@ -658,6 +753,12 @@ class Database:
         :param view_name: Name of the view
         """
         if view_name not in self.view_names():
+            if view_name in self.table_names():
+                raise NoView(
+                    "View {name} does not exist - {name} is a table".format(
+                        name=view_name
+                    )
+                )
             raise NoView("View {} does not exist".format(view_name))
         return View(self, view_name)
 
@@ -840,16 +941,35 @@ class Database:
     def enable_wal(self) -> None:
         """
         Sets ``journal_mode`` to ``'wal'`` to enable Write-Ahead Log mode.
+
+        :raises TransactionError: if called while a transaction is open - the
+          journal mode can only be changed outside of a transaction
         """
         if self.journal_mode != "wal":
+            self._ensure_no_open_transaction("enable_wal()")
             with self.ensure_autocommit_off():
                 self.execute("PRAGMA journal_mode=wal;")
 
     def disable_wal(self) -> None:
-        "Sets ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode."
+        """
+        Sets ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode.
+
+        :raises TransactionError: if called while a transaction is open - the
+          journal mode can only be changed outside of a transaction
+        """
         if self.journal_mode != "delete":
+            self._ensure_no_open_transaction("disable_wal()")
             with self.ensure_autocommit_off():
                 self.execute("PRAGMA journal_mode=delete;")
+
+    def _ensure_no_open_transaction(self, operation: str) -> None:
+        # Changing journal mode assigns conn.isolation_level, which commits
+        # any open transaction as a side effect - breaking the rollback
+        # guarantee of atomic() and of user-managed transactions
+        if self.conn.in_transaction:
+            raise TransactionError(
+                "{} cannot be used while a transaction is open".format(operation)
+            )
 
     def _ensure_counts_table(self) -> None:
         with self.atomic():
@@ -927,20 +1047,21 @@ class Database:
                 other_column = table.guess_foreign_column(other_table)
                 fks.append(ForeignKey(name, column, other_table, other_column))
             return fks
-        assert all(
-            isinstance(fk, (tuple, list)) for fk in foreign_keys
-        ), "foreign_keys= should be a list of tuples"
+        if not all(isinstance(fk, (tuple, list)) for fk in foreign_keys):
+            raise ValueError("foreign_keys= should be a list of tuples")
         fks = []
         for tuple_or_list in foreign_keys:
             if len(tuple_or_list) == 4:
-                assert (
-                    tuple_or_list[0] == name
-                ), "First item in {} should have been {}".format(tuple_or_list, name)
-            assert len(tuple_or_list) in (
-                2,
-                3,
-                4,
-            ), "foreign_keys= should be a list of tuple pairs or triples"
+                if tuple_or_list[0] != name:
+                    raise ValueError(
+                        "First item in {} should have been {}".format(
+                            tuple_or_list, name
+                        )
+                    )
+            if len(tuple_or_list) not in (2, 3, 4):
+                raise ValueError(
+                    "foreign_keys= should be a list of tuple pairs or triples"
+                )
             if len(tuple_or_list) in (3, 4):
                 if len(tuple_or_list) == 4:
                     tuple_or_list = cast(Tuple[str, str, str], tuple_or_list[1:])
@@ -1013,17 +1134,20 @@ class Database:
         # Soundness check not_null, and defaults if provided
         not_null = not_null or set()
         defaults = defaults or {}
-        assert columns, "Tables must have at least one column"
-        assert all(
-            n in columns for n in not_null
-        ), "not_null set {} includes items not in columns {}".format(
-            repr(not_null), repr(set(columns.keys()))
-        )
-        assert all(
-            n in columns for n in defaults
-        ), "defaults set {} includes items not in columns {}".format(
-            repr(set(defaults)), repr(set(columns.keys()))
-        )
+        if not columns:
+            raise ValueError("Tables must have at least one column")
+        if not all(n in columns for n in not_null):
+            raise ValueError(
+                "not_null set {} includes items not in columns {}".format(
+                    repr(not_null), repr(set(columns.keys()))
+                )
+            )
+        if not all(n in columns for n in defaults):
+            raise ValueError(
+                "defaults set {} includes items not in columns {}".format(
+                    repr(set(defaults)), repr(set(columns.keys()))
+                )
+            )
         column_items = list(columns.items())
         if column_order is not None:
 
@@ -1254,9 +1378,8 @@ class Database:
         :param ignore: Set to ``True`` to do nothing if a view with this name already exists
         :param replace: Set to ``True`` to replace the view if one with this name already exists
         """
-        assert not (
-            ignore and replace
-        ), "Use one or the other of ignore/replace, not both"
+        if ignore and replace:
+            raise ValueError("Use one or the other of ignore/replace, not both")
         create_sql = "CREATE VIEW {name} AS {sql}".format(
             name=quote_identifier(name), sql=sql
         )
@@ -1301,9 +1424,13 @@ class Database:
           tuples
         """
         # foreign_keys is a list of explicit 4-tuples
-        assert all(
+        if not all(
             len(fk) == 4 and isinstance(fk, (list, tuple)) for fk in foreign_keys
-        ), "foreign_keys must be a list of 4-tuples, (table, column, other_table, other_column)"
+        ):
+            raise ValueError(
+                "foreign_keys must be a list of 4-tuples, "
+                "(table, column, other_table, other_column)"
+            )
 
         foreign_keys_to_create = []
 
@@ -1585,7 +1712,8 @@ class Table(Queryable):
     :param not_null: List of columns that cannot be null
     :param defaults: Dictionary of column names and default values
     :param batch_size: Integer number of rows to insert at a time
-    :param hash_id: If True, use a hash of the row values as the primary key
+    :param hash_id: Name of a column to create and use as a primary key, where the
+      value of that primary key is derived from a hash of the row values
     :param hash_id_columns: List of columns to use for the hash_id
     :param alter: If True, automatically alter the table if it doesn't match the schema
     :param ignore: If True, ignore rows that already exist when inserting
@@ -1947,7 +2075,8 @@ class Table(Queryable):
         :param keep_table: If specified, the existing table will be renamed to this and will not be
           dropped
         """
-        assert self.exists(), "Cannot transform a table that doesn't exist yet"
+        if not self.exists():
+            raise ValueError("Cannot transform a table that doesn't exist yet")
         sqls = self.transform_sql(
             types=types,
             rename=rename,
@@ -2119,8 +2248,10 @@ class Table(Queryable):
         elif not not_null:
             pass
         else:
-            assert False, "not_null must be a dict or a set or None, it was {}".format(
-                repr(not_null)
+            raise ValueError(
+                "not_null must be a dict or a set or None, it was {}".format(
+                    repr(not_null)
+                )
             )
         # defaults=
         create_table_defaults = {
@@ -2755,11 +2886,12 @@ class Table(Queryable):
         if fts_table is None:
             # Assume this is itself an FTS table
             fts_table = self.name
-        self.db.execute(
-            "INSERT INTO {table}({table}) VALUES('rebuild');".format(
-                table=quote_identifier(fts_table)
+        with self.db.atomic():
+            self.db.execute(
+                "INSERT INTO {table}({table}) VALUES('rebuild');".format(
+                    table=quote_identifier(fts_table)
+                )
             )
-        )
         return self
 
     def detect_fts(self) -> Optional[str]:
@@ -2791,9 +2923,10 @@ class Table(Queryable):
         "Run the ``optimize`` operation against the associated full-text search index table."
         fts_table = self.detect_fts()
         if fts_table is not None:
-            self.db.execute("""
-                INSERT INTO {table} ({table}) VALUES ("optimize");
-            """.strip().format(table=quote_identifier(fts_table)))
+            with self.db.atomic():
+                self.db.execute("""
+                    INSERT INTO {table} ({table}) VALUES ("optimize");
+                """.strip().format(table=quote_identifier(fts_table)))
         return self
 
     def search_sql(
@@ -2826,9 +2959,10 @@ class Table(Queryable):
                 "{}.{}".format(original_quoted, quote_identifier(c)) for c in columns
             )
         fts_table = self.detect_fts()
-        assert fts_table, "Full-text search is not configured for table '{}'".format(
-            self.name
-        )
+        if not fts_table:
+            raise ValueError(
+                "Full-text search is not configured for table '{}'".format(self.name)
+            )
         fts_table_quoted = quote_identifier(fts_table)
         virtual_table_using = self.db.table(fts_table).virtual_table_using
         sql = textwrap.dedent("""
@@ -2966,7 +3100,8 @@ class Table(Queryable):
         sql = "delete from {}".format(quote_identifier(self.name))
         if where is not None:
             sql += " where " + where
-        self.db.execute(sql, where_args or [])
+        with self.db.atomic():
+            self.db.execute(sql, where_args or [])
         if analyze:
             self.analyze()
         return self
@@ -3074,7 +3209,8 @@ class Table(Queryable):
             )
 
         if output is not None:
-            assert len(columns) == 1, "output= can only be used with a single column"
+            if len(columns) != 1:
+                raise ValueError("output= can only be used with a single column")
             if output not in self.columns_dict:
                 self.add_column(output, output_type or "text")
 
@@ -3182,6 +3318,11 @@ class Table(Queryable):
         # Dict-mode insert({}) has no explicit columns; SQLite spells that as
         # DEFAULT VALUES. List mode with no columns is a different input shape.
         if not list_mode and not all_columns:
+            if upsert:
+                raise PrimaryKeyRequired(
+                    "upsert() requires a value for the primary key - "
+                    "an empty record cannot be upserted"
+                )
             or_clause = ""
             if replace:
                 or_clause = " OR REPLACE"
@@ -3269,6 +3410,26 @@ class Table(Queryable):
 
         # Everything from here on is for upsert=True
         pk_cols = [pk] if isinstance(pk, str) else list(pk)
+        # Every record must provide a value for every primary key column - a
+        # NULL primary key never matches ON CONFLICT, so the record would be
+        # inserted as a brand new row instead of upserted
+        missing_pk_cols = [c for c in pk_cols if c not in all_columns]
+        if missing_pk_cols:
+            raise PrimaryKeyRequired(
+                "upsert() requires a value for the primary key column{}: {}".format(
+                    "s" if len(missing_pk_cols) > 1 else "",
+                    ", ".join(missing_pk_cols),
+                )
+            )
+        pk_indexes = [all_columns.index(c) for c in pk_cols]
+        for record_values in values:
+            if any(record_values[i] is None for i in pk_indexes):
+                raise PrimaryKeyRequired(
+                    "upsert() requires a value for the primary key column{}: {}".format(
+                        "s" if len(pk_cols) > 1 else "",
+                        ", ".join(pk_cols),
+                    )
+                )
         non_pk_cols = [c for c in all_columns if c not in pk_cols]
         conflict_sql = ", ".join(quote_identifier(c) for c in pk_cols)
 
@@ -3562,15 +3723,15 @@ class Table(Queryable):
         if upsert and (not pk and not hash_id):
             raise PrimaryKeyRequired("upsert() requires a pk")
 
-        assert not (hash_id and pk), "Use either pk= or hash_id="
+        if hash_id and pk:
+            raise ValueError("Use either pk= or hash_id=")
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
         if hash_id:
             pk = hash_id
 
-        assert not (
-            ignore and replace
-        ), "Use either ignore=True or replace=True, not both"
+        if ignore and replace:
+            raise ValueError("Use either ignore=True or replace=True, not both")
         all_columns = []
         first = True
         num_records_processed = 0
@@ -3619,9 +3780,10 @@ class Table(Queryable):
             first_record = cast(Dict[str, Any], first_record)
             num_columns = len(first_record.keys())
 
-        assert (
-            num_columns <= SQLITE_MAX_VARS
-        ), "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
+        if num_columns > SQLITE_MAX_VARS:
+            raise ValueError(
+                "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
+            )
         batch_size = (
             1
             if num_columns == 0
@@ -3876,10 +4038,12 @@ class Table(Queryable):
         :param extra_values: Additional column values to be used only if creating a new record
         :param strict: Boolean, apply STRICT mode if creating the table.
         """
-        assert isinstance(lookup_values, dict)
-        assert pk is not None
-        if extra_values is not None:
-            assert isinstance(extra_values, dict)
+        if not isinstance(lookup_values, dict):
+            raise ValueError("lookup_values must be a dictionary")
+        if pk is None:
+            raise ValueError("pk cannot be None")
+        if extra_values is not None and not isinstance(extra_values, dict):
+            raise ValueError("extra_values must be a dictionary")
         combined_values = dict(lookup_values)
         if extra_values is not None:
             combined_values.update(extra_values)
@@ -3964,9 +4128,10 @@ class Table(Queryable):
             other_table = self.db.table(other_table, pk=pk)
         our_id = self.last_pk
         if lookup is not None:
-            assert record_or_iterable is None, "Provide lookup= or record, not both"
-        else:
-            assert record_or_iterable is not None, "Provide lookup= or record, not both"
+            if record_or_iterable is not None:
+                raise ValueError("Provide lookup= or record, not both")
+        elif record_or_iterable is None:
+            raise ValueError("Provide lookup= or record, not both")
         tables = list(sorted([self.name, other_table.name]))
         columns = ["{}_id".format(t) for t in tables]
         if m2m_table is not None:
@@ -4227,12 +4392,6 @@ class View(Queryable):
         except sqlite3.OperationalError:
             if not ignore:
                 raise
-
-    def enable_fts(self, *args: object, **kwargs: object) -> None:
-        "``enable_fts()`` is supported on tables but not on views."
-        raise NotImplementedError(
-            "enable_fts() is supported on tables but not on views"
-        )
 
 
 def jsonify_if_needed(value: object) -> object:
