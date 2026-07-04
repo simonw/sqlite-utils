@@ -336,6 +336,24 @@ def test_rebuild_fts(fresh_db):
     assert len(rows2) == 2
 
 
+@pytest.mark.parametrize("method", ["optimize", "rebuild_fts"])
+def test_optimize_and_rebuild_fts_commit(tmpdir, method):
+    path = str(tmpdir / "test.db")
+    db = Database(path)
+    table = db["searchable"]
+    table.insert(search_records[0])
+    table.enable_fts(["text", "country"])
+    getattr(table, method)()
+    # The connection must not be left inside an open transaction,
+    # otherwise this and all subsequent writes are lost on close
+    assert not db.conn.in_transaction
+    table.insert(search_records[1])
+    db.close()
+    db2 = Database(path)
+    assert db2["searchable"].count == 2
+    db2.close()
+
+
 @pytest.mark.parametrize("invalid_table", ["does_not_exist", "not_searchable"])
 def test_rebuild_fts_invalid(fresh_db, invalid_table):
     fresh_db["not_searchable"].insert({"foo": "bar"})

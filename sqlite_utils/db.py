@@ -2769,11 +2769,12 @@ class Table(Queryable):
         if fts_table is None:
             # Assume this is itself an FTS table
             fts_table = self.name
-        self.db.execute(
-            "INSERT INTO {table}({table}) VALUES('rebuild');".format(
-                table=quote_identifier(fts_table)
+        with self.db.atomic():
+            self.db.execute(
+                "INSERT INTO {table}({table}) VALUES('rebuild');".format(
+                    table=quote_identifier(fts_table)
+                )
             )
-        )
         return self
 
     def detect_fts(self) -> Optional[str]:
@@ -2805,9 +2806,10 @@ class Table(Queryable):
         "Run the ``optimize`` operation against the associated full-text search index table."
         fts_table = self.detect_fts()
         if fts_table is not None:
-            self.db.execute("""
-                INSERT INTO {table} ({table}) VALUES ("optimize");
-            """.strip().format(table=quote_identifier(fts_table)))
+            with self.db.atomic():
+                self.db.execute("""
+                    INSERT INTO {table} ({table}) VALUES ("optimize");
+                """.strip().format(table=quote_identifier(fts_table)))
         return self
 
     def search_sql(
