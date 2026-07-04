@@ -8,10 +8,35 @@ create table Gosh2 (c1 text, c2 text, c3 text);
 """
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--sqlite-autocommit",
+        action="store_true",
+        default=False,
+        help=(
+            "Run every test against connections created with the Python 3.12+ "
+            "sqlite3.connect(autocommit=True) mode"
+        ),
+    )
+
+
 def pytest_configure(config):
     import sys
 
     sys._called_from_test = True  # type: ignore[attr-defined]
+
+    if config.getoption("--sqlite-autocommit"):
+        if sys.version_info < (3, 12):
+            raise pytest.UsageError(
+                "--sqlite-autocommit requires Python 3.12 or higher"
+            )
+        real_connect = sqlite3.connect
+
+        def autocommit_connect(*args, **kwargs):
+            kwargs.setdefault("autocommit", True)
+            return real_connect(*args, **kwargs)
+
+        sqlite3.connect = autocommit_connect
 
 
 @pytest.fixture(autouse=True)
