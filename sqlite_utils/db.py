@@ -2966,7 +2966,8 @@ class Table(Queryable):
         sql = "delete from {}".format(quote_identifier(self.name))
         if where is not None:
             sql += " where " + where
-        self.db.execute(sql, where_args or [])
+        with self.db.atomic():
+            self.db.execute(sql, where_args or [])
         if analyze:
             self.analyze()
         return self
