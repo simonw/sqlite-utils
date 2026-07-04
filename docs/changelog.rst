@@ -17,6 +17,7 @@ Breaking changes:
 - ``db.enable_wal()`` and ``db.disable_wal()`` now raise a ``sqlite_utils.db.TransactionError`` if called while a transaction is open. Previously they would silently commit the open transaction as a side effect of changing the journal mode, breaking the rollback guarantee of ``db.atomic()`` and of user-managed transactions.
 - The ``View`` class no longer has an ``enable_fts()`` method. It existed only to raise ``NotImplementedError``, since full-text search is not supported for views - calling it now raises ``AttributeError`` instead, and the method no longer appears in the API reference. The ``sqlite-utils enable-fts`` command shows a clean error when pointed at a view.
 - The no-op ``-d/--detect-types`` flag has been removed from the ``insert`` and ``upsert`` commands. Type detection has been the default for CSV/TSV data since 4.0a1, so the flag did nothing - invocations using it should simply drop it. ``--no-detect-types`` remains available to disable detection.
+- ``Database()`` now raises a ``sqlite_utils.db.TransactionError`` if passed a connection created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options. ``commit()`` and ``rollback()`` behave differently on those connections, which previously caused every write made by the library to be silently discarded when the connection closed.
 
 Everything else:
 

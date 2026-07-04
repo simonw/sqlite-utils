@@ -79,6 +79,7 @@ Python API changes
 - Multi-step operations such as ``table.transform()`` no longer commit an existing transaction you have open - they use savepoints inside it instead.
 - ``db.enable_wal()`` and ``db.disable_wal()`` raise a ``sqlite_utils.db.TransactionError`` if called while a transaction is open, instead of silently committing it.
 - Using ``Database`` as a context manager (``with Database(path) as db:``) closes the connection on exit *without* committing - uncommitted changes from raw ``db.execute()`` calls are rolled back.
+- ``Database()`` rejects connections created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options, raising ``sqlite_utils.db.TransactionError``. On those connections every write the library made was silently discarded when the connection closed.
 
 Packaging changes
 -----------------

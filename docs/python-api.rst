@@ -95,6 +95,8 @@ Instead of a file path you can pass in an existing SQLite connection:
 
     db = Database(sqlite3.connect("my_database.db"))
 
+The connection must use Python's default transaction handling. Connections created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options are rejected with a ``sqlite_utils.db.TransactionError`` - see :ref:`python_api_transactions_modes`.
+
 If you want to create an in-memory database, you can do so like this:
 
 .. code-block:: python
@@ -391,10 +393,14 @@ Two related safeguards to be aware of:
 - ``db.enable_wal()`` and ``db.disable_wal()`` raise a ``sqlite_utils.db.TransactionError`` if called while a transaction is open, because changing the journal mode would commit it as a side effect.
 - Closing the database - explicitly with ``db.close()``, or by exiting a ``with Database(...) as db:`` block - rolls back any transaction that is still open, see :ref:`python_api_close`.
 
+.. _python_api_transactions_modes:
+
 Supported connection modes
 --------------------------
 
-``db.atomic()`` and the automatic per-method transactions are designed for connections in Python's default transaction handling mode. Connections created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options are not supported, because ``commit()`` and ``rollback()`` behave differently on those connections.
+``db.atomic()`` and the automatic per-method transactions require a connection in Python's default transaction handling mode. Passing a connection created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options to ``Database()`` raises a ``sqlite_utils.db.TransactionError``.
+
+This is because ``commit()`` and ``rollback()`` behave differently on those connections - under ``autocommit=True`` they are documented no-ops - which would cause every write made by this library to be silently discarded when the connection closed, rather than failing loudly.
 
 .. _python_api_table:
 
