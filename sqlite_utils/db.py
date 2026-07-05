@@ -219,6 +219,10 @@ ForeignKeyIndicator = Union[
     Tuple[str, str],
     Tuple[str, str, str],
     Tuple[str, str, str, str],
+    # Compound foreign keys use lists of columns:
+    Tuple[List[str], str],
+    Tuple[List[str], str, List[str]],
+    Tuple[str, List[str], str, List[str]],
 ]
 
 ForeignKeysType = Union[Iterable[ForeignKeyIndicator], List[ForeignKeyIndicator]]
@@ -1142,9 +1146,12 @@ class Database:
 
         :param name: Name of table that foreign keys are being defined for
         :param foreign_keys: List of foreign keys, each of which can be a
-            string, a ForeignKey() named tuple, a tuple of (column, other_table),
+            string, a ForeignKey() object, a tuple of (column, other_table),
             or a tuple of (column, other_table, other_column), or a tuple of
-            (table, column, other_table, other_column)
+            (table, column, other_table, other_column). For compound foreign
+            keys the column elements can be lists of column names, e.g.
+            (["campus_name", "dept_code"], "departments") or
+            (["campus_name", "dept_code"], "departments", ["campus_name", "dept_code"])
         """
         table = self.table(name)
         if all(isinstance(fk, ForeignKey) for fk in foreign_keys):
@@ -1161,7 +1168,7 @@ class Database:
         if not all(isinstance(fk, (tuple, list)) for fk in foreign_keys):
             raise ValueError("foreign_keys= should be a list of tuples")
         fks = []
-        for tuple_or_list in cast(Iterable[Sequence[str]], foreign_keys):
+        for tuple_or_list in cast(Iterable[Sequence[Any]], foreign_keys):
             if len(tuple_or_list) == 4:
                 if tuple_or_list[0] != name:
                     raise ValueError(
@@ -1169,28 +1176,61 @@ class Database:
                             tuple_or_list, name
                         )
                     )
-            if len(tuple_or_list) not in (2, 3, 4):
+                tuple_or_list = tuple_or_list[1:]
+            if len(tuple_or_list) not in (2, 3):
                 raise ValueError(
                     "foreign_keys= should be a list of tuple pairs or triples"
                 )
-            if len(tuple_or_list) in (3, 4):
-                if len(tuple_or_list) == 4:
-                    tuple_or_list = cast(Tuple[str, str, str], tuple_or_list[1:])
+            column_or_columns = tuple_or_list[0]
+            other_table = tuple_or_list[1]
+            if isinstance(column_or_columns, (list, tuple)):
+                # Compound foreign key
+                columns = list(column_or_columns)
+                if len(tuple_or_list) == 3:
+                    other_columns = tuple_or_list[2]
+                    if not isinstance(other_columns, (list, tuple)):
+                        raise ValueError(
+                            "Compound foreign key {} should reference a list "
+                            "of other columns".format(tuple(tuple_or_list))
+                        )
+                    other_columns = list(other_columns)
                 else:
-                    tuple_or_list = cast(Tuple[str, str, str], tuple_or_list)
-                fks.append(
-                    ForeignKey(
-                        name, tuple_or_list[0], tuple_or_list[1], tuple_or_list[2]
+                    # Guess the compound primary key of the other table
+                    other_columns = self.table(other_table).pks
+                if len(columns) != len(other_columns):
+                    raise ValueError(
+                        "Compound foreign key {} should have the same number "
+                        "of columns on both sides".format(tuple(tuple_or_list))
                     )
+                if len(columns) == 1:
+                    # Single-column key passed as a one-item list
+                    fks.append(
+                        ForeignKey(name, columns[0], other_table, other_columns[0])
+                    )
+                else:
+                    fks.append(
+                        ForeignKey(
+                            name,
+                            None,
+                            other_table,
+                            None,
+                            columns=columns,
+                            other_columns=other_columns,
+                            is_compound=True,
+                        )
+                    )
+            elif len(tuple_or_list) == 3:
+                fks.append(
+                    ForeignKey(name, column_or_columns, other_table, tuple_or_list[2])
                 )
             else:
                 # Guess the primary key
                 fks.append(
                     ForeignKey(
                         name,
-                        tuple_or_list[0],
-                        tuple_or_list[1],
-                        table.guess_foreign_column(tuple_or_list[1]),
+                        column_or_columns,
+                        other_table,
+                        table.guess_foreign_column(other_table),
                     )
                 )
         return fks
@@ -1229,7 +1269,11 @@ class Database:
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
         foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
-        foreign_keys_by_column = {fk.column: fk for fk in foreign_keys}
+        # Compound foreign keys are rendered as table-level constraints;
+        # single-column ones as inline REFERENCES on their column
+        foreign_keys_by_column = {
+            fk.column: fk for fk in foreign_keys if not fk.is_compound
+        }
         # any extracts will be treated as integer columns with a foreign key
         extracts = resolve_extracts(extracts)
         for extract_column, extract_table in extracts.items():
@@ -1271,14 +1315,15 @@ class Database:
             pk = hash_id
         # Soundness check foreign_keys point to existing tables
         for fk in foreign_keys:
-            if fk.other_table == name and columns.get(cast(str, fk.other_column)):
-                continue
-            if fk.other_column != "rowid" and not any(
-                c for c in self[fk.other_table].columns if c.name == fk.other_column
-            ):
-                raise AlterError(
-                    "No such column: {}.{}".format(fk.other_table, fk.other_column)
-                )
+            for other_column in fk.other_columns:
+                if fk.other_table == name and columns.get(other_column):
+                    continue
+                if other_column != "rowid" and not any(
+                    c for c in self[fk.other_table].columns if c.name == other_column
+                ):
+                    raise AlterError(
+                        "No such column: {}.{}".format(fk.other_table, other_column)
+                    )
 
         column_defs = []
         # ensure pk is a tuple
@@ -1328,6 +1373,25 @@ class Database:
         if single_pk is None and pk and len(pk) > 1:
             extra_pk = ",\n   PRIMARY KEY ({pks})".format(
                 pks=", ".join([quote_identifier(p) for p in pk])
+            )
+        # Compound foreign keys become table-level FOREIGN KEY constraints
+        column_names = [c[0] for c in column_items]
+        for fk in foreign_keys:
+            if not fk.is_compound:
+                continue
+            missing = [c for c in fk.columns if c not in column_names]
+            if missing:
+                raise AlterError(
+                    "No such column: {}".format(", ".join(sorted(missing)))
+                )
+            column_defs.append(
+                "   FOREIGN KEY ({columns}) REFERENCES {other_table}({other_columns})".format(
+                    columns=", ".join(quote_identifier(c) for c in fk.columns),
+                    other_table=quote_identifier(fk.other_table),
+                    other_columns=", ".join(
+                        quote_identifier(c) for c in fk.other_columns
+                    ),
+                )
             )
         columns_sql = ",\n".join(column_defs)
         sql = """CREATE TABLE {if_not_exists}{table} (

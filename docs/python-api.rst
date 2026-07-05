@@ -817,6 +817,42 @@ You can leave off the third item in the tuple to have the referenced column auto
         ("author_id", "authors")
     ])
 
+.. _python_api_compound_foreign_keys:
+
+Compound foreign keys
+~~~~~~~~~~~~~~~~~~~~~
+
+To create a compound (multi-column) foreign key, use lists of column names in place of the single column names:
+
+.. code-block:: python
+
+    db.table("courses").create({
+        "course_code": str,
+        "campus_name": str,
+        "dept_code": str,
+    }, pk="course_code", foreign_keys=[
+        (["campus_name", "dept_code"], "departments", ["campus_name", "dept_code"])
+    ])
+
+This creates a table-level constraint:
+
+.. code-block:: sql
+
+    CREATE TABLE "courses" (
+       "course_code" TEXT PRIMARY KEY,
+       "campus_name" TEXT,
+       "dept_code" TEXT,
+       FOREIGN KEY ("campus_name", "dept_code") REFERENCES "departments"("campus_name", "dept_code")
+    )
+
+As with single columns, you can leave off the list of other columns to reference the compound primary key of the other table:
+
+.. code-block:: python
+
+    foreign_keys=[
+        (["campus_name", "dept_code"], "departments")
+    ]
+
 .. _python_api_table_configuration:
 
 Table configuration options

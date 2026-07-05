@@ -1,7 +1,8 @@
-"""Tests for reading compound (multi-column) foreign keys - issue #594."""
+"""Tests for compound (multi-column) foreign keys - issue #594."""
 
 import pytest
 from sqlite_utils import Database
+from sqlite_utils.db import AlterError, ForeignKey
 
 COMPOUND_SCHEMA = """
 CREATE TABLE departments (
@@ -108,3 +109,96 @@ def test_mixed_compound_and_single_foreign_keys_are_sortable():
     fks_sorted = sorted(fks)
     assert fks_sorted[0].other_table == "accreditations"
     assert fks_sorted[1].other_table == "departments"
+
+
+@pytest.fixture
+def departments_db():
+    db = Database(memory=True)
+    db.create_table(
+        "departments",
+        {"campus_name": str, "dept_code": str, "dept_name": str},
+        pk=("campus_name", "dept_code"),
+    )
+    return db
+
+
+EXPECTED_COURSES_SCHEMA = (
+    'CREATE TABLE "courses" (\n'
+    '   "course_code" TEXT PRIMARY KEY,\n'
+    '   "campus_name" TEXT,\n'
+    '   "dept_code" TEXT,\n'
+    '   FOREIGN KEY ("campus_name", "dept_code") '
+    'REFERENCES "departments"("campus_name", "dept_code")\n'
+    ")"
+)
+
+
+@pytest.mark.parametrize(
+    "foreign_keys",
+    (
+        [
+            ForeignKey(
+                table="courses",
+                column=None,
+                other_table="departments",
+                other_column=None,
+                columns=["campus_name", "dept_code"],
+                other_columns=["campus_name", "dept_code"],
+                is_compound=True,
+            )
+        ],
+        [(["campus_name", "dept_code"], "departments", ["campus_name", "dept_code"])],
+        # Two-item form guesses the other table's primary key:
+        [(["campus_name", "dept_code"], "departments")],
+    ),
+)
+def test_create_table_with_compound_foreign_key(departments_db, foreign_keys):
+    departments_db.create_table(
+        "courses",
+        {"course_code": str, "campus_name": str, "dept_code": str},
+        pk="course_code",
+        foreign_keys=foreign_keys,
+    )
+    assert departments_db["courses"].schema == EXPECTED_COURSES_SCHEMA
+    fks = departments_db["courses"].foreign_keys
+    assert len(fks) == 1
+    fk = fks[0]
+    assert fk.is_compound is True
+    assert fk.columns == ["campus_name", "dept_code"]
+    assert fk.other_table == "departments"
+    assert fk.other_columns == ["campus_name", "dept_code"]
+
+
+def test_create_table_compound_foreign_key_enforced(departments_db):
+    departments_db.execute("PRAGMA foreign_keys = ON")
+    departments_db.create_table(
+        "courses",
+        {"course_code": str, "campus_name": str, "dept_code": str},
+        pk="course_code",
+        foreign_keys=[(["campus_name", "dept_code"], "departments")],
+    )
+    departments_db["departments"].insert(
+        {"campus_name": "Berkeley", "dept_code": "CS", "dept_name": "Computer Science"}
+    )
+    departments_db["courses"].insert(
+        {"course_code": "CS101", "campus_name": "Berkeley", "dept_code": "CS"}
+    )
+    import sqlite3
+
+    with pytest.raises(sqlite3.IntegrityError):
+        departments_db.execute(
+            "insert into courses (course_code, campus_name, dept_code) "
+            "values ('X1', 'Nowhere', 'NOPE')"
+        )
+
+
+def test_create_table_compound_foreign_key_missing_other_column(departments_db):
+    with pytest.raises(AlterError):
+        departments_db.create_table(
+            "courses",
+            {"course_code": str, "campus_name": str, "dept_code": str},
+            pk="course_code",
+            foreign_keys=[
+                (["campus_name", "dept_code"], "departments", ["campus_name", "nope"])
+            ],
+        )
