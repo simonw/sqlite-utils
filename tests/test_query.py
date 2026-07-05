@@ -114,6 +114,15 @@ def test_query_comment_prefixed_pragma(tmpdir):
     db.close()
 
 
+def test_query_comment_prefixed_pragma_inside_transaction(fresh_db):
+    fresh_db.begin()
+    assert list(fresh_db.query("-- check version\npragma user_version")) == [
+        {"user_version": 0}
+    ]
+    assert fresh_db.conn.in_transaction
+    fresh_db.rollback()
+
+
 @pytest.mark.parametrize(
     "sql,expected",
     [

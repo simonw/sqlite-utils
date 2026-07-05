@@ -713,10 +713,14 @@ class Database:
         args: tuple = (params,) if params is not None else ()
         if keyword == "PRAGMA":
             # Some PRAGMA statements refuse to run inside a transaction, so
-            # execute these without the savepoint guard used below. PRAGMAs
-            # never open an implicit transaction, so there is nothing to
-            # undo if this one turns out not to return rows
-            cursor = self.conn.execute(sql, *args)
+            # execute these without the savepoint guard used below. Some
+            # adapters open an implicit transaction before comment-prefixed
+            # PRAGMAs, so temporarily use driver autocommit when it is safe.
+            if self.conn.in_transaction:
+                cursor = self.conn.execute(sql, *args)
+            else:
+                with self.ensure_autocommit_off():
+                    cursor = self.conn.execute(sql, *args)
             if cursor.description is None:
                 raise ValueError(message)
             keys = [d[0] for d in cursor.description]
