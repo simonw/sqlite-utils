@@ -2184,7 +2184,7 @@ The ``db.iterdump()`` method returns a sequence of SQL strings representing a co
 
 This uses the `sqlite3.Connection.iterdump() <https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.iterdump>`__ method.
 
-If you are using ``pysqlite3`` or ``sqlean.py`` the underlying method may be missing. If you install the `sqlite-dump <https://pypi.org/project/sqlite-dump/>`__ package then the ``db.iterdump()`` method will use that implementation instead:
+If you are using ``pysqlite3`` the underlying method may be missing. If you install the `sqlite-dump <https://pypi.org/project/sqlite-dump/>`__ package then the ``db.iterdump()`` method will use that implementation instead:
 
 .. code-block:: bash
 
