@@ -324,3 +324,87 @@ def test_index_foreign_keys_compound_creates_composite_index(compound_db):
     # No separate single-column indexes for the members
     assert ["campus_name"] not in index_columns
     assert ["dept_code"] not in index_columns
+
+
+def test_foreign_key_captures_on_delete_and_on_update():
+    db = Database(memory=True)
+    db.executescript("""
+    CREATE TABLE authors (id INTEGER PRIMARY KEY);
+    CREATE TABLE books (
+        id INTEGER PRIMARY KEY,
+        author_id INTEGER REFERENCES authors(id)
+            ON DELETE CASCADE ON UPDATE RESTRICT
+    );
+    """)
+    fk = db["books"].foreign_keys[0]
+    assert fk.on_delete == "CASCADE"
+    assert fk.on_update == "RESTRICT"
+
+
+def test_foreign_key_on_delete_defaults_to_no_action(fresh_db):
+    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db["books"].insert({"id": 1, "author_id": 1}, pk="id")
+    fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+    fk = fresh_db["books"].foreign_keys[0]
+    assert fk.on_delete == "NO ACTION"
+    assert fk.on_update == "NO ACTION"
+
+
+def test_create_table_foreign_key_with_on_delete(fresh_db):
+    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db.create_table(
+        "books",
+        {"id": int, "author_id": int},
+        pk="id",
+        foreign_keys=[
+            ForeignKey(
+                table="books",
+                column="author_id",
+                other_table="authors",
+                other_column="id",
+                on_delete="CASCADE",
+            )
+        ],
+    )
+    assert "ON DELETE CASCADE" in fresh_db["books"].schema
+    assert fresh_db["books"].foreign_keys[0].on_delete == "CASCADE"
+
+
+def test_transform_preserves_on_delete_cascade():
+    db = Database(memory=True)
+    db.executescript("""
+    CREATE TABLE authors (id INTEGER PRIMARY KEY);
+    CREATE TABLE books (
+        id INTEGER PRIMARY KEY,
+        title TEXT,
+        author_id INTEGER REFERENCES authors(id) ON DELETE CASCADE
+    );
+    """)
+    db["books"].transform(rename={"title": "book_title"})
+    fk = db["books"].foreign_keys[0]
+    assert fk.on_delete == "CASCADE"
+    assert fk.on_update == "NO ACTION"
+    assert "ON DELETE CASCADE" in db["books"].schema
+
+
+def test_transform_preserves_compound_foreign_key_on_delete():
+    db = Database(memory=True)
+    db.executescript("""
+    CREATE TABLE departments (
+        campus_name TEXT NOT NULL,
+        dept_code TEXT NOT NULL,
+        PRIMARY KEY (campus_name, dept_code)
+    );
+    CREATE TABLE courses (
+        course_code TEXT PRIMARY KEY,
+        campus_name TEXT NOT NULL,
+        dept_code TEXT NOT NULL,
+        FOREIGN KEY (campus_name, dept_code)
+        REFERENCES departments(campus_name, dept_code) ON DELETE CASCADE
+    );
+    """)
+    db["courses"].transform(rename={"course_code": "code"})
+    fk = db["courses"].foreign_keys[0]
+    assert fk.is_compound is True
+    assert fk.on_delete == "CASCADE"
+    assert "ON DELETE CASCADE" in db["courses"].schema

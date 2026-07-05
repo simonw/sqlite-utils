@@ -853,6 +853,25 @@ As with single columns, you can leave off the list of other columns to reference
         (["campus_name", "dept_code"], "departments")
     ]
 
+To specify ``ON DELETE`` or ``ON UPDATE`` actions, pass ``ForeignKey`` objects instead:
+
+.. code-block:: python
+
+    from sqlite_utils.db import ForeignKey
+
+    db.table("books").create({
+        "id": int,
+        "author_id": int,
+    }, pk="id", foreign_keys=[
+        ForeignKey(
+            table="books", column="author_id",
+            other_table="authors", other_column="id",
+            on_delete="CASCADE",
+        )
+    ])
+
+Foreign key actions are preserved by :ref:`table.transform() <python_api_transform>` - prior to sqlite-utils 4.0 they were silently dropped when a table was transformed.
+
 .. _python_api_table_configuration:
 
 Table configuration options
@@ -2280,6 +2299,10 @@ Each ``ForeignKey`` has the following attributes:
     A list of the referenced columns.
 ``is_compound``
     ``True`` if this is a compound (multi-column) foreign key.
+``on_delete``
+    The ``ON DELETE`` action, e.g. ``"CASCADE"`` - ``"NO ACTION"`` if not set.
+``on_update``
+    The ``ON UPDATE`` action - ``"NO ACTION"`` if not set.
 
 ``ForeignKey`` was a ``namedtuple`` prior to sqlite-utils 4.0. It is now a dataclass and can no longer be unpacked or indexed as a tuple - access its fields by name instead. See :ref:`upgrading_3_to_4` for details.
 

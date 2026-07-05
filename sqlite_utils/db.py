@@ -190,6 +190,8 @@ class ForeignKey:
     columns: List[str] = field(default_factory=list)
     other_columns: List[str] = field(default_factory=list)
     is_compound: bool = False
+    on_delete: str = "NO ACTION"
+    on_update: str = "NO ACTION"
 
     def __post_init__(self):
         # Populate columns/other_columns for single-column foreign keys
@@ -199,6 +201,16 @@ class ForeignKey:
             self.other_columns = (
                 [self.other_column] if self.other_column is not None else []
             )
+
+
+def _fk_actions_sql(fk: ForeignKey) -> str:
+    "ON UPDATE/ON DELETE clauses for a foreign key, or an empty string."
+    actions = ""
+    if fk.on_update and fk.on_update != "NO ACTION":
+        actions += " ON UPDATE {}".format(fk.on_update)
+    if fk.on_delete and fk.on_delete != "NO ACTION":
+        actions += " ON DELETE {}".format(fk.on_delete)
+    return actions
 
 
 Index = namedtuple("Index", ("seq", "name", "unique", "origin", "partial", "columns"))
@@ -1345,14 +1357,12 @@ class Database:
                     "DEFAULT {}".format(self.quote_default_value(defaults[column_name]))
                 )
             if column_name in foreign_keys_by_column:
+                fk = foreign_keys_by_column[column_name]
                 column_extras.append(
-                    "REFERENCES {}({})".format(
-                        quote_identifier(
-                            foreign_keys_by_column[column_name].other_table
-                        ),
-                        quote_identifier(
-                            cast(str, foreign_keys_by_column[column_name].other_column)
-                        ),
+                    "REFERENCES {}({}){}".format(
+                        quote_identifier(fk.other_table),
+                        quote_identifier(cast(str, fk.other_column)),
+                        _fk_actions_sql(fk),
                     )
                 )
             column_type_str = COLUMN_TYPE_MAPPING[column_type]
@@ -1385,12 +1395,13 @@ class Database:
                     "No such column: {}".format(", ".join(sorted(missing)))
                 )
             column_defs.append(
-                "   FOREIGN KEY ({columns}) REFERENCES {other_table}({other_columns})".format(
+                "   FOREIGN KEY ({columns}) REFERENCES {other_table}({other_columns}){actions}".format(
                     columns=", ".join(quote_identifier(c) for c in fk.columns),
                     other_table=quote_identifier(fk.other_table),
                     other_columns=", ".join(
                         quote_identifier(c) for c in fk.other_columns
                     ),
+                    actions=_fk_actions_sql(fk),
                 )
             )
         columns_sql = ",\n".join(column_defs)
@@ -2055,7 +2066,9 @@ class Table(Queryable):
         ).fetchall():
             if row is not None:
                 id, seq, table_name, from_, to_, on_update, on_delete, match = row
-                by_id.setdefault(id, []).append((seq, table_name, from_, to_))
+                by_id.setdefault(id, []).append(
+                    (seq, table_name, from_, to_, on_update, on_delete)
+                )
         fks = []
         for id in sorted(by_id):
             rows = sorted(by_id[id])  # order columns by seq
@@ -2072,6 +2085,8 @@ class Table(Queryable):
                     columns=columns,
                     other_columns=other_columns,
                     is_compound=is_compound,
+                    on_update=rows[0][4],
+                    on_delete=rows[0][5],
                 )
             )
         return fks
@@ -2434,9 +2449,16 @@ class Table(Queryable):
                         columns=columns,
                         other_columns=fk.other_columns,
                         is_compound=True,
+                        on_delete=fk.on_delete,
+                        on_update=fk.on_update,
                     )
                 return ForeignKey(
-                    self.name, columns[0], fk.other_table, fk.other_columns[0]
+                    self.name,
+                    columns[0],
+                    fk.other_table,
+                    fk.other_columns[0],
+                    on_delete=fk.on_delete,
+                    on_update=fk.on_update,
                 )
 
             create_table_foreign_keys = []
