@@ -250,3 +250,77 @@ def test_transform_drop_compound_foreign_key(compound_db, drop_foreign_keys):
     assert {"campus_name", "dept_code"} <= set(
         compound_db["courses"].columns_dict.keys()
     )
+
+
+@pytest.fixture
+def courses_db(departments_db):
+    departments_db.create_table(
+        "courses",
+        {"course_code": str, "campus_name": str, "dept_code": str},
+        pk="course_code",
+    )
+    return departments_db
+
+
+def test_add_compound_foreign_key(courses_db):
+    t = courses_db["courses"].add_foreign_key(
+        ["campus_name", "dept_code"], "departments", ["campus_name", "dept_code"]
+    )
+    # Returns self
+    assert t.name == "courses"
+    fks = courses_db["courses"].foreign_keys
+    assert len(fks) == 1
+    fk = fks[0]
+    assert fk.is_compound is True
+    assert fk.columns == ["campus_name", "dept_code"]
+    assert fk.other_table == "departments"
+    assert fk.other_columns == ["campus_name", "dept_code"]
+
+
+def test_add_compound_foreign_key_guesses_other_columns(courses_db):
+    courses_db["courses"].add_foreign_key(["campus_name", "dept_code"], "departments")
+    fk = courses_db["courses"].foreign_keys[0]
+    assert fk.other_columns == ["campus_name", "dept_code"]
+
+
+def test_add_compound_foreign_key_error_if_already_exists(courses_db):
+    courses_db["courses"].add_foreign_key(["campus_name", "dept_code"], "departments")
+    with pytest.raises(AlterError) as ex:
+        courses_db["courses"].add_foreign_key(
+            ["campus_name", "dept_code"], "departments"
+        )
+    assert "already exists" in ex.value.args[0]
+    # ignore=True should not raise
+    courses_db["courses"].add_foreign_key(
+        ["campus_name", "dept_code"], "departments", ignore=True
+    )
+
+
+def test_add_compound_foreign_key_error_if_column_missing(courses_db):
+    with pytest.raises(AlterError):
+        courses_db["courses"].add_foreign_key(["campus_name", "nope"], "departments")
+
+
+def test_db_add_foreign_keys_compound(courses_db):
+    courses_db.add_foreign_keys(
+        [
+            (
+                "courses",
+                ["campus_name", "dept_code"],
+                "departments",
+                ["campus_name", "dept_code"],
+            )
+        ]
+    )
+    fk = courses_db["courses"].foreign_keys[0]
+    assert fk.is_compound is True
+    assert fk.columns == ["campus_name", "dept_code"]
+
+
+def test_index_foreign_keys_compound_creates_composite_index(compound_db):
+    compound_db.index_foreign_keys()
+    index_columns = [i.columns for i in compound_db["courses"].indexes]
+    assert ["campus_name", "dept_code"] in index_columns
+    # No separate single-column indexes for the members
+    assert ["campus_name"] not in index_columns
+    assert ["dept_code"] not in index_columns

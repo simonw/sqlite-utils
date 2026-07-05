@@ -1562,6 +1562,16 @@ To ignore the case where the key already exists, use ``ignore=True``:
 
     db.table("books").add_foreign_key("author_id", "authors", "id", ignore=True)
 
+To add a compound foreign key, pass lists of columns:
+
+.. code-block:: python
+
+    db.table("courses").add_foreign_key(
+        ["campus_name", "dept_code"], "departments", ["campus_name", "dept_code"]
+    )
+
+As with single columns, omitting the other columns will use the compound primary key of the other table. ``other_table`` must always be specified for a compound foreign key.
+
 .. _python_api_add_foreign_keys:
 
 Adding multiple foreign key constraints at once
@@ -1590,6 +1600,8 @@ If you want to ensure that every foreign key column in your database has a corre
 .. code-block:: python
 
     db.index_foreign_keys()
+
+Compound foreign keys get a single composite index across their columns.
 
 .. _python_api_drop:
 
