@@ -1,4 +1,9 @@
-from sqlite_utils.db import ForeignKey, TransformError
+from sqlite_utils.db import (
+    ForeignKey,
+    TransformError,
+    _extract_check_constraints,
+    _rewrite_check_expression,
+)
 from sqlite_utils.utils import OperationalError
 import pytest
 
@@ -659,3 +664,138 @@ def test_transform_with_unique_constraint_implicit_index(fresh_db):
         "You must manually drop this index prior to running this transformation and manually recreate the new index after running this transformation."
         in str(excinfo.value)
     )
+
+
+def test_transform_preserves_check_constraints(fresh_db):
+    fresh_db.execute(
+        "CREATE TABLE dogs (\n"
+        "    id integer primary key,\n"
+        "    age integer CHECK (age >= 0),\n"
+        "    name text CHECK (length(name) > 0),\n"
+        "    CHECK (age < 200)\n"
+        ")"
+    )
+    dogs = fresh_db["dogs"]
+    assert dogs.transform_sql(tmp_suffix="suffix")[0] == (
+        'CREATE TABLE "dogs_new_suffix" (\n'
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "age" INTEGER,\n'
+        '   "name" TEXT,\n'
+        "   CHECK (age >= 0),\n"
+        "   CHECK (length(name) > 0),\n"
+        "   CHECK (age < 200)\n"
+        ");"
+    )
+    dogs.transform()
+    # Constraints must still be enforced after the transform
+    with pytest.raises(Exception):
+        dogs.insert({"id": 1, "age": -1, "name": "Cleo"})
+    with pytest.raises(Exception):
+        dogs.insert({"id": 2, "age": 5, "name": ""})
+    dogs.insert({"id": 3, "age": 5, "name": "Cleo"})
+    assert dogs.count == 1
+
+
+def test_transform_rewrites_check_constraint_on_rename(fresh_db):
+    fresh_db.execute(
+        "CREATE TABLE dogs (id integer primary key, age integer CHECK (age >= 0))"
+    )
+    dogs = fresh_db["dogs"]
+    dogs.transform(rename={"age": "years"})
+    assert 'CHECK ("years" >= 0)' in dogs.schema
+    # The renamed constraint is still enforced, on the new column name
+    with pytest.raises(Exception):
+        dogs.insert({"id": 1, "years": -1})
+    dogs.insert({"id": 2, "years": 4})
+    assert dogs.count == 1
+
+
+def test_transform_rewrites_check_constraint_to_name_needing_quotes(fresh_db):
+    # Renaming a checked column to a reserved word or a name with a space must
+    # still produce valid SQL, just like a plain rename does
+    fresh_db.execute(
+        "CREATE TABLE dogs (id integer primary key, age integer CHECK (age >= 0))"
+    )
+    dogs = fresh_db["dogs"]
+    dogs.transform(rename={"age": "order by"})
+    assert 'CHECK ("order by" >= 0)' in dogs.schema
+    with pytest.raises(Exception):
+        dogs.insert({"id": 1, "order by": -1})
+    dogs.insert({"id": 2, "order by": 4})
+    assert dogs.count == 1
+
+
+def test_transform_drops_check_constraint_for_dropped_column(fresh_db):
+    fresh_db.execute(
+        "CREATE TABLE dogs (id integer primary key, age integer CHECK (age >= 0), "
+        "name text)"
+    )
+    dogs = fresh_db["dogs"]
+    # Dropping a column referenced by a CHECK drops the constraint rather than
+    # producing a table that fails to build
+    dogs.transform(drop=["age"])
+    assert "CHECK" not in dogs.schema
+    assert dogs.columns_dict == {"id": int, "name": str}
+
+
+def test_transform_check_constraints_are_idempotent(fresh_db):
+    fresh_db.execute(
+        "CREATE TABLE dogs (id integer primary key, age integer CHECK (age >= 0))"
+    )
+    dogs = fresh_db["dogs"]
+    dogs.transform()
+    once = dogs.schema
+    dogs.transform()
+    assert dogs.schema == once
+    assert "CHECK (age >= 0)" in once
+
+
+@pytest.mark.parametrize(
+    "sql,expected",
+    [
+        (
+            "CREATE TABLE t (id integer, age integer CHECK (age >= 0), "
+            "CHECK (age < 200))",
+            ["age >= 0", "age < 200"],
+        ),
+        # Nested parentheses inside the expression
+        ("CREATE TABLE t (a int CHECK (a > 0 AND (b < 10)))", ["a > 0 AND (b < 10)"]),
+        # A comma and the word CHECK inside a string literal must not confuse it
+        (
+            "CREATE TABLE t (name text CHECK (name != 'a,b CHECK ('))",
+            ["name != 'a,b CHECK ('"],
+        ),
+        # CONSTRAINT name form, and no whitespace before the parenthesis
+        ("CREATE TABLE t (a int CONSTRAINT positive CHECK(a>0))", ["a>0"]),
+        # A DEFAULT expression in parentheses is not a CHECK
+        ("CREATE TABLE t (a int DEFAULT (1 + 2), b int CHECK (b > 0))", ["b > 0"]),
+        ("CREATE TABLE t (a int, b text)", []),
+    ],
+)
+def test_extract_check_constraints(sql, expected):
+    assert _extract_check_constraints(sql) == expected
+
+
+@pytest.mark.parametrize(
+    "expression,rename,drop,expected",
+    [
+        ("age >= 0", {"age": "years"}, set(), '"years" >= 0'),
+        # A substring match must not be rewritten
+        (
+            "agent = 1 AND age > 0",
+            {"age": "years"},
+            set(),
+            'agent = 1 AND "years" > 0',
+        ),
+        ("length(name) > 0", {"name": "full_name"}, set(), 'length("full_name") > 0'),
+        # A rename to a name needing quoting stays valid
+        ("age >= 0", {"age": "order by"}, set(), '"order by" >= 0'),
+        # Identifiers inside string literals are left alone
+        ("x != 'age'", {"age": "years"}, set(), "x != 'age'"),
+        # Referencing a dropped column removes the constraint entirely
+        ("age >= 0", {}, {"age"}, None),
+        ("age >= 0", {}, {"weight"}, "age >= 0"),
+    ],
+)
+def test_rewrite_check_expression(expression, rename, drop, expected):
+    assert _rewrite_check_expression(expression, rename, drop) == expected
