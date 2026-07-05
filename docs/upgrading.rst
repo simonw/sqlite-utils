@@ -46,6 +46,18 @@ Two related things have been removed:
 Python API changes
 ------------------
 
+**db.query() now rejects SQL that does not return rows.** This is likely the most common change you will need to make to existing code. ``db.query()`` used to accept any SQL statement - passing one that returns no rows, such as an ``INSERT`` or ``UPDATE`` without a ``RETURNING`` clause or a ``CREATE TABLE``, did nothing at all, silently. Those statements now raise a ``ValueError``, and are rolled back so they have no effect on the database. Transaction control statements (``BEGIN``, ``COMMIT``, ``END``, ``ROLLBACK``, ``SAVEPOINT``, ``RELEASE``) plus ``VACUUM``, ``ATTACH`` and ``DETACH`` are also rejected with a ``ValueError``, without being executed at all. Use ``db.execute()`` for statements that do not return rows:
+
+.. code-block:: python
+
+    # 3.x accepted this but silently did nothing:
+    db.query("update dogs set name = 'Cleopaws'")
+
+    # In 4.0 use execute() for SQL that does not return rows:
+    db.execute("update dogs set name = 'Cleopaws'")
+
+**db.query() executes immediately.** ``db.query(sql)`` previously returned a generator that did not execute the SQL until you started iterating over it. The SQL now runs as soon as the method is called - rows are still fetched lazily, but errors in your SQL raise at the ``db.query()`` call site rather than on first iteration, and a write with a ``RETURNING`` clause takes effect even if you never iterate over its results.
+
 **db.table() no longer returns views.** ``db.table(name)`` now raises a ``sqlite_utils.db.NoTable`` exception if ``name`` is a SQL view. Use the new ``db.view(name)`` method for views:
 
 .. code-block:: python
@@ -54,11 +66,6 @@ Python API changes
     view = db.view("my_view")
 
 ``db["name"]`` still returns either a ``Table`` or a ``View`` depending on what exists in the database.
-
-**db.query() executes immediately.** ``db.query(sql)`` previously returned a generator that did not execute the SQL until you started iterating over it. The SQL now runs as soon as the method is called - rows are still fetched lazily. Two consequences:
-
-- Errors in your SQL now raise at the ``db.query()`` call site rather than on first iteration.
-- Passing a statement that returns no rows - such as an ``INSERT`` or ``UPDATE`` without a ``RETURNING`` clause - previously did nothing at all, silently. It now raises a ``ValueError``, and the statement is rolled back so it has no effect on the database. Use ``db.execute()`` for statements that do not return rows.
 
 **Upserts use INSERT ... ON CONFLICT.** Upsert operations now use SQLite's ``INSERT ... ON CONFLICT SET`` syntax rather than the previous ``INSERT OR IGNORE`` followed by ``UPDATE``. If your code depends on the old behavior, pass ``use_old_upsert=True`` to the ``Database()`` constructor - see :ref:`python_api_old_upsert`.
 
