@@ -70,6 +70,13 @@ sqlite_utils.db.ColumnDetails
 
 .. autoclass:: sqlite_utils.db.ColumnDetails
 
+.. _reference_db_other_foreign_key:
+
+sqlite_utils.db.ForeignKey
+--------------------------
+
+.. autoclass:: sqlite_utils.db.ForeignKey
+
 sqlite_utils.utils
 ==================
 

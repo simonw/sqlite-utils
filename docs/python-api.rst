@@ -2309,8 +2309,8 @@ Each ``ForeignKey`` has the following attributes:
 ::
 
     >>> db.table("Street_Tree_List").foreign_keys
-    [ForeignKey(table='Street_Tree_List', column='qLegalStatus', other_table='qLegalStatus', other_column='id', columns=['qLegalStatus'], other_columns=['id'], is_compound=False),
-     ForeignKey(table='Street_Tree_List', column='qCareAssistant', other_table='qCareAssistant', other_column='id', columns=['qCareAssistant'], other_columns=['id'], is_compound=False),
+    [ForeignKey(table='Street_Tree_List', column='qLegalStatus', other_table='qLegalStatus', other_column='id', columns=['qLegalStatus'], other_columns=['id'], is_compound=False, on_delete='NO ACTION', on_update='NO ACTION'),
+     ForeignKey(table='Street_Tree_List', column='qCareAssistant', other_table='qCareAssistant', other_column='id', columns=['qCareAssistant'], other_columns=['id'], is_compound=False, on_delete='NO ACTION', on_update='NO ACTION'),
      ...]
 
 Compound foreign keys - defined with ``FOREIGN KEY (col_a, col_b) REFERENCES other(col_a, col_b)`` - are returned as a single ``ForeignKey`` with ``is_compound=True``, ``column`` and ``other_column`` set to ``None``, and the participating columns available in the ``columns`` and ``other_columns`` lists.

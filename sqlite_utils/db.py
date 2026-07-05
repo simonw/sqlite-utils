@@ -176,6 +176,9 @@ class ForeignKey:
     are ``None`` - use ``columns`` and ``other_columns`` instead, and check
     ``is_compound``.
 
+    ``on_delete`` and ``on_update`` hold the foreign key actions, e.g.
+    ``"CASCADE"`` - ``"NO ACTION"`` if not set.
+
     Prior to sqlite-utils 4.0 this was a ``namedtuple`` and could be unpacked
     or indexed as ``(table, column, other_table, other_column)``. It is now a
     dataclass - access its fields by name instead.
