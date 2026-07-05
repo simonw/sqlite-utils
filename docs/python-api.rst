@@ -229,9 +229,9 @@ The ``db.query(sql)`` function executes a SQL query and returns an iterator over
     # {'name': 'Cleo'}
     # {'name': 'Pancakes'}
 
-The SQL query is executed as soon as ``db.query()`` is called. The resulting rows are fetched lazily as you iterate, so large result sets are not loaded into memory all at once. Because execution is immediate, an error in your SQL will raise an exception straight away, and a statement such as ``INSERT ... RETURNING`` will take effect even if you do not iterate over its results.
+The SQL query is executed as soon as ``db.query()`` is called. The resulting rows are fetched lazily as you iterate, so large result sets are not loaded into memory all at once. Because execution is immediate, an error in your SQL will raise an exception straight away, and a statement such as ``INSERT ... RETURNING`` will take effect - and be committed, unless a transaction is open - even if you do not iterate over its results.
 
-``db.query()`` can only be used with SQL that returns rows. Passing a statement that returns no rows - an ``INSERT`` or ``UPDATE`` without a ``RETURNING`` clause, for example - will raise a ``ValueError``. Use :ref:`db.execute() <python_api_execute>` for those statements instead.
+``db.query()`` can only be used with SQL that returns rows. Passing a statement that returns no rows - an ``INSERT`` or ``UPDATE`` without a ``RETURNING`` clause, for example - will raise a ``ValueError``. The rejected statement is rolled back, so it has no effect on the database. Use :ref:`db.execute() <python_api_execute>` for those statements instead.
 
 .. _python_api_execute:
 
@@ -356,7 +356,7 @@ If a transaction is open - because the call happens inside a ``db.atomic()`` blo
         db.execute("insert into news (headline) values (?)", ["Cat unimpressed"])
     # Both rows committed together
 
-One corner case: a row-returning write such as ``INSERT ... RETURNING`` executed through ``db.execute()`` cannot be auto-committed, because its rows have not been read yet - call ``db.commit()`` after fetching them, or use :ref:`db.query() <python_api_query>` for those statements, which commits automatically once you have iterated over the results.
+One corner case: a row-returning write such as ``INSERT ... RETURNING`` executed through ``db.execute()`` cannot be auto-committed, because its rows have not been read yet - call ``db.commit()`` after fetching them, or use :ref:`db.query() <python_api_query>` for those statements, which executes the write and commits it immediately.
 
 .. _python_api_transactions_manual:
 
