@@ -445,3 +445,19 @@ def test_implicit_compound_primary_key_reference_is_resolved():
     fk = db["courses"].foreign_keys[0]
     assert fk.is_compound is True
     assert fk.other_columns == ["campus_name", "dept_code"]
+
+
+def test_foreign_key_normalizes_tuple_columns_to_lists():
+    # Compound columns passed as tuples are normalized to lists, so they
+    # compare equal to introspected ForeignKeys
+    fk = ForeignKey(
+        table="courses",
+        column=None,
+        other_table="departments",
+        other_column=None,
+        columns=("campus_name", "dept_code"),
+        other_columns=("campus_name", "dept_code"),
+        is_compound=True,
+    )
+    assert fk.columns == ["campus_name", "dept_code"]
+    assert fk.other_columns == ["campus_name", "dept_code"]

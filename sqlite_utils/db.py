@@ -197,10 +197,15 @@ class ForeignKey:
     on_update: str = "NO ACTION"
 
     def __post_init__(self):
-        # Populate columns/other_columns for single-column foreign keys
-        if not self.columns:
+        # Populate columns/other_columns for single-column foreign keys,
+        # normalizing any tuples to lists
+        if self.columns:
+            self.columns = list(self.columns)
+        else:
             self.columns = [self.column] if self.column is not None else []
-        if not self.other_columns:
+        if self.other_columns:
+            self.other_columns = list(self.other_columns)
+        else:
             self.other_columns = (
                 [self.other_column] if self.other_column is not None else []
             )
@@ -228,16 +233,18 @@ class TransformError(Exception):
     pass
 
 
+# A single column name, or a list/tuple of columns for a compound foreign key
+ForeignKeyColumns = Union[str, List[str], Tuple[str, ...]]
+
+# (table, column(s), other_table, other_column(s))
+ForeignKeyTuple = Tuple[str, ForeignKeyColumns, str, ForeignKeyColumns]
+
 ForeignKeyIndicator = Union[
     str,
     ForeignKey,
-    Tuple[str, str],
-    Tuple[str, str, str],
-    Tuple[str, str, str, str],
-    # Compound foreign keys use lists of columns:
-    Tuple[List[str], str],
-    Tuple[List[str], str, List[str]],
-    Tuple[str, List[str], str, List[str]],
+    Tuple[ForeignKeyColumns, str],
+    Tuple[ForeignKeyColumns, str, ForeignKeyColumns],
+    ForeignKeyTuple,
 ]
 
 ForeignKeysType = Union[Iterable[ForeignKeyIndicator], List[ForeignKeyIndicator]]
@@ -1604,7 +1611,7 @@ class Database:
         return candidates
 
     def add_foreign_keys(
-        self, foreign_keys: Iterable[Union[ForeignKey, Tuple[str, Any, str, Any]]]
+        self, foreign_keys: Iterable[Union[ForeignKey, ForeignKeyTuple]]
     ) -> None:
         """
         See :ref:`python_api_add_foreign_keys`.
@@ -2911,9 +2918,9 @@ class Table(Queryable):
 
     def add_foreign_key(
         self,
-        column: Union[str, List[str]],
+        column: ForeignKeyColumns,
         other_table: Optional[str] = None,
-        other_column: Optional[Union[str, List[str]]] = None,
+        other_column: Optional[ForeignKeyColumns] = None,
         ignore: bool = False,
     ):
         """
