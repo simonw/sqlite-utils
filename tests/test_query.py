@@ -218,6 +218,22 @@ def test_query_insert_returning_respects_explicit_transaction(fresh_db):
     assert [row["name"] for row in fresh_db["dogs"].rows] == ["Cleo"]
 
 
+def test_query_duplicate_column_names_are_deduped(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/624
+    fresh_db["one"].insert({"id": 1, "value": "left"})
+    fresh_db["two"].insert({"id": 2, "value": "right"})
+    rows = list(
+        fresh_db.query("select one.id, two.id, one.value, two.value from one, two")
+    )
+    assert rows == [{"id": 1, "id_2": 2, "value": "left", "value_2": "right"}]
+
+
+def test_query_deduped_column_avoids_existing_names(fresh_db):
+    # The renamed duplicate must not overwrite a real column called id_2
+    rows = list(fresh_db.query("select 1 as id, 2 as id, 3 as id_2"))
+    assert rows == [{"id": 1, "id_3": 2, "id_2": 3}]
+
+
 def test_execute_returning_dicts(fresh_db):
     # Like db.query() but returns a list, included for backwards compatibility
     # see https://github.com/simonw/sqlite-utils/issues/290

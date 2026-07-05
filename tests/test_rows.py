@@ -104,3 +104,10 @@ def test_pks_and_rows_where_compound_pk(fresh_db):
         (("number", 1), {"type": "number", "number": 1, "plusone": 2}),
         (("number", 2), {"type": "number", "number": 2, "plusone": 3}),
     ]
+
+
+def test_rows_where_duplicate_select_columns_are_deduped(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/624
+    fresh_db["t"].insert({"id": 1, "name": "Cleo"})
+    rows = list(fresh_db["t"].rows_where(select="id, id, name"))
+    assert rows == [{"id": 1, "id_2": 1, "name": "Cleo"}]
