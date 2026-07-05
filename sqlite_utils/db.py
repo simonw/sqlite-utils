@@ -2439,6 +2439,11 @@ class Table(Queryable):
             create_table_foreign_keys.extend(foreign_keys)
         else:
             # Construct foreign_keys from current, plus add_foreign_keys, minus drop_foreign_keys
+            # Bind fresh names here - type checkers do not narrow captured
+            # variables inside nested functions, so the closures would
+            # otherwise see the Optional declared types of drop and rename
+            dropped_columns = drop
+            renamed_columns = rename
 
             def fk_should_be_dropped(fk: ForeignKey) -> bool:
                 if drop_foreign_keys is not None:
@@ -2451,10 +2456,12 @@ class Table(Queryable):
                             # A tuple/list must match a compound key's columns exactly
                             return True
                 # Dropping any of a foreign key's columns drops the whole key
-                return any(column in drop for column in fk.columns)
+                return any(column in dropped_columns for column in fk.columns)
 
             def fk_with_renamed_columns(fk: ForeignKey) -> ForeignKey:
-                columns = tuple(rename.get(column) or column for column in fk.columns)
+                columns = tuple(
+                    renamed_columns.get(column) or column for column in fk.columns
+                )
                 if fk.is_compound:
                     return ForeignKey(
                         self.name,
