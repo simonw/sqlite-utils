@@ -652,33 +652,68 @@ class Database:
         Execute ``sql`` and return an iterable of dictionaries representing each row.
 
         The SQL is executed as soon as this method is called - the resulting rows
-        are then fetched lazily as the returned iterable is iterated over.
+        are then fetched lazily as the returned iterable is iterated over. A
+        row-returning write such as ``INSERT ... RETURNING`` takes effect
+        immediately, even if the results are never iterated.
 
         :param sql: SQL query to execute
         :param params: Parameters to use in that query - an iterable for ``where id = ?``
           parameters, or a dictionary for ``where id = :id``
         :raises ValueError: if the SQL statement does not return rows - use
-          :meth:`execute` for those statements instead
+          :meth:`execute` for those statements instead. The rejected statement
+          is rolled back, so it has no effect on the database
         """
-        was_in_transaction = self.conn.in_transaction
-        cursor = self.execute(sql, params or tuple())
-        if cursor.description is None:
-            raise ValueError(
-                "query() can only be used with SQL that returns rows - "
-                "use execute() for other statements"
-            )
-        keys = [d[0] for d in cursor.description]
-
-        def rows() -> Generator[dict, None, None]:
-            for row in cursor:
-                yield dict(zip(keys, row))
-            if not was_in_transaction and self.conn.in_transaction:
-                # A row-returning write such as INSERT ... RETURNING opened
-                # an implicit transaction - commit it now that its rows have
-                # been consumed
-                self.conn.execute("COMMIT")
-
-        return rows()
+        message = (
+            "query() can only be used with SQL that returns rows - "
+            "use execute() for other statements"
+        )
+        prefix = sql.lstrip().upper()
+        if prefix.startswith(
+            _TRANSACTION_CONTROL_PREFIXES + ("VACUUM", "ATTACH", "DETACH")
+        ):
+            # None of these return rows - reject them without executing anything
+            raise ValueError(message)
+        if self._tracer:
+            self._tracer(sql, params)
+        args: tuple = (params,) if params is not None else ()
+        if prefix.startswith("PRAGMA"):
+            # Some PRAGMA statements refuse to run inside a transaction, so
+            # execute these without the savepoint guard used below. PRAGMAs
+            # never open an implicit transaction, so there is nothing to
+            # undo if this one turns out not to return rows
+            cursor = self.conn.execute(sql, *args)
+            if cursor.description is None:
+                raise ValueError(message)
+            keys = [d[0] for d in cursor.description]
+            return (dict(zip(keys, row)) for row in cursor)
+        # Execute inside a savepoint, so a statement that turns out not to
+        # return rows can be rolled back before the ValueError is raised
+        self.conn.execute('SAVEPOINT "sqlite_utils_query"')
+        released = False
+        try:
+            cursor = self.conn.execute(sql, *args)
+            if cursor.description is None:
+                raise ValueError(message)
+            keys = [d[0] for d in cursor.description]
+            try:
+                self.conn.execute('RELEASE "sqlite_utils_query"')
+                released = True
+            except sqlite3.OperationalError:
+                # The savepoint cannot be released while a write statement is
+                # still executing - this is INSERT ... RETURNING or similar,
+                # with unfetched rows. Fetch them so the write completes, then
+                # release again - committing the write immediately, unless an
+                # outer transaction is open
+                fetched = cursor.fetchall()
+                self.conn.execute('RELEASE "sqlite_utils_query"')
+                released = True
+                return (dict(zip(keys, row)) for row in fetched)
+            return (dict(zip(keys, row)) for row in cursor)
+        finally:
+            if not released:
+                # An error occurred - undo anything the statement changed
+                self.conn.execute('ROLLBACK TO "sqlite_utils_query"')
+                self.conn.execute('RELEASE "sqlite_utils_query"')
 
     def execute(
         self, sql: str, parameters: Optional[Union[Sequence, Dict[str, Any]]] = None

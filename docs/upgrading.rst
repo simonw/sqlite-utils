@@ -58,7 +58,7 @@ Python API changes
 **db.query() executes immediately.** ``db.query(sql)`` previously returned a generator that did not execute the SQL until you started iterating over it. The SQL now runs as soon as the method is called - rows are still fetched lazily. Two consequences:
 
 - Errors in your SQL now raise at the ``db.query()`` call site rather than on first iteration.
-- Passing a statement that returns no rows - such as an ``INSERT`` or ``UPDATE`` without a ``RETURNING`` clause - previously did nothing at all, silently. It now raises a ``ValueError``. Use ``db.execute()`` for statements that do not return rows.
+- Passing a statement that returns no rows - such as an ``INSERT`` or ``UPDATE`` without a ``RETURNING`` clause - previously did nothing at all, silently. It now raises a ``ValueError``, and the statement is rolled back so it has no effect on the database. Use ``db.execute()`` for statements that do not return rows.
 
 **Upserts use INSERT ... ON CONFLICT.** Upsert operations now use SQLite's ``INSERT ... ON CONFLICT SET`` syntax rather than the previous ``INSERT OR IGNORE`` followed by ``UPDATE``. If your code depends on the old behavior, pass ``use_old_upsert=True`` to the ``Database()`` constructor - see :ref:`python_api_old_upsert`.
 
