@@ -23,6 +23,7 @@ Compound foreign key support:
 Other foreign key improvements:
 
 - ``ForeignKey`` now exposes ``on_delete`` and ``on_update`` fields reflecting the foreign key's ``ON DELETE``/``ON UPDATE`` actions, and ``table.transform()`` preserves those actions. Previously a transform silently stripped clauses such as ``ON DELETE CASCADE`` from the table schema.
+- ``table.add_foreign_key()`` accepts new ``on_delete=`` and ``on_update=`` parameters for creating foreign keys with actions, e.g. ``table.add_foreign_key("author_id", "authors", "id", on_delete="CASCADE")``. (:issue:`530`)
 - Foreign keys declared as ``REFERENCES other_table`` with no explicit column are now resolved to the other table's primary key by ``table.foreign_keys``, instead of reporting ``other_column=None``.
 - Fixed a ``TypeError`` when sorting ``ForeignKey`` objects where some were compound.
 

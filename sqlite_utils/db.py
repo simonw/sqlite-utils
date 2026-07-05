@@ -2934,6 +2934,8 @@ class Table(Queryable):
         other_table: Optional[str] = None,
         other_column: Optional[ForeignKeyColumns] = None,
         ignore: bool = False,
+        on_delete: str = "NO ACTION",
+        on_update: str = "NO ACTION",
     ):
         """
         Alter the schema to mark the specified column as a foreign key to another table.
@@ -2944,6 +2946,9 @@ class Table(Queryable):
         :param other_column: The column on the other table it - if omitted, will be guessed.
           Use a tuple of columns for a compound foreign key.
         :param ignore: Set this to ``True`` to ignore an existing foreign key - otherwise a ``AlterError`` will be raised.
+        :param on_delete: ``ON DELETE`` action for the foreign key, e.g. ``"CASCADE"``
+          or ``"SET NULL"``.
+        :param on_update: ``ON UPDATE`` action for the foreign key.
         """
         columns = (column,) if isinstance(column, str) else tuple(column)
         # Ensure columns exist
@@ -2997,11 +3002,27 @@ class Table(Queryable):
                     )
                 )
         if len(columns) == 1:
-            self.db.add_foreign_keys(
-                [(self.name, columns[0], other_table, other_columns[0])]
+            fk_object = ForeignKey(
+                self.name,
+                columns[0],
+                other_table,
+                other_columns[0],
+                on_delete=on_delete,
+                on_update=on_update,
             )
         else:
-            self.db.add_foreign_keys([(self.name, columns, other_table, other_columns)])
+            fk_object = ForeignKey(
+                self.name,
+                None,
+                other_table,
+                None,
+                columns=columns,
+                other_columns=other_columns,
+                is_compound=True,
+                on_delete=on_delete,
+                on_update=on_update,
+            )
+        self.db.add_foreign_keys([fk_object])
         return self
 
     def enable_counts(self) -> None:

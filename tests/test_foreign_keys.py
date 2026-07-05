@@ -498,3 +498,29 @@ def test_add_foreign_keys_preserves_actions_compound(courses_db):
     assert fk.is_compound is True
     assert fk.on_delete == "CASCADE"
     assert "ON DELETE CASCADE" in courses_db["courses"].schema
+
+
+def test_add_foreign_key_on_delete_on_update(fresh_db):
+    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db["books"].insert({"id": 1, "author_id": 1}, pk="id")
+    fresh_db["books"].add_foreign_key(
+        "author_id", "authors", "id", on_delete="CASCADE", on_update="RESTRICT"
+    )
+    fk = fresh_db["books"].foreign_keys[0]
+    assert fk.on_delete == "CASCADE"
+    assert fk.on_update == "RESTRICT"
+    assert "ON UPDATE RESTRICT ON DELETE CASCADE" in fresh_db["books"].schema
+    # The cascade should actually fire
+    fresh_db.execute("PRAGMA foreign_keys = ON")
+    fresh_db.execute("delete from authors where id = 1")
+    assert fresh_db["books"].count == 0
+
+
+def test_add_compound_foreign_key_on_delete(courses_db):
+    courses_db["courses"].add_foreign_key(
+        ("campus_name", "dept_code"), "departments", on_delete="SET NULL"
+    )
+    fk = courses_db["courses"].foreign_keys[0]
+    assert fk.is_compound is True
+    assert fk.on_delete == "SET NULL"
+    assert "ON DELETE SET NULL" in courses_db["courses"].schema

@@ -1591,6 +1591,16 @@ To add a compound foreign key, pass tuples of columns:
 
 As with single columns, omitting the other columns will use the compound primary key of the other table. ``other_table`` must always be specified for a compound foreign key.
 
+Use ``on_delete=`` and ``on_update=`` to specify ``ON DELETE`` and ``ON UPDATE`` actions for the foreign key:
+
+.. code-block:: python
+
+    db.table("books").add_foreign_key(
+        "author_id", "authors", "id", on_delete="CASCADE"
+    )
+
+This creates a foreign key with an ``ON DELETE CASCADE`` clause, so deleting an author will also delete their books (provided foreign key enforcement is enabled with ``PRAGMA foreign_keys = ON``). Valid actions are ``"SET NULL"``, ``"SET DEFAULT"``, ``"CASCADE"``, ``"RESTRICT"`` and the default ``"NO ACTION"``.
+
 .. _python_api_add_foreign_keys:
 
 Adding multiple foreign key constraints at once
