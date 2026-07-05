@@ -3,6 +3,7 @@
 import pytest
 from sqlite_utils import Database
 from sqlite_utils.db import AlterError, ForeignKey
+from sqlite_utils.utils import sqlite3
 
 COMPOUND_SCHEMA = """
 CREATE TABLE departments (
@@ -185,8 +186,6 @@ def test_create_table_compound_foreign_key_enforced(departments_db):
     departments_db["courses"].insert(
         {"course_code": "CS101", "campus_name": "Berkeley", "dept_code": "CS"}
     )
-    import sqlite3
-
     with pytest.raises(sqlite3.IntegrityError):
         departments_db.execute(
             "insert into courses (course_code, campus_name, dept_code) "
