@@ -182,9 +182,11 @@ class ForeignKey:
     """
 
     table: str
-    column: Optional[str]
+    # column/other_column are None for compound keys, which would break
+    # ordering against str values - comparison uses columns/other_columns
+    column: Optional[str] = field(compare=False)
     other_table: str
-    other_column: Optional[str]
+    other_column: Optional[str] = field(compare=False)
     columns: List[str] = field(default_factory=list)
     other_columns: List[str] = field(default_factory=list)
     is_compound: bool = False

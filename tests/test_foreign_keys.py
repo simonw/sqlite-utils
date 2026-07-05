@@ -80,3 +80,31 @@ def test_foreign_keys_are_sortable(fresh_db):
     fks = sorted(fresh_db["books"].foreign_keys)
     assert fks[0].column == "author_id"
     assert fks[1].column == "category_id"
+
+
+def test_mixed_compound_and_single_foreign_keys_are_sortable():
+    # compound FKs have column=None, which must not break sorting
+    # against single-column FKs (None < str raises TypeError)
+    db = Database(memory=True)
+    db.executescript("""
+    CREATE TABLE departments (
+        campus_name TEXT NOT NULL,
+        dept_code TEXT NOT NULL,
+        PRIMARY KEY (campus_name, dept_code)
+    );
+    CREATE TABLE accreditations (id INTEGER PRIMARY KEY);
+    CREATE TABLE courses (
+        course_code TEXT PRIMARY KEY,
+        campus_name TEXT NOT NULL,
+        dept_code TEXT NOT NULL,
+        accreditation_id INTEGER REFERENCES accreditations(id),
+        FOREIGN KEY (campus_name, dept_code)
+        REFERENCES departments(campus_name, dept_code)
+    );
+    """)
+    fks = db["courses"].foreign_keys
+    assert len(fks) == 2
+    assert {fk.is_compound for fk in fks} == {True, False}
+    fks_sorted = sorted(fks)
+    assert fks_sorted[0].other_table == "accreditations"
+    assert fks_sorted[1].other_table == "departments"
