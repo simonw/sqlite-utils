@@ -324,14 +324,51 @@ CREATE TABLE IF NOT EXISTS "{}"(
 """.strip()
 
 
-_TRANSACTION_CONTROL_PREFIXES = (
+_TRANSACTION_CONTROL_KEYWORDS = {
     "BEGIN",
     "COMMIT",
     "END",
     "ROLLBACK",
     "SAVEPOINT",
     "RELEASE",
-)
+}
+
+# Statements that never return rows and cannot run inside (or would break
+# out of) the savepoint guard used by query()
+_QUERY_REJECTED_KEYWORDS = _TRANSACTION_CONTROL_KEYWORDS | {
+    "VACUUM",
+    "ATTACH",
+    "DETACH",
+}
+
+
+def _first_keyword(sql: str) -> str:
+    """
+    Return the first keyword of a SQL statement, uppercased, skipping any
+    leading whitespace and ``--`` or ``/* ... */`` comments - the only
+    things SQLite's tokenizer allows before the first token. Returns an
+    empty string if there is no leading keyword.
+    """
+    i, n = 0, len(sql)
+    while i < n:
+        if sql[i].isspace():
+            i += 1
+        elif sql.startswith("--", i):
+            newline = sql.find("\n", i)
+            if newline == -1:
+                return ""
+            i = newline + 1
+        elif sql.startswith("/*", i):
+            end = sql.find("*/", i + 2)
+            if end == -1:
+                return ""
+            i = end + 2
+        else:
+            break
+    j = i
+    while j < n and (sql[j].isalpha() or sql[j] == "_"):
+        j += 1
+    return sql[i:j].upper()
 
 
 class Database:
@@ -667,16 +704,14 @@ class Database:
             "query() can only be used with SQL that returns rows - "
             "use execute() for other statements"
         )
-        prefix = sql.lstrip().upper()
-        if prefix.startswith(
-            _TRANSACTION_CONTROL_PREFIXES + ("VACUUM", "ATTACH", "DETACH")
-        ):
+        keyword = _first_keyword(sql)
+        if keyword in _QUERY_REJECTED_KEYWORDS:
             # None of these return rows - reject them without executing anything
             raise ValueError(message)
         if self._tracer:
             self._tracer(sql, params)
         args: tuple = (params,) if params is not None else ()
-        if prefix.startswith("PRAGMA"):
+        if keyword == "PRAGMA":
             # Some PRAGMA statements refuse to run inside a transaction, so
             # execute these without the savepoint guard used below. PRAGMAs
             # never open an implicit transaction, so there is nothing to
@@ -741,7 +776,7 @@ class Database:
             not was_in_transaction
             and self.conn.in_transaction
             and cursor.description is None
-            and not sql.lstrip().upper().startswith(_TRANSACTION_CONTROL_PREFIXES)
+            and _first_keyword(sql) not in _TRANSACTION_CONTROL_KEYWORDS
         ):
             # The statement opened an implicit transaction - commit it, so
             # that execute() behaves consistently with the rest of the

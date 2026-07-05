@@ -48,13 +48,39 @@ def test_query_rejected_write_inside_transaction_is_rolled_back(fresh_db):
 
 
 @pytest.mark.parametrize(
-    "sql", ["begin", "commit", "rollback", "vacuum", "detach database foo"]
+    "sql",
+    [
+        "begin",
+        "commit",
+        "rollback",
+        "vacuum",
+        "detach database foo",
+        "/* comment */ commit",
+        "-- comment\nbegin",
+        "/* multi\nline */ -- and another\n  vacuum",
+        "\t /* a */ /* b */ savepoint s1",
+    ],
 )
 def test_query_rejects_transaction_control_and_vacuum(fresh_db, sql):
     with pytest.raises(ValueError) as ex:
         fresh_db.query(sql)
     assert "execute()" in str(ex.value)
     assert not fresh_db.conn.in_transaction
+
+
+def test_query_comment_prefixed_commit_does_not_commit_transaction(fresh_db):
+    # A COMMIT hidden behind a leading comment must not slip past the
+    # keyword check - previously it committed the caller's open
+    # transaction before the ValueError was raised
+    fresh_db["dogs"].insert({"name": "Cleo"})
+    fresh_db.begin()
+    fresh_db.execute("insert into dogs (name) values ('Pancakes')")
+    with pytest.raises(ValueError):
+        fresh_db.query("/* comment */ COMMIT")
+    # The explicit transaction is still open and can still be rolled back
+    assert fresh_db.conn.in_transaction
+    fresh_db.rollback()
+    assert [row["name"] for row in fresh_db["dogs"].rows] == ["Cleo"]
 
 
 def test_query_error_leaves_no_transaction_open(fresh_db):
@@ -73,6 +99,41 @@ def test_query_pragma(tmpdir):
     with pytest.raises(ValueError):
         db.query("pragma user_version = 5")
     db.close()
+
+
+def test_query_comment_prefixed_pragma(tmpdir):
+    from sqlite_utils import Database
+
+    db = Database(str(tmpdir / "test.db"))
+    # A leading comment must not stop a PRAGMA being recognized as one -
+    # previously it was executed inside the savepoint guard, where
+    # journal mode changes are refused
+    assert list(db.query("-- set WAL mode\npragma journal_mode = wal")) == [
+        {"journal_mode": "wal"}
+    ]
+    db.close()
+
+
+@pytest.mark.parametrize(
+    "sql,expected",
+    [
+        ("select 1", "SELECT"),
+        ("  \t\n select 1", "SELECT"),
+        ("-- comment\nbegin", "BEGIN"),
+        ("/* one */ /* two */ pragma user_version", "PRAGMA"),
+        ("/* multi\nline */vacuum", "VACUUM"),
+        ("insert into t values (1)", "INSERT"),
+        ("-- only a comment", ""),
+        ("/* unterminated", ""),
+        ("", ""),
+        ("   ", ""),
+        ("123", ""),
+    ],
+)
+def test_first_keyword(sql, expected):
+    from sqlite_utils.db import _first_keyword
+
+    assert _first_keyword(sql) == expected
 
 
 @pytest.mark.skipif(

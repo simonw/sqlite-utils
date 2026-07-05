@@ -247,6 +247,17 @@ def test_execute_write_respects_explicit_transaction(fresh_db):
     assert [r["id"] for r in fresh_db["t"].rows] == [1]
 
 
+def test_execute_comment_prefixed_begin_leaves_transaction_open(fresh_db):
+    # A BEGIN hidden behind a leading comment must not be auto-committed
+    # out from under the caller
+    fresh_db["t"].insert({"id": 1}, pk="id")
+    fresh_db.execute("-- start a transaction\nbegin")
+    assert fresh_db.conn.in_transaction
+    fresh_db.execute("insert into t (id) values (2)")
+    fresh_db.rollback()
+    assert [r["id"] for r in fresh_db["t"].rows] == [1]
+
+
 def test_query_returning_commits_after_iteration(tmpdir):
     if sqlite3.sqlite_version_info < (3, 35, 0):
         import pytest as _pytest
