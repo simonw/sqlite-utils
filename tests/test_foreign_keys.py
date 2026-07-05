@@ -408,3 +408,40 @@ def test_transform_preserves_compound_foreign_key_on_delete():
     assert fk.is_compound is True
     assert fk.on_delete == "CASCADE"
     assert "ON DELETE CASCADE" in db["courses"].schema
+
+
+def test_implicit_primary_key_reference_is_resolved():
+    # REFERENCES authors (no column) has "to" of None in the pragma -
+    # it should be resolved to the primary key of the other table
+    db = Database(memory=True)
+    db.executescript("""
+    CREATE TABLE authors (author_id INTEGER PRIMARY KEY);
+    CREATE TABLE books (
+        id INTEGER PRIMARY KEY,
+        author_id INTEGER REFERENCES authors
+    );
+    """)
+    fk = db["books"].foreign_keys[0]
+    assert fk.is_compound is False
+    assert fk.other_column == "author_id"
+    assert fk.other_columns == ["author_id"]
+
+
+def test_implicit_compound_primary_key_reference_is_resolved():
+    db = Database(memory=True)
+    db.executescript("""
+    CREATE TABLE departments (
+        campus_name TEXT NOT NULL,
+        dept_code TEXT NOT NULL,
+        PRIMARY KEY (campus_name, dept_code)
+    );
+    CREATE TABLE courses (
+        course_code TEXT PRIMARY KEY,
+        campus_name TEXT NOT NULL,
+        dept_code TEXT NOT NULL,
+        FOREIGN KEY (campus_name, dept_code) REFERENCES departments
+    );
+    """)
+    fk = db["courses"].foreign_keys[0]
+    assert fk.is_compound is True
+    assert fk.other_columns == ["campus_name", "dept_code"]

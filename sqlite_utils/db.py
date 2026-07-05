@@ -2075,6 +2075,12 @@ class Table(Queryable):
             other_table = rows[0][1]
             columns = [row[2] for row in rows]
             other_columns = [row[3] for row in rows]
+            if all(c is None for c in other_columns):
+                # "REFERENCES other_table" with no columns - the pragma
+                # returns None, meaning the other table's primary key
+                other_table_pks = self.db.table(other_table).pks
+                if len(other_table_pks) == len(columns):
+                    other_columns = other_table_pks
             is_compound = len(rows) > 1
             fks.append(
                 ForeignKey(
