@@ -43,15 +43,10 @@ else:
         dbapi2 = importlib.import_module("pysqlite3.dbapi2")
         OperationalError = dbapi2.OperationalError
     except ImportError:
-        try:
-            sqlite3 = importlib.import_module("sqlean")
-            dbapi2 = importlib.import_module("sqlean.dbapi2")
-            OperationalError = dbapi2.OperationalError
-        except ImportError:
-            import sqlite3  # noqa: F401
-            from sqlite3 import dbapi2  # noqa: F401
+        import sqlite3  # noqa: F401
+        from sqlite3 import dbapi2  # noqa: F401
 
-            OperationalError = dbapi2.OperationalError
+        OperationalError = dbapi2.OperationalError
 
 
 SPATIALITE_PATHS = (
