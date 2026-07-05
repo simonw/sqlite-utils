@@ -4,10 +4,10 @@
  Changelog
 ===========
 
-.. _unreleased:
+.. _v4_0rc2:
 
-Unreleased
-----------
+4.0rc2 (2026-07-04)
+-------------------
 
 Breaking changes:
 

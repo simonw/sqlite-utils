@@ -1,6 +1,6 @@
 [project]
 name = "sqlite-utils"
-version = "4.0rc1"
+version = "4.0rc2"
 description = "CLI tool and Python library for manipulating SQLite databases"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
