@@ -1630,17 +1630,12 @@ class Database:
                 "(table, column, other_table, other_column)"
             )
 
-        foreign_keys_to_create: List[Tuple[str, Any, str, Any]] = []
+        foreign_keys_to_create: List[ForeignKey] = []
 
         # Verify that all tables and columns exist
         for fk in foreign_keys:
             if isinstance(fk, ForeignKey):
-                table, columns, other_table, other_columns = (
-                    fk.table,
-                    fk.columns,
-                    fk.other_table,
-                    fk.other_columns,
-                )
+                fk_object = fk
             else:
                 table, column_or_columns, other_table, other_column_or_columns = fk
                 # Compound foreign keys use tuples of columns
@@ -1654,6 +1649,24 @@ class Database:
                     if isinstance(other_column_or_columns, str)
                     else tuple(other_column_or_columns)
                 )
+                if len(columns) == 1:
+                    fk_object = ForeignKey(
+                        table, columns[0], other_table, other_columns[0]
+                    )
+                else:
+                    fk_object = ForeignKey(
+                        table,
+                        None,
+                        other_table,
+                        None,
+                        columns=columns,
+                        other_columns=other_columns,
+                        is_compound=True,
+                    )
+            table = fk_object.table
+            columns = fk_object.columns
+            other_table = fk_object.other_table
+            other_columns = fk_object.other_columns
             if not self.table(table).exists():
                 raise AlterError("No such table: {}".format(table))
             table_obj = self.table(table)
@@ -1680,19 +1693,12 @@ class Database:
                 and fk.other_table == other_table
                 and fk.other_columns == other_columns
             ):
-                if len(columns) == 1:
-                    foreign_keys_to_create.append(
-                        (table, columns[0], other_table, other_columns[0])
-                    )
-                else:
-                    foreign_keys_to_create.append(
-                        (table, columns, other_table, other_columns)
-                    )
+                foreign_keys_to_create.append(fk_object)
 
         # Group them by table
-        by_table: Dict[str, List] = {}
-        for fk in foreign_keys_to_create:
-            by_table.setdefault(fk[0], []).append(fk)
+        by_table: Dict[str, List[ForeignKey]] = {}
+        for fk_object in foreign_keys_to_create:
+            by_table.setdefault(fk_object.table, []).append(fk_object)
 
         for table, fks in by_table.items():
             self.table(table).transform(add_foreign_keys=fks)

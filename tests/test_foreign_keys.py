@@ -464,3 +464,38 @@ def test_foreign_key_normalizes_list_columns_to_tuples():
     )
     assert fk.columns == ("campus_name", "dept_code")
     assert fk.other_columns == ("campus_name", "dept_code")
+
+
+def test_add_foreign_keys_preserves_actions(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/594 review finding:
+    # ForeignKey objects passed to db.add_foreign_keys() were flattened
+    # to plain tuples, losing on_delete/on_update
+    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db["books"].insert({"id": 1, "author_id": 1}, pk="id")
+    fresh_db.add_foreign_keys(
+        [ForeignKey("books", "author_id", "authors", "id", on_delete="CASCADE")]
+    )
+    fk = fresh_db["books"].foreign_keys[0]
+    assert fk.on_delete == "CASCADE"
+    assert "ON DELETE CASCADE" in fresh_db["books"].schema
+
+
+def test_add_foreign_keys_preserves_actions_compound(courses_db):
+    courses_db.add_foreign_keys(
+        [
+            ForeignKey(
+                table="courses",
+                column=None,
+                other_table="departments",
+                other_column=None,
+                columns=("campus_name", "dept_code"),
+                other_columns=("campus_name", "dept_code"),
+                is_compound=True,
+                on_delete="CASCADE",
+            )
+        ]
+    )
+    fk = courses_db["courses"].foreign_keys[0]
+    assert fk.is_compound is True
+    assert fk.on_delete == "CASCADE"
+    assert "ON DELETE CASCADE" in courses_db["courses"].schema
