@@ -1793,6 +1793,16 @@ This example drops two foreign keys - the one from ``places.country`` to ``count
         drop_foreign_keys=("country", "continent")
     )
 
+A bare column name drops any foreign key that column participates in, including compound foreign keys. To target a compound foreign key precisely, pass a tuple of its columns:
+
+.. code-block:: python
+
+    db.table("courses").transform(
+        drop_foreign_keys=[("campus_name", "dept_code")]
+    )
+
+Renaming a column with ``rename=`` updates any foreign keys that use it, and dropping a column with ``drop=`` also drops any foreign keys it participates in - for a compound foreign key this removes the whole constraint.
+
 .. _python_api_transform_sql:
 
 Custom transformations with .transform_sql()

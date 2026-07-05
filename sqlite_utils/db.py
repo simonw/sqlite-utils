@@ -2275,7 +2275,9 @@ class Table(Queryable):
         :param pk: New primary key for the table
         :param not_null: Columns to set as ``NOT NULL``
         :param defaults: Default values for columns
-        :param drop_foreign_keys: Names of columns that should have their foreign key constraints removed
+        :param drop_foreign_keys: Foreign key constraints to remove - a column name
+          drops any foreign key that column participates in, a tuple of column names
+          drops the compound foreign key with exactly those columns
         :param add_foreign_keys: List of foreign keys to add to the table
         :param foreign_keys: List of foreign keys to set for the table, replacing any existing foreign keys
         :param column_order: List of strings specifying a full or partial column order
@@ -2360,7 +2362,9 @@ class Table(Queryable):
         :param pk: New primary key for the table
         :param not_null: Columns to set as ``NOT NULL``
         :param defaults: Default values for columns
-        :param drop_foreign_keys: Names of columns that should have their foreign key constraints removed
+        :param drop_foreign_keys: Foreign key constraints to remove - a column name
+          drops any foreign key that column participates in, a tuple of column names
+          drops the compound foreign key with exactly those columns
         :param add_foreign_keys: List of foreign keys to add to the table
         :param foreign_keys: List of foreign keys to set for the table, replacing any existing foreign keys
         :param column_order: List of strings specifying a full or partial column order
@@ -2387,32 +2391,45 @@ class Table(Queryable):
             create_table_foreign_keys.extend(foreign_keys)
         else:
             # Construct foreign_keys from current, plus add_foreign_keys, minus drop_foreign_keys
+
+            def fk_should_be_dropped(fk: ForeignKey) -> bool:
+                if drop_foreign_keys is not None:
+                    for spec in drop_foreign_keys:
+                        if isinstance(spec, str):
+                            # A column name matches any foreign key it participates in
+                            if spec in fk.columns:
+                                return True
+                        elif list(spec) == fk.columns:
+                            # A tuple/list must match a compound key's columns exactly
+                            return True
+                # Dropping any of a foreign key's columns drops the whole key
+                return any(column in drop for column in fk.columns)
+
+            def fk_with_renamed_columns(fk: ForeignKey) -> ForeignKey:
+                columns = [rename.get(column) or column for column in fk.columns]
+                if fk.is_compound:
+                    return ForeignKey(
+                        self.name,
+                        None,
+                        fk.other_table,
+                        None,
+                        columns=columns,
+                        other_columns=fk.other_columns,
+                        is_compound=True,
+                    )
+                return ForeignKey(
+                    self.name, columns[0], fk.other_table, fk.other_columns[0]
+                )
+
             create_table_foreign_keys = []
+            # Copy over old foreign keys, unless we are dropping them
             for fk in self.foreign_keys:
-                # Expand compound foreign keys into per-column references;
-                # for single-column keys this iterates exactly once
-                for column, other_column in zip(fk.columns, fk.other_columns):
-                    # Copy over old foreign keys, unless we are dropping them
-                    if (drop_foreign_keys is None) or (column not in drop_foreign_keys):
-                        create_table_foreign_keys.append(
-                            ForeignKey(
-                                fk.table,
-                                rename.get(column) or column,
-                                fk.other_table,
-                                other_column,
-                            )
-                        )
+                if not fk_should_be_dropped(fk):
+                    create_table_foreign_keys.append(fk_with_renamed_columns(fk))
             # Add new foreign keys
             if add_foreign_keys is not None:
                 for fk in self.db.resolve_foreign_keys(self.name, add_foreign_keys):
-                    create_table_foreign_keys.append(
-                        ForeignKey(
-                            self.name,
-                            rename.get(fk.column) or fk.column,
-                            fk.other_table,
-                            fk.other_column,
-                        )
-                    )
+                    create_table_foreign_keys.append(fk_with_renamed_columns(fk))
 
         new_table_name = "{}_new_{}".format(
             self.name, tmp_suffix or os.urandom(6).hex()

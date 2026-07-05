@@ -202,3 +202,51 @@ def test_create_table_compound_foreign_key_missing_other_column(departments_db):
                 (["campus_name", "dept_code"], "departments", ["campus_name", "nope"])
             ],
         )
+
+
+def test_transform_preserves_compound_foreign_key(compound_db):
+    compound_db["courses"].transform(rename={"course_name": "title"})
+    fks = compound_db["courses"].foreign_keys
+    assert len(fks) == 1
+    fk = fks[0]
+    assert fk.is_compound is True
+    assert fk.columns == ["campus_name", "dept_code"]
+    assert fk.other_table == "departments"
+    assert fk.other_columns == ["campus_name", "dept_code"]
+
+
+def test_transform_rename_member_column_updates_compound_foreign_key(compound_db):
+    compound_db["courses"].transform(rename={"campus_name": "campus"})
+    fks = compound_db["courses"].foreign_keys
+    assert len(fks) == 1
+    fk = fks[0]
+    assert fk.is_compound is True
+    assert fk.columns == ["campus", "dept_code"]
+    # Referenced columns in the other table are unchanged
+    assert fk.other_columns == ["campus_name", "dept_code"]
+
+
+def test_transform_drop_member_column_drops_compound_foreign_key(compound_db):
+    # Matches single-column behavior: dropping the column silently
+    # drops the foreign key that used it
+    compound_db["courses"].transform(drop={"dept_code"})
+    assert compound_db["courses"].foreign_keys == []
+    assert "FOREIGN KEY" not in compound_db["courses"].schema
+
+
+@pytest.mark.parametrize(
+    "drop_foreign_keys",
+    (
+        # A bare column name matches any foreign key it participates in:
+        ["campus_name"],
+        # A tuple must match the full compound key:
+        [("campus_name", "dept_code")],
+    ),
+)
+def test_transform_drop_compound_foreign_key(compound_db, drop_foreign_keys):
+    compound_db["courses"].transform(drop_foreign_keys=drop_foreign_keys)
+    assert compound_db["courses"].foreign_keys == []
+    # The columns themselves survive
+    assert {"campus_name", "dept_code"} <= set(
+        compound_db["courses"].columns_dict.keys()
+    )
