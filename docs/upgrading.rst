@@ -79,6 +79,24 @@ Python API changes
 
 **View.enable_fts() has been removed.** The ``View`` class previously had an ``enable_fts()`` method that existed only to raise ``NotImplementedError`` - full-text search is not supported for views. Calling it now raises ``AttributeError`` like any other missing method.
 
+**ForeignKey is now a dataclass, not a namedtuple.** The ``ForeignKey`` objects returned by ``table.foreign_keys`` gained new fields - ``columns``, ``other_columns``, ``is_compound``, ``on_delete`` and ``on_update`` - so that compound (multi-column) foreign keys and foreign key actions can be represented. To make room for those fields cleanly ``ForeignKey`` is now a dataclass rather than a ``namedtuple``, so it can no longer be unpacked or indexed as a tuple. Access its fields by name instead:
+
+.. code-block:: python
+
+    # 3.x - tuple unpacking, no longer works:
+    for table, column, other_table, other_column in db["courses"].foreign_keys:
+        ...
+
+    # 4.0 - access fields by name:
+    for fk in db["courses"].foreign_keys:
+        fk.table, fk.column, fk.other_table, fk.other_column
+
+Attempting the old unpacking or ``fk[0]`` indexing now raises ``TypeError``, so any code using those patterns will fail loudly rather than silently misbehave.
+
+Compound foreign keys - previously returned as one ``ForeignKey`` per column, misleadingly suggesting several independent single-column keys - are now returned as a single ``ForeignKey`` with ``is_compound=True``. For these the scalar ``column`` and ``other_column`` fields are ``None``; use the ``columns`` and ``other_columns`` tuples instead. Single-column foreign keys are unaffected apart from the class change: ``column``/``other_column`` behave as before and ``columns``/``other_columns`` are one-item tuples.
+
+Two related behavior changes to ``table.transform()``: compound foreign keys now survive a transform (previously they were split into separate single-column keys), and ``ON DELETE``/``ON UPDATE`` actions such as ``ON DELETE CASCADE`` are now preserved (previously they were silently stripped from the schema).
+
 **Validation errors raise ValueError.** Invalid arguments to Python API methods - for example ``create_table()`` with no columns, or ``ignore=True`` together with ``replace=True`` - now raise ``ValueError``. They previously raised ``AssertionError`` from bare ``assert`` statements, which were silently skipped under ``python -O``.
 
 **Transaction behavior is now well-defined.** 4.0 introduces the :ref:`db.atomic() <python_api_atomic>` context manager and uses it consistently for every write operation - the full model is described in :ref:`python_api_transactions`. Changes you may notice:

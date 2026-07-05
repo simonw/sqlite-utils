@@ -4,6 +4,29 @@
  Changelog
 ===========
 
+.. _v_unreleased:
+
+Unreleased
+----------
+
+Breaking changes:
+
+- ``table.foreign_keys`` now returns ``ForeignKey`` objects that are dataclasses rather than ``namedtuple`` instances, so they can no longer be unpacked or indexed as ``(table, column, other_table, other_column)`` tuples - access their fields by name instead. Compound (multi-column) foreign keys are now represented as a single ``ForeignKey`` with ``is_compound=True`` and populated ``columns``/``other_columns`` tuples, where ``column`` and ``other_column`` are ``None``. Previously they were returned as one ``ForeignKey`` per column, misleadingly suggesting several independent foreign keys. See :ref:`upgrading_3_to_4` for details. (:issue:`594`)
+
+Compound foreign key support:
+
+- Tables can now be created with compound foreign keys, by passing tuples of column names in ``foreign_keys=``: ``foreign_keys=[(("campus_name", "dept_code"), "departments")]``. The referenced columns default to the compound primary key of the other table. Compound keys are rendered as table-level ``FOREIGN KEY`` constraints in the generated schema. See :ref:`python_api_compound_foreign_keys`.
+- ``table.transform()`` now preserves compound foreign keys, applying any column renames to them. Dropping a column that is part of a compound foreign key drops the whole constraint, matching the existing single-column behavior. ``drop_foreign_keys=`` accepts a bare column name - dropping any foreign key that column participates in - or a tuple of columns to target a compound key precisely.
+- ``table.add_foreign_key()`` and ``db.add_foreign_keys()`` accept tuples of column names to add a compound foreign key to an existing table.
+- ``db.index_foreign_keys()`` creates a single composite index for a compound foreign key.
+
+Other foreign key improvements:
+
+- ``ForeignKey`` now exposes ``on_delete`` and ``on_update`` fields reflecting the foreign key's ``ON DELETE``/``ON UPDATE`` actions, and ``table.transform()`` preserves those actions. Previously a transform silently stripped clauses such as ``ON DELETE CASCADE`` from the table schema.
+- ``table.add_foreign_key()`` accepts new ``on_delete=`` and ``on_update=`` parameters for creating foreign keys with actions, e.g. ``table.add_foreign_key("author_id", "authors", "id", on_delete="CASCADE")``. (:issue:`530`)
+- Foreign keys declared as ``REFERENCES other_table`` with no explicit column are now resolved to the other table's primary key by ``table.foreign_keys``, instead of reporting ``other_column=None``.
+- Fixed a ``TypeError`` when sorting ``ForeignKey`` objects where some were compound.
+
 .. _v4_0rc2:
 
 4.0rc2 (2026-07-04)
