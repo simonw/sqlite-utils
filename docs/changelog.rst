@@ -4,6 +4,15 @@
  Changelog
 ===========
 
+.. _v_unreleased:
+
+Unreleased
+----------
+
+Breaking changes:
+
+- ``table.foreign_keys`` now returns ``ForeignKey`` objects that are dataclasses rather than ``namedtuple`` instances, so they can no longer be unpacked or indexed as ``(table, column, other_table, other_column)`` tuples - access their fields by name instead. Compound (multi-column) foreign keys are now represented as a single ``ForeignKey`` with ``is_compound=True`` and populated ``columns``/``other_columns`` lists, where ``column`` and ``other_column`` are ``None``. Previously they were returned as one ``ForeignKey`` per column, misleadingly suggesting several independent foreign keys. See :ref:`upgrading_3_to_4` for details. (:issue:`594`)
+
 .. _v4_0rc2:
 
 4.0rc2 (2026-07-04)

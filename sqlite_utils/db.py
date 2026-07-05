@@ -11,6 +11,7 @@ from .utils import (
 )
 import binascii
 from collections import namedtuple
+from dataclasses import dataclass, field
 from collections.abc import Mapping
 import contextlib
 import datetime
@@ -161,9 +162,43 @@ Summary information about a column, see :ref:`python_api_analyze_column`.
     The ``N`` least common values as a list of ``(value, count)`` tuples, or ``None`` if the table is entirely distinct
     or if the number of distinct values is less than N (since they will already have been returned in ``most_common``)
 """
-ForeignKey = namedtuple(
-    "ForeignKey", ("table", "column", "other_table", "other_column")
-)
+
+
+@dataclass(order=True)
+class ForeignKey:
+    """
+    A foreign key defined on a table.
+
+    For single-column foreign keys ``column`` and ``other_column`` hold the
+    column names, and ``columns``/``other_columns`` are single-item lists.
+
+    For compound (multi-column) foreign keys ``column`` and ``other_column``
+    are ``None`` - use ``columns`` and ``other_columns`` instead, and check
+    ``is_compound``.
+
+    Prior to sqlite-utils 4.0 this was a ``namedtuple`` and could be unpacked
+    or indexed as ``(table, column, other_table, other_column)``. It is now a
+    dataclass - access its fields by name instead.
+    """
+
+    table: str
+    column: Optional[str]
+    other_table: str
+    other_column: Optional[str]
+    columns: List[str] = field(default_factory=list)
+    other_columns: List[str] = field(default_factory=list)
+    is_compound: bool = False
+
+    def __post_init__(self):
+        # Populate columns/other_columns for single-column foreign keys
+        if not self.columns:
+            self.columns = [self.column] if self.column is not None else []
+        if not self.other_columns:
+            self.other_columns = (
+                [self.other_column] if self.other_column is not None else []
+            )
+
+
 Index = namedtuple("Index", ("seq", "name", "unique", "origin", "partial", "columns"))
 XIndex = namedtuple("XIndex", ("name", "columns"))
 XIndexColumn = namedtuple(
@@ -1124,7 +1159,7 @@ class Database:
         if not all(isinstance(fk, (tuple, list)) for fk in foreign_keys):
             raise ValueError("foreign_keys= should be a list of tuples")
         fks = []
-        for tuple_or_list in foreign_keys:
+        for tuple_or_list in cast(Iterable[Sequence[str]], foreign_keys):
             if len(tuple_or_list) == 4:
                 if tuple_or_list[0] != name:
                     raise ValueError(
@@ -1234,7 +1269,7 @@ class Database:
             pk = hash_id
         # Soundness check foreign_keys point to existing tables
         for fk in foreign_keys:
-            if fk.other_table == name and columns.get(fk.other_column):
+            if fk.other_table == name and columns.get(cast(str, fk.other_column)):
                 continue
             if fk.other_column != "rowid" and not any(
                 c for c in self[fk.other_table].columns if c.name == fk.other_column
@@ -1269,7 +1304,7 @@ class Database:
                             foreign_keys_by_column[column_name].other_table
                         ),
                         quote_identifier(
-                            foreign_keys_by_column[column_name].other_column
+                            cast(str, foreign_keys_by_column[column_name].other_column)
                         ),
                     )
                 )
@@ -1499,7 +1534,9 @@ class Database:
         """
         # foreign_keys is a list of explicit 4-tuples
         if not all(
-            len(fk) == 4 and isinstance(fk, (list, tuple)) for fk in foreign_keys
+            isinstance(fk, ForeignKey)
+            or (isinstance(fk, (list, tuple)) and len(fk) == 4)
+            for fk in foreign_keys
         ):
             raise ValueError(
                 "foreign_keys must be a list of 4-tuples, "
@@ -1509,7 +1546,16 @@ class Database:
         foreign_keys_to_create = []
 
         # Verify that all tables and columns exist
-        for table, column, other_table, other_column in foreign_keys:
+        for fk in foreign_keys:
+            if isinstance(fk, ForeignKey):
+                table, column, other_table, other_column = (
+                    fk.table,
+                    fk.column,
+                    fk.other_table,
+                    fk.other_column,
+                )
+            else:
+                table, column, other_table, other_column = fk
             if not self.table(table).exists():
                 raise AlterError("No such table: {}".format(table))
             table_obj = self.table(table)
@@ -1555,8 +1601,11 @@ class Database:
                 i.columns[0] for i in table.indexes if len(i.columns) == 1
             }
             for fk in table.foreign_keys:
-                if fk.column not in existing_indexes:
-                    table.create_index([fk.column], find_unique_name=True)
+                # Compound foreign keys expose their columns via fk.columns;
+                # single-column keys yield a one-item list
+                for column in fk.columns:
+                    if column not in existing_indexes:
+                        table.create_index([column], find_unique_name=True)
 
     def vacuum(self) -> None:
         "Run a SQLite ``VACUUM`` against the database."
@@ -1907,21 +1956,40 @@ class Table(Queryable):
 
     @property
     def foreign_keys(self) -> List["ForeignKey"]:
-        "List of foreign keys defined on this table."
-        fks = []
+        """
+        List of foreign keys defined on this table.
+
+        Compound (multi-column) foreign keys are returned as a single
+        ``ForeignKey`` with ``is_compound=True`` and populated
+        ``columns``/``other_columns`` lists.
+        """
+        # PRAGMA foreign_key_list returns one row per column, grouped by "id"
+        # with "seq" giving the column order within a compound foreign key.
+        by_id: Dict[int, list] = {}
         for row in self.db.execute(
             "PRAGMA foreign_key_list({})".format(quote_identifier(self.name))
         ).fetchall():
             if row is not None:
                 id, seq, table_name, from_, to_, on_update, on_delete, match = row
-                fks.append(
-                    ForeignKey(
-                        table=self.name,
-                        column=from_,
-                        other_table=table_name,
-                        other_column=to_,
-                    )
+                by_id.setdefault(id, []).append((seq, table_name, from_, to_))
+        fks = []
+        for id in sorted(by_id):
+            rows = sorted(by_id[id])  # order columns by seq
+            other_table = rows[0][1]
+            columns = [row[2] for row in rows]
+            other_columns = [row[3] for row in rows]
+            is_compound = len(rows) > 1
+            fks.append(
+                ForeignKey(
+                    table=self.name,
+                    column=None if is_compound else columns[0],
+                    other_table=other_table,
+                    other_column=None if is_compound else other_columns[0],
+                    columns=columns,
+                    other_columns=other_columns,
+                    is_compound=is_compound,
                 )
+            )
         return fks
 
     @property
@@ -2254,17 +2322,20 @@ class Table(Queryable):
         else:
             # Construct foreign_keys from current, plus add_foreign_keys, minus drop_foreign_keys
             create_table_foreign_keys = []
-            for table, column, other_table, other_column in self.foreign_keys:
-                # Copy over old foreign keys, unless we are dropping them
-                if (drop_foreign_keys is None) or (column not in drop_foreign_keys):
-                    create_table_foreign_keys.append(
-                        ForeignKey(
-                            table,
-                            rename.get(column) or column,
-                            other_table,
-                            other_column,
+            for fk in self.foreign_keys:
+                # Expand compound foreign keys into per-column references;
+                # for single-column keys this iterates exactly once
+                for column, other_column in zip(fk.columns, fk.other_columns):
+                    # Copy over old foreign keys, unless we are dropping them
+                    if (drop_foreign_keys is None) or (column not in drop_foreign_keys):
+                        create_table_foreign_keys.append(
+                            ForeignKey(
+                                fk.table,
+                                rename.get(column) or column,
+                                fk.other_table,
+                                other_column,
+                            )
                         )
-                    )
             # Add new foreign keys
             if add_foreign_keys is not None:
                 for fk in self.db.resolve_foreign_keys(self.name, add_foreign_keys):

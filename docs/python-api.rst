@@ -2204,17 +2204,35 @@ Almost all SQLite tables have a ``rowid`` column, but a table with no explicitly
 .foreign_keys
 -------------
 
-The ``.foreign_keys`` property returns any foreign key relationships for the table, as a list of ``ForeignKey(table, column, other_table, other_column)`` named tuples. It is not available on views.
+The ``.foreign_keys`` property returns any foreign key relationships for the table, as a list of ``ForeignKey`` objects. It is not available on views.
+
+Each ``ForeignKey`` has the following attributes:
+
+``table``
+    The table the foreign key is defined on.
+``column``
+    The column on this table, or ``None`` for a compound foreign key.
+``other_table``
+    The table being referenced.
+``other_column``
+    The referenced column, or ``None`` for a compound foreign key.
+``columns``
+    A list of the columns on this table, always populated (a single-item list for single-column foreign keys).
+``other_columns``
+    A list of the referenced columns.
+``is_compound``
+    ``True`` if this is a compound (multi-column) foreign key.
+
+``ForeignKey`` was a ``namedtuple`` prior to sqlite-utils 4.0. It is now a dataclass and can no longer be unpacked or indexed as a tuple - access its fields by name instead. See :ref:`upgrading_3_to_4` for details.
 
 ::
 
     >>> db.table("Street_Tree_List").foreign_keys
-    [ForeignKey(table='Street_Tree_List', column='qLegalStatus', other_table='qLegalStatus', other_column='id'),
-     ForeignKey(table='Street_Tree_List', column='qCareAssistant', other_table='qCareAssistant', other_column='id'),
-     ForeignKey(table='Street_Tree_List', column='qSiteInfo', other_table='qSiteInfo', other_column='id'),
-     ForeignKey(table='Street_Tree_List', column='qSpecies', other_table='qSpecies', other_column='id'),
-     ForeignKey(table='Street_Tree_List', column='qCaretaker', other_table='qCaretaker', other_column='id'),
-     ForeignKey(table='Street_Tree_List', column='PlantType', other_table='PlantType', other_column='id')]
+    [ForeignKey(table='Street_Tree_List', column='qLegalStatus', other_table='qLegalStatus', other_column='id', columns=['qLegalStatus'], other_columns=['id'], is_compound=False),
+     ForeignKey(table='Street_Tree_List', column='qCareAssistant', other_table='qCareAssistant', other_column='id', columns=['qCareAssistant'], other_columns=['id'], is_compound=False),
+     ...]
+
+Compound foreign keys - defined with ``FOREIGN KEY (col_a, col_b) REFERENCES other(col_a, col_b)`` - are returned as a single ``ForeignKey`` with ``is_compound=True``, ``column`` and ``other_column`` set to ``None``, and the participating columns available in the ``columns`` and ``other_columns`` lists.
 
 .. _python_api_introspection_schema:
 
