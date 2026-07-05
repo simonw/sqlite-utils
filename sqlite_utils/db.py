@@ -170,7 +170,7 @@ class ForeignKey:
     A foreign key defined on a table.
 
     For single-column foreign keys ``column`` and ``other_column`` hold the
-    column names, and ``columns``/``other_columns`` are single-item lists.
+    column names, and ``columns``/``other_columns`` are one-item tuples.
 
     For compound (multi-column) foreign keys ``column`` and ``other_column``
     are ``None`` - use ``columns`` and ``other_columns`` instead, and check
@@ -190,24 +190,24 @@ class ForeignKey:
     column: Optional[str] = field(compare=False)
     other_table: str
     other_column: Optional[str] = field(compare=False)
-    columns: List[str] = field(default_factory=list)
-    other_columns: List[str] = field(default_factory=list)
+    columns: Tuple[str, ...] = ()
+    other_columns: Tuple[str, ...] = ()
     is_compound: bool = False
     on_delete: str = "NO ACTION"
     on_update: str = "NO ACTION"
 
     def __post_init__(self):
         # Populate columns/other_columns for single-column foreign keys,
-        # normalizing any tuples to lists
+        # normalizing any lists to tuples
         if self.columns:
-            self.columns = list(self.columns)
+            self.columns = tuple(self.columns)
         else:
-            self.columns = [self.column] if self.column is not None else []
+            self.columns = (self.column,) if self.column is not None else ()
         if self.other_columns:
-            self.other_columns = list(self.other_columns)
+            self.other_columns = tuple(self.other_columns)
         else:
             self.other_columns = (
-                [self.other_column] if self.other_column is not None else []
+                (self.other_column,) if self.other_column is not None else ()
             )
 
 
@@ -233,8 +233,8 @@ class TransformError(Exception):
     pass
 
 
-# A single column name, or a list/tuple of columns for a compound foreign key
-ForeignKeyColumns = Union[str, List[str], Tuple[str, ...]]
+# A single column name, or a tuple of columns for a compound foreign key
+ForeignKeyColumns = Union[str, Tuple[str, ...], List[str]]
 
 # (table, column(s), other_table, other_column(s))
 ForeignKeyTuple = Tuple[str, ForeignKeyColumns, str, ForeignKeyColumns]
@@ -1171,9 +1171,9 @@ class Database:
             string, a ForeignKey() object, a tuple of (column, other_table),
             or a tuple of (column, other_table, other_column), or a tuple of
             (table, column, other_table, other_column). For compound foreign
-            keys the column elements can be lists of column names, e.g.
-            (["campus_name", "dept_code"], "departments") or
-            (["campus_name", "dept_code"], "departments", ["campus_name", "dept_code"])
+            keys the column elements can be tuples of column names, e.g.
+            (("campus_name", "dept_code"), "departments") or
+            (("campus_name", "dept_code"), "departments", ("campus_name", "dept_code"))
         """
         table = self.table(name)
         if all(isinstance(fk, ForeignKey) for fk in foreign_keys):
@@ -1207,18 +1207,17 @@ class Database:
             other_table = tuple_or_list[1]
             if isinstance(column_or_columns, (list, tuple)):
                 # Compound foreign key
-                columns = list(column_or_columns)
+                columns = tuple(column_or_columns)
                 if len(tuple_or_list) == 3:
-                    other_columns = tuple_or_list[2]
-                    if not isinstance(other_columns, (list, tuple)):
+                    if not isinstance(tuple_or_list[2], (list, tuple)):
                         raise ValueError(
-                            "Compound foreign key {} should reference a list "
+                            "Compound foreign key {} should reference a tuple "
                             "of other columns".format(tuple(tuple_or_list))
                         )
-                    other_columns = list(other_columns)
+                    other_columns = tuple(tuple_or_list[2])
                 else:
                     # Guess the compound primary key of the other table
-                    other_columns = self.table(other_table).pks
+                    other_columns = tuple(self.table(other_table).pks)
                 if len(columns) != len(other_columns):
                     raise ValueError(
                         "Compound foreign key {} should have the same number "
@@ -1618,7 +1617,7 @@ class Database:
 
         :param foreign_keys: A list of  ``(table, column, other_table, other_column)``
           tuples - for compound foreign keys, ``column`` and ``other_column`` can
-          be lists of column names
+          be tuples of column names
         """
         # foreign_keys is a list of explicit 4-tuples
         if not all(
@@ -1644,16 +1643,16 @@ class Database:
                 )
             else:
                 table, column_or_columns, other_table, other_column_or_columns = fk
-                # Compound foreign keys use lists of columns
+                # Compound foreign keys use tuples of columns
                 columns = (
-                    [column_or_columns]
+                    (column_or_columns,)
                     if isinstance(column_or_columns, str)
-                    else list(column_or_columns)
+                    else tuple(column_or_columns)
                 )
                 other_columns = (
-                    [other_column_or_columns]
+                    (other_column_or_columns,)
                     if isinstance(other_column_or_columns, str)
-                    else list(other_column_or_columns)
+                    else tuple(other_column_or_columns)
                 )
             if not self.table(table).exists():
                 raise AlterError("No such table: {}".format(table))
@@ -1708,9 +1707,9 @@ class Database:
             existing_indexes = {tuple(i.columns) for i in table.indexes}
             for fk in table.foreign_keys:
                 # A compound foreign key gets a single composite index
-                if tuple(fk.columns) not in existing_indexes:
+                if fk.columns not in existing_indexes:
                     table.create_index(fk.columns, find_unique_name=True)
-                    existing_indexes.add(tuple(fk.columns))
+                    existing_indexes.add(fk.columns)
 
     def vacuum(self) -> None:
         "Run a SQLite ``VACUUM`` against the database."
@@ -2083,12 +2082,12 @@ class Table(Queryable):
         for id in sorted(by_id):
             rows = sorted(by_id[id])  # order columns by seq
             other_table = rows[0][1]
-            columns = [row[2] for row in rows]
-            other_columns = [row[3] for row in rows]
+            columns = tuple(row[2] for row in rows)
+            other_columns = tuple(row[3] for row in rows)
             if all(c is None for c in other_columns):
                 # "REFERENCES other_table" with no columns - the pragma
                 # returns None, meaning the other table's primary key
-                other_table_pks = self.db.table(other_table).pks
+                other_table_pks = tuple(self.db.table(other_table).pks)
                 if len(other_table_pks) == len(columns):
                     other_columns = other_table_pks
             is_compound = len(rows) > 1
@@ -2448,14 +2447,14 @@ class Table(Queryable):
                             # A column name matches any foreign key it participates in
                             if spec in fk.columns:
                                 return True
-                        elif list(spec) == fk.columns:
+                        elif tuple(spec) == fk.columns:
                             # A tuple/list must match a compound key's columns exactly
                             return True
                 # Dropping any of a foreign key's columns drops the whole key
                 return any(column in drop for column in fk.columns)
 
             def fk_with_renamed_columns(fk: ForeignKey) -> ForeignKey:
-                columns = [rename.get(column) or column for column in fk.columns]
+                columns = tuple(rename.get(column) or column for column in fk.columns)
                 if fk.is_compound:
                     return ForeignKey(
                         self.name,
@@ -2926,14 +2925,14 @@ class Table(Queryable):
         """
         Alter the schema to mark the specified column as a foreign key to another table.
 
-        :param column: The column to mark as a foreign key - use a list of columns
+        :param column: The column to mark as a foreign key - use a tuple of columns
           for a compound foreign key.
         :param other_table: The table it refers to - if omitted, will be guessed based on the column name.
         :param other_column: The column on the other table it - if omitted, will be guessed.
-          Use a list of columns for a compound foreign key.
+          Use a tuple of columns for a compound foreign key.
         :param ignore: Set this to ``True`` to ignore an existing foreign key - otherwise a ``AlterError`` will be raised.
         """
-        columns = [column] if isinstance(column, str) else list(column)
+        columns = (column,) if isinstance(column, str) else tuple(column)
         # Ensure columns exist
         for col in columns:
             if col not in self.columns_dict:
@@ -2948,13 +2947,13 @@ class Table(Queryable):
         # If other_column is not specified, detect the primary key on other_table
         if other_column is None:
             if len(columns) > 1:
-                other_columns = self.db.table(other_table).pks
+                other_columns = tuple(self.db.table(other_table).pks)
             else:
-                other_columns = [self.guess_foreign_column(other_table)]
+                other_columns = (self.guess_foreign_column(other_table),)
         elif isinstance(other_column, str):
-            other_columns = [other_column]
+            other_columns = (other_column,)
         else:
-            other_columns = list(other_column)
+            other_columns = tuple(other_column)
         if len(columns) != len(other_columns):
             raise ValueError(
                 "Compound foreign key must have the same number of columns "

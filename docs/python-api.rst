@@ -822,7 +822,7 @@ You can leave off the third item in the tuple to have the referenced column auto
 Compound foreign keys
 ~~~~~~~~~~~~~~~~~~~~~
 
-To create a compound (multi-column) foreign key, use lists of column names in place of the single column names:
+To create a compound (multi-column) foreign key, use tuples of column names in place of the single column names:
 
 .. code-block:: python
 
@@ -831,7 +831,7 @@ To create a compound (multi-column) foreign key, use lists of column names in pl
         "campus_name": str,
         "dept_code": str,
     }, pk="course_code", foreign_keys=[
-        (["campus_name", "dept_code"], "departments", ["campus_name", "dept_code"])
+        (("campus_name", "dept_code"), "departments", ("campus_name", "dept_code"))
     ])
 
 This creates a table-level constraint:
@@ -845,12 +845,12 @@ This creates a table-level constraint:
        FOREIGN KEY ("campus_name", "dept_code") REFERENCES "departments"("campus_name", "dept_code")
     )
 
-As with single columns, you can leave off the list of other columns to reference the compound primary key of the other table:
+As with single columns, you can leave off the tuple of other columns to reference the compound primary key of the other table:
 
 .. code-block:: python
 
     foreign_keys=[
-        (["campus_name", "dept_code"], "departments")
+        (("campus_name", "dept_code"), "departments")
     ]
 
 To specify ``ON DELETE`` or ``ON UPDATE`` actions, pass ``ForeignKey`` objects instead:
@@ -1581,12 +1581,12 @@ To ignore the case where the key already exists, use ``ignore=True``:
 
     db.table("books").add_foreign_key("author_id", "authors", "id", ignore=True)
 
-To add a compound foreign key, pass lists of columns:
+To add a compound foreign key, pass tuples of columns:
 
 .. code-block:: python
 
     db.table("courses").add_foreign_key(
-        ["campus_name", "dept_code"], "departments", ["campus_name", "dept_code"]
+        ("campus_name", "dept_code"), "departments", ("campus_name", "dept_code")
     )
 
 As with single columns, omitting the other columns will use the compound primary key of the other table. ``other_table`` must always be specified for a compound foreign key.
@@ -2294,9 +2294,9 @@ Each ``ForeignKey`` has the following attributes:
 ``other_column``
     The referenced column, or ``None`` for a compound foreign key.
 ``columns``
-    A list of the columns on this table, always populated (a single-item list for single-column foreign keys).
+    A tuple of the columns on this table, always populated (a one-item tuple for single-column foreign keys).
 ``other_columns``
-    A list of the referenced columns.
+    A tuple of the referenced columns.
 ``is_compound``
     ``True`` if this is a compound (multi-column) foreign key.
 ``on_delete``
@@ -2309,11 +2309,11 @@ Each ``ForeignKey`` has the following attributes:
 ::
 
     >>> db.table("Street_Tree_List").foreign_keys
-    [ForeignKey(table='Street_Tree_List', column='qLegalStatus', other_table='qLegalStatus', other_column='id', columns=['qLegalStatus'], other_columns=['id'], is_compound=False, on_delete='NO ACTION', on_update='NO ACTION'),
-     ForeignKey(table='Street_Tree_List', column='qCareAssistant', other_table='qCareAssistant', other_column='id', columns=['qCareAssistant'], other_columns=['id'], is_compound=False, on_delete='NO ACTION', on_update='NO ACTION'),
+    [ForeignKey(table='Street_Tree_List', column='qLegalStatus', other_table='qLegalStatus', other_column='id', columns=('qLegalStatus',), other_columns=('id',), is_compound=False, on_delete='NO ACTION', on_update='NO ACTION'),
+     ForeignKey(table='Street_Tree_List', column='qCareAssistant', other_table='qCareAssistant', other_column='id', columns=('qCareAssistant',), other_columns=('id',), is_compound=False, on_delete='NO ACTION', on_update='NO ACTION'),
      ...]
 
-Compound foreign keys - defined with ``FOREIGN KEY (col_a, col_b) REFERENCES other(col_a, col_b)`` - are returned as a single ``ForeignKey`` with ``is_compound=True``, ``column`` and ``other_column`` set to ``None``, and the participating columns available in the ``columns`` and ``other_columns`` lists.
+Compound foreign keys - defined with ``FOREIGN KEY (col_a, col_b) REFERENCES other(col_a, col_b)`` - are returned as a single ``ForeignKey`` with ``is_compound=True``, ``column`` and ``other_column`` set to ``None``, and the participating columns available in the ``columns`` and ``other_columns`` tuples.
 
 .. _python_api_introspection_schema:
 

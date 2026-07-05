@@ -93,7 +93,7 @@ Python API changes
 
 Attempting the old unpacking or ``fk[0]`` indexing now raises ``TypeError``, so any code using those patterns will fail loudly rather than silently misbehave.
 
-Compound foreign keys - previously returned as one ``ForeignKey`` per column, misleadingly suggesting several independent single-column keys - are now returned as a single ``ForeignKey`` with ``is_compound=True``. For these the scalar ``column`` and ``other_column`` fields are ``None``; use the ``columns`` and ``other_columns`` lists instead. Single-column foreign keys are unaffected apart from the class change: ``column``/``other_column`` behave as before and ``columns``/``other_columns`` are single-item lists.
+Compound foreign keys - previously returned as one ``ForeignKey`` per column, misleadingly suggesting several independent single-column keys - are now returned as a single ``ForeignKey`` with ``is_compound=True``. For these the scalar ``column`` and ``other_column`` fields are ``None``; use the ``columns`` and ``other_columns`` tuples instead. Single-column foreign keys are unaffected apart from the class change: ``column``/``other_column`` behave as before and ``columns``/``other_columns`` are one-item tuples.
 
 Two related behavior changes to ``table.transform()``: compound foreign keys now survive a transform (previously they were split into separate single-column keys), and ``ON DELETE``/``ON UPDATE`` actions such as ``ON DELETE CASCADE`` are now preserved (previously they were silently stripped from the schema).
 

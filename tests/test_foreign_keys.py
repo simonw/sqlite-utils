@@ -36,8 +36,8 @@ def test_compound_foreign_key(compound_db):
     assert fk.is_compound is True
     assert fk.table == "courses"
     assert fk.other_table == "departments"
-    assert fk.columns == ["campus_name", "dept_code"]
-    assert fk.other_columns == ["campus_name", "dept_code"]
+    assert fk.columns == ("campus_name", "dept_code")
+    assert fk.other_columns == ("campus_name", "dept_code")
     # Scalar column/other_column can't sensibly hold a compound key
     assert fk.column is None
     assert fk.other_column is None
@@ -51,8 +51,8 @@ def test_single_foreign_key_gets_columns_fields(fresh_db):
     assert fk.is_compound is False
     assert fk.column == "author_id"
     assert fk.other_column == "id"
-    assert fk.columns == ["author_id"]
-    assert fk.other_columns == ["id"]
+    assert fk.columns == ("author_id",)
+    assert fk.other_columns == ("id",)
 
 
 def test_foreign_key_no_longer_unpacks_as_tuple(fresh_db):
@@ -142,14 +142,16 @@ EXPECTED_COURSES_SCHEMA = (
                 column=None,
                 other_table="departments",
                 other_column=None,
-                columns=["campus_name", "dept_code"],
-                other_columns=["campus_name", "dept_code"],
+                columns=("campus_name", "dept_code"),
+                other_columns=("campus_name", "dept_code"),
                 is_compound=True,
             )
         ],
-        [(["campus_name", "dept_code"], "departments", ["campus_name", "dept_code"])],
+        [(("campus_name", "dept_code"), "departments", ("campus_name", "dept_code"))],
         # Two-item form guesses the other table's primary key:
-        [(["campus_name", "dept_code"], "departments")],
+        [(("campus_name", "dept_code"), "departments")],
+        # Lists work too, though tuples are the documented form:
+        [(["campus_name", "dept_code"], "departments", ["campus_name", "dept_code"])],
     ),
 )
 def test_create_table_with_compound_foreign_key(departments_db, foreign_keys):
@@ -164,9 +166,9 @@ def test_create_table_with_compound_foreign_key(departments_db, foreign_keys):
     assert len(fks) == 1
     fk = fks[0]
     assert fk.is_compound is True
-    assert fk.columns == ["campus_name", "dept_code"]
+    assert fk.columns == ("campus_name", "dept_code")
     assert fk.other_table == "departments"
-    assert fk.other_columns == ["campus_name", "dept_code"]
+    assert fk.other_columns == ("campus_name", "dept_code")
 
 
 def test_create_table_compound_foreign_key_enforced(departments_db):
@@ -175,7 +177,7 @@ def test_create_table_compound_foreign_key_enforced(departments_db):
         "courses",
         {"course_code": str, "campus_name": str, "dept_code": str},
         pk="course_code",
-        foreign_keys=[(["campus_name", "dept_code"], "departments")],
+        foreign_keys=[(("campus_name", "dept_code"), "departments")],
     )
     departments_db["departments"].insert(
         {"campus_name": "Berkeley", "dept_code": "CS", "dept_name": "Computer Science"}
@@ -199,7 +201,7 @@ def test_create_table_compound_foreign_key_missing_other_column(departments_db):
             {"course_code": str, "campus_name": str, "dept_code": str},
             pk="course_code",
             foreign_keys=[
-                (["campus_name", "dept_code"], "departments", ["campus_name", "nope"])
+                (("campus_name", "dept_code"), "departments", ("campus_name", "nope"))
             ],
         )
 
@@ -210,9 +212,9 @@ def test_transform_preserves_compound_foreign_key(compound_db):
     assert len(fks) == 1
     fk = fks[0]
     assert fk.is_compound is True
-    assert fk.columns == ["campus_name", "dept_code"]
+    assert fk.columns == ("campus_name", "dept_code")
     assert fk.other_table == "departments"
-    assert fk.other_columns == ["campus_name", "dept_code"]
+    assert fk.other_columns == ("campus_name", "dept_code")
 
 
 def test_transform_rename_member_column_updates_compound_foreign_key(compound_db):
@@ -221,9 +223,9 @@ def test_transform_rename_member_column_updates_compound_foreign_key(compound_db
     assert len(fks) == 1
     fk = fks[0]
     assert fk.is_compound is True
-    assert fk.columns == ["campus", "dept_code"]
+    assert fk.columns == ("campus", "dept_code")
     # Referenced columns in the other table are unchanged
-    assert fk.other_columns == ["campus_name", "dept_code"]
+    assert fk.other_columns == ("campus_name", "dept_code")
 
 
 def test_transform_drop_member_column_drops_compound_foreign_key(compound_db):
@@ -264,7 +266,7 @@ def courses_db(departments_db):
 
 def test_add_compound_foreign_key(courses_db):
     t = courses_db["courses"].add_foreign_key(
-        ["campus_name", "dept_code"], "departments", ["campus_name", "dept_code"]
+        ("campus_name", "dept_code"), "departments", ("campus_name", "dept_code")
     )
     # Returns self
     assert t.name == "courses"
@@ -272,33 +274,34 @@ def test_add_compound_foreign_key(courses_db):
     assert len(fks) == 1
     fk = fks[0]
     assert fk.is_compound is True
-    assert fk.columns == ["campus_name", "dept_code"]
+    assert fk.columns == ("campus_name", "dept_code")
     assert fk.other_table == "departments"
-    assert fk.other_columns == ["campus_name", "dept_code"]
+    assert fk.other_columns == ("campus_name", "dept_code")
 
 
 def test_add_compound_foreign_key_guesses_other_columns(courses_db):
+    # Lists work here too, though tuples are the documented form
     courses_db["courses"].add_foreign_key(["campus_name", "dept_code"], "departments")
     fk = courses_db["courses"].foreign_keys[0]
-    assert fk.other_columns == ["campus_name", "dept_code"]
+    assert fk.other_columns == ("campus_name", "dept_code")
 
 
 def test_add_compound_foreign_key_error_if_already_exists(courses_db):
-    courses_db["courses"].add_foreign_key(["campus_name", "dept_code"], "departments")
+    courses_db["courses"].add_foreign_key(("campus_name", "dept_code"), "departments")
     with pytest.raises(AlterError) as ex:
         courses_db["courses"].add_foreign_key(
-            ["campus_name", "dept_code"], "departments"
+            ("campus_name", "dept_code"), "departments"
         )
     assert "already exists" in ex.value.args[0]
     # ignore=True should not raise
     courses_db["courses"].add_foreign_key(
-        ["campus_name", "dept_code"], "departments", ignore=True
+        ("campus_name", "dept_code"), "departments", ignore=True
     )
 
 
 def test_add_compound_foreign_key_error_if_column_missing(courses_db):
     with pytest.raises(AlterError):
-        courses_db["courses"].add_foreign_key(["campus_name", "nope"], "departments")
+        courses_db["courses"].add_foreign_key(("campus_name", "nope"), "departments")
 
 
 def test_db_add_foreign_keys_compound(courses_db):
@@ -306,15 +309,15 @@ def test_db_add_foreign_keys_compound(courses_db):
         [
             (
                 "courses",
-                ["campus_name", "dept_code"],
+                ("campus_name", "dept_code"),
                 "departments",
-                ["campus_name", "dept_code"],
+                ("campus_name", "dept_code"),
             )
         ]
     )
     fk = courses_db["courses"].foreign_keys[0]
     assert fk.is_compound is True
-    assert fk.columns == ["campus_name", "dept_code"]
+    assert fk.columns == ("campus_name", "dept_code")
 
 
 def test_index_foreign_keys_compound_creates_composite_index(compound_db):
@@ -424,7 +427,7 @@ def test_implicit_primary_key_reference_is_resolved():
     fk = db["books"].foreign_keys[0]
     assert fk.is_compound is False
     assert fk.other_column == "author_id"
-    assert fk.other_columns == ["author_id"]
+    assert fk.other_columns == ("author_id",)
 
 
 def test_implicit_compound_primary_key_reference_is_resolved():
@@ -444,20 +447,20 @@ def test_implicit_compound_primary_key_reference_is_resolved():
     """)
     fk = db["courses"].foreign_keys[0]
     assert fk.is_compound is True
-    assert fk.other_columns == ["campus_name", "dept_code"]
+    assert fk.other_columns == ("campus_name", "dept_code")
 
 
-def test_foreign_key_normalizes_tuple_columns_to_lists():
-    # Compound columns passed as tuples are normalized to lists, so they
+def test_foreign_key_normalizes_list_columns_to_tuples():
+    # Compound columns passed as lists are normalized to tuples, so they
     # compare equal to introspected ForeignKeys
     fk = ForeignKey(
         table="courses",
         column=None,
         other_table="departments",
         other_column=None,
-        columns=("campus_name", "dept_code"),
-        other_columns=("campus_name", "dept_code"),
+        columns=["campus_name", "dept_code"],
+        other_columns=["campus_name", "dept_code"],
         is_compound=True,
     )
-    assert fk.columns == ["campus_name", "dept_code"]
-    assert fk.other_columns == ["campus_name", "dept_code"]
+    assert fk.columns == ("campus_name", "dept_code")
+    assert fk.other_columns == ("campus_name", "dept_code")
