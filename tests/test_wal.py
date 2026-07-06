@@ -49,6 +49,17 @@ def test_disable_wal_inside_transaction_raises(db_path_tmpdir):
     assert [r["id"] for r in db["test"].rows] == [1]
 
 
+def test_ensure_autocommit_on(db_path_tmpdir):
+    db, path, tmpdir = db_path_tmpdir
+    previous_isolation_level = db.conn.isolation_level
+    assert previous_isolation_level is not None
+    with db.ensure_autocommit_on():
+        # isolation_level of None means driver-level autocommit mode
+        assert db.conn.isolation_level is None
+    # Restored afterwards
+    assert db.conn.isolation_level == previous_isolation_level
+
+
 def test_enable_wal_noop_inside_transaction_is_allowed(db_path_tmpdir):
     # Calling enable_wal() when WAL is already enabled is a no-op,
     # so it is fine inside a transaction

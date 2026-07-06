@@ -13,6 +13,7 @@ Breaking changes:
 
 - ``table.foreign_keys`` now returns ``ForeignKey`` objects that are dataclasses rather than ``namedtuple`` instances, so they can no longer be unpacked or indexed as ``(table, column, other_table, other_column)`` tuples - access their fields by name instead. Compound (multi-column) foreign keys are now represented as a single ``ForeignKey`` with ``is_compound=True`` and populated ``columns``/``other_columns`` tuples, where ``column`` and ``other_column`` are ``None``. Previously they were returned as one ``ForeignKey`` per column, misleadingly suggesting several independent foreign keys. See :ref:`upgrading_3_to_4` for details. (:issue:`594`)
 - Removed support for using ``sqlean.py`` as a drop-in replacement for the Python standard library ``sqlite3`` module. ``sqlite-utils`` will now use ``pysqlite3`` if it is installed, otherwise it will use ``sqlite3`` from the standard library.
+- The ``db.ensure_autocommit_off()`` context manager has been renamed to ``db.ensure_autocommit_on()``, because the old name described the opposite of what it did. The method temporarily puts the connection into driver-level autocommit mode - by setting ``isolation_level = None`` - so that statements such as ``PRAGMA journal_mode=wal`` can run outside of an implicit transaction. (:issue:`705`)
 
 Compound foreign key support:
 
