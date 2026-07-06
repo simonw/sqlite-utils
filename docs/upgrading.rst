@@ -77,6 +77,8 @@ Python API changes
 
 **table.convert() no longer skips falsey values.** Matching the CLI change above, ``table.convert()`` now converts every value. The ``skip_false`` parameter has been removed - previously it defaulted to ``True``, skipping empty strings and other falsey values.
 
+**ensure_autocommit_off() is now ensure_autocommit_on().** The ``db.ensure_autocommit_off()`` context manager has been renamed to ``db.ensure_autocommit_on()``. The old name described the opposite of what the method did: it temporarily puts the connection into driver-level autocommit mode (by setting ``isolation_level = None``), so that statements such as ``PRAGMA journal_mode=wal`` can run outside of an implicit transaction. The behavior is unchanged - update any calls to use the new name.
+
 **View.enable_fts() has been removed.** The ``View`` class previously had an ``enable_fts()`` method that existed only to raise ``NotImplementedError`` - full-text search is not supported for views. Calling it now raises ``AttributeError`` like any other missing method.
 
 **ForeignKey is now a dataclass, not a namedtuple.** The ``ForeignKey`` objects returned by ``table.foreign_keys`` gained new fields - ``columns``, ``other_columns``, ``is_compound``, ``on_delete`` and ``on_update`` - so that compound (multi-column) foreign keys and foreign key actions can be represented. To make room for those fields cleanly ``ForeignKey`` is now a dataclass rather than a ``namedtuple``, so it can no longer be unpacked or indexed as a tuple. Access its fields by name instead:

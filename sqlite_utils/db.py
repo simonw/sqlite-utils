@@ -610,16 +610,22 @@ class Database:
             self.conn.execute("ROLLBACK")
 
     @contextlib.contextmanager
-    def ensure_autocommit_off(self) -> Generator[None, None, None]:
+    def ensure_autocommit_on(self) -> Generator[None, None, None]:
         """
-        Ensure autocommit is off for this database connection.
+        Ensure the connection is in driver-level autocommit mode for the
+        duration of a block of code.
+
+        This temporarily sets ``isolation_level = None`` on the underlying
+        ``sqlite3`` connection, so the driver does not open implicit
+        transactions. This is useful for statements such as
+        ``PRAGMA journal_mode=wal`` which cannot run inside a transaction.
 
         Example usage::
 
-            with db.ensure_autocommit_off():
+            with db.ensure_autocommit_on():
                 # do stuff here
 
-        This will reset to the previous autocommit state at the end of the block.
+        The previous ``isolation_level`` is restored at the end of the block.
         """
         old_isolation_level = self.conn.isolation_level
         try:
@@ -783,7 +789,7 @@ class Database:
             if self.conn.in_transaction:
                 cursor = self.conn.execute(sql, *args)
             else:
-                with self.ensure_autocommit_off():
+                with self.ensure_autocommit_on():
                     cursor = self.conn.execute(sql, *args)
             if cursor.description is None:
                 raise ValueError(message)
@@ -1085,7 +1091,7 @@ class Database:
         """
         if self.journal_mode != "wal":
             self._ensure_no_open_transaction("enable_wal()")
-            with self.ensure_autocommit_off():
+            with self.ensure_autocommit_on():
                 self.execute("PRAGMA journal_mode=wal;")
 
     def disable_wal(self) -> None:
@@ -1097,7 +1103,7 @@ class Database:
         """
         if self.journal_mode != "delete":
             self._ensure_no_open_transaction("disable_wal()")
-            with self.ensure_autocommit_off():
+            with self.ensure_autocommit_on():
                 self.execute("PRAGMA journal_mode=delete;")
 
     def _ensure_no_open_transaction(self, operation: str) -> None:
