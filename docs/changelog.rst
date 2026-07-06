@@ -29,6 +29,19 @@ Other foreign key improvements:
 - Foreign keys declared as ``REFERENCES other_table`` with no explicit column are now resolved to the other table's primary key by ``table.foreign_keys``, instead of reporting ``other_column=None``.
 - Fixed a ``TypeError`` when sorting ``ForeignKey`` objects where some were compound.
 
+Case-insensitive column matching:
+
+Column names passed to Python API methods are now matched against the table schema case-insensitively, mirroring how SQLite itself treats identifiers. Previously many methods accepted mixed-case identifiers in the SQL they generated but then failed - or silently did nothing - when performing Python-side comparisons against the schema. (:issue:`760`) Fixes include:
+
+- ``table.insert()`` and ``table.upsert()`` now populate ``table.last_pk`` correctly when the ``pk=`` argument uses different casing to the table schema or the record keys - previously this raised a ``KeyError`` after the row had already been written.
+- Upserts no longer raise or misbehave when the casing of ``pk=`` differs from the casing of the record keys. The primary key columns are correctly excluded from the generated ``DO UPDATE SET`` clause.
+- ``table.transform()`` arguments ``types=``, ``rename=``, ``drop=``, ``pk=``, ``not_null=``, ``defaults=``, ``column_order=`` and ``drop_foreign_keys=`` all resolve column names case-insensitively. Previously options like ``rename={"name": "title"}`` against a column called ``Name`` were silently ignored.
+- ``db.create_table(..., transform=True)`` now recognizes existing columns that differ only by case, instead of attempting to add them again and failing with ``duplicate column name``. The casing used in the existing schema is preserved.
+- ``table.lookup()`` returns the primary key value even if ``pk=`` casing differs from the schema, and recognizes existing unique indexes case-insensitively instead of creating redundant ones.
+- ``table.extract()`` and ``table.convert()`` - including ``multi=True`` and ``output=`` - accept column names in any casing.
+- Foreign key columns are validated and recorded using the casing of the actual schema columns, in ``foreign_keys=`` when creating tables, ``db.add_foreign_keys()``, ``table.add_foreign_key()`` and ``table.add_column(fk_col=...)``. Duplicate foreign key detection is also case-insensitive.
+- ``table.create()`` with ``pk=``, ``not_null=``, ``defaults=`` or ``column_order=`` referencing columns using different casing no longer creates an unwanted extra primary key column or raises a ``ValueError``.
+
 .. _v4_0rc2:
 
 4.0rc2 (2026-07-04)

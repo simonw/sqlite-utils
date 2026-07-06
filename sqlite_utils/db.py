@@ -85,6 +85,34 @@ def quote_identifier(identifier: str) -> str:
     return '"{}"'.format(identifier.replace('"', '""'))
 
 
+_IDENTIFIER_CASEFOLD = str.maketrans(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"
+)
+
+
+def fold_identifier_case(identifier: str) -> str:
+    """
+    Lowercase an identifier using the same rules SQLite uses - only ASCII
+    characters are folded, other characters are left unchanged.
+    """
+    return identifier.translate(_IDENTIFIER_CASEFOLD)
+
+
+def resolve_casing(name: str, candidates: Iterable[str]) -> str:
+    """
+    SQLite treats identifiers as case-insensitive. Return the entry in
+    ``candidates`` that matches ``name`` case-insensitively, preferring an
+    exact match. If nothing matches, return ``name`` unchanged.
+    """
+    if name in candidates:
+        return name
+    folded = fold_identifier_case(name)
+    for candidate in candidates:
+        if fold_identifier_case(candidate) == folded:
+            return candidate
+    return name
+
+
 pd: Any = None
 try:
     pd = importlib.import_module("pandas")
@@ -1263,6 +1291,48 @@ class Database:
                 )
         return fks
 
+    def _resolve_foreign_key_casing(
+        self, fk: ForeignKey, columns: Iterable[str]
+    ) -> ForeignKey:
+        """
+        Return ``fk`` with its column references resolved to match the casing
+        of the actual columns. ``columns`` provides the column names of
+        ``fk.table``, which may be a table that is still being created.
+        """
+        resolved_columns = tuple(resolve_casing(c, columns) for c in fk.columns)
+        if fk.other_table == fk.table:
+            other_candidates: Iterable[str] = columns
+        else:
+            other_candidates = self[fk.other_table].columns_dict
+        resolved_other_columns = tuple(
+            resolve_casing(c, other_candidates) for c in fk.other_columns
+        )
+        if (
+            resolved_columns == fk.columns
+            and resolved_other_columns == fk.other_columns
+        ):
+            return fk
+        if fk.is_compound:
+            return ForeignKey(
+                fk.table,
+                None,
+                fk.other_table,
+                None,
+                columns=resolved_columns,
+                other_columns=resolved_other_columns,
+                is_compound=True,
+                on_delete=fk.on_delete,
+                on_update=fk.on_update,
+            )
+        return ForeignKey(
+            fk.table,
+            resolved_columns[0],
+            fk.other_table,
+            resolved_other_columns[0],
+            on_delete=fk.on_delete,
+            on_update=fk.on_update,
+        )
+
     def create_table_sql(
         self,
         name: str,
@@ -1296,11 +1366,14 @@ class Database:
         """
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
-        foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
+        resolved_fks: List[ForeignKey] = [
+            self._resolve_foreign_key_casing(fk, columns)
+            for fk in self.resolve_foreign_keys(name, foreign_keys or [])
+        ]
         # Compound foreign keys are rendered as table-level constraints;
         # single-column ones as inline REFERENCES on their column
         foreign_keys_by_column = {
-            fk.column: fk for fk in foreign_keys if not fk.is_compound
+            fk.column: fk for fk in resolved_fks if not fk.is_compound
         }
         # any extracts will be treated as integer columns with a foreign key
         extracts = resolve_extracts(extracts)
@@ -1315,8 +1388,10 @@ class Database:
                 name, extract_column, extract_table, "id"
             )
         # Soundness check not_null, and defaults if provided
-        not_null = not_null or set()
-        defaults = defaults or {}
+        not_null = {resolve_casing(n, columns) for n in not_null or set()}
+        defaults = {resolve_casing(n, columns): v for n, v in (defaults or {}).items()}
+        if column_order is not None:
+            column_order = [resolve_casing(c, columns) for c in column_order]
         if not columns:
             raise ValueError("Tables must have at least one column")
         if not all(n in columns for n in not_null):
@@ -1342,7 +1417,7 @@ class Database:
             column_items.insert(0, (hash_id, str))
             pk = hash_id
         # Soundness check foreign_keys point to existing tables
-        for fk in foreign_keys:
+        for fk in resolved_fks:
             for other_column in fk.other_columns:
                 if fk.other_table == name and columns.get(other_column):
                     continue
@@ -1356,12 +1431,14 @@ class Database:
         column_defs = []
         # ensure pk is a tuple
         single_pk = None
-        if isinstance(pk, list) and len(pk) == 1 and isinstance(pk[0], str):
+        if isinstance(pk, (list, tuple)) and len(pk) == 1 and isinstance(pk[0], str):
             pk = pk[0]
         if isinstance(pk, str):
-            single_pk = pk
+            single_pk = pk = resolve_casing(pk, [c[0] for c in column_items])
             if pk not in [c[0] for c in column_items]:
                 column_items.insert(0, (pk, int))
+        elif pk:
+            pk = [resolve_casing(p, [c[0] for c in column_items]) for p in pk]
         for column_name, column_type in column_items:
             column_extras = []
             if column_name == single_pk:
@@ -1402,7 +1479,7 @@ class Database:
             )
         # Compound foreign keys become table-level FOREIGN KEY constraints
         column_names = [c[0] for c in column_items]
-        for fk in foreign_keys:
+        for fk in resolved_fks:
             if not fk.is_compound:
                 continue
             missing = [c for c in fk.columns if c not in column_names]
@@ -1483,6 +1560,11 @@ class Database:
             should_transform = False
             # First add missing columns and figure out columns to drop
             existing_columns = table.columns_dict
+            # Match existing columns case-insensitively, the way SQLite does
+            columns = {
+                resolve_casing(col_name, existing_columns): col_type
+                for col_name, col_type in columns.items()
+            }
             missing_columns = dict(
                 (col_name, col_type)
                 for col_name, col_type in columns.items()
@@ -1506,18 +1588,28 @@ class Database:
             current_pks = table.pks
             desired_pk = None
             if isinstance(pk, str):
-                desired_pk = [pk]
+                desired_pk = [resolve_casing(pk, existing_columns)]
             elif pk:
-                desired_pk = list(pk)
+                desired_pk = [resolve_casing(p, existing_columns) for p in pk]
             if desired_pk and current_pks != desired_pk:
                 should_transform = True
             # Any not-null changes?
             current_not_null = {c.name for c in table.columns if c.notnull}
-            desired_not_null = set(not_null) if not_null else set()
+            desired_not_null = (
+                {resolve_casing(n, existing_columns) for n in not_null}
+                if not_null
+                else set()
+            )
             if current_not_null != desired_not_null:
                 should_transform = True
             # How about defaults?
-            if defaults and defaults != table.default_values:
+            if (
+                defaults
+                and {
+                    resolve_casing(c, existing_columns): v for c, v in defaults.items()
+                }
+                != table.default_values
+            ):
                 should_transform = True
             # Only run .transform() if there is something to do
             if should_transform:
@@ -1671,12 +1763,15 @@ class Database:
                         is_compound=True,
                     )
             table = fk_object.table
-            columns = fk_object.columns
             other_table = fk_object.other_table
-            other_columns = fk_object.other_columns
             if not self.table(table).exists():
                 raise AlterError("No such table: {}".format(table))
             table_obj = self.table(table)
+            fk_object = self._resolve_foreign_key_casing(
+                fk_object, table_obj.columns_dict
+            )
+            columns = fk_object.columns
+            other_columns = fk_object.other_columns
             for column in columns:
                 if column not in table_obj.columns_dict:
                     raise AlterError("No such column: {} in {}".format(column, table))
@@ -1693,12 +1788,16 @@ class Database:
                         )
                     )
             # We will silently skip foreign keys that exist already
+            columns_folded = tuple(fold_identifier_case(c) for c in columns)
+            other_columns_folded = tuple(fold_identifier_case(c) for c in other_columns)
             if not any(
                 fk
                 for fk in table_obj.foreign_keys
-                if fk.columns == columns
-                and fk.other_table == other_table
-                and fk.other_columns == other_columns
+                if tuple(fold_identifier_case(c) for c in fk.columns) == columns_folded
+                and fold_identifier_case(fk.other_table)
+                == fold_identifier_case(other_table)
+                and tuple(fold_identifier_case(c) for c in fk.other_columns)
+                == other_columns_folded
             ):
                 foreign_keys_to_create.append(fk_object)
 
@@ -2438,6 +2537,31 @@ class Table(Queryable):
         rename = rename or {}
         drop = drop or set()
 
+        # Resolve column references against the existing schema, matching
+        # case-insensitively the way SQLite does
+        existing_columns = self.columns_dict
+        types = {resolve_casing(c, existing_columns): t for c, t in types.items()}
+        rename = {resolve_casing(c, existing_columns): v for c, v in rename.items()}
+        drop = {resolve_casing(c, existing_columns) for c in drop}
+        if pk is not DEFAULT and pk is not None:
+            if isinstance(pk, str):
+                pk = resolve_casing(pk, existing_columns)
+            else:
+                pk = [resolve_casing(p, existing_columns) for p in pk]
+        if isinstance(not_null, dict):
+            not_null = {
+                resolve_casing(c, existing_columns): v
+                for c, v in cast(Dict[str, Any], not_null).items()
+            }
+        elif isinstance(not_null, set):
+            not_null = {resolve_casing(c, existing_columns) for c in not_null}
+        if defaults is not None:
+            defaults = {
+                resolve_casing(c, existing_columns): v for c, v in defaults.items()
+            }
+        if column_order is not None:
+            column_order = [resolve_casing(c, existing_columns) for c in column_order]
+
         create_table_foreign_keys: List[ForeignKeyIndicator] = []
 
         if foreign_keys is not None:
@@ -2452,28 +2576,37 @@ class Table(Queryable):
             create_table_foreign_keys.extend(foreign_keys)
         else:
             # Construct foreign_keys from current, plus add_foreign_keys, minus drop_foreign_keys
-            # Bind fresh names here - type checkers do not narrow captured
-            # variables inside nested functions, so the closures would
-            # otherwise see the Optional declared types of drop and rename
-            dropped_columns = drop
-            renamed_columns = rename
+            # The casing of columns in a foreign key definition can differ
+            # from the casing of the columns themselves, so these comparisons
+            # are all case-folded
+            dropped_columns_folded = {fold_identifier_case(c) for c in drop}
+            renamed_columns_folded = {
+                fold_identifier_case(k): v for k, v in rename.items()
+            }
 
             def fk_should_be_dropped(fk: ForeignKey) -> bool:
+                fk_columns_folded = tuple(fold_identifier_case(c) for c in fk.columns)
                 if drop_foreign_keys is not None:
                     for spec in drop_foreign_keys:
                         if isinstance(spec, str):
                             # A column name matches any foreign key it participates in
-                            if spec in fk.columns:
+                            if fold_identifier_case(spec) in fk_columns_folded:
                                 return True
-                        elif tuple(spec) == fk.columns:
+                        elif (
+                            tuple(fold_identifier_case(s) for s in spec)
+                            == fk_columns_folded
+                        ):
                             # A tuple/list must match a compound key's columns exactly
                             return True
                 # Dropping any of a foreign key's columns drops the whole key
-                return any(column in dropped_columns for column in fk.columns)
+                return any(
+                    column in dropped_columns_folded for column in fk_columns_folded
+                )
 
             def fk_with_renamed_columns(fk: ForeignKey) -> ForeignKey:
                 columns = tuple(
-                    renamed_columns.get(column) or column for column in fk.columns
+                    renamed_columns_folded.get(fold_identifier_case(column)) or column
+                    for column in fk.columns
                 )
                 if fk.is_compound:
                     return ForeignKey(
@@ -2662,6 +2795,8 @@ class Table(Queryable):
         rename = rename or {}
         if isinstance(columns, str):
             columns = [columns]
+        columns = [resolve_casing(c, self.columns_dict) for c in columns]
+        rename = {resolve_casing(k, self.columns_dict): v for k, v in rename.items()}
         if not set(columns).issubset(self.columns_dict.keys()):
             raise InvalidColumns(
                 "Invalid columns {} for table with columns {}".format(
@@ -2853,6 +2988,7 @@ class Table(Queryable):
                 raise AlterError("table '{}' does not exist".format(fk))
             # if fk_col specified, must be a valid column
             if fk_col is not None:
+                fk_col = resolve_casing(fk_col, self.db[fk].columns_dict)
                 if fk_col not in self.db[fk].columns_dict:
                     raise AlterError("table '{}' has no column {}".format(fk, fk_col))
             else:
@@ -2958,6 +3094,7 @@ class Table(Queryable):
         :param on_update: ``ON UPDATE`` action for the foreign key.
         """
         columns = (column,) if isinstance(column, str) else tuple(column)
+        columns = tuple(resolve_casing(c, self.columns_dict) for c in columns)
         # Ensure columns exist
         for col in columns:
             if col not in self.columns_dict:
@@ -2979,6 +3116,9 @@ class Table(Queryable):
             other_columns = (other_column,)
         else:
             other_columns = tuple(other_column)
+        other_columns = tuple(
+            resolve_casing(c, self.db[other_table].columns_dict) for c in other_columns
+        )
         if len(columns) != len(other_columns):
             raise ValueError(
                 "Compound foreign key must have the same number of columns "
@@ -2996,9 +3136,12 @@ class Table(Queryable):
         if any(
             fk
             for fk in self.foreign_keys
-            if fk.columns == columns
-            and fk.other_table == other_table
-            and fk.other_columns == other_columns
+            if tuple(fold_identifier_case(c) for c in fk.columns)
+            == tuple(fold_identifier_case(c) for c in columns)
+            and fold_identifier_case(fk.other_table)
+            == fold_identifier_case(other_table)
+            and tuple(fold_identifier_case(c) for c in fk.other_columns)
+            == tuple(fold_identifier_case(c) for c in other_columns)
         ):
             if ignore:
                 return self
@@ -3547,6 +3690,7 @@ class Table(Queryable):
         """
         if isinstance(columns, str):
             columns = [columns]
+        columns = [resolve_casing(c, self.columns_dict) for c in columns]
 
         if multi:
             return self._convert_multi(
@@ -3561,6 +3705,7 @@ class Table(Queryable):
         if output is not None:
             if len(columns) != 1:
                 raise ValueError("output= can only be used with a single column")
+            output = resolve_casing(output, self.columns_dict)
             if output not in self.columns_dict:
                 self.add_column(output, output_type or "text")
 
@@ -3760,6 +3905,8 @@ class Table(Queryable):
 
         # Everything from here on is for upsert=True
         pk_cols = [pk] if isinstance(pk, str) else list(pk)
+        # The records may use different casing for the pk columns than pk=
+        pk_cols = [resolve_casing(c, all_columns) for c in pk_cols]
         # Every record must provide a value for every primary key column - a
         # NULL primary key never matches ON CONFLICT, so the record would be
         # inserted as a brand new row instead of upserted
@@ -3810,10 +3957,7 @@ class Table(Queryable):
         # At this point we need compatibility UPSERT for SQLite < 3.24.0
         # (INSERT OR IGNORE + second UPDATE stage)
         queries_and_params = []
-        if isinstance(pk, str):
-            pks = [pk]
-        else:
-            pks = pk
+        pks = pk_cols
         self.last_pk = None
         for record_values in values:
             record = dict(zip(all_columns, record_values))
@@ -4226,9 +4370,9 @@ class Table(Queryable):
                     if hash_id:
                         self.last_pk = row[hash_id]
                     elif isinstance(pk, str):
-                        self.last_pk = row[pk]
+                        self.last_pk = row[resolve_casing(pk, row)]
                     else:
-                        self.last_pk = tuple(row[p] for p in pk)
+                        self.last_pk = tuple(row[resolve_casing(p, row)] for p in pk)
                 else:
                     self.last_pk = self.last_rowid
             else:
@@ -4240,11 +4384,14 @@ class Table(Queryable):
                         # hash_id not supported in list mode for last_pk
                         pass
                     elif isinstance(pk, str):
-                        pk_index = column_names.index(pk)
+                        pk_index = column_names.index(resolve_casing(pk, column_names))
                         self.last_pk = first_record_list[pk_index]
                     else:
                         self.last_pk = tuple(
-                            first_record_list[column_names.index(p)] for p in pk
+                            first_record_list[
+                                column_names.index(resolve_casing(p, column_names))
+                            ]
+                            for p in pk
                         )
                 else:
                     first_record_dict = cast(Dict[str, Any], first_record)
@@ -4252,9 +4399,12 @@ class Table(Queryable):
                         self.last_pk = hash_record(first_record_dict, hash_id_columns)
                     else:
                         self.last_pk = (
-                            first_record_dict[pk]
+                            first_record_dict[resolve_casing(pk, first_record_dict)]
                             if isinstance(pk, str)
-                            else tuple(first_record_dict[p] for p in pk)
+                            else tuple(
+                                first_record_dict[resolve_casing(p, first_record_dict)]
+                                for p in pk
+                            )
                         )
 
         if analyze:
@@ -4399,8 +4549,12 @@ class Table(Queryable):
             combined_values.update(extra_values)
         if self.exists():
             self.add_missing_columns([combined_values])
-            unique_column_sets = [set(i.columns) for i in self.indexes]
-            if set(lookup_values.keys()) not in unique_column_sets:
+            unique_column_sets = [
+                {fold_identifier_case(c) for c in i.columns} for i in self.indexes
+            ]
+            if {
+                fold_identifier_case(c) for c in lookup_values
+            } not in unique_column_sets:
                 self.create_index(lookup_values.keys(), unique=True)
             wheres = [
                 "{} = ?".format(quote_identifier(column)) for column in lookup_values
@@ -4411,7 +4565,7 @@ class Table(Queryable):
                 )
             )
             try:
-                return rows[0][pk]
+                return rows[0][resolve_casing(pk, rows[0])]
             except IndexError:
                 return self.insert(
                     combined_values,
