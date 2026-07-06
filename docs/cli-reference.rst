@@ -129,6 +129,8 @@ See :ref:`cli_query`.
                                   simple_outline, textile, tsv, unsafehtml, youtrack
       --json-cols                 Detect JSON cols and output them as JSON, not
                                   escaped strings
+      --ascii                     Escape non-ASCII characters in JSON output as
+                                  \uXXXX
       -r, --raw                   Raw output, first column of first row
       --raw-lines                 Raw output, first column of each row
       -p, --param <TEXT TEXT>...  Named :parameters for SQL query
@@ -198,6 +200,8 @@ See :ref:`cli_memory`.
                                   simple_outline, textile, tsv, unsafehtml, youtrack
       --json-cols                 Detect JSON cols and output them as JSON, not
                                   escaped strings
+      --ascii                     Escape non-ASCII characters in JSON output as
+                                  \uXXXX
       -r, --raw                   Raw output, first column of first row
       --raw-lines                 Raw output, first column of each row
       -p, --param <TEXT TEXT>...  Named :parameters for SQL query
@@ -435,6 +439,7 @@ See :ref:`cli_search`.
                              youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
+      --ascii                Escape non-ASCII characters in JSON output as \uXXXX
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
@@ -701,6 +706,7 @@ See :ref:`cli_tables`.
                              youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
+      --ascii                Escape non-ASCII characters in JSON output as \uXXXX
       --columns              Include list of columns for each table
       --schema               Include schema for each table
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
@@ -743,6 +749,7 @@ See :ref:`cli_views`.
                              youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
+      --ascii                Escape non-ASCII characters in JSON output as \uXXXX
       --columns              Include list of columns for each view
       --schema               Include schema for each view
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
@@ -790,6 +797,8 @@ See :ref:`cli_rows`.
                                   simple_outline, textile, tsv, unsafehtml, youtrack
       --json-cols                 Detect JSON cols and output them as JSON, not
                                   escaped strings
+      --ascii                     Escape non-ASCII characters in JSON output as
+                                  \uXXXX
       --load-extension TEXT       Path to SQLite extension, with optional
                                   :entrypoint
       -h, --help                  Show this message and exit.
@@ -830,6 +839,7 @@ See :ref:`cli_triggers`.
                              youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
+      --ascii                Escape non-ASCII characters in JSON output as \uXXXX
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
@@ -870,6 +880,7 @@ See :ref:`cli_indexes`.
                              youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
+      --ascii                Escape non-ASCII characters in JSON output as \uXXXX
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 

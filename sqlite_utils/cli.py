@@ -131,6 +131,13 @@ def output_options(fn):
                 is_flag=True,
                 default=False,
             ),
+            click.option(
+                "--ascii",
+                "ascii_",
+                help="Escape non-ASCII characters in JSON output as \\uXXXX",
+                is_flag=True,
+                default=False,
+            ),
         )
     ):
         fn = decorator(fn)
@@ -199,6 +206,7 @@ def tables(
     table,
     fmt,
     json_cols,
+    ascii_,
     columns,
     schema,
     load_extension,
@@ -258,7 +266,7 @@ def tables(
         for row in _iter():
             writer.writerow(row)
     else:
-        for line in output_rows(_iter(), headers, nl, arrays, json_cols):
+        for line in output_rows(_iter(), headers, nl, arrays, json_cols, ascii_):
             click.echo(line)
 
 
@@ -296,6 +304,7 @@ def views(
     table,
     fmt,
     json_cols,
+    ascii_,
     columns,
     schema,
     load_extension,
@@ -321,6 +330,7 @@ def views(
         table=table,
         fmt=fmt,
         json_cols=json_cols,
+        ascii_=ascii_,
         columns=columns,
         schema=schema,
         load_extension=load_extension,
@@ -1857,6 +1867,7 @@ def query(
     table,
     fmt,
     json_cols,
+    ascii_,
     raw,
     raw_lines,
     param,
@@ -1895,6 +1906,7 @@ def query(
         nl,
         arrays,
         json_cols,
+        ascii_,
     )
 
 
@@ -1969,6 +1981,7 @@ def memory(
     table,
     fmt,
     json_cols,
+    ascii_,
     raw,
     raw_lines,
     param,
@@ -2108,6 +2121,7 @@ def memory(
         nl,
         arrays,
         json_cols,
+        ascii_,
     )
 
 
@@ -2125,6 +2139,7 @@ def _execute_query(
     nl,
     arrays,
     json_cols,
+    ascii_,
 ):
     with db.conn:
         try:
@@ -2167,7 +2182,7 @@ def _execute_query(
             for row in cursor:
                 writer.writerow(row)
         else:
-            for line in output_rows(cursor, headers, nl, arrays, json_cols):
+            for line in output_rows(cursor, headers, nl, arrays, json_cols, ascii_):
                 click.echo(line)
 
 
@@ -2211,6 +2226,7 @@ def search(
     table,
     fmt,
     json_cols,
+    ascii_,
     load_extension,
 ):
     """Execute a full-text search against this table
@@ -2257,6 +2273,7 @@ def search(
             table=table,
             fmt=fmt,
             json_cols=json_cols,
+            ascii_=ascii_,
             param=[("query", q)],
             load_extension=load_extension,
         )
@@ -2317,6 +2334,7 @@ def rows(
     table,
     fmt,
     json_cols,
+    ascii_,
     load_extension,
 ):
     """Output all rows in the specified table
@@ -2351,6 +2369,7 @@ def rows(
         fmt=fmt,
         param=param,
         json_cols=json_cols,
+        ascii_=ascii_,
         load_extension=load_extension,
     )
 
@@ -2377,6 +2396,7 @@ def triggers(
     table,
     fmt,
     json_cols,
+    ascii_,
     load_extension,
 ):
     """Show triggers configured in this database
@@ -2406,6 +2426,7 @@ def triggers(
         table=table,
         fmt=fmt,
         json_cols=json_cols,
+        ascii_=ascii_,
         load_extension=load_extension,
     )
 
@@ -2434,6 +2455,7 @@ def indexes(
     table,
     fmt,
     json_cols,
+    ascii_,
     load_extension,
 ):
     """Show indexes for the whole database or specific tables
@@ -2475,6 +2497,7 @@ def indexes(
         table=table,
         fmt=fmt,
         json_cols=json_cols,
+        ascii_=ascii_,
         load_extension=load_extension,
     )
 
@@ -3112,7 +3135,7 @@ def convert(
         if multi:
 
             def preview(v):
-                return json.dumps(fn(v), default=repr) if v else v
+                return json.dumps(fn(v), default=repr, ensure_ascii=False) if v else v
 
         else:
 
@@ -3458,7 +3481,7 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
 @cli.command(name="plugins")
 def plugins_list():
     "List installed plugins"
-    click.echo(json.dumps(get_plugins(), indent=2))
+    click.echo(json.dumps(get_plugins(), indent=2, ensure_ascii=False))
 
 
 ensure_plugins_loaded()
@@ -3505,7 +3528,7 @@ FILE_COLUMNS = {
 }
 
 
-def output_rows(iterator, headers, nl, arrays, json_cols):
+def output_rows(iterator, headers, nl, arrays, json_cols, ascii_=False):
     # Duplicate column names would collide as dictionary keys, so rename
     # later occurrences id, id -> id, id_2 - CSV and table output keep
     # the original duplicate headers since they never build dictionaries
@@ -3526,7 +3549,7 @@ def output_rows(iterator, headers, nl, arrays, json_cols):
             data = dict(zip(headers, data))
         line = "{firstchar}{serialized}{maybecomma}{lastchar}".format(
             firstchar=("[" if first else " ") if not nl else "",
-            serialized=json.dumps(data, default=json_binary),
+            serialized=json.dumps(data, default=json_binary, ensure_ascii=ascii_),
             maybecomma="," if (not nl and not is_last) else "",
             lastchar="]" if (is_last and not nl) else "",
         )

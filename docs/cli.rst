@@ -111,6 +111,33 @@ If you want to pretty-print the output further, you can pipe it through ``python
         }
     ]
 
+.. _cli_query_json_ascii:
+
+Unicode characters in JSON
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+JSON output includes unicode characters directly, without escaping them:
+
+.. code-block:: bash
+
+    sqlite-utils dogs.db "select '日本語' as text"
+
+.. code-block:: output
+
+    [{"text": "日本語"}]
+
+Use ``--ascii`` to escape non-ASCII characters as ``\uXXXX`` sequences instead:
+
+.. code-block:: bash
+
+    sqlite-utils dogs.db "select '日本語' as text" --ascii
+
+.. code-block:: output
+
+    [{"text": "\u65e5\u672c\u8a9e"}]
+
+The ``--ascii`` option can help on systems that cannot display or process UTF-8, such as Windows consoles using a legacy code page. On Windows, setting the ``PYTHONUTF8=1`` environment variable is an alternative fix for ``UnicodeEncodeError`` crashes when redirecting output to a file.
+
 .. _cli_query_binary_json:
 
 Binary data in JSON

@@ -1047,6 +1047,34 @@ def test_query_json_with_json_cols(db_path):
     assert expected == result_rows.output.strip()
 
 
+def test_query_json_unicode_not_escaped_by_default(db_path):
+    db = Database(db_path)
+    with db.conn:
+        db["text"].insert({"id": 1, "text": "Japanese 日本語"}, pk="id")
+    result = CliRunner().invoke(cli.cli, [db_path, "select id, text from text"])
+    assert result.exit_code == 0
+    assert result.output.strip() == '[{"id": 1, "text": "Japanese 日本語"}]'
+    # Same for --nl
+    result = CliRunner().invoke(cli.cli, [db_path, "select id, text from text", "--nl"])
+    assert result.exit_code == 0
+    assert result.output.strip() == '{"id": 1, "text": "Japanese 日本語"}'
+
+
+@pytest.mark.parametrize("command", ["query", "rows"])
+def test_query_json_ascii_option(db_path, command):
+    db = Database(db_path)
+    with db.conn:
+        db["text"].insert({"id": 1, "text": "Japanese 日本語"}, pk="id")
+    if command == "query":
+        args = [db_path, "select id, text from text", "--ascii"]
+    else:
+        args = ["rows", db_path, "text", "--ascii"]
+    result = CliRunner().invoke(cli.cli, args)
+    assert result.exit_code == 0
+    expected = '[{"id": 1, "text": "Japanese ' + "\\u65e5\\u672c\\u8a9e" + '"}]'
+    assert result.output.strip() == expected
+
+
 @pytest.mark.parametrize(
     "content,is_binary",
     [(b"\x00\x0fbinary", True), ("this is text", False), (1, False), (1.5, False)],
