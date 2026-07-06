@@ -6,7 +6,6 @@ from sqlite_utils.cli import cli
 from sqlite_utils.db import Database
 from sqlite_utils.utils import find_spatialite, sqlite3
 
-
 pytestmark = [
     pytest.mark.skipif(
         not find_spatialite(), reason="Could not find SpatiaLite extension"
