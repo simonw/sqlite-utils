@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from subprocess import Popen, PIPE
-from beanbag_docutils.sphinx.ext.github import github_linkcode_resolve
+import inspect
+from pathlib import Path
+from subprocess import Popen, PIPE, check_output
+import sys
 
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -45,14 +47,52 @@ extlinks = {
 }
 
 
+def _linkcode_git_ref():
+    try:
+        return check_output(["git", "rev-parse", "HEAD"]).decode("utf8").strip()
+    except Exception:
+        return "main"
+
+
 def linkcode_resolve(domain, info):
-    return github_linkcode_resolve(
-        domain=domain,
-        info=info,
-        allowed_module_names=["sqlite_utils"],
-        github_org_id="simonw",
-        github_repo_id="sqlite-utils",
-        branch="main",
+    if domain != "py":
+        return None
+
+    module_name = info.get("module")
+    if not module_name or module_name.split(".")[0] != "sqlite_utils":
+        return None
+
+    module = sys.modules.get(module_name)
+    if module is None:
+        return None
+
+    obj = module
+    for part in info.get("fullname", "").split("."):
+        obj = getattr(obj, part, None)
+        if obj is None:
+            return None
+
+    if isinstance(obj, property):
+        obj = obj.fget
+
+    try:
+        obj = inspect.unwrap(obj)
+        source_file = inspect.getsourcefile(obj)
+        _, line_number = inspect.getsourcelines(obj)
+    except Exception:
+        return None
+
+    if source_file is None:
+        return None
+
+    try:
+        filename = Path(source_file).resolve().relative_to(Path(__file__).parent.parent)
+    except ValueError:
+        return None
+
+    return (
+        "https://github.com/simonw/sqlite-utils/blob/"
+        f"{_linkcode_git_ref()}/{filename}#L{line_number}"
     )
 
 
