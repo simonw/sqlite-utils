@@ -1,5 +1,6 @@
 from .utils import (
     chunks,
+    dedupe_keys,
     hash_record,
     sqlite3,
     OperationalError,
@@ -11,6 +12,7 @@ from .utils import (
 )
 import binascii
 from collections import namedtuple
+from dataclasses import dataclass, field
 from collections.abc import Mapping
 import contextlib
 import datetime
@@ -81,6 +83,34 @@ def quote_identifier(identifier: str) -> str:
     Double quotes inside the identifier are escaped by doubling them.
     """
     return '"{}"'.format(identifier.replace('"', '""'))
+
+
+_IDENTIFIER_CASEFOLD = str.maketrans(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"
+)
+
+
+def fold_identifier_case(identifier: str) -> str:
+    """
+    Lowercase an identifier using the same rules SQLite uses - only ASCII
+    characters are folded, other characters are left unchanged.
+    """
+    return identifier.translate(_IDENTIFIER_CASEFOLD)
+
+
+def resolve_casing(name: str, candidates: Iterable[str]) -> str:
+    """
+    SQLite treats identifiers as case-insensitive. Return the entry in
+    ``candidates`` that matches ``name`` case-insensitively, preferring an
+    exact match. If nothing matches, return ``name`` unchanged.
+    """
+    if name in candidates:
+        return name
+    folded = fold_identifier_case(name)
+    for candidate in candidates:
+        if fold_identifier_case(candidate) == folded:
+            return candidate
+    return name
 
 
 pd: Any = None
@@ -161,9 +191,65 @@ Summary information about a column, see :ref:`python_api_analyze_column`.
     The ``N`` least common values as a list of ``(value, count)`` tuples, or ``None`` if the table is entirely distinct
     or if the number of distinct values is less than N (since they will already have been returned in ``most_common``)
 """
-ForeignKey = namedtuple(
-    "ForeignKey", ("table", "column", "other_table", "other_column")
-)
+
+
+@dataclass(order=True)
+class ForeignKey:
+    """
+    A foreign key defined on a table.
+
+    For single-column foreign keys ``column`` and ``other_column`` hold the
+    column names, and ``columns``/``other_columns`` are one-item tuples.
+
+    For compound (multi-column) foreign keys ``column`` and ``other_column``
+    are ``None`` - use ``columns`` and ``other_columns`` instead, and check
+    ``is_compound``.
+
+    ``on_delete`` and ``on_update`` hold the foreign key actions, e.g.
+    ``"CASCADE"`` - ``"NO ACTION"`` if not set.
+
+    Prior to sqlite-utils 4.0 this was a ``namedtuple`` and could be unpacked
+    or indexed as ``(table, column, other_table, other_column)``. It is now a
+    dataclass - access its fields by name instead.
+    """
+
+    table: str
+    # column/other_column are None for compound keys, which would break
+    # ordering against str values - comparison uses columns/other_columns
+    column: Optional[str] = field(compare=False)
+    other_table: str
+    other_column: Optional[str] = field(compare=False)
+    columns: Tuple[str, ...] = ()
+    other_columns: Tuple[str, ...] = ()
+    is_compound: bool = False
+    on_delete: str = "NO ACTION"
+    on_update: str = "NO ACTION"
+
+    def __post_init__(self):
+        # Populate columns/other_columns for single-column foreign keys,
+        # normalizing any lists to tuples
+        if self.columns:
+            self.columns = tuple(self.columns)
+        else:
+            self.columns = (self.column,) if self.column is not None else ()
+        if self.other_columns:
+            self.other_columns = tuple(self.other_columns)
+        else:
+            self.other_columns = (
+                (self.other_column,) if self.other_column is not None else ()
+            )
+
+
+def _fk_actions_sql(fk: ForeignKey) -> str:
+    "ON UPDATE/ON DELETE clauses for a foreign key, or an empty string."
+    actions = ""
+    if fk.on_update and fk.on_update != "NO ACTION":
+        actions += " ON UPDATE {}".format(fk.on_update)
+    if fk.on_delete and fk.on_delete != "NO ACTION":
+        actions += " ON DELETE {}".format(fk.on_delete)
+    return actions
+
+
 Index = namedtuple("Index", ("seq", "name", "unique", "origin", "partial", "columns"))
 XIndex = namedtuple("XIndex", ("name", "columns"))
 XIndexColumn = namedtuple(
@@ -176,12 +262,18 @@ class TransformError(Exception):
     pass
 
 
+# A single column name, or a tuple of columns for a compound foreign key
+ForeignKeyColumns = Union[str, Tuple[str, ...], List[str]]
+
+# (table, column(s), other_table, other_column(s))
+ForeignKeyTuple = Tuple[str, ForeignKeyColumns, str, ForeignKeyColumns]
+
 ForeignKeyIndicator = Union[
     str,
     ForeignKey,
-    Tuple[str, str],
-    Tuple[str, str, str],
-    Tuple[str, str, str, str],
+    Tuple[ForeignKeyColumns, str],
+    Tuple[ForeignKeyColumns, str, ForeignKeyColumns],
+    ForeignKeyTuple,
 ]
 
 ForeignKeysType = Union[Iterable[ForeignKeyIndicator], List[ForeignKeyIndicator]]
@@ -301,6 +393,10 @@ class InvalidColumns(Exception):
     "Specified columns do not exist"
 
 
+class TransactionError(Exception):
+    "Operation cannot be performed while a transaction is open"
+
+
 class DescIndex(str):
     pass
 
@@ -318,6 +414,53 @@ CREATE TABLE IF NOT EXISTS "{}"(
    count INTEGER DEFAULT 0
 );
 """.strip()
+
+
+_TRANSACTION_CONTROL_KEYWORDS = {
+    "BEGIN",
+    "COMMIT",
+    "END",
+    "ROLLBACK",
+    "SAVEPOINT",
+    "RELEASE",
+}
+
+# Statements that never return rows and cannot run inside (or would break
+# out of) the savepoint guard used by query()
+_QUERY_REJECTED_KEYWORDS = _TRANSACTION_CONTROL_KEYWORDS | {
+    "VACUUM",
+    "ATTACH",
+    "DETACH",
+}
+
+
+def _first_keyword(sql: str) -> str:
+    """
+    Return the first keyword of a SQL statement, uppercased, skipping any
+    leading whitespace and ``--`` or ``/* ... */`` comments - the only
+    things SQLite's tokenizer allows before the first token. Returns an
+    empty string if there is no leading keyword.
+    """
+    i, n = 0, len(sql)
+    while i < n:
+        if sql[i].isspace():
+            i += 1
+        elif sql.startswith("--", i):
+            newline = sql.find("\n", i)
+            if newline == -1:
+                return ""
+            i = newline + 1
+        elif sql.startswith("/*", i):
+            end = sql.find("*/", i + 2)
+            if end == -1:
+                return ""
+            i = end + 2
+        else:
+            break
+    j = i
+    while j < n and (sql[j].isalpha() or sql[j] == "_"):
+        j += 1
+    return sql[i:j].upper()
 
 
 class Database:
@@ -367,9 +510,11 @@ class Database:
         self.memory_name = None
         self.memory = False
         self.use_old_upsert = use_old_upsert
-        assert (filename_or_conn is not None and (not memory and not memory_name)) or (
-            filename_or_conn is None and (memory or memory_name)
-        ), "Either specify a filename_or_conn or pass memory=True"
+        if not (
+            (filename_or_conn is not None and (not memory and not memory_name))
+            or (filename_or_conn is None and (memory or memory_name))
+        ):
+            raise ValueError("Either specify a filename_or_conn or pass memory=True")
         if memory_name:
             uri = "file:{}?mode=memory&cache=shared".format(memory_name)
             self.conn = sqlite3.connect(
@@ -393,8 +538,21 @@ class Database:
                     raise
             self.conn = sqlite3.connect(str(filename_or_conn))
         else:
-            assert not recreate, "recreate cannot be used with connections, only paths"
+            if recreate:
+                raise ValueError("recreate cannot be used with connections, only paths")
             self.conn = cast(sqlite3.Connection, filename_or_conn)
+            # Python 3.12+ autocommit=True/False connections make commit()
+            # and rollback() behave differently, silently breaking the
+            # transaction handling used by every write method
+            autocommit = getattr(self.conn, "autocommit", None)
+            if autocommit is not None and autocommit != getattr(
+                sqlite3, "LEGACY_TRANSACTION_CONTROL", -1
+            ):
+                raise TransactionError(
+                    "sqlite-utils requires a connection that uses the default "
+                    "transaction handling - connections created with "
+                    "autocommit=True or autocommit=False are not supported"
+                )
         self._tracer: Optional[Tracer] = tracer
         if recursive_triggers:
             self.execute("PRAGMA recursive_triggers=on;")
@@ -443,26 +601,59 @@ class Database:
             try:
                 yield self
             except BaseException:
-                self.conn.rollback()
+                self.conn.execute("ROLLBACK")
                 raise
             else:
                 try:
-                    self.conn.commit()
+                    self.conn.execute("COMMIT")
                 except BaseException:
-                    self.conn.rollback()
+                    self.conn.execute("ROLLBACK")
                     raise
 
-    @contextlib.contextmanager
-    def ensure_autocommit_off(self) -> Generator[None, None, None]:
+    def begin(self) -> None:
         """
-        Ensure autocommit is off for this database connection.
+        Start a transaction with ``BEGIN``, taking manual control of transaction
+        handling. End it by calling :meth:`commit` or :meth:`rollback`.
+
+        Raises ``sqlite3.OperationalError`` if a transaction is already open.
+
+        Most code should use the :meth:`atomic` context manager instead, which
+        commits and rolls back automatically. See :ref:`python_api_transactions`.
+        """
+        self.execute("BEGIN")
+
+    def commit(self) -> None:
+        """
+        Commit the current transaction. Does nothing if no transaction is open.
+        """
+        if self.conn.in_transaction:
+            self.conn.execute("COMMIT")
+
+    def rollback(self) -> None:
+        """
+        Roll back the current transaction, discarding its changes. Does nothing
+        if no transaction is open.
+        """
+        if self.conn.in_transaction:
+            self.conn.execute("ROLLBACK")
+
+    @contextlib.contextmanager
+    def ensure_autocommit_on(self) -> Generator[None, None, None]:
+        """
+        Ensure the connection is in driver-level autocommit mode for the
+        duration of a block of code.
+
+        This temporarily sets ``isolation_level = None`` on the underlying
+        ``sqlite3`` connection, so the driver does not open implicit
+        transactions. This is useful for statements such as
+        ``PRAGMA journal_mode=wal`` which cannot run inside a transaction.
 
         Example usage::
 
-            with db.ensure_autocommit_off():
+            with db.ensure_autocommit_on():
                 # do stuff here
 
-        This will reset to the previous autocommit state at the end of the block.
+        The previous ``isolation_level`` is restored at the end of the block.
         """
         old_isolation_level = self.conn.isolation_level
         try:
@@ -499,10 +690,12 @@ class Database:
 
     def __getitem__(self, table_name: str) -> Union["Table", "View"]:
         """
-        ``db[table_name]`` returns a :class:`.Table` object for the table with the specified name.
-        If the table does not exist yet it will be created the first time data is inserted into it.
+        ``db[name]`` returns a :class:`.Table` object for the table with the specified name,
+        or a :class:`.View` object if the name matches an existing SQL view.
+        If neither exists yet, a table is assumed - it will be created the first
+        time data is inserted into it.
 
-        :param table_name: The name of the table
+        :param table_name: The name of the table or view
         """
         if table_name in self.view_names():
             return self.view(table_name)
@@ -593,14 +786,71 @@ class Database:
         """
         Execute ``sql`` and return an iterable of dictionaries representing each row.
 
+        The SQL is executed as soon as this method is called - the resulting rows
+        are then fetched lazily as the returned iterable is iterated over. A
+        row-returning write such as ``INSERT ... RETURNING`` takes effect
+        immediately, even if the results are never iterated.
+
         :param sql: SQL query to execute
         :param params: Parameters to use in that query - an iterable for ``where id = ?``
           parameters, or a dictionary for ``where id = :id``
+        :raises ValueError: if the SQL statement does not return rows - use
+          :meth:`execute` for those statements instead. The rejected statement
+          is rolled back, so it has no effect on the database
         """
-        cursor = self.execute(sql, params or tuple())
-        keys = [d[0] for d in cursor.description]
-        for row in cursor:
-            yield dict(zip(keys, row))
+        message = (
+            "query() can only be used with SQL that returns rows - "
+            "use execute() for other statements"
+        )
+        keyword = _first_keyword(sql)
+        if keyword in _QUERY_REJECTED_KEYWORDS:
+            # None of these return rows - reject them without executing anything
+            raise ValueError(message)
+        if self._tracer:
+            self._tracer(sql, params)
+        args: tuple = (params,) if params is not None else ()
+        if keyword == "PRAGMA":
+            # Some PRAGMA statements refuse to run inside a transaction, so
+            # execute these without the savepoint guard used below. Some
+            # adapters open an implicit transaction before comment-prefixed
+            # PRAGMAs, so temporarily use driver autocommit when it is safe.
+            if self.conn.in_transaction:
+                cursor = self.conn.execute(sql, *args)
+            else:
+                with self.ensure_autocommit_on():
+                    cursor = self.conn.execute(sql, *args)
+            if cursor.description is None:
+                raise ValueError(message)
+            keys = dedupe_keys(d[0] for d in cursor.description)
+            return (dict(zip(keys, row)) for row in cursor)
+        # Execute inside a savepoint, so a statement that turns out not to
+        # return rows can be rolled back before the ValueError is raised
+        self.conn.execute('SAVEPOINT "sqlite_utils_query"')
+        released = False
+        try:
+            cursor = self.conn.execute(sql, *args)
+            if cursor.description is None:
+                raise ValueError(message)
+            keys = dedupe_keys(d[0] for d in cursor.description)
+            try:
+                self.conn.execute('RELEASE "sqlite_utils_query"')
+                released = True
+            except sqlite3.OperationalError:
+                # The savepoint cannot be released while a write statement is
+                # still executing - this is INSERT ... RETURNING or similar,
+                # with unfetched rows. Fetch them so the write completes, then
+                # release again - committing the write immediately, unless an
+                # outer transaction is open
+                fetched = cursor.fetchall()
+                self.conn.execute('RELEASE "sqlite_utils_query"')
+                released = True
+                return (dict(zip(keys, row)) for row in fetched)
+            return (dict(zip(keys, row)) for row in cursor)
+        finally:
+            if not released:
+                # An error occurred - undo anything the statement changed
+                self.conn.execute('ROLLBACK TO "sqlite_utils_query"')
+                self.conn.execute('RELEASE "sqlite_utils_query"')
 
     def execute(
         self, sql: str, parameters: Optional[Union[Sequence, Dict[str, Any]]] = None
@@ -608,16 +858,33 @@ class Database:
         """
         Execute SQL query and return a ``sqlite3.Cursor``.
 
+        A write statement - ``INSERT``, ``UPDATE``, ``CREATE TABLE`` and so on -
+        is committed automatically, unless a transaction is already open, in
+        which case it becomes part of that transaction. See
+        :ref:`python_api_transactions`.
+
         :param sql: SQL query to execute
         :param parameters: Parameters to use in that query - an iterable for ``where id = ?``
           parameters, or a dictionary for ``where id = :id``
         """
         if self._tracer:
             self._tracer(sql, parameters)
+        was_in_transaction = self.conn.in_transaction
         if parameters is not None:
-            return self.conn.execute(sql, parameters)
+            cursor = self.conn.execute(sql, parameters)
         else:
-            return self.conn.execute(sql)
+            cursor = self.conn.execute(sql)
+        if (
+            not was_in_transaction
+            and self.conn.in_transaction
+            and cursor.description is None
+            and _first_keyword(sql) not in _TRANSACTION_CONTROL_KEYWORDS
+        ):
+            # The statement opened an implicit transaction - commit it, so
+            # that execute() behaves consistently with the rest of the
+            # library and identically across connection modes
+            self.conn.execute("COMMIT")
+        return cursor
 
     def executescript(self, sql: str) -> sqlite3.Cursor:
         """
@@ -658,6 +925,12 @@ class Database:
         :param view_name: Name of the view
         """
         if view_name not in self.view_names():
+            if view_name in self.table_names():
+                raise NoView(
+                    "View {name} does not exist - {name} is a table".format(
+                        name=view_name
+                    )
+                )
             raise NoView("View {} does not exist".format(view_name))
         return View(self, view_name)
 
@@ -845,16 +1118,35 @@ class Database:
     def enable_wal(self) -> None:
         """
         Sets ``journal_mode`` to ``'wal'`` to enable Write-Ahead Log mode.
+
+        :raises TransactionError: if called while a transaction is open - the
+          journal mode can only be changed outside of a transaction
         """
         if self.journal_mode != "wal":
-            with self.ensure_autocommit_off():
+            self._ensure_no_open_transaction("enable_wal()")
+            with self.ensure_autocommit_on():
                 self.execute("PRAGMA journal_mode=wal;")
 
     def disable_wal(self) -> None:
-        "Sets ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode."
+        """
+        Sets ``journal_mode`` back to ``'delete'`` to disable Write-Ahead Log mode.
+
+        :raises TransactionError: if called while a transaction is open - the
+          journal mode can only be changed outside of a transaction
+        """
         if self.journal_mode != "delete":
-            with self.ensure_autocommit_off():
+            self._ensure_no_open_transaction("disable_wal()")
+            with self.ensure_autocommit_on():
                 self.execute("PRAGMA journal_mode=delete;")
+
+    def _ensure_no_open_transaction(self, operation: str) -> None:
+        # Changing journal mode assigns conn.isolation_level, which commits
+        # any open transaction as a side effect - breaking the rollback
+        # guarantee of atomic() and of user-managed transactions
+        if self.conn.in_transaction:
+            raise TransactionError(
+                "{} cannot be used while a transaction is open".format(operation)
+            )
 
     def _ensure_counts_table(self) -> None:
         with self.atomic():
@@ -916,9 +1208,12 @@ class Database:
 
         :param name: Name of table that foreign keys are being defined for
         :param foreign_keys: List of foreign keys, each of which can be a
-            string, a ForeignKey() named tuple, a tuple of (column, other_table),
+            string, a ForeignKey() object, a tuple of (column, other_table),
             or a tuple of (column, other_table, other_column), or a tuple of
-            (table, column, other_table, other_column)
+            (table, column, other_table, other_column). For compound foreign
+            keys the column elements can be tuples of column names, e.g.
+            (("campus_name", "dept_code"), "departments") or
+            (("campus_name", "dept_code"), "departments", ("campus_name", "dept_code"))
         """
         table = self.table(name)
         if all(isinstance(fk, ForeignKey) for fk in foreign_keys):
@@ -932,41 +1227,116 @@ class Database:
                 other_column = table.guess_foreign_column(other_table)
                 fks.append(ForeignKey(name, column, other_table, other_column))
             return fks
-        assert all(
-            isinstance(fk, (tuple, list)) for fk in foreign_keys
-        ), "foreign_keys= should be a list of tuples"
+        if not all(isinstance(fk, (tuple, list)) for fk in foreign_keys):
+            raise ValueError("foreign_keys= should be a list of tuples")
         fks = []
-        for tuple_or_list in foreign_keys:
+        for tuple_or_list in cast(Iterable[Sequence[Any]], foreign_keys):
             if len(tuple_or_list) == 4:
-                assert (
-                    tuple_or_list[0] == name
-                ), "First item in {} should have been {}".format(tuple_or_list, name)
-            assert len(tuple_or_list) in (
-                2,
-                3,
-                4,
-            ), "foreign_keys= should be a list of tuple pairs or triples"
-            if len(tuple_or_list) in (3, 4):
-                if len(tuple_or_list) == 4:
-                    tuple_or_list = cast(Tuple[str, str, str], tuple_or_list[1:])
-                else:
-                    tuple_or_list = cast(Tuple[str, str, str], tuple_or_list)
-                fks.append(
-                    ForeignKey(
-                        name, tuple_or_list[0], tuple_or_list[1], tuple_or_list[2]
+                if tuple_or_list[0] != name:
+                    raise ValueError(
+                        "First item in {} should have been {}".format(
+                            tuple_or_list, name
+                        )
                     )
+                tuple_or_list = tuple_or_list[1:]
+            if len(tuple_or_list) not in (2, 3):
+                raise ValueError(
+                    "foreign_keys= should be a list of tuple pairs or triples"
+                )
+            column_or_columns = tuple_or_list[0]
+            other_table = tuple_or_list[1]
+            if isinstance(column_or_columns, (list, tuple)):
+                # Compound foreign key
+                columns = tuple(column_or_columns)
+                if len(tuple_or_list) == 3:
+                    if not isinstance(tuple_or_list[2], (list, tuple)):
+                        raise ValueError(
+                            "Compound foreign key {} should reference a tuple "
+                            "of other columns".format(tuple(tuple_or_list))
+                        )
+                    other_columns = tuple(tuple_or_list[2])
+                else:
+                    # Guess the compound primary key of the other table
+                    other_columns = tuple(self.table(other_table).pks)
+                if len(columns) != len(other_columns):
+                    raise ValueError(
+                        "Compound foreign key {} should have the same number "
+                        "of columns on both sides".format(tuple(tuple_or_list))
+                    )
+                if len(columns) == 1:
+                    # Single-column key passed as a one-item list
+                    fks.append(
+                        ForeignKey(name, columns[0], other_table, other_columns[0])
+                    )
+                else:
+                    fks.append(
+                        ForeignKey(
+                            name,
+                            None,
+                            other_table,
+                            None,
+                            columns=columns,
+                            other_columns=other_columns,
+                            is_compound=True,
+                        )
+                    )
+            elif len(tuple_or_list) == 3:
+                fks.append(
+                    ForeignKey(name, column_or_columns, other_table, tuple_or_list[2])
                 )
             else:
                 # Guess the primary key
                 fks.append(
                     ForeignKey(
                         name,
-                        tuple_or_list[0],
-                        tuple_or_list[1],
-                        table.guess_foreign_column(tuple_or_list[1]),
+                        column_or_columns,
+                        other_table,
+                        table.guess_foreign_column(other_table),
                     )
                 )
         return fks
+
+    def _resolve_foreign_key_casing(
+        self, fk: ForeignKey, columns: Iterable[str]
+    ) -> ForeignKey:
+        """
+        Return ``fk`` with its column references resolved to match the casing
+        of the actual columns. ``columns`` provides the column names of
+        ``fk.table``, which may be a table that is still being created.
+        """
+        resolved_columns = tuple(resolve_casing(c, columns) for c in fk.columns)
+        if fk.other_table == fk.table:
+            other_candidates: Iterable[str] = columns
+        else:
+            other_candidates = self[fk.other_table].columns_dict
+        resolved_other_columns = tuple(
+            resolve_casing(c, other_candidates) for c in fk.other_columns
+        )
+        if (
+            resolved_columns == fk.columns
+            and resolved_other_columns == fk.other_columns
+        ):
+            return fk
+        if fk.is_compound:
+            return ForeignKey(
+                fk.table,
+                None,
+                fk.other_table,
+                None,
+                columns=resolved_columns,
+                other_columns=resolved_other_columns,
+                is_compound=True,
+                on_delete=fk.on_delete,
+                on_update=fk.on_update,
+            )
+        return ForeignKey(
+            fk.table,
+            resolved_columns[0],
+            fk.other_table,
+            resolved_other_columns[0],
+            on_delete=fk.on_delete,
+            on_update=fk.on_update,
+        )
 
     def create_table_sql(
         self,
@@ -1001,8 +1371,15 @@ class Database:
         """
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
-        foreign_keys = self.resolve_foreign_keys(name, foreign_keys or [])
-        foreign_keys_by_column = {fk.column: fk for fk in foreign_keys}
+        resolved_fks: List[ForeignKey] = [
+            self._resolve_foreign_key_casing(fk, columns)
+            for fk in self.resolve_foreign_keys(name, foreign_keys or [])
+        ]
+        # Compound foreign keys are rendered as table-level constraints;
+        # single-column ones as inline REFERENCES on their column
+        foreign_keys_by_column = {
+            fk.column: fk for fk in resolved_fks if not fk.is_compound
+        }
         # any extracts will be treated as integer columns with a foreign key
         extracts = resolve_extracts(extracts)
         for extract_column, extract_table in extracts.items():
@@ -1016,19 +1393,24 @@ class Database:
                 name, extract_column, extract_table, "id"
             )
         # Soundness check not_null, and defaults if provided
-        not_null = not_null or set()
-        defaults = defaults or {}
-        assert columns, "Tables must have at least one column"
-        assert all(
-            n in columns for n in not_null
-        ), "not_null set {} includes items not in columns {}".format(
-            repr(not_null), repr(set(columns.keys()))
-        )
-        assert all(
-            n in columns for n in defaults
-        ), "defaults set {} includes items not in columns {}".format(
-            repr(set(defaults)), repr(set(columns.keys()))
-        )
+        not_null = {resolve_casing(n, columns) for n in not_null or set()}
+        defaults = {resolve_casing(n, columns): v for n, v in (defaults or {}).items()}
+        if column_order is not None:
+            column_order = [resolve_casing(c, columns) for c in column_order]
+        if not columns:
+            raise ValueError("Tables must have at least one column")
+        if not all(n in columns for n in not_null):
+            raise ValueError(
+                "not_null set {} includes items not in columns {}".format(
+                    repr(not_null), repr(set(columns.keys()))
+                )
+            )
+        if not all(n in columns for n in defaults):
+            raise ValueError(
+                "defaults set {} includes items not in columns {}".format(
+                    repr(set(defaults)), repr(set(columns.keys()))
+                )
+            )
         column_items = list(columns.items())
         if column_order is not None:
 
@@ -1040,25 +1422,28 @@ class Database:
             column_items.insert(0, (hash_id, str))
             pk = hash_id
         # Soundness check foreign_keys point to existing tables
-        for fk in foreign_keys:
-            if fk.other_table == name and columns.get(fk.other_column):
-                continue
-            if fk.other_column != "rowid" and not any(
-                c for c in self[fk.other_table].columns if c.name == fk.other_column
-            ):
-                raise AlterError(
-                    "No such column: {}.{}".format(fk.other_table, fk.other_column)
-                )
+        for fk in resolved_fks:
+            for other_column in fk.other_columns:
+                if fk.other_table == name and columns.get(other_column):
+                    continue
+                if other_column != "rowid" and not any(
+                    c for c in self[fk.other_table].columns if c.name == other_column
+                ):
+                    raise AlterError(
+                        "No such column: {}.{}".format(fk.other_table, other_column)
+                    )
 
         column_defs = []
         # ensure pk is a tuple
         single_pk = None
-        if isinstance(pk, list) and len(pk) == 1 and isinstance(pk[0], str):
+        if isinstance(pk, (list, tuple)) and len(pk) == 1 and isinstance(pk[0], str):
             pk = pk[0]
         if isinstance(pk, str):
-            single_pk = pk
+            single_pk = pk = resolve_casing(pk, [c[0] for c in column_items])
             if pk not in [c[0] for c in column_items]:
                 column_items.insert(0, (pk, int))
+        elif pk:
+            pk = [resolve_casing(p, [c[0] for c in column_items]) for p in pk]
         for column_name, column_type in column_items:
             column_extras = []
             if column_name == single_pk:
@@ -1070,14 +1455,12 @@ class Database:
                     "DEFAULT {}".format(self.quote_default_value(defaults[column_name]))
                 )
             if column_name in foreign_keys_by_column:
+                fk = foreign_keys_by_column[column_name]
                 column_extras.append(
-                    "REFERENCES {}({})".format(
-                        quote_identifier(
-                            foreign_keys_by_column[column_name].other_table
-                        ),
-                        quote_identifier(
-                            foreign_keys_by_column[column_name].other_column
-                        ),
+                    "REFERENCES {}({}){}".format(
+                        quote_identifier(fk.other_table),
+                        quote_identifier(cast(str, fk.other_column)),
+                        _fk_actions_sql(fk),
                     )
                 )
             column_type_str = COLUMN_TYPE_MAPPING[column_type]
@@ -1098,6 +1481,26 @@ class Database:
         if single_pk is None and pk and len(pk) > 1:
             extra_pk = ",\n   PRIMARY KEY ({pks})".format(
                 pks=", ".join([quote_identifier(p) for p in pk])
+            )
+        # Compound foreign keys become table-level FOREIGN KEY constraints
+        column_names = [c[0] for c in column_items]
+        for fk in resolved_fks:
+            if not fk.is_compound:
+                continue
+            missing = [c for c in fk.columns if c not in column_names]
+            if missing:
+                raise AlterError(
+                    "No such column: {}".format(", ".join(sorted(missing)))
+                )
+            column_defs.append(
+                "   FOREIGN KEY ({columns}) REFERENCES {other_table}({other_columns}){actions}".format(
+                    columns=", ".join(quote_identifier(c) for c in fk.columns),
+                    other_table=quote_identifier(fk.other_table),
+                    other_columns=", ".join(
+                        quote_identifier(c) for c in fk.other_columns
+                    ),
+                    actions=_fk_actions_sql(fk),
+                )
             )
         columns_sql = ",\n".join(column_defs)
         sql = """CREATE TABLE {if_not_exists}{table} (
@@ -1162,6 +1565,11 @@ class Database:
             should_transform = False
             # First add missing columns and figure out columns to drop
             existing_columns = table.columns_dict
+            # Match existing columns case-insensitively, the way SQLite does
+            columns = {
+                resolve_casing(col_name, existing_columns): col_type
+                for col_name, col_type in columns.items()
+            }
             missing_columns = dict(
                 (col_name, col_type)
                 for col_name, col_type in columns.items()
@@ -1185,18 +1593,28 @@ class Database:
             current_pks = table.pks
             desired_pk = None
             if isinstance(pk, str):
-                desired_pk = [pk]
+                desired_pk = [resolve_casing(pk, existing_columns)]
             elif pk:
-                desired_pk = list(pk)
+                desired_pk = [resolve_casing(p, existing_columns) for p in pk]
             if desired_pk and current_pks != desired_pk:
                 should_transform = True
             # Any not-null changes?
             current_not_null = {c.name for c in table.columns if c.notnull}
-            desired_not_null = set(not_null) if not_null else set()
+            desired_not_null = (
+                {resolve_casing(n, existing_columns) for n in not_null}
+                if not_null
+                else set()
+            )
             if current_not_null != desired_not_null:
                 should_transform = True
             # How about defaults?
-            if defaults and defaults != table.default_values:
+            if (
+                defaults
+                and {
+                    resolve_casing(c, existing_columns): v for c, v in defaults.items()
+                }
+                != table.default_values
+            ):
                 should_transform = True
             # Only run .transform() if there is something to do
             if should_transform:
@@ -1259,9 +1677,8 @@ class Database:
         :param ignore: Set to ``True`` to do nothing if a view with this name already exists
         :param replace: Set to ``True`` to replace the view if one with this name already exists
         """
-        assert not (
-            ignore and replace
-        ), "Use one or the other of ignore/replace, not both"
+        if ignore and replace:
+            raise ValueError("Use one or the other of ignore/replace, not both")
         create_sql = "CREATE VIEW {name} AS {sql}".format(
             name=quote_identifier(name), sql=sql
         )
@@ -1297,53 +1714,102 @@ class Database:
         return candidates
 
     def add_foreign_keys(
-        self, foreign_keys: Iterable[Tuple[str, str, str, str]]
+        self, foreign_keys: Iterable[Union[ForeignKey, ForeignKeyTuple]]
     ) -> None:
         """
         See :ref:`python_api_add_foreign_keys`.
 
         :param foreign_keys: A list of  ``(table, column, other_table, other_column)``
-          tuples
+          tuples - for compound foreign keys, ``column`` and ``other_column`` can
+          be tuples of column names
         """
         # foreign_keys is a list of explicit 4-tuples
-        assert all(
-            len(fk) == 4 and isinstance(fk, (list, tuple)) for fk in foreign_keys
-        ), "foreign_keys must be a list of 4-tuples, (table, column, other_table, other_column)"
+        if not all(
+            isinstance(fk, ForeignKey)
+            or (isinstance(fk, (list, tuple)) and len(fk) == 4)
+            for fk in foreign_keys
+        ):
+            raise ValueError(
+                "foreign_keys must be a list of 4-tuples, "
+                "(table, column, other_table, other_column)"
+            )
 
-        foreign_keys_to_create = []
+        foreign_keys_to_create: List[ForeignKey] = []
 
         # Verify that all tables and columns exist
-        for table, column, other_table, other_column in foreign_keys:
+        for fk in foreign_keys:
+            if isinstance(fk, ForeignKey):
+                fk_object = fk
+            else:
+                table, column_or_columns, other_table, other_column_or_columns = fk
+                # Compound foreign keys use tuples of columns
+                columns = (
+                    (column_or_columns,)
+                    if isinstance(column_or_columns, str)
+                    else tuple(column_or_columns)
+                )
+                other_columns = (
+                    (other_column_or_columns,)
+                    if isinstance(other_column_or_columns, str)
+                    else tuple(other_column_or_columns)
+                )
+                if len(columns) == 1:
+                    fk_object = ForeignKey(
+                        table, columns[0], other_table, other_columns[0]
+                    )
+                else:
+                    fk_object = ForeignKey(
+                        table,
+                        None,
+                        other_table,
+                        None,
+                        columns=columns,
+                        other_columns=other_columns,
+                        is_compound=True,
+                    )
+            table = fk_object.table
+            other_table = fk_object.other_table
             if not self.table(table).exists():
                 raise AlterError("No such table: {}".format(table))
             table_obj = self.table(table)
-            if column not in table_obj.columns_dict:
-                raise AlterError("No such column: {} in {}".format(column, table))
+            fk_object = self._resolve_foreign_key_casing(
+                fk_object, table_obj.columns_dict
+            )
+            columns = fk_object.columns
+            other_columns = fk_object.other_columns
+            for column in columns:
+                if column not in table_obj.columns_dict:
+                    raise AlterError("No such column: {} in {}".format(column, table))
             if not self[other_table].exists():
                 raise AlterError("No such other_table: {}".format(other_table))
-            if (
-                other_column != "rowid"
-                and other_column not in self[other_table].columns_dict
-            ):
-                raise AlterError(
-                    "No such other_column: {} in {}".format(other_column, other_table)
-                )
+            for other_column in other_columns:
+                if (
+                    other_column != "rowid"
+                    and other_column not in self[other_table].columns_dict
+                ):
+                    raise AlterError(
+                        "No such other_column: {} in {}".format(
+                            other_column, other_table
+                        )
+                    )
             # We will silently skip foreign keys that exist already
+            columns_folded = tuple(fold_identifier_case(c) for c in columns)
+            other_columns_folded = tuple(fold_identifier_case(c) for c in other_columns)
             if not any(
                 fk
                 for fk in table_obj.foreign_keys
-                if fk.column == column
-                and fk.other_table == other_table
-                and fk.other_column == other_column
+                if tuple(fold_identifier_case(c) for c in fk.columns) == columns_folded
+                and fold_identifier_case(fk.other_table)
+                == fold_identifier_case(other_table)
+                and tuple(fold_identifier_case(c) for c in fk.other_columns)
+                == other_columns_folded
             ):
-                foreign_keys_to_create.append(
-                    (table, column, other_table, other_column)
-                )
+                foreign_keys_to_create.append(fk_object)
 
         # Group them by table
-        by_table: Dict[str, List] = {}
-        for fk in foreign_keys_to_create:
-            by_table.setdefault(fk[0], []).append(fk)
+        by_table: Dict[str, List[ForeignKey]] = {}
+        for fk_object in foreign_keys_to_create:
+            by_table.setdefault(fk_object.table, []).append(fk_object)
 
         for table, fks in by_table.items():
             self.table(table).transform(add_foreign_keys=fks)
@@ -1355,12 +1821,12 @@ class Database:
         "Create indexes for every foreign key column on every table in the database."
         for table_name in self.table_names():
             table = self.table(table_name)
-            existing_indexes = {
-                i.columns[0] for i in table.indexes if len(i.columns) == 1
-            }
+            existing_indexes = {tuple(i.columns) for i in table.indexes}
             for fk in table.foreign_keys:
-                if fk.column not in existing_indexes:
-                    table.create_index([fk.column], find_unique_name=True)
+                # A compound foreign key gets a single composite index
+                if fk.columns not in existing_indexes:
+                    table.create_index(fk.columns, find_unique_name=True)
+                    existing_indexes.add(fk.columns)
 
     def vacuum(self) -> None:
         "Run a SQLite ``VACUUM`` against the database."
@@ -1510,7 +1976,7 @@ class Queryable:
         if offset is not None:
             sql += " offset {}".format(offset)
         cursor = self.db.execute(sql, where_args or [])
-        columns = [c[0] for c in cursor.description]
+        columns = dedupe_keys(c[0] for c in cursor.description)
         for row in cursor:
             yield dict(zip(columns, row))
 
@@ -1590,7 +2056,8 @@ class Table(Queryable):
     :param not_null: List of columns that cannot be null
     :param defaults: Dictionary of column names and default values
     :param batch_size: Integer number of rows to insert at a time
-    :param hash_id: If True, use a hash of the row values as the primary key
+    :param hash_id: Name of a column to create and use as a primary key, where the
+      value of that primary key is derived from a hash of the row values
     :param hash_id_columns: List of columns to use for the hash_id
     :param alter: If True, automatically alter the table if it doesn't match the schema
     :param ignore: If True, ignore rows that already exist when inserting
@@ -1710,21 +2177,50 @@ class Table(Queryable):
 
     @property
     def foreign_keys(self) -> List["ForeignKey"]:
-        "List of foreign keys defined on this table."
-        fks = []
+        """
+        List of foreign keys defined on this table.
+
+        Compound (multi-column) foreign keys are returned as a single
+        ``ForeignKey`` with ``is_compound=True`` and populated
+        ``columns``/``other_columns`` lists.
+        """
+        # PRAGMA foreign_key_list returns one row per column, grouped by "id"
+        # with "seq" giving the column order within a compound foreign key.
+        by_id: Dict[int, list] = {}
         for row in self.db.execute(
             "PRAGMA foreign_key_list({})".format(quote_identifier(self.name))
         ).fetchall():
             if row is not None:
                 id, seq, table_name, from_, to_, on_update, on_delete, match = row
-                fks.append(
-                    ForeignKey(
-                        table=self.name,
-                        column=from_,
-                        other_table=table_name,
-                        other_column=to_,
-                    )
+                by_id.setdefault(id, []).append(
+                    (seq, table_name, from_, to_, on_update, on_delete)
                 )
+        fks = []
+        for id in sorted(by_id):
+            rows = sorted(by_id[id])  # order columns by seq
+            other_table = rows[0][1]
+            columns = tuple(row[2] for row in rows)
+            other_columns = tuple(row[3] for row in rows)
+            if all(c is None for c in other_columns):
+                # "REFERENCES other_table" with no columns - the pragma
+                # returns None, meaning the other table's primary key
+                other_table_pks = tuple(self.db.table(other_table).pks)
+                if len(other_table_pks) == len(columns):
+                    other_columns = other_table_pks
+            is_compound = len(rows) > 1
+            fks.append(
+                ForeignKey(
+                    table=self.name,
+                    column=None if is_compound else columns[0],
+                    other_table=other_table,
+                    other_column=None if is_compound else other_columns[0],
+                    columns=columns,
+                    other_columns=other_columns,
+                    is_compound=is_compound,
+                    on_update=rows[0][4],
+                    on_delete=rows[0][5],
+                )
+            )
         return fks
 
     @property
@@ -1944,7 +2440,9 @@ class Table(Queryable):
         :param pk: New primary key for the table
         :param not_null: Columns to set as ``NOT NULL``
         :param defaults: Default values for columns
-        :param drop_foreign_keys: Names of columns that should have their foreign key constraints removed
+        :param drop_foreign_keys: Foreign key constraints to remove - a column name
+          drops any foreign key that column participates in, a tuple of column names
+          drops the compound foreign key with exactly those columns
         :param add_foreign_keys: List of foreign keys to add to the table
         :param foreign_keys: List of foreign keys to set for the table, replacing any existing foreign keys
         :param column_order: List of strings specifying a full or partial column order
@@ -1952,7 +2450,8 @@ class Table(Queryable):
         :param keep_table: If specified, the existing table will be renamed to this and will not be
           dropped
         """
-        assert self.exists(), "Cannot transform a table that doesn't exist yet"
+        if not self.exists():
+            raise ValueError("Cannot transform a table that doesn't exist yet")
         sqls = self.transform_sql(
             types=types,
             rename=rename,
@@ -2028,7 +2527,9 @@ class Table(Queryable):
         :param pk: New primary key for the table
         :param not_null: Columns to set as ``NOT NULL``
         :param defaults: Default values for columns
-        :param drop_foreign_keys: Names of columns that should have their foreign key constraints removed
+        :param drop_foreign_keys: Foreign key constraints to remove - a column name
+          drops any foreign key that column participates in, a tuple of column names
+          drops the compound foreign key with exactly those columns
         :param add_foreign_keys: List of foreign keys to add to the table
         :param foreign_keys: List of foreign keys to set for the table, replacing any existing foreign keys
         :param column_order: List of strings specifying a full or partial column order
@@ -2040,6 +2541,31 @@ class Table(Queryable):
         types = types or {}
         rename = rename or {}
         drop = drop or set()
+
+        # Resolve column references against the existing schema, matching
+        # case-insensitively the way SQLite does
+        existing_columns = self.columns_dict
+        types = {resolve_casing(c, existing_columns): t for c, t in types.items()}
+        rename = {resolve_casing(c, existing_columns): v for c, v in rename.items()}
+        drop = {resolve_casing(c, existing_columns) for c in drop}
+        if pk is not DEFAULT and pk is not None:
+            if isinstance(pk, str):
+                pk = resolve_casing(pk, existing_columns)
+            else:
+                pk = [resolve_casing(p, existing_columns) for p in pk]
+        if isinstance(not_null, dict):
+            not_null = {
+                resolve_casing(c, existing_columns): v
+                for c, v in cast(Dict[str, Any], not_null).items()
+            }
+        elif isinstance(not_null, set):
+            not_null = {resolve_casing(c, existing_columns) for c in not_null}
+        if defaults is not None:
+            defaults = {
+                resolve_casing(c, existing_columns): v for c, v in defaults.items()
+            }
+        if column_order is not None:
+            column_order = [resolve_casing(c, existing_columns) for c in column_order]
 
         create_table_foreign_keys: List[ForeignKeyIndicator] = []
 
@@ -2055,29 +2581,68 @@ class Table(Queryable):
             create_table_foreign_keys.extend(foreign_keys)
         else:
             # Construct foreign_keys from current, plus add_foreign_keys, minus drop_foreign_keys
-            create_table_foreign_keys = []
-            for table, column, other_table, other_column in self.foreign_keys:
-                # Copy over old foreign keys, unless we are dropping them
-                if (drop_foreign_keys is None) or (column not in drop_foreign_keys):
-                    create_table_foreign_keys.append(
-                        ForeignKey(
-                            table,
-                            rename.get(column) or column,
-                            other_table,
-                            other_column,
-                        )
+            # The casing of columns in a foreign key definition can differ
+            # from the casing of the columns themselves, so these comparisons
+            # are all case-folded
+            dropped_columns_folded = {fold_identifier_case(c) for c in drop}
+            renamed_columns_folded = {
+                fold_identifier_case(k): v for k, v in rename.items()
+            }
+
+            def fk_should_be_dropped(fk: ForeignKey) -> bool:
+                fk_columns_folded = tuple(fold_identifier_case(c) for c in fk.columns)
+                if drop_foreign_keys is not None:
+                    for spec in drop_foreign_keys:
+                        if isinstance(spec, str):
+                            # A column name matches any foreign key it participates in
+                            if fold_identifier_case(spec) in fk_columns_folded:
+                                return True
+                        elif (
+                            tuple(fold_identifier_case(s) for s in spec)
+                            == fk_columns_folded
+                        ):
+                            # A tuple/list must match a compound key's columns exactly
+                            return True
+                # Dropping any of a foreign key's columns drops the whole key
+                return any(
+                    column in dropped_columns_folded for column in fk_columns_folded
+                )
+
+            def fk_with_renamed_columns(fk: ForeignKey) -> ForeignKey:
+                columns = tuple(
+                    renamed_columns_folded.get(fold_identifier_case(column)) or column
+                    for column in fk.columns
+                )
+                if fk.is_compound:
+                    return ForeignKey(
+                        self.name,
+                        None,
+                        fk.other_table,
+                        None,
+                        columns=columns,
+                        other_columns=fk.other_columns,
+                        is_compound=True,
+                        on_delete=fk.on_delete,
+                        on_update=fk.on_update,
                     )
+                return ForeignKey(
+                    self.name,
+                    columns[0],
+                    fk.other_table,
+                    fk.other_columns[0],
+                    on_delete=fk.on_delete,
+                    on_update=fk.on_update,
+                )
+
+            create_table_foreign_keys = []
+            # Copy over old foreign keys, unless we are dropping them
+            for fk in self.foreign_keys:
+                if not fk_should_be_dropped(fk):
+                    create_table_foreign_keys.append(fk_with_renamed_columns(fk))
             # Add new foreign keys
             if add_foreign_keys is not None:
                 for fk in self.db.resolve_foreign_keys(self.name, add_foreign_keys):
-                    create_table_foreign_keys.append(
-                        ForeignKey(
-                            self.name,
-                            rename.get(fk.column) or fk.column,
-                            fk.other_table,
-                            fk.other_column,
-                        )
-                    )
+                    create_table_foreign_keys.append(fk_with_renamed_columns(fk))
 
         new_table_name = "{}_new_{}".format(
             self.name, tmp_suffix or os.urandom(6).hex()
@@ -2124,8 +2689,10 @@ class Table(Queryable):
         elif not not_null:
             pass
         else:
-            assert False, "not_null must be a dict or a set or None, it was {}".format(
-                repr(not_null)
+            raise ValueError(
+                "not_null must be a dict or a set or None, it was {}".format(
+                    repr(not_null)
+                )
             )
         # defaults=
         create_table_defaults = {
@@ -2233,6 +2800,8 @@ class Table(Queryable):
         rename = rename or {}
         if isinstance(columns, str):
             columns = [columns]
+        columns = [resolve_casing(c, self.columns_dict) for c in columns]
+        rename = {resolve_casing(k, self.columns_dict): v for k, v in rename.items()}
         if not set(columns).issubset(self.columns_dict.keys()):
             raise InvalidColumns(
                 "Invalid columns {} for table with columns {}".format(
@@ -2424,6 +2993,7 @@ class Table(Queryable):
                 raise AlterError("table '{}' does not exist".format(fk))
             # if fk_col specified, must be a valid column
             if fk_col is not None:
+                fk_col = resolve_casing(fk_col, self.db[fk].columns_dict)
                 if fk_col not in self.db[fk].columns_dict:
                     raise AlterError("table '{}' has no column {}".format(fk, fk_col))
             else:
@@ -2508,52 +3078,106 @@ class Table(Queryable):
 
     def add_foreign_key(
         self,
-        column: str,
+        column: ForeignKeyColumns,
         other_table: Optional[str] = None,
-        other_column: Optional[str] = None,
+        other_column: Optional[ForeignKeyColumns] = None,
         ignore: bool = False,
+        on_delete: str = "NO ACTION",
+        on_update: str = "NO ACTION",
     ):
         """
         Alter the schema to mark the specified column as a foreign key to another table.
 
-        :param column: The column to mark as a foreign key.
+        :param column: The column to mark as a foreign key - use a tuple of columns
+          for a compound foreign key.
         :param other_table: The table it refers to - if omitted, will be guessed based on the column name.
         :param other_column: The column on the other table it - if omitted, will be guessed.
+          Use a tuple of columns for a compound foreign key.
         :param ignore: Set this to ``True`` to ignore an existing foreign key - otherwise a ``AlterError`` will be raised.
+        :param on_delete: ``ON DELETE`` action for the foreign key, e.g. ``"CASCADE"``
+          or ``"SET NULL"``.
+        :param on_update: ``ON UPDATE`` action for the foreign key.
         """
-        # Ensure column exists
-        if column not in self.columns_dict:
-            raise AlterError("No such column: {}".format(column))
+        columns = (column,) if isinstance(column, str) else tuple(column)
+        columns = tuple(resolve_casing(c, self.columns_dict) for c in columns)
+        # Ensure columns exist
+        for col in columns:
+            if col not in self.columns_dict:
+                raise AlterError("No such column: {}".format(col))
         # If other_table is not specified, attempt to guess it from the column
         if other_table is None:
-            other_table = self.guess_foreign_table(column)
+            if len(columns) > 1:
+                raise ValueError(
+                    "other_table must be specified for a compound foreign key"
+                )
+            other_table = self.guess_foreign_table(columns[0])
         # If other_column is not specified, detect the primary key on other_table
         if other_column is None:
-            other_column = self.guess_foreign_column(other_table)
+            if len(columns) > 1:
+                other_columns = tuple(self.db.table(other_table).pks)
+            else:
+                other_columns = (self.guess_foreign_column(other_table),)
+        elif isinstance(other_column, str):
+            other_columns = (other_column,)
+        else:
+            other_columns = tuple(other_column)
+        other_columns = tuple(
+            resolve_casing(c, self.db[other_table].columns_dict) for c in other_columns
+        )
+        if len(columns) != len(other_columns):
+            raise ValueError(
+                "Compound foreign key must have the same number of columns "
+                "on both sides"
+            )
 
-        # Soundness check that the other column exists
-        if (
-            not [c for c in self.db[other_table].columns if c.name == other_column]
-            and other_column != "rowid"
-        ):
-            raise AlterError("No such column: {}.{}".format(other_table, other_column))
+        # Soundness check that the other columns exist
+        for other_col in other_columns:
+            if (
+                not [c for c in self.db[other_table].columns if c.name == other_col]
+                and other_col != "rowid"
+            ):
+                raise AlterError("No such column: {}.{}".format(other_table, other_col))
         # Check we do not already have an existing foreign key
         if any(
             fk
             for fk in self.foreign_keys
-            if fk.column == column
-            and fk.other_table == other_table
-            and fk.other_column == other_column
+            if tuple(fold_identifier_case(c) for c in fk.columns)
+            == tuple(fold_identifier_case(c) for c in columns)
+            and fold_identifier_case(fk.other_table)
+            == fold_identifier_case(other_table)
+            and tuple(fold_identifier_case(c) for c in fk.other_columns)
+            == tuple(fold_identifier_case(c) for c in other_columns)
         ):
             if ignore:
                 return self
             else:
                 raise AlterError(
                     "Foreign key already exists for {} => {}.{}".format(
-                        column, other_table, other_column
+                        ", ".join(columns), other_table, ", ".join(other_columns)
                     )
                 )
-        self.db.add_foreign_keys([(self.name, column, other_table, other_column)])
+        if len(columns) == 1:
+            fk_object = ForeignKey(
+                self.name,
+                columns[0],
+                other_table,
+                other_columns[0],
+                on_delete=on_delete,
+                on_update=on_update,
+            )
+        else:
+            fk_object = ForeignKey(
+                self.name,
+                None,
+                other_table,
+                None,
+                columns=columns,
+                other_columns=other_columns,
+                is_compound=True,
+                on_delete=on_delete,
+                on_update=on_update,
+            )
+        self.db.add_foreign_keys([fk_object])
         return self
 
     def enable_counts(self) -> None:
@@ -2760,11 +3384,12 @@ class Table(Queryable):
         if fts_table is None:
             # Assume this is itself an FTS table
             fts_table = self.name
-        self.db.execute(
-            "INSERT INTO {table}({table}) VALUES('rebuild');".format(
-                table=quote_identifier(fts_table)
+        with self.db.atomic():
+            self.db.execute(
+                "INSERT INTO {table}({table}) VALUES('rebuild');".format(
+                    table=quote_identifier(fts_table)
+                )
             )
-        )
         return self
 
     def detect_fts(self) -> Optional[str]:
@@ -2796,9 +3421,10 @@ class Table(Queryable):
         "Run the ``optimize`` operation against the associated full-text search index table."
         fts_table = self.detect_fts()
         if fts_table is not None:
-            self.db.execute("""
-                INSERT INTO {table} ({table}) VALUES ("optimize");
-            """.strip().format(table=quote_identifier(fts_table)))
+            with self.db.atomic():
+                self.db.execute("""
+                    INSERT INTO {table} ({table}) VALUES ("optimize");
+                """.strip().format(table=quote_identifier(fts_table)))
         return self
 
     def search_sql(
@@ -2831,9 +3457,10 @@ class Table(Queryable):
                 "{}.{}".format(original_quoted, quote_identifier(c)) for c in columns
             )
         fts_table = self.detect_fts()
-        assert fts_table, "Full-text search is not configured for table '{}'".format(
-            self.name
-        )
+        if not fts_table:
+            raise ValueError(
+                "Full-text search is not configured for table '{}'".format(self.name)
+            )
         fts_table_quoted = quote_identifier(fts_table)
         virtual_table_using = self.db.table(fts_table).virtual_table_using
         sql = textwrap.dedent("""
@@ -2926,7 +3553,7 @@ class Table(Queryable):
             ),
             args,
         )
-        columns = [c[0] for c in cursor.description]
+        columns = dedupe_keys(c[0] for c in cursor.description)
         for row in cursor:
             yield dict(zip(columns, row))
 
@@ -2971,7 +3598,8 @@ class Table(Queryable):
         sql = "delete from {}".format(quote_identifier(self.name))
         if where is not None:
             sql += " where " + where
-        self.db.execute(sql, where_args or [])
+        with self.db.atomic():
+            self.db.execute(sql, where_args or [])
         if analyze:
             self.analyze()
         return self
@@ -3067,6 +3695,7 @@ class Table(Queryable):
         """
         if isinstance(columns, str):
             columns = [columns]
+        columns = [resolve_casing(c, self.columns_dict) for c in columns]
 
         if multi:
             return self._convert_multi(
@@ -3079,7 +3708,9 @@ class Table(Queryable):
             )
 
         if output is not None:
-            assert len(columns) == 1, "output= can only be used with a single column"
+            if len(columns) != 1:
+                raise ValueError("output= can only be used with a single column")
+            output = resolve_casing(output, self.columns_dict)
             if output not in self.columns_dict:
                 self.add_column(output, output_type or "text")
 
@@ -3187,6 +3818,11 @@ class Table(Queryable):
         # Dict-mode insert({}) has no explicit columns; SQLite spells that as
         # DEFAULT VALUES. List mode with no columns is a different input shape.
         if not list_mode and not all_columns:
+            if upsert:
+                raise PrimaryKeyRequired(
+                    "upsert() requires a value for the primary key - "
+                    "an empty record cannot be upserted"
+                )
             or_clause = ""
             if replace:
                 or_clause = " OR REPLACE"
@@ -3274,6 +3910,28 @@ class Table(Queryable):
 
         # Everything from here on is for upsert=True
         pk_cols = [pk] if isinstance(pk, str) else list(pk)
+        # The records may use different casing for the pk columns than pk=
+        pk_cols = [resolve_casing(c, all_columns) for c in pk_cols]
+        # Every record must provide a value for every primary key column - a
+        # NULL primary key never matches ON CONFLICT, so the record would be
+        # inserted as a brand new row instead of upserted
+        missing_pk_cols = [c for c in pk_cols if c not in all_columns]
+        if missing_pk_cols:
+            raise PrimaryKeyRequired(
+                "upsert() requires a value for the primary key column{}: {}".format(
+                    "s" if len(missing_pk_cols) > 1 else "",
+                    ", ".join(missing_pk_cols),
+                )
+            )
+        pk_indexes = [all_columns.index(c) for c in pk_cols]
+        for record_values in values:
+            if any(record_values[i] is None for i in pk_indexes):
+                raise PrimaryKeyRequired(
+                    "upsert() requires a value for the primary key column{}: {}".format(
+                        "s" if len(pk_cols) > 1 else "",
+                        ", ".join(pk_cols),
+                    )
+                )
         non_pk_cols = [c for c in all_columns if c not in pk_cols]
         conflict_sql = ", ".join(quote_identifier(c) for c in pk_cols)
 
@@ -3304,10 +3962,7 @@ class Table(Queryable):
         # At this point we need compatibility UPSERT for SQLite < 3.24.0
         # (INSERT OR IGNORE + second UPDATE stage)
         queries_and_params = []
-        if isinstance(pk, str):
-            pks = [pk]
-        else:
-            pks = pk
+        pks = pk_cols
         self.last_pk = None
         for record_values in values:
             record = dict(zip(all_columns, record_values))
@@ -3567,15 +4222,15 @@ class Table(Queryable):
         if upsert and (not pk and not hash_id):
             raise PrimaryKeyRequired("upsert() requires a pk")
 
-        assert not (hash_id and pk), "Use either pk= or hash_id="
+        if hash_id and pk:
+            raise ValueError("Use either pk= or hash_id=")
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
         if hash_id:
             pk = hash_id
 
-        assert not (
-            ignore and replace
-        ), "Use either ignore=True or replace=True, not both"
+        if ignore and replace:
+            raise ValueError("Use either ignore=True or replace=True, not both")
         all_columns = []
         first = True
         num_records_processed = 0
@@ -3624,9 +4279,10 @@ class Table(Queryable):
             first_record = cast(Dict[str, Any], first_record)
             num_columns = len(first_record.keys())
 
-        assert (
-            num_columns <= SQLITE_MAX_VARS
-        ), "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
+        if num_columns > SQLITE_MAX_VARS:
+            raise ValueError(
+                "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
+            )
         batch_size = (
             1
             if num_columns == 0
@@ -3719,9 +4375,9 @@ class Table(Queryable):
                     if hash_id:
                         self.last_pk = row[hash_id]
                     elif isinstance(pk, str):
-                        self.last_pk = row[pk]
+                        self.last_pk = row[resolve_casing(pk, row)]
                     else:
-                        self.last_pk = tuple(row[p] for p in pk)
+                        self.last_pk = tuple(row[resolve_casing(p, row)] for p in pk)
                 else:
                     self.last_pk = self.last_rowid
             else:
@@ -3733,11 +4389,14 @@ class Table(Queryable):
                         # hash_id not supported in list mode for last_pk
                         pass
                     elif isinstance(pk, str):
-                        pk_index = column_names.index(pk)
+                        pk_index = column_names.index(resolve_casing(pk, column_names))
                         self.last_pk = first_record_list[pk_index]
                     else:
                         self.last_pk = tuple(
-                            first_record_list[column_names.index(p)] for p in pk
+                            first_record_list[
+                                column_names.index(resolve_casing(p, column_names))
+                            ]
+                            for p in pk
                         )
                 else:
                     first_record_dict = cast(Dict[str, Any], first_record)
@@ -3745,9 +4404,12 @@ class Table(Queryable):
                         self.last_pk = hash_record(first_record_dict, hash_id_columns)
                     else:
                         self.last_pk = (
-                            first_record_dict[pk]
+                            first_record_dict[resolve_casing(pk, first_record_dict)]
                             if isinstance(pk, str)
-                            else tuple(first_record_dict[p] for p in pk)
+                            else tuple(
+                                first_record_dict[resolve_casing(p, first_record_dict)]
+                                for p in pk
+                            )
                         )
 
         if analyze:
@@ -3881,17 +4543,23 @@ class Table(Queryable):
         :param extra_values: Additional column values to be used only if creating a new record
         :param strict: Boolean, apply STRICT mode if creating the table.
         """
-        assert isinstance(lookup_values, dict)
-        assert pk is not None
-        if extra_values is not None:
-            assert isinstance(extra_values, dict)
+        if not isinstance(lookup_values, dict):
+            raise ValueError("lookup_values must be a dictionary")
+        if pk is None:
+            raise ValueError("pk cannot be None")
+        if extra_values is not None and not isinstance(extra_values, dict):
+            raise ValueError("extra_values must be a dictionary")
         combined_values = dict(lookup_values)
         if extra_values is not None:
             combined_values.update(extra_values)
         if self.exists():
             self.add_missing_columns([combined_values])
-            unique_column_sets = [set(i.columns) for i in self.indexes]
-            if set(lookup_values.keys()) not in unique_column_sets:
+            unique_column_sets = [
+                {fold_identifier_case(c) for c in i.columns} for i in self.indexes
+            ]
+            if {
+                fold_identifier_case(c) for c in lookup_values
+            } not in unique_column_sets:
                 self.create_index(lookup_values.keys(), unique=True)
             wheres = [
                 "{} = ?".format(quote_identifier(column)) for column in lookup_values
@@ -3902,7 +4570,7 @@ class Table(Queryable):
                 )
             )
             try:
-                return rows[0][pk]
+                return rows[0][resolve_casing(pk, rows[0])]
             except IndexError:
                 return self.insert(
                     combined_values,
@@ -3969,9 +4637,10 @@ class Table(Queryable):
             other_table = self.db.table(other_table, pk=pk)
         our_id = self.last_pk
         if lookup is not None:
-            assert record_or_iterable is None, "Provide lookup= or record, not both"
-        else:
-            assert record_or_iterable is not None, "Provide lookup= or record, not both"
+            if record_or_iterable is not None:
+                raise ValueError("Provide lookup= or record, not both")
+        elif record_or_iterable is None:
+            raise ValueError("Provide lookup= or record, not both")
         tables = list(sorted([self.name, other_table.name]))
         columns = ["{}_id".format(t) for t in tables]
         if m2m_table is not None:
@@ -4232,12 +4901,6 @@ class View(Queryable):
         except sqlite3.OperationalError:
             if not ignore:
                 raise
-
-    def enable_fts(self, *args: object, **kwargs: object) -> None:
-        "``enable_fts()`` is supported on tables but not on views."
-        raise NotImplementedError(
-            "enable_fts() is supported on tables but not on views"
-        )
 
 
 def jsonify_if_needed(value: object) -> object:

@@ -14,6 +14,7 @@ from sqlite_utils.db import (
     DEFAULT,
     DescIndex,
     NoTable,
+    NoView,
     quote_identifier,
 )
 from sqlite_utils.plugins import ensure_plugins_loaded, pm, get_plugins
@@ -33,6 +34,7 @@ from .utils import (
     OperationalError,
     _compile_code,
     chunks,
+    dedupe_keys,
     file_progress,
     find_spatialite,
     flatten as _flatten,
@@ -701,14 +703,14 @@ def enable_fts(
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[table].enable_fts(
+        db.table(table).enable_fts(
             column,
             fts_version=fts_version,
             tokenize=tokenize,
             create_triggers=create_triggers,
             replace=replace,
         )
-    except OperationalError as ex:
+    except (NoTable, OperationalError) as ex:
         raise click.ClickException(str(ex))
 
 
@@ -940,12 +942,6 @@ def insert_upsert_options(*, require_pk=False):
                     help="Default value that should be set for a column",
                 ),
                 click.option(
-                    "-d",
-                    "--detect-types",
-                    is_flag=True,
-                    help="Detect types for columns in CSV/TSV data (default)",
-                ),
-                click.option(
                     "--no-detect-types",
                     is_flag=True,
                     help="Treat all CSV/TSV columns as TEXT",
@@ -999,7 +995,6 @@ def insert_upsert_implementation(
     truncate=False,
     not_null=None,
     default=None,
-    detect_types=None,
     no_detect_types=False,
     analyze=False,
     load_extension=None,
@@ -1066,7 +1061,7 @@ def insert_upsert_implementation(
                 )
             else:
                 docs = (dict(zip(headers, row)) for row in reader)
-            # detect_types is now the default, unless --no-detect-types is passed
+            # Type detection is the default, unless --no-detect-types is passed
             if not no_detect_types:
                 tracker = TypeTracker()
                 docs = tracker.wrap(docs)
@@ -1146,7 +1141,7 @@ def insert_upsert_implementation(
             else:
                 doc_chunks = [docs]
             for doc_chunk in doc_chunks:
-                with db.conn:
+                with db.atomic():
                     db.conn.cursor().executemany(bulk_sql, doc_chunk)
             return
 
@@ -1154,6 +1149,8 @@ def insert_upsert_implementation(
             db.table(table).insert_all(
                 docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
             )
+        except NoTable as e:
+            raise click.ClickException(str(e))
         except Exception as e:
             if (
                 isinstance(e, OperationalError)
@@ -1238,7 +1235,6 @@ def insert(
     batch_size,
     stop_after,
     alter,
-    detect_types,
     no_detect_types,
     analyze,
     load_extension,
@@ -1321,7 +1317,6 @@ def insert(
             ignore=ignore,
             replace=replace,
             truncate=truncate,
-            detect_types=detect_types,
             no_detect_types=no_detect_types,
             analyze=analyze,
             load_extension=load_extension,
@@ -1360,7 +1355,6 @@ def upsert(
     alter,
     not_null,
     default,
-    detect_types,
     no_detect_types,
     analyze,
     load_extension,
@@ -1406,7 +1400,6 @@ def upsert(
             upsert=True,
             not_null=not_null,
             default=default,
-            detect_types=detect_types,
             no_detect_types=no_detect_types,
             analyze=analyze,
             load_extension=load_extension,
@@ -1494,7 +1487,6 @@ def bulk(
             upsert=False,
             not_null=set(),
             default={},
-            detect_types=False,
             no_detect_types=True,
             load_extension=load_extension,
             silent=False,
@@ -1725,7 +1717,13 @@ def drop_table(path, table, ignore, load_extension):
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[table].drop(ignore=ignore)
+        db.table(table).drop(ignore=ignore)
+    except NoTable:
+        # A view exists with this name
+        if not ignore:
+            raise click.ClickException(
+                '"{}" is a view, not a table - use drop-view to drop it'.format(table)
+            )
     except OperationalError:
         raise click.ClickException('Table "{}" does not exist'.format(table))
 
@@ -1797,8 +1795,14 @@ def drop_view(path, view, ignore, load_extension):
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[view].drop(ignore=ignore)
-    except OperationalError:
+        db.view(view).drop(ignore=ignore)
+    except NoView:
+        if ignore:
+            return
+        if view in db.table_names():
+            raise click.ClickException(
+                '"{}" is a table, not a view - use drop-table to drop it'.format(view)
+            )
         raise click.ClickException('View "{}" does not exist'.format(view))
 
 
@@ -3374,12 +3378,18 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
     if not migration_sets:
         raise click.ClickException("No migrations.py files found")
 
-    db = sqlite_utils.Database(db_path)
-    _register_db_for_cleanup(db)
-
     if list_:
+        if pathlib.Path(db_path).exists():
+            db = sqlite_utils.Database(db_path)
+        else:
+            # Listing is read-only - don't create the database file
+            db = sqlite_utils.Database(memory=True)
+        _register_db_for_cleanup(db)
         _display_migration_list(db, migration_sets)
         return
+
+    db = sqlite_utils.Database(db_path)
+    _register_db_for_cleanup(db)
 
     prev_schema = db.schema
     if verbose:
@@ -3387,11 +3397,38 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
         click.echo("\nSchema before:\n")
         click.echo(textwrap.indent(prev_schema, "  ") or "  (empty)")
         click.echo()
+    if stop_before:
+        # Every --stop-before value must match at least one known migration
+        known_names = set()
+        for migration_set in migration_sets:
+            names = {m.name for m in migration_set.pending(db)}
+            names.update(m.name for m in migration_set.applied(db))
+            known_names.update(names)
+            known_names.update(
+                "{}:{}".format(migration_set.name, name) for name in names
+            )
+        unknown = [value for value in stop_before if value not in known_names]
+        if unknown:
+            raise click.ClickException(
+                "--stop-before did not match any migrations: {}".format(
+                    ", ".join(unknown)
+                )
+            )
     for migration_set in migration_sets:
-        migration_set.apply(
-            db,
-            stop_before=_stop_before_for_migration_set(stop_before, migration_set.name),
-        )
+        matches = _stop_before_for_migration_set(stop_before, migration_set.name)
+        if isinstance(migration_set, sqlite_utils.Migrations):
+            migration_set.apply(db, stop_before=matches)
+        else:
+            # Legacy sqlite-migrate Migrations objects take a single string
+            # for stop_before, not a list
+            distinct = list(dict.fromkeys(matches))
+            if len(distinct) > 1:
+                raise click.ClickException(
+                    "Migration set '{}' uses the older sqlite-migrate class, "
+                    "which only supports a single --stop-before value - "
+                    "got: {}".format(migration_set.name, ", ".join(distinct))
+                )
+            migration_set.apply(db, stop_before=distinct[0] if distinct else None)
     if verbose:
         click.echo("Schema after:\n")
         post_schema = db.schema
@@ -3457,6 +3494,10 @@ FILE_COLUMNS = {
 
 
 def output_rows(iterator, headers, nl, arrays, json_cols):
+    # Duplicate column names would collide as dictionary keys, so rename
+    # later occurrences id, id -> id, id_2 - CSV and table output keep
+    # the original duplicate headers since they never build dictionaries
+    headers = dedupe_keys(headers)
     # We have to iterate two-at-a-time so we can know if we
     # should output a trailing comma or if we have reached
     # the last row.

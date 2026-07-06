@@ -70,6 +70,25 @@ When you apply a set of migrations you can stop part way through by specifying a
 
     migrations.apply(db, stop_before="add_weight")
 
+.. _migrations_transactions:
+
+Migrations and transactions
+===========================
+
+Each migration runs inside a transaction, together with the ``_sqlite_migrations`` record of it having been applied. If a migration function raises an exception, everything it did is rolled back, no record is written and the migration stays pending - so fixing the error and re-applying will run that migration again from a clean state. Migrations that completed earlier in the same ``apply()`` run stay applied.
+
+Some operations cannot run inside a transaction, for example ``VACUUM`` or changing the journal mode with ``db.enable_wal()``. Register migrations like these with ``transactional=False``:
+
+.. code-block:: python
+
+    @migrations(transactional=False)
+    def compact(db):
+        db.execute("VACUUM")
+
+A migration registered with ``transactional=False`` runs without a wrapping transaction, so if it fails part way through any changes it already made will not be rolled back, and re-applying will run the whole function again.
+
+Avoid calling ``db.commit()`` or otherwise managing transactions manually inside a transactional migration - register the migration with ``transactional=False`` if it needs to control its own transactions. Using ``with db.atomic():`` blocks inside a migration is fine: they nest as savepoints within the migration's transaction, so the migration as a whole still commits or rolls back as a single unit. See :ref:`python_api_transactions`.
+
 Applying migrations using the CLI
 =================================
 
@@ -98,7 +117,7 @@ Running the command repeatedly is safe. Migrations that already have a matching 
 Listing migrations
 ==================
 
-Use ``--list`` to show applied and pending migrations without running them:
+Use ``--list`` to show applied and pending migrations without running them. This is a read-only operation - it will not create the database file or the ``_sqlite_migrations`` table:
 
 .. code-block:: bash
 
@@ -137,6 +156,8 @@ You can also target a specific migration set using ``migration_set:migration_nam
       --stop-before sales:drop_index
 
 The ``--stop-before`` option can be passed more than once.
+
+If a ``--stop-before`` value does not match any known migration the command exits with an error, rather than silently applying everything.
 
 Verbose output
 ==============

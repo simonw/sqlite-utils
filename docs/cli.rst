@@ -45,6 +45,8 @@ The default format returned for queries is JSON:
     [{"id": 1, "age": 4, "name": "Cleo"},
      {"id": 2, "age": 2, "name": "Pancakes"}]
 
+If the query returns more than one column with the same name, later occurrences are renamed with a numeric suffix - ``select 1 as id, 2 as id`` returns ``[{"id": 1, "id_2": 2}]``. This only applies to JSON output: :ref:`CSV and TSV <cli_query_csv>` and :ref:`table <cli_query_table>` output keep the duplicate column headers unchanged.
+
 .. _cli_query_nl:
 
 Newline-delimited JSON

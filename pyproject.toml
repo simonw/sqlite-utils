@@ -1,6 +1,6 @@
 [project]
 name = "sqlite-utils"
-version = "4.0rc1"
+version = "4.0rc2"
 description = "CLI tool and Python library for manipulating SQLite databases"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
@@ -72,7 +72,8 @@ CI = "https://github.com/simonw/sqlite-utils/actions"
 sqlite-utils = "sqlite_utils.cli:cli"
 
 [build-system]
-requires = ["setuptools"]
+# setuptools 77+ is needed for the PEP 639 license = "Apache-2.0" expression
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.flake8]

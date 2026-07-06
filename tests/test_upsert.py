@@ -49,6 +49,42 @@ def test_upsert_error_if_no_pk(fresh_db):
         table.upsert({"id": 1, "name": "Cleo"})
 
 
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert_empty_record_errors(use_old_upsert):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db["table"]
+    table.insert({"id": 1, "name": "Cleo"}, pk="id")
+    with pytest.raises(PrimaryKeyRequired):
+        table.upsert({}, pk="id")
+    with pytest.raises(PrimaryKeyRequired):
+        table.upsert_all([{}, {}], pk="id")
+    # No rows can have been inserted
+    assert table.count == 1
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert_missing_pk_value_errors(use_old_upsert):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db["table"]
+    table.insert({"id": 1, "name": "Cleo"}, pk="id")
+    # Records that omit the pk column entirely
+    with pytest.raises(PrimaryKeyRequired):
+        table.upsert_all([{"name": "Pancakes"}, {"name": "Marnie"}], pk="id")
+    # A record with an explicit None pk value can never conflict
+    with pytest.raises(PrimaryKeyRequired):
+        table.upsert({"id": None, "name": "Pancakes"}, pk="id")
+    assert list(table.rows) == [{"id": 1, "name": "Cleo"}]
+
+
+def test_upsert_missing_compound_pk_value_errors(fresh_db):
+    table = fresh_db["table"]
+    table.insert({"a": "x", "b": "y", "v": 1}, pk=("a", "b"))
+    # Missing one component of the detected compound primary key
+    with pytest.raises(PrimaryKeyRequired):
+        table.upsert({"a": "x", "v": 2})
+    assert list(table.rows) == [{"a": "x", "b": "y", "v": 1}]
+
+
 def test_upsert_error_if_existing_table_has_no_pk(fresh_db):
     table = fresh_db.create_table("table", {"id": int, "name": str})
     with pytest.raises(PrimaryKeyRequired):

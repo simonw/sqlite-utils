@@ -615,3 +615,16 @@ def test_insert_csv_headers_only(tmpdir):
     # Table should not exist since there were no data rows
     db = Database(db_path)
     assert not db["data"].exists()
+
+
+def test_insert_into_view_errors(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    db["t"].insert({"id": 1})
+    db.create_view("v", "select * from t")
+    db.close()
+    result = CliRunner().invoke(
+        cli.cli, ["insert", db_path, "v", "-"], input='{"id": 2}'
+    )
+    assert result.exit_code == 1
+    assert result.output.strip() == "Error: Table v is actually a view"

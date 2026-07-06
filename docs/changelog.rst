@@ -4,6 +4,71 @@
  Changelog
 ===========
 
+.. _v_unreleased:
+
+Unreleased
+----------
+
+Breaking changes:
+
+- ``table.foreign_keys`` now returns ``ForeignKey`` objects that are dataclasses rather than ``namedtuple`` instances, so they can no longer be unpacked or indexed as ``(table, column, other_table, other_column)`` tuples - access their fields by name instead. Compound (multi-column) foreign keys are now represented as a single ``ForeignKey`` with ``is_compound=True`` and populated ``columns``/``other_columns`` tuples, where ``column`` and ``other_column`` are ``None``. Previously they were returned as one ``ForeignKey`` per column, misleadingly suggesting several independent foreign keys. See :ref:`upgrading_3_to_4` for details. (:issue:`594`)
+- Removed support for using ``sqlean.py`` as a drop-in replacement for the Python standard library ``sqlite3`` module. ``sqlite-utils`` will now use ``pysqlite3`` if it is installed, otherwise it will use ``sqlite3`` from the standard library.
+- The ``db.ensure_autocommit_off()`` context manager has been renamed to ``db.ensure_autocommit_on()``, because the old name described the opposite of what it did. The method temporarily puts the connection into driver-level autocommit mode - by setting ``isolation_level = None`` - so that statements such as ``PRAGMA journal_mode=wal`` can run outside of an implicit transaction. (:issue:`705`)
+
+Compound foreign key support:
+
+- Tables can now be created with compound foreign keys, by passing tuples of column names in ``foreign_keys=``: ``foreign_keys=[(("campus_name", "dept_code"), "departments")]``. The referenced columns default to the compound primary key of the other table. Compound keys are rendered as table-level ``FOREIGN KEY`` constraints in the generated schema. See :ref:`python_api_compound_foreign_keys`.
+- ``table.transform()`` now preserves compound foreign keys, applying any column renames to them. Dropping a column that is part of a compound foreign key drops the whole constraint, matching the existing single-column behavior. ``drop_foreign_keys=`` accepts a bare column name - dropping any foreign key that column participates in - or a tuple of columns to target a compound key precisely.
+- ``table.add_foreign_key()`` and ``db.add_foreign_keys()`` accept tuples of column names to add a compound foreign key to an existing table.
+- ``db.index_foreign_keys()`` creates a single composite index for a compound foreign key.
+
+Other foreign key improvements:
+
+- ``ForeignKey`` now exposes ``on_delete`` and ``on_update`` fields reflecting the foreign key's ``ON DELETE``/``ON UPDATE`` actions, and ``table.transform()`` preserves those actions. Previously a transform silently stripped clauses such as ``ON DELETE CASCADE`` from the table schema.
+- ``table.add_foreign_key()`` accepts new ``on_delete=`` and ``on_update=`` parameters for creating foreign keys with actions, e.g. ``table.add_foreign_key("author_id", "authors", "id", on_delete="CASCADE")``. (:issue:`530`)
+- Foreign keys declared as ``REFERENCES other_table`` with no explicit column are now resolved to the other table's primary key by ``table.foreign_keys``, instead of reporting ``other_column=None``.
+- Fixed a ``TypeError`` when sorting ``ForeignKey`` objects where some were compound.
+
+Case-insensitive column matching:
+
+Column names passed to Python API methods are now matched against the table schema case-insensitively, mirroring how SQLite itself treats identifiers. Previously many methods accepted mixed-case identifiers in the SQL they generated but then failed - or silently did nothing - when performing Python-side comparisons against the schema. (:issue:`760`) Fixes include:
+
+- ``table.insert()`` and ``table.upsert()`` now populate ``table.last_pk`` correctly when the ``pk=`` argument uses different casing to the table schema or the record keys - previously this raised a ``KeyError`` after the row had already been written.
+- Upserts no longer raise or misbehave when the casing of ``pk=`` differs from the casing of the record keys. The primary key columns are correctly excluded from the generated ``DO UPDATE SET`` clause.
+- ``table.transform()`` arguments ``types=``, ``rename=``, ``drop=``, ``pk=``, ``not_null=``, ``defaults=``, ``column_order=`` and ``drop_foreign_keys=`` all resolve column names case-insensitively. Previously options like ``rename={"name": "title"}`` against a column called ``Name`` were silently ignored.
+- ``db.create_table(..., transform=True)`` now recognizes existing columns that differ only by case, instead of attempting to add them again and failing with ``duplicate column name``. The casing used in the existing schema is preserved.
+- ``table.lookup()`` returns the primary key value even if ``pk=`` casing differs from the schema, and recognizes existing unique indexes case-insensitively instead of creating redundant ones.
+- ``table.extract()`` and ``table.convert()`` - including ``multi=True`` and ``output=`` - accept column names in any casing.
+- Foreign key columns are validated and recorded using the casing of the actual schema columns, in ``foreign_keys=`` when creating tables, ``db.add_foreign_keys()``, ``table.add_foreign_key()`` and ``table.add_column(fk_col=...)``. Duplicate foreign key detection is also case-insensitive.
+- ``table.create()`` with ``pk=``, ``not_null=``, ``defaults=`` or ``column_order=`` referencing columns using different casing no longer creates an unwanted extra primary key column or raises a ``ValueError``.
+
+.. _v4_0rc2:
+
+4.0rc2 (2026-07-04)
+-------------------
+
+Breaking changes:
+
+- Write statements executed with ``db.execute()`` are now committed automatically, unless a transaction is already open in which case they join it. Previously they opened an implicit transaction that stayed open until something committed it - writes appeared to work when read on the same connection but were silently rolled back when the connection closed. Code that relied on rolling back uncommitted ``db.execute()`` writes should use the new ``db.begin()`` method to open an explicit transaction first. The transaction model is documented in full at :ref:`python_api_transactions`.
+- ``db.query()`` now executes its SQL as soon as it is called, rather than waiting until the returned generator is first iterated. Rows are still fetched lazily during iteration. SQL errors are now raised at the call site, statements such as ``INSERT ... RETURNING`` are executed and committed immediately without needing to iterate over their results, and passing a statement that returns no rows - previously a silent no-op - now raises a ``ValueError`` recommending ``db.execute()`` instead. A statement rejected this way is rolled back before the error is raised, so it has no effect on the database.
+- Python API validation errors now raise ``ValueError`` instead of ``AssertionError``. Previously invalid arguments - such as ``create_table()`` with no columns, ``transform()`` on a table that does not exist, or passing both ``ignore=True`` and ``replace=True`` - were rejected using bare ``assert`` statements, which are silently skipped when Python runs with the ``-O`` flag. Code that caught ``AssertionError`` for these cases should catch ``ValueError`` instead.
+- ``table.upsert()`` and ``table.upsert_all()`` now raise ``PrimaryKeyRequired`` if a record is missing a value for any primary key column, or has a value of ``None`` for one. Previously such records - which can never match an existing row - were quietly inserted as brand new rows, or triggered a confusing ``KeyError`` after the insert had already taken place.
+- ``db.enable_wal()`` and ``db.disable_wal()`` now raise a ``sqlite_utils.db.TransactionError`` if called while a transaction is open. Previously they would silently commit the open transaction as a side effect of changing the journal mode, breaking the rollback guarantee of ``db.atomic()`` and of user-managed transactions.
+- The ``View`` class no longer has an ``enable_fts()`` method. It existed only to raise ``NotImplementedError``, since full-text search is not supported for views - calling it now raises ``AttributeError`` instead, and the method no longer appears in the API reference. The ``sqlite-utils enable-fts`` command shows a clean error when pointed at a view.
+- The no-op ``-d/--detect-types`` flag has been removed from the ``insert`` and ``upsert`` commands. Type detection has been the default for CSV/TSV data since 4.0a1, so the flag did nothing - invocations using it should simply drop it. ``--no-detect-types`` remains available to disable detection.
+- ``Database()`` now raises a ``sqlite_utils.db.TransactionError`` if passed a connection created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options. ``commit()`` and ``rollback()`` behave differently on those connections, which previously caused every write made by the library to be silently discarded when the connection closed.
+
+Everything else:
+
+- Fixed a bug where ``table.delete_where()``, ``table.optimize()`` and ``table.rebuild_fts()`` did not commit their changes, leaving the connection inside an open transaction. Their work - and any subsequent writes - could then be silently rolled back when the connection was closed. All three now use ``db.atomic()``, consistent with the other write methods.
+- The ``sqlite-utils drop-table`` command now refuses to drop a view, and ``drop-view`` refuses to drop a table. Previously each would silently drop the wrong type of object if the name matched. Both now exit with an error suggesting the correct command to use.
+- Migrations applied by the new :ref:`migrations system <migrations>` now run inside a transaction, together with the record of the migration having been applied. If a migration raises an exception its changes are rolled back and it stays pending, so it can be safely re-applied after the error is fixed. Migrations that cannot run inside a transaction, such as those executing ``VACUUM``, can opt out using ``@migrations(transactional=False)`` - see :ref:`migrations_transactions`.
+- ``table.upsert()`` and ``table.upsert_all()`` now detect the primary key or compound primary key of an existing table, so the ``pk=`` argument is no longer required when upserting into a table that already has a primary key.
+- ``db.table(table_name).insert({})`` can now be used to insert a row consisting entirely of default values into an existing table, using ``INSERT INTO ... DEFAULT VALUES``. (:issue:`759`)
+- Improvements to the ``sqlite-utils migrate`` command: ``--stop-before`` values that do not match any known migration are now an error instead of being silently ignored, ``--stop-before`` now works correctly with migration files that still use the older ``sqlite_migrate.Migrations`` class, and ``--list`` is now a read-only operation that no longer creates the database file or the migrations tracking table. ``migrations.applied()`` now returns migrations in the order they were applied.
+- New ``db.begin()``, ``db.commit()`` and ``db.rollback()`` methods for taking manual control of transactions, as an alternative to the ``db.atomic()`` context manager.
+- New documentation: :ref:`python_api_transactions` describes how transactions work and when changes are committed, and a new :ref:`upgrading` page details the changes needed to move between major versions.
+
 .. _v4_0rc1:
 
 4.0rc1 (2026-06-21)
