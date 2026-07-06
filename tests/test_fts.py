@@ -83,6 +83,20 @@ def test_enable_fts_escape_table_names(fresh_db):
     assert [] == list(table.search("bar"))
 
 
+def test_search_duplicate_columns_are_deduped(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/624
+    table = fresh_db["t"]
+    table.insert_all(search_records)
+    table.enable_fts(["text", "country"], fts_version="FTS4")
+    rows = list(table.search("tanuki", columns=["text", "text"]))
+    assert rows == [
+        {
+            "text": "tanuki are running tricksters",
+            "text_2": "tanuki are running tricksters",
+        }
+    ]
+
+
 def test_search_limit_offset(fresh_db):
     table = fresh_db["t"]
     table.insert_all(search_records)

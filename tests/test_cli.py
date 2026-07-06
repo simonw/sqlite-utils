@@ -746,6 +746,26 @@ def test_query_json_empty(db_path):
     assert result.output.strip() == "[]"
 
 
+def test_query_json_duplicate_columns_are_deduped(db_path):
+    # https://github.com/simonw/sqlite-utils/issues/624
+    result = CliRunner().invoke(
+        cli.cli,
+        [db_path, "select 1 as id, 2 as id, 'x' as value, 'y' as value"],
+    )
+    assert result.output.strip() == (
+        '[{"id": 1, "id_2": 2, "value": "x", "value_2": "y"}]'
+    )
+
+
+def test_query_csv_duplicate_columns_are_preserved(db_path):
+    # CSV output should keep the duplicate headers, not rename them
+    result = CliRunner().invoke(
+        cli.cli,
+        [db_path, "select 1 as id, 2 as id", "--csv"],
+    )
+    assert result.output.replace("\r", "").strip() == "id,id\n1,2"
+
+
 def test_query_invalid_function(db_path):
     result = CliRunner().invoke(
         cli.cli, [db_path, "select bad()", "--functions", "def invalid_python"]

@@ -1,5 +1,6 @@
 from .utils import (
     chunks,
+    dedupe_keys,
     hash_record,
     sqlite3,
     OperationalError,
@@ -786,7 +787,7 @@ class Database:
                     cursor = self.conn.execute(sql, *args)
             if cursor.description is None:
                 raise ValueError(message)
-            keys = [d[0] for d in cursor.description]
+            keys = dedupe_keys(d[0] for d in cursor.description)
             return (dict(zip(keys, row)) for row in cursor)
         # Execute inside a savepoint, so a statement that turns out not to
         # return rows can be rolled back before the ValueError is raised
@@ -796,7 +797,7 @@ class Database:
             cursor = self.conn.execute(sql, *args)
             if cursor.description is None:
                 raise ValueError(message)
-            keys = [d[0] for d in cursor.description]
+            keys = dedupe_keys(d[0] for d in cursor.description)
             try:
                 self.conn.execute('RELEASE "sqlite_utils_query"')
                 released = True
@@ -1865,7 +1866,7 @@ class Queryable:
         if offset is not None:
             sql += " offset {}".format(offset)
         cursor = self.db.execute(sql, where_args or [])
-        columns = [c[0] for c in cursor.description]
+        columns = dedupe_keys(c[0] for c in cursor.description)
         for row in cursor:
             yield dict(zip(columns, row))
 
@@ -3398,7 +3399,7 @@ class Table(Queryable):
             ),
             args,
         )
-        columns = [c[0] for c in cursor.description]
+        columns = dedupe_keys(c[0] for c in cursor.description)
         for row in cursor:
             yield dict(zip(columns, row))
 

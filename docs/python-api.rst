@@ -233,6 +233,17 @@ The SQL query is executed as soon as ``db.query()`` is called. The resulting row
 
 ``db.query()`` can only be used with SQL that returns rows. Passing a statement that returns no rows - an ``INSERT`` or ``UPDATE`` without a ``RETURNING`` clause, for example - will raise a ``ValueError``. The rejected statement is rolled back, so it has no effect on the database. Use :ref:`db.execute() <python_api_execute>` for those statements instead.
 
+If a query returns more than one column with the same name - a join between two tables that share column names, for example - later occurrences are renamed with a numeric suffix, so every value is included in the dictionary:
+
+.. code-block:: python
+
+    row = next(db.query("select 1 as id, 2 as id, 3 as id"))
+    print(row)
+    # Outputs:
+    # {'id': 1, 'id_2': 2, 'id_3': 3}
+
+A suffix that would collide with another column in the query is skipped - ``select 1 as id, 2 as id, 3 as id_2`` returns ``{'id': 1, 'id_3': 2, 'id_2': 3}``. The same renaming is applied by ``table.rows_where()`` and ``table.search()``.
+
 .. _python_api_execute:
 
 db.execute(sql, params)
