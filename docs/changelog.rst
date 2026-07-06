@@ -42,6 +42,10 @@ Column names passed to Python API methods are now matched against the table sche
 - Foreign key columns are validated and recorded using the casing of the actual schema columns, in ``foreign_keys=`` when creating tables, ``db.add_foreign_keys()``, ``table.add_foreign_key()`` and ``table.add_column(fk_col=...)``. Duplicate foreign key detection is also case-insensitive.
 - ``table.create()`` with ``pk=``, ``not_null=``, ``defaults=`` or ``column_order=`` referencing columns using different casing no longer creates an unwanted extra primary key column or raises a ``ValueError``.
 
+Everything else:
+
+- Fixed a bug where ``table.transform()`` could convert ``DEFAULT TRUE``, ``DEFAULT FALSE`` and ``DEFAULT NULL`` column defaults into quoted string defaults when rebuilding a table. Thanks, `Vincent Gao <https://github.com/gaoflow>`__. (`#764 <https://github.com/simonw/sqlite-utils/pull/764>`__)
+
 .. _v4_0rc2:
 
 4.0rc2 (2026-07-04)

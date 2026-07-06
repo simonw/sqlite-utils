@@ -983,6 +983,11 @@ class Database:
         if str(value).upper() in ("CURRENT_TIME", "CURRENT_DATE", "CURRENT_TIMESTAMP"):
             return value
 
+        if isinstance(value, str) and value.upper() in ("TRUE", "FALSE", "NULL"):
+            # Keyword literals must stay unquoted; quoting them would turn the
+            # default into a string ('TRUE' instead of 1, 'NULL' instead of null).
+            return value
+
         if str(value).endswith(")"):
             # Expr
             return "({})".format(value)

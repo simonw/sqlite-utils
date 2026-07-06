@@ -21,6 +21,11 @@ EXAMPLES = [
     # Strings
     ("TEXT DEFAULT 'CURRENT_TIMESTAMP'", "'CURRENT_TIMESTAMP'", "'CURRENT_TIMESTAMP'"),
     ('TEXT DEFAULT "CURRENT_TIMESTAMP"', '"CURRENT_TIMESTAMP"', '"CURRENT_TIMESTAMP"'),
+    # Boolean and null keyword literals must stay unquoted
+    ("INTEGER DEFAULT TRUE", "TRUE", "TRUE"),
+    ("INTEGER DEFAULT FALSE", "FALSE", "FALSE"),
+    ("INTEGER DEFAULT true", "true", "true"),
+    ("TEXT DEFAULT NULL", "NULL", "NULL"),
 ]
 
 
