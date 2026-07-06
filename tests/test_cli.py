@@ -195,6 +195,50 @@ def test_output_table(db_path, options, expected):
     assert expected == result.output.strip()
 
 
+@pytest.mark.parametrize(
+    "fmt_option", [["--fmt", "simple"], ["-t"], ["--fmt", "github"]]
+)
+def test_output_table_no_headers(db_path, fmt_option):
+    # --no-headers should omit the header row from --fmt/--table output too, not
+    # just from --csv/--tsv (#566). Previously the flag was silently ignored for
+    # tabulate formats and the column names were always printed.
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert_all(
+            [
+                {"id": 1, "name": "Cleo", "age": 4},
+                {"id": 2, "name": "Pancakes", "age": 2},
+            ]
+        )
+    sql = "select id, name, age from dogs order by id"
+
+    with_headers = CliRunner().invoke(cli.cli, ["query", db_path, sql] + fmt_option)
+    without_headers = CliRunner().invoke(
+        cli.cli, ["query", db_path, sql] + fmt_option + ["--no-headers"]
+    )
+    assert with_headers.exit_code == 0
+    assert without_headers.exit_code == 0
+
+    # The column names appear when headers are shown, and must not appear at all
+    # once --no-headers is passed.
+    assert "name" in with_headers.output
+    for header in ("id", "name", "age"):
+        assert (
+            header not in without_headers.output
+        ), f"header {header!r} leaked into --no-headers output"
+    # The data is still all present.
+    for value in ("Cleo", "Pancakes", "1", "2", "4"):
+        assert value in without_headers.output
+
+    # The rows command shares the same code path.
+    rows_no_headers = CliRunner().invoke(
+        cli.cli, ["rows", db_path, "dogs"] + fmt_option + ["--no-headers"]
+    )
+    assert rows_no_headers.exit_code == 0
+    assert "name" not in rows_no_headers.output
+    assert "Cleo" in rows_no_headers.output
+
+
 def test_create_index(db_path):
     db = Database(db_path)
     assert [] == db["Gosh"].indexes
