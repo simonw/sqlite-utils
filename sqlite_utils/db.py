@@ -665,7 +665,16 @@ class Database:
                 # do stuff here
 
         The previous ``isolation_level`` is restored at the end of the block.
+
+        :raises TransactionError: if a transaction is open - assigning
+          ``isolation_level`` would commit it as a side effect, silently
+          breaking the caller's ability to roll back
         """
+        if self.conn.in_transaction:
+            raise TransactionError(
+                "ensure_autocommit_on() cannot be used inside a transaction - "
+                "changing isolation_level would commit the open transaction"
+            )
         old_isolation_level = self.conn.isolation_level
         try:
             self.conn.isolation_level = None
