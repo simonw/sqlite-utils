@@ -3,6 +3,7 @@ from sqlite_utils.db import (
     Database,
     DescIndex,
     AlterError,
+    InvalidColumns,
     NoObviousTable,
     OperationalError,
     ForeignKey,
@@ -923,6 +924,21 @@ def test_insert_thousands_adds_extra_columns_after_first_100_with_alter(fresh_db
     )
     rows = list(fresh_db.query("select * from test where i = 101"))
     assert rows == [{"i": 101, "word": None, "extra": "Should trigger ALTER"}]
+
+
+@pytest.mark.parametrize("num_rows", (0, 1, 2, 3, 10))
+def test_insert_all_pk_not_in_records_raises(fresh_db, num_rows):
+    # https://github.com/simonw/sqlite-utils/issues/732
+    fresh_db.conn.execute("CREATE TABLE t (a TEXT, b INT, PRIMARY KEY (a, b))")
+    rows = [{"a": "x{}".format(i), "b": i} for i in range(num_rows)]
+
+    with pytest.raises(InvalidColumns) as ex:
+        fresh_db["t"].insert_all(rows, pk="not_a_column", alter=True)
+
+    assert ex.value.args == (
+        "Invalid primary key column ['not_a_column'] for table t with columns ['a', 'b']",
+    )
+    assert fresh_db["t"].count == 0
 
 
 def test_insert_ignore(fresh_db):

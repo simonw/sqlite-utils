@@ -10,6 +10,7 @@ Unreleased
 ----------
 
 - JSON output from the command-line tool no longer escapes non-ASCII characters, so ``sqlite-utils data.db "select '日本語' as text"`` now outputs ``[{"text": "日本語"}]``. This matches how values were already stored by ``insert`` and how CSV/TSV output already behaved. A new ``--ascii`` option restores the previous behavior of escaping non-ASCII characters, for output destinations that cannot handle UTF-8 - see :ref:`cli_query_json_ascii`. The option is available on the ``query``, ``rows``, ``search``, ``tables``, ``views``, ``triggers``, ``indexes`` and ``memory`` commands. The ``convert --multi --dry-run`` preview and ``plugins`` output also no longer escape non-ASCII characters. (:issue:`625`)
+- ``table.insert_all(..., pk=...)`` now raises ``InvalidColumns`` if ``pk=`` names columns that do not exist in an existing table. Previously this behaved inconsistently, with single-row inserts raising a ``KeyError`` while other row counts succeeded. (:issue:`732`)
 
 .. _v4_0rc3:
 

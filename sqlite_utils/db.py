@@ -4229,6 +4229,24 @@ class Table(Queryable):
         if hash_id:
             pk = hash_id
 
+        if pk and not hash_id and self.exists():
+            pk_cols = [pk] if isinstance(pk, str) else list(pk)
+            existing_columns = self.columns_dict
+            missing_pk_cols = [
+                col
+                for col in pk_cols
+                if resolve_casing(col, existing_columns) not in existing_columns
+            ]
+            if missing_pk_cols:
+                raise InvalidColumns(
+                    "Invalid primary key column{} {} for table {} with columns {}".format(
+                        "s" if len(missing_pk_cols) > 1 else "",
+                        missing_pk_cols,
+                        self.name,
+                        list(existing_columns),
+                    )
+                )
+
         if ignore and replace:
             raise ValueError("Use either ignore=True or replace=True, not both")
         all_columns = []
