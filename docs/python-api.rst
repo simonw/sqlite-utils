@@ -1636,6 +1636,8 @@ Here's an example adding two foreign keys at once:
 
 This method runs the same checks as ``.add_foreign_keys()`` and will raise ``sqlite_utils.db.AlterError`` if those checks fail.
 
+Foreign keys that already exist are silently skipped, so repeated calls are idempotent - but only if they match exactly. Requesting a foreign key that exists with different ``ON DELETE``/``ON UPDATE`` actions raises ``AlterError``: use ``table.transform()`` to change the actions of an existing foreign key.
+
 .. _python_api_index_foreign_keys:
 
 Adding indexes for all foreign keys

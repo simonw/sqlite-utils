@@ -643,3 +643,49 @@ def test_create_table_mixed_foreign_keys_with_string(fresh_db):
     )
     fks = {fk.column: fk.other_table for fk in fresh_db["books"].foreign_keys}
     assert fks == {"author_id": "authors", "publisher_id": "publishers"}
+
+
+def test_add_foreign_keys_existing_with_different_actions_errors(fresh_db):
+    # Requesting an existing foreign key with different ON DELETE/ON UPDATE
+    # actions was silently skipped, dropping the requested change
+    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db["books"].insert(
+        {"id": 1, "author_id": 1},
+        pk="id",
+        foreign_keys=[("author_id", "authors", "id")],
+    )
+    with pytest.raises(AlterError) as ex:
+        fresh_db.add_foreign_keys(
+            [ForeignKey("books", "author_id", "authors", "id", on_delete="CASCADE")]
+        )
+    assert "ON DELETE" in str(ex.value)
+    assert fresh_db["books"].foreign_keys[0].on_delete == "NO ACTION"
+
+
+def test_add_foreign_keys_identical_existing_is_noop(fresh_db):
+    # An exact match, including actions, is silently skipped so repeated
+    # calls stay idempotent
+    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db["books"].insert({"id": 1, "author_id": 1}, pk="id")
+    fresh_db["books"].add_foreign_key("author_id", "authors", "id", on_delete="CASCADE")
+    fresh_db.add_foreign_keys(
+        [ForeignKey("books", "author_id", "authors", "id", on_delete="CASCADE")]
+    )
+    fks = fresh_db["books"].foreign_keys
+    assert len(fks) == 1
+    assert fks[0].on_delete == "CASCADE"
+
+
+def test_add_foreign_keys_compound_column_count_mismatch_errors(fresh_db):
+    # Previously the extra other-column was silently discarded, creating
+    # a single-column foreign key to just ("id")
+    fresh_db["departments"].insert(
+        {"campus": "north", "code": "cs"}, pk=("campus", "code")
+    )
+    fresh_db["courses"].insert({"id": 1, "campus": "north"}, pk="id")
+    with pytest.raises(ValueError) as ex:
+        fresh_db.add_foreign_keys(
+            [("courses", ("campus",), "departments", ("campus", "code"))]
+        )
+    assert "same number of columns" in str(ex.value)
+    assert fresh_db["courses"].foreign_keys == []

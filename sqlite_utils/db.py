@@ -1786,6 +1786,11 @@ class Database:
                     if isinstance(other_column_or_columns, str)
                     else tuple(other_column_or_columns)
                 )
+                if len(columns) != len(other_columns):
+                    raise ValueError(
+                        "Compound foreign key must have the same number of "
+                        "columns on both sides"
+                    )
                 if len(columns) == 1:
                     fk_object = ForeignKey(
                         table, columns[0], other_table, other_columns[0]
@@ -1825,10 +1830,11 @@ class Database:
                             other_column, other_table
                         )
                     )
-            # We will silently skip foreign keys that exist already
+            # Silently skip foreign keys that exist already - but only if
+            # they match exactly, including ON DELETE/ON UPDATE actions
             columns_folded = tuple(fold_identifier_case(c) for c in columns)
             other_columns_folded = tuple(fold_identifier_case(c) for c in other_columns)
-            if not any(
+            existing = [
                 fk
                 for fk in table_obj.foreign_keys
                 if tuple(fold_identifier_case(c) for c in fk.columns) == columns_folded
@@ -1836,8 +1842,21 @@ class Database:
                 == fold_identifier_case(other_table)
                 and tuple(fold_identifier_case(c) for c in fk.other_columns)
                 == other_columns_folded
-            ):
+            ]
+            if not existing:
                 foreign_keys_to_create.append(fk_object)
+            elif any(
+                fk.on_delete != fk_object.on_delete
+                or fk.on_update != fk_object.on_update
+                for fk in existing
+            ):
+                raise AlterError(
+                    "Foreign key already exists for {} => {}.{} but with "
+                    "different ON DELETE/ON UPDATE actions - use "
+                    "table.transform() to change them".format(
+                        ", ".join(columns), other_table, ", ".join(other_columns)
+                    )
+                )
 
         # Group them by table
         by_table: Dict[str, List[ForeignKey]] = {}
