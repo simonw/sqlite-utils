@@ -485,3 +485,23 @@ def test_stop_before_applied_migration_errors(two_migrations):
     assert "already been applied" in result.output
     db = sqlite_utils.Database(db_path)
     assert not db["bar"].exists()
+
+
+def test_list_with_legacy_class_is_read_only(tmpdir):
+    # Legacy sqlite-migrate classes create the _sqlite_migrations table
+    # from their pending()/applied() methods - --list must roll that
+    # back so it stays a read-only operation as documented
+    path = pathlib.Path(tmpdir)
+    (path / "migrations.py").write_text(LEGACY_MIGRATIONS, "utf-8")
+    db_path = str(path / "test.db")
+    db = sqlite_utils.Database(db_path)
+    db["existing"].insert({"id": 1})
+    db.close()
+    result = CliRunner().invoke(
+        sqlite_utils.cli.cli, ["migrate", db_path, str(path), "--list"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "first" in result.output
+    db2 = sqlite_utils.Database(db_path)
+    assert "_sqlite_migrations" not in db2.table_names()
+    db2.close()

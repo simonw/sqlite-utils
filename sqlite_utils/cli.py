@@ -3434,7 +3434,14 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
             # Listing is read-only - don't create the database file
             db = sqlite_utils.Database(memory=True)
         _register_db_for_cleanup(db)
-        _display_migration_list(db, migration_sets)
+        # Legacy sqlite-migrate classes create the migrations table from
+        # their pending()/applied() methods - run the listing inside a
+        # transaction and roll it back so --list stays read-only
+        db.begin()
+        try:
+            _display_migration_list(db, migration_sets)
+        finally:
+            db.rollback()
         return
 
     db = sqlite_utils.Database(db_path)
