@@ -53,6 +53,11 @@ except ImportError:
 
 SQLITE_MAX_VARS = 999
 
+# Names that refer to a rowid table's implicit integer primary key. These are
+# valid primary key targets even though they are not listed among a table's
+# columns. See https://www.sqlite.org/lang_createtable.html#rowid
+ROWID_ALIASES = frozenset({"rowid", "_rowid_", "oid"})
+
 _quote_fts_re = re.compile(r'\s+|(".*?")')
 
 _virtual_table_using_re = re.compile(
@@ -4343,10 +4348,14 @@ class Table(Queryable):
         if pk and not hash_id and self.exists():
             pk_cols = [pk] if isinstance(pk, str) else list(pk)
             existing_columns = self.columns_dict
+            # rowid and its aliases are valid primary keys for a rowid table
+            # even though they are not listed among the table's columns
+            rowid_aliases = ROWID_ALIASES if self.use_rowid else frozenset()
             missing_pk_cols = [
                 col
                 for col in pk_cols
-                if resolve_casing(col, existing_columns) not in existing_columns
+                if col.lower() not in rowid_aliases
+                and resolve_casing(col, existing_columns) not in existing_columns
             ]
             if missing_pk_cols:
                 invalid_pk_error = InvalidColumns(
@@ -4512,40 +4521,72 @@ class Table(Queryable):
             if not upsert and result is not None:
                 ignored_insert = ignore and result.rowcount == 0
                 if ignored_insert:
+                    # The row was not inserted because it conflicts with an
+                    # existing row. Point last_pk / last_rowid at that existing
+                    # row when we can identify it from the record's primary key
+                    # values, rather than leaving them stale or unset.
                     if list_mode:
-                        first_record_list = cast(Sequence[Any], first_record)
-                        if hash_id:
-                            pass
-                        elif isinstance(pk, str):
-                            pk_index = column_names.index(
-                                resolve_casing(pk, column_names)
-                            )
-                            self.last_pk = first_record_list[pk_index]
-                        elif pk:
-                            self.last_pk = tuple(
-                                first_record_list[
-                                    column_names.index(resolve_casing(p, column_names))
-                                ]
-                                for p in pk
-                            )
+                        first_record_dict = dict(
+                            zip(column_names, cast(Sequence[Any], first_record))
+                        )
                     else:
                         first_record_dict = cast(Dict[str, Any], first_record)
-                        if hash_id:
-                            self.last_pk = hash_record(
-                                first_record_dict, hash_id_columns
-                            )
-                        elif isinstance(pk, str):
-                            self.last_pk = first_record_dict[
-                                resolve_casing(pk, first_record_dict)
+                    if hash_id:
+                        self.last_pk = hash_record(first_record_dict, hash_id_columns)
+                    elif isinstance(pk, str):
+                        self.last_pk = first_record_dict[
+                            resolve_casing(pk, first_record_dict)
+                        ]
+                    elif pk:
+                        self.last_pk = tuple(
+                            first_record_dict[resolve_casing(p, first_record_dict)]
+                            for p in pk
+                        )
+                    # Locate the existing conflicting row using its primary key
+                    # columns so we can report its rowid (and pk if not already
+                    # known). Falls back to leaving them unset if the conflict
+                    # cannot be resolved to a pk lookup (e.g. a UNIQUE column).
+                    key_cols: Optional[List[str]] = None
+                    if isinstance(pk, str):
+                        key_cols = [pk]
+                    elif pk:
+                        key_cols = list(pk)
+                    elif not hash_id and not self.use_rowid:
+                        key_cols = self.pks
+                    if key_cols:
+                        try:
+                            key_values = [
+                                first_record_dict[resolve_casing(c, first_record_dict)]
+                                for c in key_cols
                             ]
-                        elif pk:
-                            self.last_pk = tuple(
-                                first_record_dict[resolve_casing(p, first_record_dict)]
-                                for p in pk
+                        except KeyError:
+                            key_values = None
+                        if key_values is not None:
+                            where = " and ".join(
+                                "{} = ?".format(quote_identifier(c)) for c in key_cols
                             )
+                            existing = self.db.execute(
+                                "select rowid from {} where {} limit 1".format(
+                                    quote_identifier(self.name), where
+                                ),
+                                key_values,
+                            ).fetchone()
+                            if existing is not None:
+                                self.last_rowid = existing[0]
+                                # On a primary key conflict the record's pk
+                                # values identify the existing row
+                                if self.last_pk is None:
+                                    self.last_pk = (
+                                        key_values[0]
+                                        if len(key_cols) == 1
+                                        else tuple(key_values)
+                                    )
                 else:
                     self.last_rowid = result.lastrowid
-                    if (hash_id or pk) and self.last_rowid:
+                    # A rowid-alias pk resolves directly to the rowid, so there
+                    # is no separate pk column to look up
+                    rowid_pk = isinstance(pk, str) and pk.lower() in ROWID_ALIASES
+                    if (hash_id or (pk and not rowid_pk)) and self.last_rowid:
                         # Set self.last_pk to the pk(s) for that rowid
                         row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
                         if hash_id:
