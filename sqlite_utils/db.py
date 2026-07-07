@@ -4532,9 +4532,7 @@ class Table(Queryable):
                     else:
                         first_record_dict = cast(Dict[str, Any], first_record)
                     if hash_id:
-                        self.last_pk = hash_record(
-                            first_record_dict, hash_id_columns
-                        )
+                        self.last_pk = hash_record(first_record_dict, hash_id_columns)
                     elif isinstance(pk, str):
                         self.last_pk = first_record_dict[
                             resolve_casing(pk, first_record_dict)
@@ -4587,9 +4585,7 @@ class Table(Queryable):
                     self.last_rowid = result.lastrowid
                     # A rowid-alias pk resolves directly to the rowid, so there
                     # is no separate pk column to look up
-                    rowid_pk = (
-                        isinstance(pk, str) and pk.lower() in ROWID_ALIASES
-                    )
+                    rowid_pk = isinstance(pk, str) and pk.lower() in ROWID_ALIASES
                     if (hash_id or (pk and not rowid_pk)) and self.last_rowid:
                         # Set self.last_pk to the pk(s) for that rowid
                         row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]

@@ -998,9 +998,9 @@ def test_insert_ignore_reports_existing_row(fresh_db):
     table = fresh_db["docs"].insert({"id": 1, "title": "One"}, ignore=True)
     assert table.last_rowid == 1
     assert table.last_pk == 1
-    assert list(
-        fresh_db["docs"].rows_where("rowid = ?", [table.last_rowid])
-    ) == [{"id": 1, "title": "Exists"}]
+    assert list(fresh_db["docs"].rows_where("rowid = ?", [table.last_rowid])) == [
+        {"id": 1, "title": "Exists"}
+    ]
 
 
 @pytest.mark.parametrize("rowid_alias", ("rowid", "_rowid_", "oid"))
