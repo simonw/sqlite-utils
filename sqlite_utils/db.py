@@ -2012,10 +2012,9 @@ class Queryable:
         :param offset: Integer for SQL offset
         """
         column_names = [column.name for column in self.columns]
-        pks = [column.name for column in self.columns if column.is_pk]
-        if not pks:
+        pks = self.pks
+        if self.use_rowid:
             column_names.insert(0, "rowid")
-            pks = ["rowid"]
         select = ",".join(quote_identifier(column_name) for column_name in column_names)
         for row in self.rows_where(
             select=select,
@@ -2148,8 +2147,18 @@ class Table(Queryable):
 
     @property
     def pks(self) -> List[str]:
-        "Primary key columns for this table."
-        names = [column.name for column in self.columns if column.is_pk]
+        """
+        Primary key columns for this table, in PRIMARY KEY declaration order -
+        ``PRAGMA table_info`` sets ``is_pk`` to the 1-based position of each
+        column within the primary key, which can differ from the order of the
+        columns in the table. SQLite uses the declaration order to resolve
+        implicit foreign key references, so this order matters.
+        """
+        pk_columns = sorted(
+            (column for column in self.columns if column.is_pk),
+            key=lambda column: column.is_pk,
+        )
+        names = [column.name for column in pk_columns]
         if not names:
             names = ["rowid"]
         return names
@@ -2673,7 +2682,8 @@ class Table(Queryable):
 
         if pk is DEFAULT:
             pks_renamed = tuple(
-                rename.get(p.name) or p.name for p in self.columns if p.is_pk
+                rename.get(pk_name) or pk_name
+                for pk_name in (self.pks if not self.use_rowid else [])
             )
             if len(pks_renamed) == 1:
                 pk = pks_renamed[0]
@@ -3017,7 +3027,10 @@ class Table(Queryable):
                     raise AlterError("table '{}' has no column {}".format(fk, fk_col))
             else:
                 # automatically set fk_col to first primary_key of fk table
-                pks = [c for c in self.db[fk].columns if c.is_pk]
+                pks = sorted(
+                    (c for c in self.db[fk].columns if c.is_pk),
+                    key=lambda c: c.is_pk,
+                )
                 if pks:
                     fk_col = pks[0].name
                     fk_col_type = pks[0].type
@@ -3770,9 +3783,7 @@ class Table(Queryable):
         # First we execute the function
         pk_to_values = {}
         new_column_types: Dict[str, Set[type]] = {}
-        pks = [column.name for column in self.columns if column.is_pk]
-        if not pks:
-            pks = ["rowid"]
+        pks = self.pks
 
         with progressbar(
             length=self.count, silent=not show_progress, label="1: Evaluating"

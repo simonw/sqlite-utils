@@ -524,3 +524,57 @@ def test_add_compound_foreign_key_on_delete(courses_db):
     assert fk.is_compound is True
     assert fk.on_delete == "SET NULL"
     assert "ON DELETE SET NULL" in courses_db["courses"].schema
+
+
+def test_implicit_compound_foreign_key_resolves_pk_declaration_order(fresh_db):
+    # The other table's PRIMARY KEY declares its columns in a different
+    # order to the table's column order. SQLite resolves the implicit
+    # "REFERENCES other" using PRIMARY KEY declaration order, so the
+    # introspected other_columns must too
+    fresh_db.execute("create table other (b text, a text, primary key (a, b))")
+    fresh_db.execute(
+        "create table child (x text, y text, foreign key (x, y) references other)"
+    )
+    fk = fresh_db["child"].foreign_keys[0]
+    assert fk.other_columns == ("a", "b")
+
+
+def test_transform_implicit_compound_foreign_key_stays_valid(fresh_db):
+    # transform() rewrites the implicit FK with explicit columns - they
+    # must be in PRIMARY KEY declaration order or valid data fails the
+    # foreign key check with an IntegrityError
+    fresh_db.execute("create table other (b text, a text, primary key (a, b))")
+    fresh_db.execute(
+        "create table child (x text, y text, foreign key (x, y) references other)"
+    )
+    fresh_db.execute("PRAGMA foreign_keys = ON")
+    fresh_db["other"].insert({"a": "A", "b": "B"})
+    fresh_db["child"].insert({"x": "A", "y": "B"})
+    fresh_db["child"].transform(types={"x": str})
+    assert fresh_db["child"].foreign_keys[0].other_columns == ("a", "b")
+    # The constraint still points the right way around
+    fresh_db["child"].insert({"x": "A", "y": "B"})
+    with pytest.raises(sqlite3.IntegrityError):
+        fresh_db["child"].insert({"x": "B", "y": "A"})
+
+
+def test_create_compound_foreign_key_guesses_pk_declaration_order(fresh_db):
+    fresh_db.execute("create table other (b text, a text, primary key (a, b))")
+    fresh_db["other"].insert({"a": "A", "b": "B"})
+    fresh_db["child"].create(
+        {"id": int, "x": str, "y": str},
+        pk="id",
+        foreign_keys=[(("x", "y"), "other")],
+    )
+    assert fresh_db["child"].foreign_keys[0].other_columns == ("a", "b")
+    fresh_db.execute("PRAGMA foreign_keys = ON")
+    fresh_db["child"].insert({"id": 1, "x": "A", "y": "B"})
+    with pytest.raises(sqlite3.IntegrityError):
+        fresh_db["child"].insert({"id": 2, "x": "B", "y": "A"})
+
+
+def test_add_compound_foreign_key_guesses_pk_declaration_order(fresh_db):
+    fresh_db.execute("create table other (b text, a text, primary key (a, b))")
+    fresh_db["child"].insert({"id": 1, "x": "A", "y": "B"}, pk="id")
+    fresh_db["child"].add_foreign_key(("x", "y"), "other")
+    assert fresh_db["child"].foreign_keys[0].other_columns == ("a", "b")
