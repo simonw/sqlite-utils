@@ -77,6 +77,8 @@ Python API changes
 
 **table.convert() no longer skips falsey values.** Matching the CLI change above, ``table.convert()`` now converts every value. The ``skip_false`` parameter has been removed - previously it defaulted to ``True``, skipping empty strings and other falsey values.
 
+**Null values are no longer extracted into lookup tables.** ``table.extract()`` and the ``sqlite-utils extract`` command leave rows alone if every extracted column is ``null`` - the new foreign key column is left as ``null`` instead of pointing at an all-``null`` record in the lookup table. The ``extracts=`` insert option similarly keeps ``None`` values as ``null``. Relatedly, ``table.lookup()`` now compares values using ``IS`` so that looking up a value containing ``None`` returns the existing matching row - previously it inserted a duplicate row on every call.
+
 **ensure_autocommit_off() is now ensure_autocommit_on().** The ``db.ensure_autocommit_off()`` context manager has been renamed to ``db.ensure_autocommit_on()``. The old name described the opposite of what the method did: it temporarily puts the connection into driver-level autocommit mode (by setting ``isolation_level = None``), so that statements such as ``PRAGMA journal_mode=wal`` can run outside of an implicit transaction. The behavior is unchanged - update any calls to use the new name.
 
 **View.enable_fts() has been removed.** The ``View`` class previously had an ``enable_fts()`` method that existed only to raise ``NotImplementedError`` - full-text search is not supported for views. Calling it now raises ``AttributeError`` like any other missing method.

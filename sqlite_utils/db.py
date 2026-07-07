@@ -2841,14 +2841,20 @@ class Table(Queryable):
                 )
             lookup_columns = [(rename.get(col) or col) for col in columns]
             lookup_table.create_index(lookup_columns, unique=True, if_not_exists=True)
+            # Rows where every extracted column is null are left alone - they
+            # get a null foreign key and no lookup table record, see #186
+            all_columns_are_null = " AND ".join(
+                "{} IS NULL".format(quote_identifier(c)) for c in columns
+            )
             self.db.execute(
-                "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {}".format(
+                "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {} WHERE NOT ({all_null})".format(
                     quote_identifier(table),
                     quote_identifier(self.name),
                     lookup_columns=", ".join(
                         quote_identifier(c) for c in lookup_columns
                     ),
                     table_cols=", ".join(quote_identifier(c) for c in columns),
+                    all_null=all_columns_are_null,
                 )
             )
 
@@ -2857,7 +2863,7 @@ class Table(Queryable):
 
             # And populate it
             self.db.execute(
-                "UPDATE {} SET {} = (SELECT id FROM {} WHERE {where})".format(
+                "UPDATE {} SET {} = (SELECT id FROM {} WHERE {where}) WHERE NOT ({all_null})".format(
                     quote_identifier(self.name),
                     quote_identifier(magic_lookup_column),
                     quote_identifier(table),
@@ -2870,6 +2876,7 @@ class Table(Queryable):
                         )
                         for column in columns
                     ),
+                    all_null=all_columns_are_null,
                 )
             )
             # Figure out the right column order
@@ -3858,7 +3865,7 @@ class Table(Queryable):
                 # Only process extracts if there are any
                 if has_extracts:
                     for i, key in enumerate(all_columns):
-                        if key in extracts:
+                        if key in extracts and record_values[i] is not None:
                             record_values[i] = self.db.table(extracts[key]).lookup(
                                 {"value": record_values[i]}
                             )
@@ -3878,7 +3885,7 @@ class Table(Queryable):
                             ),
                         )
                     )
-                    if key in extracts:
+                    if key in extracts and value is not None:
                         extract_table = extracts[key]
                         value = self.db.table(extract_table).lookup({"value": value})
                     record_values.append(value)
@@ -4615,8 +4622,9 @@ class Table(Queryable):
                 fold_identifier_case(c) for c in lookup_values
             } not in unique_column_sets:
                 self.create_index(lookup_values.keys(), unique=True)
+            # IS rather than = so that null values are matched correctly
             wheres = [
-                "{} = ?".format(quote_identifier(column)) for column in lookup_values
+                "{} IS ?".format(quote_identifier(column)) for column in lookup_values
             ]
             rows = list(
                 self.rows_where(

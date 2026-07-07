@@ -2286,6 +2286,8 @@ The ``sqlite-utils extract`` command can be used to extract specified columns in
 
 Take a look at the Python API documentation for :ref:`python_api_extract` for a detailed description of how this works, including examples of table schemas before and after running an extraction operation.
 
+Rows where every extracted column is ``null`` are not extracted - those rows get a ``null`` value in their new foreign key column and no record is created for them in the lookup table.
+
 The command takes a database, table and one or more columns that should be extracted. To extract the ``species`` column from the ``trees`` table you would run:
 
 .. code-block:: bash
