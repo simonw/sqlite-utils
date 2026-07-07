@@ -602,8 +602,13 @@ class Database:
             try:
                 yield self
             except BaseException:
-                self.conn.execute("ROLLBACK TO SAVEPOINT {};".format(savepoint))
-                self.conn.execute("RELEASE SAVEPOINT {};".format(savepoint))
+                # An error such as a RAISE(ROLLBACK) trigger can destroy
+                # the whole transaction, savepoints included - cleaning up
+                # anyway would mask the original exception with
+                # "no such savepoint"
+                if self.conn.in_transaction:
+                    self.conn.execute("ROLLBACK TO SAVEPOINT {};".format(savepoint))
+                    self.conn.execute("RELEASE SAVEPOINT {};".format(savepoint))
                 raise
             else:
                 self.conn.execute("RELEASE SAVEPOINT {};".format(savepoint))
@@ -612,13 +617,15 @@ class Database:
             try:
                 yield self
             except BaseException:
-                self.conn.execute("ROLLBACK")
+                # rollback() is a no-op if the error already destroyed the
+                # transaction, so the original exception propagates
+                self.rollback()
                 raise
             else:
                 try:
                     self.conn.execute("COMMIT")
                 except BaseException:
-                    self.conn.execute("ROLLBACK")
+                    self.rollback()
                     raise
 
     def begin(self) -> None:
@@ -870,8 +877,11 @@ class Database:
                 return (dict(zip(keys, row)) for row in fetched)
             return (dict(zip(keys, row)) for row in cursor)
         finally:
-            if not released:
-                # An error occurred - undo anything the statement changed
+            if not released and self.conn.in_transaction:
+                # An error occurred - undo anything the statement changed.
+                # If the error itself destroyed the transaction (such as a
+                # RAISE(ROLLBACK) trigger) the savepoint is already gone
+                # and there is nothing left to undo
                 self.conn.execute('ROLLBACK TO "sqlite_utils_query"')
                 self.conn.execute('RELEASE "sqlite_utils_query"')
 

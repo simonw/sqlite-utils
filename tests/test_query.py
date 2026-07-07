@@ -280,3 +280,20 @@ def test_execute_returning_dicts(fresh_db):
     assert fresh_db.execute_returning_dicts("select * from test") == [
         {"id": 1, "bar": 2}
     ]
+
+
+def test_query_preserves_error_from_transaction_destroying_trigger(fresh_db):
+    # RAISE(ROLLBACK) destroys the savepoint guard - the original
+    # IntegrityError must propagate, not "no such savepoint"
+    fresh_db.execute("create table t (id integer primary key, v text)")
+    fresh_db.execute("""
+        create trigger no_bad before insert on t
+        when new.v = 'bad'
+        begin
+            select raise(rollback, 'trigger says no');
+        end
+    """)
+    with pytest.raises(sqlite3.IntegrityError, match="trigger says no"):
+        fresh_db.query("insert into t (id, v) values (1, 'bad') returning id")
+    assert not fresh_db.conn.in_transaction
+    assert fresh_db.execute("select count(*) from t").fetchone()[0] == 0
