@@ -1023,6 +1023,63 @@ def test_pk_rowid_alias_on_rowid_table(fresh_db, rowid_alias, method):
     assert list(fresh_db["t"].rows) == [{"title": expected_title}]
 
 
+def test_insert_ignore_reports_existing_row_compound_pk(fresh_db):
+    # Compound primary key variant of the ignored-insert lookup
+    fresh_db["t"].insert_all([{"a": 1, "b": 2, "note": "first"}], pk=("a", "b"))
+    table = fresh_db["t"].insert(
+        {"a": 1, "b": 2, "note": "second"}, pk=("a", "b"), ignore=True
+    )
+    assert table.last_pk == (1, 2)
+    assert list(fresh_db["t"].rows_where("rowid = ?", [table.last_rowid])) == [
+        {"a": 1, "b": 2, "note": "first"}
+    ]
+
+
+def test_insert_ignore_reports_existing_row_list_mode(fresh_db):
+    # List-based iteration variant of the ignored-insert lookup
+    fresh_db["t"].insert_all([["id", "title"], [1, "first"]], pk="id")
+    table = fresh_db["t"].insert_all(
+        [["id", "title"], [1, "second"]], pk="id", ignore=True
+    )
+    assert table.last_pk == 1
+    assert table.last_rowid == 1
+    assert list(fresh_db["t"].rows) == [{"id": 1, "title": "first"}]
+
+
+def test_insert_ignore_hash_id_reports_pk(fresh_db):
+    # With hash_id the pk is the computed hash; the original record has no id
+    # column to look up so last_rowid is left unset
+    first = fresh_db["dogs"].insert({"name": "Cleo"}, hash_id="id")
+    table = fresh_db["dogs"].insert({"name": "Cleo"}, hash_id="id", ignore=True)
+    assert table.last_pk == first.last_pk
+    assert table.last_rowid is None
+    assert fresh_db["dogs"].count == 1
+
+
+def test_insert_ignore_unresolvable_conflict_leaves_pk_unset(fresh_db):
+    # When the conflict cannot be resolved to a primary key lookup, last_pk and
+    # last_rowid are left unset rather than reporting a misleading value
+
+    # rowid table with a UNIQUE column and no primary key: no pk to look up
+    fresh_db["u"].db.execute("create table u (title text unique)")
+    fresh_db["u"].insert({"title": "x"})
+    table = fresh_db["u"].insert({"title": "x"}, ignore=True)
+    assert table.last_pk is None
+    assert table.last_rowid is None
+    assert fresh_db["u"].count == 1
+
+    # Conflict on a UNIQUE column other than the primary key: the pk value from
+    # the record does not match the existing row, so the lookup finds nothing
+    fresh_db["docs"].db.execute(
+        "create table docs (id integer primary key, email text unique)"
+    )
+    fresh_db["docs"].insert({"id": 1, "email": "a"}, pk="id")
+    table = fresh_db["docs"].insert({"id": 2, "email": "a"}, ignore=True)
+    assert table.last_pk is None
+    assert table.last_rowid is None
+    assert fresh_db["docs"].count == 1
+
+
 def test_insert_ignore_with_pk_after_other_table_insert(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/554
     user = {"id": "abc", "name": "david"}
