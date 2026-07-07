@@ -4,6 +4,37 @@
  Changelog
 ===========
 
+.. _v4_0:
+
+4.0 (2026-07-07)
+----------------
+
+The 4.0 release includes some minor backwards-incompatible fixes (hence the major version number bump) and introduces three major new features:
+
+- :ref:`Database migrations <migrations>`, providing a structured mechanism for evolving a project's schema over time. (:issue:`752`)
+- :ref:`Nested transaction support <python_api_atomic>` via ``db.atomic()``, plus numerous improvements to how transactions work across the library. (:issue:`755`)
+- Support for :ref:`compound foreign keys <python_api_compound_foreign_keys>`, including creation, transformation and introspection through :ref:`table.foreign_keys <python_api_introspection_foreign_keys>`. (:issue:`594`)
+
+Other notable changes include:
+
+- Upserts now use SQLite's ``INSERT ... ON CONFLICT ... DO UPDATE SET`` syntax, detect existing table primary keys automatically and reject records that are missing required primary key values. (:issue:`652`)
+- ``db.query()`` now executes immediately and rejects statements that do not return rows; use ``db.execute()`` for writes and DDL.
+- CSV and TSV imports now detect column types by default, while inserts into existing tables preserve those tables' column types. (:issue:`679`)
+- Foreign key handling now preserves ``ON DELETE``/``ON UPDATE`` actions during transforms and resolves referenced primary keys more accurately. (:issue:`530`)
+- Column names passed to Python API methods are now matched case-insensitively, mirroring SQLite's own identifier behavior. (:issue:`760`)
+- The command-line tool now emits UTF-8 JSON output by default, with ``--ascii`` available to restore escaped output. (:issue:`625`)
+- ``table.extract()`` and ``extracts=`` no longer create lookup table records for all-``null`` values. (:issue:`186`)
+
+See :ref:`upgrading_3_to_4` for details on backwards-incompatible changes.
+
+The detailed release notes for the features and fixes shipped during the 4.0 pre-release cycle are available in :ref:`4.0a0 <v4_0a0>`, :ref:`4.0a1 <v4_0a1>`, :ref:`4.0rc1 <v4_0rc1>`, :ref:`4.0rc2 <v4_0rc2>`, :ref:`4.0rc3 <v4_0rc3>` and :ref:`4.0rc4 <v4_0rc4>`.
+
+Bug fixes since 4.0rc4
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Fixed 4.0 regressions in ``insert``/``upsert`` against tables that use SQLite's implicit ``rowid`` primary key. Passing ``pk="rowid"``, ``pk="_rowid_"`` or ``pk="oid"`` now works again for rowid tables, and ``last_pk`` is set correctly. (:issue:`781`)
+- Fixed ``insert(..., ignore=True)`` and ``insert_all(..., ignore=True)`` so an ignored insert that conflicts with an existing primary key row now reports that existing row in ``last_rowid`` and ``last_pk`` where possible. This also works for compound primary keys and list-mode inserts. (:issue:`783`)
+
 .. _v4_0rc4:
 
 4.0rc4 (2026-07-06)
