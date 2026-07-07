@@ -797,7 +797,10 @@ class Database:
           parameters, or a dictionary for ``where id = :id``
         :raises ValueError: if the SQL statement does not return rows - use
           :meth:`execute` for those statements instead. The rejected statement
-          is rolled back, so it has no effect on the database
+          is rolled back, so it has no effect on the database. One exception:
+          a row-less ``PRAGMA`` statement takes effect despite the
+          ``ValueError``, because PRAGMAs run outside the savepoint guard -
+          some of them refuse to run inside a transaction
         """
         message = (
             "query() can only be used with SQL that returns rows - "

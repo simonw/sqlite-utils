@@ -122,6 +122,18 @@ def test_query_pragma(tmpdir):
     db.close()
 
 
+def test_query_rejected_pragma_still_takes_effect(fresh_db):
+    # Documented limitation: PRAGMAs run outside the savepoint guard,
+    # because some of them refuse to run inside a transaction - so a
+    # row-less PRAGMA takes effect even though it raises ValueError.
+    # If this test starts failing because the pragma was rolled back,
+    # the limitation has been fixed - update the docs in python-api.rst
+    # and the query() docstring to remove the carve-out
+    with pytest.raises(ValueError):
+        fresh_db.query("pragma user_version = 5")
+    assert fresh_db.execute("pragma user_version").fetchone()[0] == 5
+
+
 def test_query_comment_prefixed_pragma(tmpdir):
     from sqlite_utils import Database
 
