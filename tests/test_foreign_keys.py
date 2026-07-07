@@ -610,3 +610,36 @@ def test_foreign_key_equality_and_hash_include_actions():
     assert plain != cascade
     assert len({plain, cascade}) == 2
     assert plain == ForeignKey("c", "pid", "p", "id")
+
+
+def test_create_table_mixed_foreign_keys_list(fresh_db):
+    # 3.x accepted a mix of ForeignKey objects, tuples and bare column
+    # strings in foreign_keys= (ForeignKey was a namedtuple, so it passed
+    # the tuple check) - keep accepting the mix
+    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db["publishers"].insert({"id": 1}, pk="id")
+    fresh_db["books"].create(
+        {"id": int, "author_id": int, "publisher_id": int},
+        pk="id",
+        foreign_keys=[
+            ForeignKey("books", "author_id", "authors", "id"),
+            ("publisher_id", "publishers", "id"),
+        ],
+    )
+    fks = {fk.column: fk.other_table for fk in fresh_db["books"].foreign_keys}
+    assert fks == {"author_id": "authors", "publisher_id": "publishers"}
+
+
+def test_create_table_mixed_foreign_keys_with_string(fresh_db):
+    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db["publishers"].insert({"id": 1}, pk="id")
+    fresh_db["books"].create(
+        {"id": int, "author_id": int, "publisher_id": int},
+        pk="id",
+        foreign_keys=[
+            "author_id",  # bare column, table and column guessed
+            ("publisher_id", "publishers", "id"),
+        ],
+    )
+    fks = {fk.column: fk.other_table for fk in fresh_db["books"].foreign_keys}
+    assert fks == {"author_id": "authors", "publisher_id": "publishers"}

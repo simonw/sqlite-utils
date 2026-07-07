@@ -1238,21 +1238,23 @@ class Database:
             (("campus_name", "dept_code"), "departments", ("campus_name", "dept_code"))
         """
         table = self.table(name)
-        if all(isinstance(fk, ForeignKey) for fk in foreign_keys):
-            return cast(List[ForeignKey], foreign_keys)
-        if all(isinstance(fk, str) for fk in foreign_keys):
-            # It's a list of columns
-            fks = []
-            for column in foreign_keys:
-                column = cast(str, column)
-                other_table = table.guess_foreign_table(column)
-                other_column = table.guess_foreign_column(other_table)
-                fks.append(ForeignKey(name, column, other_table, other_column))
-            return fks
-        if not all(isinstance(fk, (tuple, list)) for fk in foreign_keys):
-            raise ValueError("foreign_keys= should be a list of tuples")
         fks = []
-        for tuple_or_list in cast(Iterable[Sequence[Any]], foreign_keys):
+        for fk in foreign_keys:
+            if isinstance(fk, ForeignKey):
+                fks.append(fk)
+                continue
+            if isinstance(fk, str):
+                # A bare column name - guess the other table and column
+                other_table = table.guess_foreign_table(fk)
+                other_column = table.guess_foreign_column(other_table)
+                fks.append(ForeignKey(name, fk, other_table, other_column))
+                continue
+            if not isinstance(fk, (tuple, list)):
+                raise ValueError(
+                    "foreign_keys= should be a list of tuples, "
+                    "ForeignKey objects or column name strings"
+                )
+            tuple_or_list = cast(Sequence[Any], fk)
             if len(tuple_or_list) == 4:
                 if tuple_or_list[0] != name:
                     raise ValueError(
