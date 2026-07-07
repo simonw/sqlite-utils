@@ -2023,11 +2023,22 @@ class Queryable:
         :param limit: Integer number of rows to limit to
         :param offset: Integer for SQL offset
         """
-        column_names = [column.name for column in self.columns]
-        pks = self.pks
-        if self.use_rowid:
-            column_names.insert(0, "rowid")
-        select = ",".join(quote_identifier(column_name) for column_name in column_names)
+        # This method is defined on Queryable so it serves views too, which
+        # have no pks property - sort pk columns into declaration order here
+        pk_columns = sorted(
+            (column for column in self.columns if column.is_pk),
+            key=lambda column: column.is_pk,
+        )
+        pks = [column.name for column in pk_columns]
+        select_parts = [quote_identifier(column.name) for column in self.columns]
+        if not pks:
+            # rowid is left unquoted: it is not a real column, and SQLite
+            # turns a double-quoted identifier that does not resolve into a
+            # string literal - on a view that would silently select the
+            # string 'rowid' instead of raising an error
+            select_parts.insert(0, "rowid")
+            pks = ["rowid"]
+        select = ",".join(select_parts)
         for row in self.rows_where(
             select=select,
             where=where,

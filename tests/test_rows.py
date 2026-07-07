@@ -111,3 +111,24 @@ def test_rows_where_duplicate_select_columns_are_deduped(fresh_db):
     fresh_db["t"].insert({"id": 1, "name": "Cleo"})
     rows = list(fresh_db["t"].rows_where(select="id, id, name"))
     assert rows == [{"id": 1, "id_2": 1, "name": "Cleo"}]
+
+
+def test_pks_and_rows_where_view(fresh_db):
+    # pks_and_rows_where() lives on Queryable so views expose it, but
+    # SQLite views have no rowid - it has always failed with an
+    # OperationalError from the generated SQL. Guard against it failing
+    # earlier with an AttributeError from View lacking Table properties
+    from sqlite_utils.utils import sqlite3
+
+    fresh_db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.create_view("dog_names", "select name from dogs")
+    with pytest.raises(sqlite3.OperationalError):
+        list(fresh_db["dog_names"].pks_and_rows_where())
+
+
+def test_pks_and_rows_where_compound_pk_declaration_order(fresh_db):
+    # Compound pks are returned in PRIMARY KEY declaration order
+    fresh_db.execute("create table t (b text, a text, primary key (a, b))")
+    fresh_db["t"].insert({"a": "A", "b": "B"})
+    pks_and_rows = list(fresh_db["t"].pks_and_rows_where())
+    assert pks_and_rows == [(("A", "B"), {"b": "B", "a": "A"})]
