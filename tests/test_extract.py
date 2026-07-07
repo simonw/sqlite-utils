@@ -271,3 +271,34 @@ def test_extract_null_values_existing_lookup_table_with_null_row(fresh_db):
         {"id": 10, "name": "Terriana", "species_id": 2},
         {"id": 11, "name": "Spenidorm", "species_id": None},
     ]
+
+
+def test_extract_repeated_into_shared_lookup_with_nulls(fresh_db):
+    # Unique indexes treat NULLs as distinct, so INSERT OR IGNORE alone
+    # cannot dedupe NULL-containing rows against the existing lookup
+    # table - extracting a second table into the same lookup previously
+    # inserted duplicate rows that nothing pointed to
+    fresh_db["t1"].insert_all(
+        [
+            {"id": 1, "species": None, "common": "X"},
+            {"id": 2, "species": "Oak", "common": "Oak"},
+        ],
+        pk="id",
+    )
+    fresh_db["t2"].insert_all([{"id": 1, "species": None, "common": "X"}], pk="id")
+    fresh_db["t1"].extract(["species", "common"], table="lk")
+    fresh_db["t2"].extract(["species", "common"], table="lk")
+    assert fresh_db["lk"].count == 2
+    # Both tables point at the same lookup row
+    t1_fk = fresh_db.execute("select lk_id from t1 where id = 1").fetchone()[0]
+    t2_fk = fresh_db.execute("select lk_id from t2 where id = 1").fetchone()[0]
+    assert t1_fk == t2_fk
+
+
+def test_extract_repeated_into_shared_lookup_no_nulls(fresh_db):
+    # Non-NULL rows were already deduped by the unique index - keep it so
+    fresh_db["t1"].insert_all([{"id": 1, "species": "Oak"}], pk="id")
+    fresh_db["t2"].insert_all([{"id": 1, "species": "Oak"}], pk="id")
+    fresh_db["t1"].extract(["species"], table="lk")
+    fresh_db["t2"].extract(["species"], table="lk")
+    assert fresh_db["lk"].count == 1

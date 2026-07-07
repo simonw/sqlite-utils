@@ -2919,8 +2919,22 @@ class Table(Queryable):
             all_columns_are_null = " AND ".join(
                 "{} IS NULL".format(quote_identifier(c)) for c in columns
             )
+            # INSERT OR IGNORE dedupes against the unique index, but unique
+            # indexes treat NULLs as distinct - the NOT EXISTS guard uses IS
+            # comparison so NULL-containing rows match existing lookup rows
+            # instead of being inserted again
+            already_in_lookup = " AND ".join(
+                "{lookup}.{lookup_col} IS {source}.{source_col}".format(
+                    lookup=quote_identifier(table),
+                    lookup_col=quote_identifier(rename.get(column) or column),
+                    source=quote_identifier(self.name),
+                    source_col=quote_identifier(column),
+                )
+                for column in columns
+            )
             self.db.execute(
-                "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {} WHERE NOT ({all_null})".format(
+                "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {} "
+                "WHERE NOT ({all_null}) AND NOT EXISTS (SELECT 1 FROM {lookup} WHERE {already_in_lookup})".format(
                     quote_identifier(table),
                     quote_identifier(self.name),
                     lookup_columns=", ".join(
@@ -2928,6 +2942,8 @@ class Table(Queryable):
                     ),
                     table_cols=", ".join(quote_identifier(c) for c in columns),
                     all_null=all_columns_are_null,
+                    lookup=quote_identifier(table),
+                    already_in_lookup=already_in_lookup,
                 )
             )
 
