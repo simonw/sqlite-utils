@@ -3462,7 +3462,10 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
     for migration_set in migration_sets:
         matches = _stop_before_for_migration_set(stop_before, migration_set.name)
         if isinstance(migration_set, sqlite_utils.Migrations):
-            migration_set.apply(db, stop_before=matches)
+            try:
+                migration_set.apply(db, stop_before=matches)
+            except ValueError as e:
+                raise click.ClickException(str(e))
         else:
             # Legacy sqlite-migrate Migrations objects take a single string
             # for stop_before, not a list

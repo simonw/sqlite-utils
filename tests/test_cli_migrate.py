@@ -463,3 +463,25 @@ def test_list_does_not_upgrade_legacy_migrations_table(two_migrations):
     db2 = sqlite_utils.Database(db_path)
     assert db2["_sqlite_migrations"].pks == ["migration_set", "name"]
     db2.close()
+
+
+def test_stop_before_applied_migration_errors(two_migrations):
+    path, _ = two_migrations
+    db_path = str(path / "test.db")
+    migrations_path = str(path / "foo" / "migrations.py")
+    # Apply everything first
+    first = CliRunner().invoke(
+        sqlite_utils.cli.cli,
+        ["migrate", db_path, migrations_path, "--stop-before", "bar"],
+    )
+    assert first.exit_code == 0
+    # foo is now applied - stopping before it is an error, and bar
+    # must not be applied as a side effect
+    result = CliRunner().invoke(
+        sqlite_utils.cli.cli,
+        ["migrate", db_path, migrations_path, "--stop-before", "foo"],
+    )
+    assert result.exit_code != 0
+    assert "already been applied" in result.output
+    db = sqlite_utils.Database(db_path)
+    assert not db["bar"].exists()
