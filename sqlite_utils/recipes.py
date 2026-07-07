@@ -68,9 +68,9 @@ def parsedatetime(
 
 
 def jsonsplit(
-    value: str, delimiter: str = ",", type: Callable[[str], object] = str
+    value: str, delimiter: str = ",", type_: Callable[[str], object] = str
 ) -> str:
     """
     Convert a string like a,b,c into a JSON array ["a", "b", "c"]
     """
-    return json.dumps([type(s.strip()) for s in value.split(delimiter)])
+    return json.dumps([type_(s.strip()) for s in value.split(delimiter)])
