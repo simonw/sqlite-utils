@@ -990,6 +990,39 @@ def test_insert_ignore(fresh_db):
     assert rows == [{"id": 1, "bar": 2}]
 
 
+def test_insert_ignore_reports_existing_row(fresh_db):
+    # An ignored insert (row already exists) should point last_rowid and
+    # last_pk at the existing conflicting row - see the Datasette insert API
+    fresh_db["docs"].insert({"id": 1, "title": "Exists"}, pk="id")
+    # Insert a conflicting row with ignore=True and no explicit pk=
+    table = fresh_db["docs"].insert({"id": 1, "title": "One"}, ignore=True)
+    assert table.last_rowid == 1
+    assert table.last_pk == 1
+    assert list(
+        fresh_db["docs"].rows_where("rowid = ?", [table.last_rowid])
+    ) == [{"id": 1, "title": "Exists"}]
+
+
+@pytest.mark.parametrize("rowid_alias", ("rowid", "_rowid_", "oid"))
+@pytest.mark.parametrize("method", ("upsert", "insert_replace", "insert_ignore"))
+def test_pk_rowid_alias_on_rowid_table(fresh_db, rowid_alias, method):
+    # rowid and its aliases are valid primary keys for a rowid table even
+    # though they are not listed among the table's columns - see the Datasette
+    # upsert API against tables without an explicit primary key
+    fresh_db["t"].insert({"title": "Hello"})
+    assert fresh_db["t"].pks == ["rowid"]
+    record = {rowid_alias: 1, "title": "Updated"}
+    if method == "upsert":
+        table = fresh_db["t"].upsert(record, pk=rowid_alias)
+    elif method == "insert_replace":
+        table = fresh_db["t"].insert(record, pk=rowid_alias, replace=True)
+    else:
+        table = fresh_db["t"].insert(record, pk=rowid_alias, ignore=True)
+    assert table.last_pk == 1
+    expected_title = "Hello" if method == "insert_ignore" else "Updated"
+    assert list(fresh_db["t"].rows) == [{"title": expected_title}]
+
+
 def test_insert_ignore_with_pk_after_other_table_insert(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/554
     user = {"id": "abc", "name": "david"}
