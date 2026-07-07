@@ -282,6 +282,10 @@ def test_execute_returning_dicts(fresh_db):
     ]
 
 
+@pytest.mark.skipif(
+    sqlite3.sqlite_version_info < (3, 35, 0),
+    reason="RETURNING requires SQLite 3.35.0 or higher",
+)
 def test_query_preserves_error_from_transaction_destroying_trigger(fresh_db):
     # RAISE(ROLLBACK) destroys the savepoint guard - the original
     # IntegrityError must propagate, not "no such savepoint"
