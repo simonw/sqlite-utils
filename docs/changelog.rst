@@ -4,10 +4,10 @@
  Changelog
 ===========
 
-.. _unreleased:
+.. _v4_0rc4:
 
-Unreleased
-----------
+4.0rc4 (2026-07-06)
+-------------------
 
 - **Breaking change**: ``table.extract()`` - and the ``sqlite-utils extract`` command - no longer extract rows where every extracted column is ``null``. Those rows now keep a ``null`` value in the new foreign key column instead of pointing at an all-``null`` record in the lookup table. When extracting multiple columns, rows are still extracted if at least one of the columns has a value. (:issue:`186`)
 - The ``extracts=`` option to ``table.insert()`` and friends no longer creates a lookup table record for ``None`` values - the column value stays ``null``. Previously every batch of inserted rows containing a ``None`` value would add a duplicate ``null`` record to the lookup table.
