@@ -258,6 +258,47 @@ def test_execute_comment_prefixed_begin_leaves_transaction_open(fresh_db):
     assert [r["id"] for r in fresh_db["t"].rows] == [1]
 
 
+def test_execute_failed_write_rolls_back_implicit_transaction(tmpdir):
+    # A failed write must not leave the driver's implicit transaction open -
+    # that would silently disable auto-commit for every subsequent write
+    path = str(tmpdir / "test.db")
+    db = Database(path)
+    db["t"].insert({"id": 1}, pk="id")
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute("insert into t (id) values (1)")
+    assert not db.conn.in_transaction
+    # Subsequent writes commit as normal and survive closing the connection
+    db["other"].insert({"id": 2})
+    db.close()
+    db2 = Database(path)
+    assert db2["other"].exists()
+    db2.close()
+
+
+def test_execute_failed_write_preserves_explicit_transaction(fresh_db):
+    # A failed write inside an explicit transaction must not roll back
+    # the caller's earlier work - only the caller decides that
+    fresh_db["t"].insert({"id": 1}, pk="id")
+    fresh_db.begin()
+    fresh_db.execute("insert into t (id) values (2)")
+    with pytest.raises(sqlite3.IntegrityError):
+        fresh_db.execute("insert into t (id) values (1)")
+    assert fresh_db.conn.in_transaction
+    fresh_db.commit()
+    assert [r["id"] for r in fresh_db["t"].rows] == [1, 2]
+
+
+def test_execute_failed_write_inside_atomic_preserves_block(fresh_db):
+    # A caught failure inside an atomic() block must leave the block's
+    # transaction open so its other work still commits
+    fresh_db["t"].insert({"id": 1}, pk="id")
+    with fresh_db.atomic():
+        fresh_db.execute("insert into t (id) values (2)")
+        with pytest.raises(sqlite3.IntegrityError):
+            fresh_db.execute("insert into t (id) values (1)")
+    assert [r["id"] for r in fresh_db["t"].rows] == [1, 2]
+
+
 def test_query_returning_commits_after_iteration(tmpdir):
     if sqlite3.sqlite_version_info < (3, 35, 0):
         import pytest as _pytest

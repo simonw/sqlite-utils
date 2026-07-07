@@ -16,6 +16,7 @@ Unreleased
 - ``--no-headers`` now omits the header row from ``--fmt`` and ``--table`` output, not just CSV and TSV output. (:issue:`566`)
 - ``table.insert_all(..., pk=...)`` now raises ``InvalidColumns`` if ``pk=`` names columns that do not exist in an existing table. Previously this behaved inconsistently, with single-row inserts raising a ``KeyError`` while other row counts succeeded. (:issue:`732`)
 - Fixed an ``IndexError`` from ``table.insert(..., pk=..., ignore=True)`` when an ignored insert followed writes to another table on the same connection. ``last_pk`` is now populated from the explicit primary key value instead of looking up a stale ``lastrowid``. (:issue:`554`)
+- Fixed a bug where a failed write statement executed with ``db.execute()`` left the driver's implicit transaction open. Every subsequent write then joined that phantom transaction, which nothing committed, so their work was silently rolled back when the connection was closed. The implicit transaction opened by a failed statement is now rolled back before the exception is raised. A failed write inside a transaction opened with ``db.begin()`` or ``db.atomic()`` leaves that transaction open and untouched, as before.
 
 .. _v4_0rc3:
 

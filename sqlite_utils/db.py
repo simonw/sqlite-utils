@@ -870,10 +870,18 @@ class Database:
         if self._tracer:
             self._tracer(sql, parameters)
         was_in_transaction = self.conn.in_transaction
-        if parameters is not None:
-            cursor = self.conn.execute(sql, parameters)
-        else:
-            cursor = self.conn.execute(sql)
+        try:
+            if parameters is not None:
+                cursor = self.conn.execute(sql, parameters)
+            else:
+                cursor = self.conn.execute(sql)
+        except Exception:
+            if not was_in_transaction and self.conn.in_transaction:
+                # The failed statement opened an implicit transaction that
+                # nothing would ever commit - roll it back, otherwise it
+                # would capture every subsequent write
+                self.conn.execute("ROLLBACK")
+            raise
         if (
             not was_in_transaction
             and self.conn.in_transaction
