@@ -1165,6 +1165,9 @@ def insert_upsert_implementation(
                     db.conn.cursor().executemany(bulk_sql, doc_chunk)
             return
 
+        # table_names() rather than db.table(), which raises NoTable for
+        # views before the error handling below can deal with them
+        table_existed_before_insert = table in db.table_names()
         try:
             db.table(table).insert_all(
                 docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
@@ -1194,7 +1197,14 @@ def insert_upsert_implementation(
                 )
             else:
                 raise
-        if tracker is not None and db.table(table).exists():
+        # Apply detected types only to a table this command created -
+        # transforming a pre-existing table would rewrite its column types
+        # and corrupt values such as TEXT zip codes with leading zeros
+        if (
+            tracker is not None
+            and not table_existed_before_insert
+            and db.table(table).exists()
+        ):
             db.table(table).transform(types=tracker.types)
 
         # Clean up open file-like objects
