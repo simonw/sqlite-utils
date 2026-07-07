@@ -193,7 +193,7 @@ Summary information about a column, see :ref:`python_api_analyze_column`.
 """
 
 
-@dataclass(order=True)
+@dataclass(order=True, frozen=True)
 class ForeignKey:
     """
     A foreign key defined on a table.
@@ -207,6 +207,11 @@ class ForeignKey:
 
     ``on_delete`` and ``on_update`` hold the foreign key actions, e.g.
     ``"CASCADE"`` - ``"NO ACTION"`` if not set.
+
+    Instances are immutable and hashable, so they can be collected into
+    sets and used as dictionary keys. Equality covers every compared field,
+    including ``on_delete`` and ``on_update`` - two foreign keys differing
+    only in their actions are different constraints.
 
     Prior to sqlite-utils 4.0 this was a ``namedtuple`` and could be unpacked
     or indexed as ``(table, column, other_table, other_column)``. It is now a
@@ -227,16 +232,21 @@ class ForeignKey:
 
     def __post_init__(self):
         # Populate columns/other_columns for single-column foreign keys,
-        # normalizing any lists to tuples
+        # normalizing any lists to tuples. object.__setattr__ because the
+        # dataclass is frozen
         if self.columns:
-            self.columns = tuple(self.columns)
+            object.__setattr__(self, "columns", tuple(self.columns))
         else:
-            self.columns = (self.column,) if self.column is not None else ()
+            object.__setattr__(
+                self, "columns", (self.column,) if self.column is not None else ()
+            )
         if self.other_columns:
-            self.other_columns = tuple(self.other_columns)
+            object.__setattr__(self, "other_columns", tuple(self.other_columns))
         else:
-            self.other_columns = (
-                (self.other_column,) if self.other_column is not None else ()
+            object.__setattr__(
+                self,
+                "other_columns",
+                (self.other_column,) if self.other_column is not None else (),
             )
 
 

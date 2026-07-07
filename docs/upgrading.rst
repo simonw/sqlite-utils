@@ -95,7 +95,7 @@ Python API changes
     for fk in db["courses"].foreign_keys:
         fk.table, fk.column, fk.other_table, fk.other_column
 
-Attempting the old unpacking or ``fk[0]`` indexing now raises ``TypeError``, so any code using those patterns will fail loudly rather than silently misbehave.
+Attempting the old unpacking or ``fk[0]`` indexing now raises ``TypeError``, so any code using those patterns will fail loudly rather than silently misbehave. Like the old namedtuple, ``ForeignKey`` instances are immutable and hashable - they can be collected into sets and used as dictionary keys. Note that equality now includes the ``on_delete`` and ``on_update`` actions: a ``ForeignKey`` with ``ON DELETE CASCADE`` is not equal to one without.
 
 Compound foreign keys - previously returned as one ``ForeignKey`` per column, misleadingly suggesting several independent single-column keys - are now returned as a single ``ForeignKey`` with ``is_compound=True``. For these the scalar ``column`` and ``other_column`` fields are ``None``; use the ``columns`` and ``other_columns`` tuples instead. Single-column foreign keys are unaffected apart from the class change: ``column``/``other_column`` behave as before and ``columns``/``other_columns`` are one-item tuples.
 

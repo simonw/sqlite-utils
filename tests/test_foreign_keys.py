@@ -578,3 +578,35 @@ def test_add_compound_foreign_key_guesses_pk_declaration_order(fresh_db):
     fresh_db["child"].insert({"id": 1, "x": "A", "y": "B"}, pk="id")
     fresh_db["child"].add_foreign_key(("x", "y"), "other")
     assert fresh_db["child"].foreign_keys[0].other_columns == ("a", "b")
+
+
+def test_foreign_keys_are_hashable(fresh_db):
+    # set() over foreign_keys worked with the 3.x namedtuple and must
+    # keep working with the dataclass
+    fresh_db["p"].insert({"id": 1}, pk="id")
+    fresh_db["c"].insert(
+        {"id": 1, "pid": 1}, pk="id", foreign_keys=[("pid", "p", "id")]
+    )
+    fks = set(fresh_db["c"].foreign_keys)
+    assert len(fks) == 1
+    assert ForeignKey("c", "pid", "p", "id") in fks
+    # Usable as dict keys too
+    assert {fk: True for fk in fks}
+
+
+def test_foreign_key_is_immutable():
+    import dataclasses
+
+    fk = ForeignKey("c", "pid", "p", "id")
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        fk.table = "other"
+
+
+def test_foreign_key_equality_and_hash_include_actions():
+    # Two foreign keys differing only in ON DELETE behavior are different
+    # constraints - they compare unequal and hash separately
+    plain = ForeignKey("c", "pid", "p", "id")
+    cascade = ForeignKey("c", "pid", "p", "id", on_delete="CASCADE")
+    assert plain != cascade
+    assert len({plain, cascade}) == 2
+    assert plain == ForeignKey("c", "pid", "p", "id")
