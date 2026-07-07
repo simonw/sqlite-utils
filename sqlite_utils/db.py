@@ -4386,18 +4386,54 @@ class Table(Queryable):
         if num_records_processed == 1:
             # For an insert we need to use result.lastrowid
             if not upsert and result is not None:
-                self.last_rowid = result.lastrowid
-                if (hash_id or pk) and self.last_rowid:
-                    # Set self.last_pk to the pk(s) for that rowid
-                    row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
-                    if hash_id:
-                        self.last_pk = row[hash_id]
-                    elif isinstance(pk, str):
-                        self.last_pk = row[resolve_casing(pk, row)]
+                ignored_insert = ignore and result.rowcount == 0
+                if ignored_insert:
+                    if list_mode:
+                        first_record_list = cast(Sequence[Any], first_record)
+                        if hash_id:
+                            pass
+                        elif isinstance(pk, str):
+                            pk_index = column_names.index(
+                                resolve_casing(pk, column_names)
+                            )
+                            self.last_pk = first_record_list[pk_index]
+                        elif pk:
+                            self.last_pk = tuple(
+                                first_record_list[
+                                    column_names.index(resolve_casing(p, column_names))
+                                ]
+                                for p in pk
+                            )
                     else:
-                        self.last_pk = tuple(row[resolve_casing(p, row)] for p in pk)
+                        first_record_dict = cast(Dict[str, Any], first_record)
+                        if hash_id:
+                            self.last_pk = hash_record(
+                                first_record_dict, hash_id_columns
+                            )
+                        elif isinstance(pk, str):
+                            self.last_pk = first_record_dict[
+                                resolve_casing(pk, first_record_dict)
+                            ]
+                        elif pk:
+                            self.last_pk = tuple(
+                                first_record_dict[resolve_casing(p, first_record_dict)]
+                                for p in pk
+                            )
                 else:
-                    self.last_pk = self.last_rowid
+                    self.last_rowid = result.lastrowid
+                    if (hash_id or pk) and self.last_rowid:
+                        # Set self.last_pk to the pk(s) for that rowid
+                        row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
+                        if hash_id:
+                            self.last_pk = row[hash_id]
+                        elif isinstance(pk, str):
+                            self.last_pk = row[resolve_casing(pk, row)]
+                        else:
+                            self.last_pk = tuple(
+                                row[resolve_casing(p, row)] for p in pk
+                            )
+                    else:
+                        self.last_pk = self.last_rowid
             else:
                 # For an upsert use first_record from earlier
                 if list_mode:

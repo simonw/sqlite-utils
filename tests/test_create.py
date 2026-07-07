@@ -953,6 +953,24 @@ def test_insert_ignore(fresh_db):
     assert rows == [{"id": 1, "bar": 2}]
 
 
+def test_insert_ignore_with_pk_after_other_table_insert(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/554
+    user = {"id": "abc", "name": "david"}
+
+    fresh_db["users"].insert(user, pk="id")
+    fresh_db["comments"].insert_all(
+        [
+            {"id": "def", "text": "ok"},
+            {"id": "ghi", "text": "great"},
+        ],
+    )
+
+    table = fresh_db["users"].insert(user, pk="id", ignore=True)
+
+    assert table.last_pk == "abc"
+    assert list(fresh_db["users"].rows) == [user]
+
+
 def test_insert_hash_id(fresh_db):
     dogs = fresh_db["dogs"]
     id = dogs.insert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id").last_pk
