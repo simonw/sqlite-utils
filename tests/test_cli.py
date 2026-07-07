@@ -2758,3 +2758,22 @@ def test_insert_upsert_strict(tmpdir, method, strict):
     assert result.exit_code == 0
     db = Database(db_path)
     assert db["items"].strict == strict or not db.supports_strict
+
+
+def test_extract_bad_column_clean_error(db_path):
+    db = Database(db_path)
+    db["trees"].insert({"id": 1, "species": "Palm"}, pk="id")
+    result = CliRunner().invoke(cli.cli, ["extract", db_path, "trees", "nope"])
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert result.output.startswith("Error: Invalid columns")
+
+
+def test_extract_view_clean_error(db_path):
+    db = Database(db_path)
+    db["trees"].insert({"id": 1, "species": "Palm"}, pk="id")
+    db.create_view("v", "select * from trees")
+    result = CliRunner().invoke(cli.cli, ["extract", db_path, "v", "species"])
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert result.output.startswith("Error:")

@@ -13,6 +13,7 @@ from sqlite_utils.db import (
     BadMultiValues,
     DEFAULT,
     DescIndex,
+    InvalidColumns,
     NoTable,
     NoView,
     quote_identifier,
@@ -1172,7 +1173,7 @@ def insert_upsert_implementation(
             db.table(table).insert_all(
                 docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
             )
-        except NoTable as e:
+        except (NoTable, InvalidColumns) as e:
             raise click.ClickException(str(e))
         except Exception as e:
             if (
@@ -2734,7 +2735,10 @@ def extract(
         fk_column=fk_column,
         rename=dict(rename),
     )
-    db.table(table).extract(**kwargs)
+    try:
+        db.table(table).extract(**kwargs)
+    except (NoTable, InvalidColumns) as e:
+        raise click.ClickException(str(e))
 
 
 @cli.command(name="insert-files")

@@ -676,3 +676,18 @@ def test_upsert_csv_detect_types_leaves_existing_table_alone(db_path):
     assert result.exit_code == 0, result.output
     assert db["places"].columns_dict["zip"] is str
     assert db["places"].get(1)["zip"] == "01234"
+
+
+def test_insert_invalid_pk_clean_error(db_path):
+    # An invalid --pk against an existing table should be a clean CLI
+    # error, not a raw InvalidColumns traceback
+    db = Database(db_path)
+    db["t"].insert({"a": 1})
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "t", "-", "--pk", "badcol"],
+        input='{"a": 2}',
+    )
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert result.output.startswith("Error: Invalid primary key column")
