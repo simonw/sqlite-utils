@@ -27,7 +27,7 @@ Here is a simple example of a ``migrations.py`` file which creates a table, then
 
 .. code-block:: python
 
-    from sqlite_utils import Database, Migrations
+    from sqlite_utils import Migrations
 
     migrations = Migrations("creatures")
 
@@ -50,6 +50,8 @@ Applying migrations in Python
 Once you have a ``Migrations(name)`` collection with one or more migrations registered to it, you can execute them in Python code like this:
 
 .. code-block:: python
+
+    from sqlite_utils import Database
 
     db = Database("creatures.db")
     migrations.apply(db)
