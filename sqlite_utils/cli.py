@@ -13,6 +13,7 @@ from sqlite_utils.db import (
     BadMultiValues,
     DEFAULT,
     DescIndex,
+    InvalidColumns,
     NoTable,
     NoView,
     quote_identifier,
@@ -1165,11 +1166,14 @@ def insert_upsert_implementation(
                     db.conn.cursor().executemany(bulk_sql, doc_chunk)
             return
 
+        # table_names() rather than db.table(), which raises NoTable for
+        # views before the error handling below can deal with them
+        table_existed_before_insert = table in db.table_names()
         try:
             db.table(table).insert_all(
                 docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
             )
-        except NoTable as e:
+        except (NoTable, InvalidColumns) as e:
             raise click.ClickException(str(e))
         except Exception as e:
             if (
@@ -1194,7 +1198,14 @@ def insert_upsert_implementation(
                 )
             else:
                 raise
-        if tracker is not None and db.table(table).exists():
+        # Apply detected types only to a table this command created -
+        # transforming a pre-existing table would rewrite its column types
+        # and corrupt values such as TEXT zip codes with leading zeros
+        if (
+            tracker is not None
+            and not table_existed_before_insert
+            and db.table(table).exists()
+        ):
             db.table(table).transform(types=tracker.types)
 
         # Clean up open file-like objects
@@ -2724,7 +2735,10 @@ def extract(
         fk_column=fk_column,
         rename=dict(rename),
     )
-    db.table(table).extract(**kwargs)
+    try:
+        db.table(table).extract(**kwargs)
+    except (NoTable, InvalidColumns) as e:
+        raise click.ClickException(str(e))
 
 
 @cli.command(name="insert-files")
@@ -3420,7 +3434,14 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
             # Listing is read-only - don't create the database file
             db = sqlite_utils.Database(memory=True)
         _register_db_for_cleanup(db)
-        _display_migration_list(db, migration_sets)
+        # Legacy sqlite-migrate classes create the migrations table from
+        # their pending()/applied() methods - run the listing inside a
+        # transaction and roll it back so --list stays read-only
+        db.begin()
+        try:
+            _display_migration_list(db, migration_sets)
+        finally:
+            db.rollback()
         return
 
     db = sqlite_utils.Database(db_path)
@@ -3452,7 +3473,10 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
     for migration_set in migration_sets:
         matches = _stop_before_for_migration_set(stop_before, migration_set.name)
         if isinstance(migration_set, sqlite_utils.Migrations):
-            migration_set.apply(db, stop_before=matches)
+            try:
+                migration_set.apply(db, stop_before=matches)
+            except ValueError as e:
+                raise click.ClickException(str(e))
         else:
             # Legacy sqlite-migrate Migrations objects take a single string
             # for stop_before, not a list

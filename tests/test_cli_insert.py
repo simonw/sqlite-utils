@@ -628,3 +628,66 @@ def test_insert_into_view_errors(tmpdir):
     )
     assert result.exit_code == 1
     assert result.output.strip() == "Error: Table v is actually a view"
+
+
+def test_insert_csv_detect_types_leaves_existing_table_alone(db_path):
+    # Type detection is the default for CSV/TSV inserts, but it must only
+    # apply to tables created by this command - transforming a pre-existing
+    # table would rewrite its column types and corrupt data such as
+    # TEXT zip codes with leading zeros
+    db = Database(db_path)
+    db["places"].insert({"name": "Boston", "zip": "01234"})
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "places", "-", "--csv"],
+        catch_exceptions=False,
+        input="name,zip\nSF,94107",
+    )
+    assert result.exit_code == 0, result.output
+    assert db["places"].columns_dict["zip"] is str
+    assert list(db["places"].rows) == [
+        {"name": "Boston", "zip": "01234"},
+        {"name": "SF", "zip": "94107"},
+    ]
+
+
+def test_insert_csv_detect_types_new_table(db_path):
+    # A table created by the insert still gets detected types
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "data", "-", "--csv"],
+        catch_exceptions=False,
+        input="name,age,weight\nCleo,5,12.5",
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    assert db["data"].columns_dict == {"name": str, "age": int, "weight": float}
+
+
+def test_upsert_csv_detect_types_leaves_existing_table_alone(db_path):
+    db = Database(db_path)
+    db["places"].insert({"id": 1, "name": "Boston", "zip": "01234"}, pk="id")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "places", "-", "--csv", "--pk", "id"],
+        catch_exceptions=False,
+        input="id,name,zip\n2,SF,94107",
+    )
+    assert result.exit_code == 0, result.output
+    assert db["places"].columns_dict["zip"] is str
+    assert db["places"].get(1)["zip"] == "01234"
+
+
+def test_insert_invalid_pk_clean_error(db_path):
+    # An invalid --pk against an existing table should be a clean CLI
+    # error, not a raw InvalidColumns traceback
+    db = Database(db_path)
+    db["t"].insert({"a": 1})
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "t", "-", "--pk", "badcol"],
+        input='{"a": 2}',
+    )
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert result.output.startswith("Error: Invalid primary key column")

@@ -193,7 +193,7 @@ Summary information about a column, see :ref:`python_api_analyze_column`.
 """
 
 
-@dataclass(order=True)
+@dataclass(order=True, frozen=True)
 class ForeignKey:
     """
     A foreign key defined on a table.
@@ -207,6 +207,11 @@ class ForeignKey:
 
     ``on_delete`` and ``on_update`` hold the foreign key actions, e.g.
     ``"CASCADE"`` - ``"NO ACTION"`` if not set.
+
+    Instances are immutable and hashable, so they can be collected into
+    sets and used as dictionary keys. Equality covers every compared field,
+    including ``on_delete`` and ``on_update`` - two foreign keys differing
+    only in their actions are different constraints.
 
     Prior to sqlite-utils 4.0 this was a ``namedtuple`` and could be unpacked
     or indexed as ``(table, column, other_table, other_column)``. It is now a
@@ -227,16 +232,21 @@ class ForeignKey:
 
     def __post_init__(self):
         # Populate columns/other_columns for single-column foreign keys,
-        # normalizing any lists to tuples
+        # normalizing any lists to tuples. object.__setattr__ because the
+        # dataclass is frozen
         if self.columns:
-            self.columns = tuple(self.columns)
+            object.__setattr__(self, "columns", tuple(self.columns))
         else:
-            self.columns = (self.column,) if self.column is not None else ()
+            object.__setattr__(
+                self, "columns", (self.column,) if self.column is not None else ()
+            )
         if self.other_columns:
-            self.other_columns = tuple(self.other_columns)
+            object.__setattr__(self, "other_columns", tuple(self.other_columns))
         else:
-            self.other_columns = (
-                (self.other_column,) if self.other_column is not None else ()
+            object.__setattr__(
+                self,
+                "other_columns",
+                (self.other_column,) if self.other_column is not None else (),
             )
 
 
@@ -592,8 +602,13 @@ class Database:
             try:
                 yield self
             except BaseException:
-                self.conn.execute("ROLLBACK TO SAVEPOINT {};".format(savepoint))
-                self.conn.execute("RELEASE SAVEPOINT {};".format(savepoint))
+                # An error such as a RAISE(ROLLBACK) trigger can destroy
+                # the whole transaction, savepoints included - cleaning up
+                # anyway would mask the original exception with
+                # "no such savepoint"
+                if self.conn.in_transaction:
+                    self.conn.execute("ROLLBACK TO SAVEPOINT {};".format(savepoint))
+                    self.conn.execute("RELEASE SAVEPOINT {};".format(savepoint))
                 raise
             else:
                 self.conn.execute("RELEASE SAVEPOINT {};".format(savepoint))
@@ -602,13 +617,15 @@ class Database:
             try:
                 yield self
             except BaseException:
-                self.conn.execute("ROLLBACK")
+                # rollback() is a no-op if the error already destroyed the
+                # transaction, so the original exception propagates
+                self.rollback()
                 raise
             else:
                 try:
                     self.conn.execute("COMMIT")
                 except BaseException:
-                    self.conn.execute("ROLLBACK")
+                    self.rollback()
                     raise
 
     def begin(self) -> None:
@@ -655,7 +672,16 @@ class Database:
                 # do stuff here
 
         The previous ``isolation_level`` is restored at the end of the block.
+
+        :raises TransactionError: if a transaction is open - assigning
+          ``isolation_level`` would commit it as a side effect, silently
+          breaking the caller's ability to roll back
         """
+        if self.conn.in_transaction:
+            raise TransactionError(
+                "ensure_autocommit_on() cannot be used inside a transaction - "
+                "changing isolation_level would commit the open transaction"
+            )
         old_isolation_level = self.conn.isolation_level
         try:
             self.conn.isolation_level = None
@@ -797,7 +823,10 @@ class Database:
           parameters, or a dictionary for ``where id = :id``
         :raises ValueError: if the SQL statement does not return rows - use
           :meth:`execute` for those statements instead. The rejected statement
-          is rolled back, so it has no effect on the database
+          is rolled back, so it has no effect on the database. One exception:
+          a row-less ``PRAGMA`` statement takes effect despite the
+          ``ValueError``, because PRAGMAs run outside the savepoint guard -
+          some of them refuse to run inside a transaction
         """
         message = (
             "query() can only be used with SQL that returns rows - "
@@ -848,8 +877,11 @@ class Database:
                 return (dict(zip(keys, row)) for row in fetched)
             return (dict(zip(keys, row)) for row in cursor)
         finally:
-            if not released:
-                # An error occurred - undo anything the statement changed
+            if not released and self.conn.in_transaction:
+                # An error occurred - undo anything the statement changed.
+                # If the error itself destroyed the transaction (such as a
+                # RAISE(ROLLBACK) trigger) the savepoint is already gone
+                # and there is nothing left to undo
                 self.conn.execute('ROLLBACK TO "sqlite_utils_query"')
                 self.conn.execute('RELEASE "sqlite_utils_query"')
 
@@ -1225,21 +1257,23 @@ class Database:
             (("campus_name", "dept_code"), "departments", ("campus_name", "dept_code"))
         """
         table = self.table(name)
-        if all(isinstance(fk, ForeignKey) for fk in foreign_keys):
-            return cast(List[ForeignKey], foreign_keys)
-        if all(isinstance(fk, str) for fk in foreign_keys):
-            # It's a list of columns
-            fks = []
-            for column in foreign_keys:
-                column = cast(str, column)
-                other_table = table.guess_foreign_table(column)
-                other_column = table.guess_foreign_column(other_table)
-                fks.append(ForeignKey(name, column, other_table, other_column))
-            return fks
-        if not all(isinstance(fk, (tuple, list)) for fk in foreign_keys):
-            raise ValueError("foreign_keys= should be a list of tuples")
         fks = []
-        for tuple_or_list in cast(Iterable[Sequence[Any]], foreign_keys):
+        for fk in foreign_keys:
+            if isinstance(fk, ForeignKey):
+                fks.append(fk)
+                continue
+            if isinstance(fk, str):
+                # A bare column name - guess the other table and column
+                other_table = table.guess_foreign_table(fk)
+                other_column = table.guess_foreign_column(other_table)
+                fks.append(ForeignKey(name, fk, other_table, other_column))
+                continue
+            if not isinstance(fk, (tuple, list)):
+                raise ValueError(
+                    "foreign_keys= should be a list of tuples, "
+                    "ForeignKey objects or column name strings"
+                )
+            tuple_or_list = cast(Sequence[Any], fk)
             if len(tuple_or_list) == 4:
                 if tuple_or_list[0] != name:
                     raise ValueError(
@@ -1762,6 +1796,11 @@ class Database:
                     if isinstance(other_column_or_columns, str)
                     else tuple(other_column_or_columns)
                 )
+                if len(columns) != len(other_columns):
+                    raise ValueError(
+                        "Compound foreign key must have the same number of "
+                        "columns on both sides"
+                    )
                 if len(columns) == 1:
                     fk_object = ForeignKey(
                         table, columns[0], other_table, other_columns[0]
@@ -1801,10 +1840,11 @@ class Database:
                             other_column, other_table
                         )
                     )
-            # We will silently skip foreign keys that exist already
+            # Silently skip foreign keys that exist already - but only if
+            # they match exactly, including ON DELETE/ON UPDATE actions
             columns_folded = tuple(fold_identifier_case(c) for c in columns)
             other_columns_folded = tuple(fold_identifier_case(c) for c in other_columns)
-            if not any(
+            existing = [
                 fk
                 for fk in table_obj.foreign_keys
                 if tuple(fold_identifier_case(c) for c in fk.columns) == columns_folded
@@ -1812,8 +1852,21 @@ class Database:
                 == fold_identifier_case(other_table)
                 and tuple(fold_identifier_case(c) for c in fk.other_columns)
                 == other_columns_folded
-            ):
+            ]
+            if not existing:
                 foreign_keys_to_create.append(fk_object)
+            elif any(
+                fk.on_delete != fk_object.on_delete
+                or fk.on_update != fk_object.on_update
+                for fk in existing
+            ):
+                raise AlterError(
+                    "Foreign key already exists for {} => {}.{} but with "
+                    "different ON DELETE/ON UPDATE actions - use "
+                    "table.transform() to change them".format(
+                        ", ".join(columns), other_table, ", ".join(other_columns)
+                    )
+                )
 
         # Group them by table
         by_table: Dict[str, List[ForeignKey]] = {}
@@ -2008,12 +2061,22 @@ class Queryable:
         :param limit: Integer number of rows to limit to
         :param offset: Integer for SQL offset
         """
-        column_names = [column.name for column in self.columns]
-        pks = [column.name for column in self.columns if column.is_pk]
+        # This method is defined on Queryable so it serves views too, which
+        # have no pks property - sort pk columns into declaration order here
+        pk_columns = sorted(
+            (column for column in self.columns if column.is_pk),
+            key=lambda column: column.is_pk,
+        )
+        pks = [column.name for column in pk_columns]
+        select_parts = [quote_identifier(column.name) for column in self.columns]
         if not pks:
-            column_names.insert(0, "rowid")
+            # rowid is left unquoted: it is not a real column, and SQLite
+            # turns a double-quoted identifier that does not resolve into a
+            # string literal - on a view that would silently select the
+            # string 'rowid' instead of raising an error
+            select_parts.insert(0, "rowid")
             pks = ["rowid"]
-        select = ",".join(quote_identifier(column_name) for column_name in column_names)
+        select = ",".join(select_parts)
         for row in self.rows_where(
             select=select,
             where=where,
@@ -2145,8 +2208,18 @@ class Table(Queryable):
 
     @property
     def pks(self) -> List[str]:
-        "Primary key columns for this table."
-        names = [column.name for column in self.columns if column.is_pk]
+        """
+        Primary key columns for this table, in PRIMARY KEY declaration order -
+        ``PRAGMA table_info`` sets ``is_pk`` to the 1-based position of each
+        column within the primary key, which can differ from the order of the
+        columns in the table. SQLite uses the declaration order to resolve
+        implicit foreign key references, so this order matters.
+        """
+        pk_columns = sorted(
+            (column for column in self.columns if column.is_pk),
+            key=lambda column: column.is_pk,
+        )
+        names = [column.name for column in pk_columns]
         if not names:
             names = ["rowid"]
         return names
@@ -2670,7 +2743,8 @@ class Table(Queryable):
 
         if pk is DEFAULT:
             pks_renamed = tuple(
-                rename.get(p.name) or p.name for p in self.columns if p.is_pk
+                rename.get(pk_name) or pk_name
+                for pk_name in (self.pks if not self.use_rowid else [])
             )
             if len(pks_renamed) == 1:
                 pk = pks_renamed[0]
@@ -2855,8 +2929,22 @@ class Table(Queryable):
             all_columns_are_null = " AND ".join(
                 "{} IS NULL".format(quote_identifier(c)) for c in columns
             )
+            # INSERT OR IGNORE dedupes against the unique index, but unique
+            # indexes treat NULLs as distinct - the NOT EXISTS guard uses IS
+            # comparison so NULL-containing rows match existing lookup rows
+            # instead of being inserted again
+            already_in_lookup = " AND ".join(
+                "{lookup}.{lookup_col} IS {source}.{source_col}".format(
+                    lookup=quote_identifier(table),
+                    lookup_col=quote_identifier(rename.get(column) or column),
+                    source=quote_identifier(self.name),
+                    source_col=quote_identifier(column),
+                )
+                for column in columns
+            )
             self.db.execute(
-                "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {} WHERE NOT ({all_null})".format(
+                "INSERT OR IGNORE INTO {} ({lookup_columns}) SELECT DISTINCT {table_cols} FROM {} "
+                "WHERE NOT ({all_null}) AND NOT EXISTS (SELECT 1 FROM {lookup} WHERE {already_in_lookup})".format(
                     quote_identifier(table),
                     quote_identifier(self.name),
                     lookup_columns=", ".join(
@@ -2864,6 +2952,8 @@ class Table(Queryable):
                     ),
                     table_cols=", ".join(quote_identifier(c) for c in columns),
                     all_null=all_columns_are_null,
+                    lookup=quote_identifier(table),
+                    already_in_lookup=already_in_lookup,
                 )
             )
 
@@ -3014,7 +3104,10 @@ class Table(Queryable):
                     raise AlterError("table '{}' has no column {}".format(fk, fk_col))
             else:
                 # automatically set fk_col to first primary_key of fk table
-                pks = [c for c in self.db[fk].columns if c.is_pk]
+                pks = sorted(
+                    (c for c in self.db[fk].columns if c.is_pk),
+                    key=lambda c: c.is_pk,
+                )
                 if pks:
                     fk_col = pks[0].name
                     fk_col_type = pks[0].type
@@ -3767,9 +3860,7 @@ class Table(Queryable):
         # First we execute the function
         pk_to_values = {}
         new_column_types: Dict[str, Set[type]] = {}
-        pks = [column.name for column in self.columns if column.is_pk]
-        if not pks:
-            pks = ["rowid"]
+        pks = self.pks
 
         with progressbar(
             length=self.count, silent=not show_progress, label="1: Evaluating"
@@ -4245,6 +4336,10 @@ class Table(Queryable):
         if hash_id:
             pk = hash_id
 
+        # pk columns missing from an existing table are an error - unless
+        # alter=True, where a pk column supplied by the records will be
+        # added, so validation waits until the record keys are known
+        deferred_invalid_pk_check = None
         if pk and not hash_id and self.exists():
             pk_cols = [pk] if isinstance(pk, str) else list(pk)
             existing_columns = self.columns_dict
@@ -4254,7 +4349,7 @@ class Table(Queryable):
                 if resolve_casing(col, existing_columns) not in existing_columns
             ]
             if missing_pk_cols:
-                raise InvalidColumns(
+                invalid_pk_error = InvalidColumns(
                     "Invalid primary key column{} {} for table {} with columns {}".format(
                         "s" if len(missing_pk_cols) > 1 else "",
                         missing_pk_cols,
@@ -4262,6 +4357,9 @@ class Table(Queryable):
                         list(existing_columns),
                     )
                 )
+                if not alter:
+                    raise invalid_pk_error
+                deferred_invalid_pk_check = (missing_pk_cols, invalid_pk_error)
 
         if ignore and replace:
             raise ValueError("Use either ignore=True or replace=True, not both")
@@ -4372,6 +4470,16 @@ class Table(Queryable):
                     all_columns = list(sorted(all_columns_set))
                     if hash_id:
                         all_columns.insert(0, hash_id)
+                if deferred_invalid_pk_check is not None:
+                    # alter=True - pk columns the table lacks are valid if
+                    # the records supply them, otherwise raise the error
+                    missing_pk_cols, invalid_pk_error = deferred_invalid_pk_check
+                    record_columns = {column: True for column in all_columns}
+                    if any(
+                        resolve_casing(col, record_columns) not in record_columns
+                        for col in missing_pk_cols
+                    ):
+                        raise invalid_pk_error
             else:
                 if not list_mode:
                     for record in cast(List[Dict[str, Any]], chunk):

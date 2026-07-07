@@ -96,14 +96,34 @@ class Migrations:
         changes are rolled back, no record is written and the migration stays
         pending. Migrations registered with ``transactional=False`` run
         outside of a transaction.
+
+        :raises ValueError: if a ``stop_before`` name matches a migration in
+          this set that has already been applied - stopping before it is
+          impossible to honor, and no pending migrations are applied
         """
-        self.ensure_migrations_table(db)
         if stop_before is None:
             stop_before_names = set()
         elif isinstance(stop_before, str):
             stop_before_names = {stop_before}
         else:
             stop_before_names = set(stop_before)
+        # A stop_before naming an already-applied migration cannot be
+        # honored - error rather than applying everything after it. Names
+        # not in this set at all are ignored, because unqualified CLI
+        # values are offered to every migration set
+        already_applied = stop_before_names.intersection(
+            migration.name for migration in self.applied(db)
+        )
+        if already_applied:
+            raise ValueError(
+                "Cannot stop before migration{} {} in set '{}' - already "
+                "been applied".format(
+                    "s" if len(already_applied) > 1 else "",
+                    ", ".join(sorted(already_applied)),
+                    self.name,
+                )
+            )
+        self.ensure_migrations_table(db)
         for migration in self.pending(db):
             name = migration.name
             if name in stop_before_names:

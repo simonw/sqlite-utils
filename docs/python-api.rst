@@ -233,6 +233,8 @@ The SQL query is executed as soon as ``db.query()`` is called. The resulting row
 
 ``db.query()`` can only be used with SQL that returns rows. Passing a statement that returns no rows - an ``INSERT`` or ``UPDATE`` without a ``RETURNING`` clause, for example - will raise a ``ValueError``. The rejected statement is rolled back, so it has no effect on the database. Use :ref:`db.execute() <python_api_execute>` for those statements instead.
 
+There is one exception to the rolled-back guarantee: a ``PRAGMA`` statement that returns no rows, such as ``PRAGMA user_version = 5``, still raises a ``ValueError`` but will already have taken effect. Some PRAGMA statements refuse to run inside a transaction, so PRAGMAs are executed outside the savepoint that is used to roll back other rejected statements. Use ``db.execute()`` for PRAGMA statements that do not return rows.
+
 If a query returns more than one column with the same name - a join between two tables that share column names, for example - later occurrences are renamed with a numeric suffix, so every value is included in the dictionary:
 
 .. code-block:: python
@@ -1633,6 +1635,8 @@ Here's an example adding two foreign keys at once:
     ])
 
 This method runs the same checks as ``.add_foreign_keys()`` and will raise ``sqlite_utils.db.AlterError`` if those checks fail.
+
+Foreign keys that already exist are silently skipped, so repeated calls are idempotent - but only if they match exactly. Requesting a foreign key that exists with different ``ON DELETE``/``ON UPDATE`` actions raises ``AlterError``: use ``table.transform()`` to change the actions of an existing foreign key.
 
 .. _python_api_index_foreign_keys:
 

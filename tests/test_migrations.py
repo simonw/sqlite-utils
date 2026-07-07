@@ -214,3 +214,33 @@ def test_duplicate_migration_name_errors():
             pass
 
     assert "m001" in str(ex.value)
+
+
+def test_stop_before_applied_migration_errors(migrations):
+    # Stopping before a migration that has already been applied is
+    # impossible to honor - previously the stop name was only checked
+    # against pending migrations, so everything after it was applied
+    db = sqlite_utils.Database(memory=True)
+    migrations.apply(db, stop_before="m002")  # applies m001 only
+    with pytest.raises(ValueError) as ex:
+        migrations.apply(db, stop_before="m001")
+    assert "m001" in str(ex.value)
+    assert "already been applied" in str(ex.value)
+    # Nothing else was applied
+    assert not db["cats"].exists()
+
+
+def test_stop_before_applied_migration_errors_before_any_apply(migrations):
+    # The error fires before any pending migration runs, even those that
+    # come before the already-applied stop target in registration order
+    db = sqlite_utils.Database(memory=True)
+    only_second = Migrations("test")
+
+    @only_second()
+    def m002(db):
+        db["cats"].create({"name": str})
+
+    only_second.apply(db)  # m002 applied, m001 still pending
+    with pytest.raises(ValueError):
+        migrations.apply(db, stop_before="m002")
+    assert not db["dogs"].exists()

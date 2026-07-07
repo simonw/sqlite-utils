@@ -463,3 +463,45 @@ def test_list_does_not_upgrade_legacy_migrations_table(two_migrations):
     db2 = sqlite_utils.Database(db_path)
     assert db2["_sqlite_migrations"].pks == ["migration_set", "name"]
     db2.close()
+
+
+def test_stop_before_applied_migration_errors(two_migrations):
+    path, _ = two_migrations
+    db_path = str(path / "test.db")
+    migrations_path = str(path / "foo" / "migrations.py")
+    # Apply everything first
+    first = CliRunner().invoke(
+        sqlite_utils.cli.cli,
+        ["migrate", db_path, migrations_path, "--stop-before", "bar"],
+    )
+    assert first.exit_code == 0
+    # foo is now applied - stopping before it is an error, and bar
+    # must not be applied as a side effect
+    result = CliRunner().invoke(
+        sqlite_utils.cli.cli,
+        ["migrate", db_path, migrations_path, "--stop-before", "foo"],
+    )
+    assert result.exit_code != 0
+    assert "already been applied" in result.output
+    db = sqlite_utils.Database(db_path)
+    assert not db["bar"].exists()
+
+
+def test_list_with_legacy_class_is_read_only(tmpdir):
+    # Legacy sqlite-migrate classes create the _sqlite_migrations table
+    # from their pending()/applied() methods - --list must roll that
+    # back so it stays a read-only operation as documented
+    path = pathlib.Path(tmpdir)
+    (path / "migrations.py").write_text(LEGACY_MIGRATIONS, "utf-8")
+    db_path = str(path / "test.db")
+    db = sqlite_utils.Database(db_path)
+    db["existing"].insert({"id": 1})
+    db.close()
+    result = CliRunner().invoke(
+        sqlite_utils.cli.cli, ["migrate", db_path, str(path), "--list"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "first" in result.output
+    db2 = sqlite_utils.Database(db_path)
+    assert "_sqlite_migrations" not in db2.table_names()
+    db2.close()

@@ -157,7 +157,7 @@ You can also target a specific migration set using ``migration_set:migration_nam
 
 The ``--stop-before`` option can be passed more than once.
 
-If a ``--stop-before`` value does not match any known migration the command exits with an error, rather than silently applying everything.
+If a ``--stop-before`` value does not match any known migration the command exits with an error, rather than silently applying everything. Naming a migration that has already been applied is also an error - stopping before it is impossible to honor - and no pending migrations are applied.
 
 Verbose output
 ==============

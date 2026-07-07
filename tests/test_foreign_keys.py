@@ -524,3 +524,168 @@ def test_add_compound_foreign_key_on_delete(courses_db):
     assert fk.is_compound is True
     assert fk.on_delete == "SET NULL"
     assert "ON DELETE SET NULL" in courses_db["courses"].schema
+
+
+def test_implicit_compound_foreign_key_resolves_pk_declaration_order(fresh_db):
+    # The other table's PRIMARY KEY declares its columns in a different
+    # order to the table's column order. SQLite resolves the implicit
+    # "REFERENCES other" using PRIMARY KEY declaration order, so the
+    # introspected other_columns must too
+    fresh_db.execute("create table other (b text, a text, primary key (a, b))")
+    fresh_db.execute(
+        "create table child (x text, y text, foreign key (x, y) references other)"
+    )
+    fk = fresh_db["child"].foreign_keys[0]
+    assert fk.other_columns == ("a", "b")
+
+
+def test_transform_implicit_compound_foreign_key_stays_valid(fresh_db):
+    # transform() rewrites the implicit FK with explicit columns - they
+    # must be in PRIMARY KEY declaration order or valid data fails the
+    # foreign key check with an IntegrityError
+    fresh_db.execute("create table other (b text, a text, primary key (a, b))")
+    fresh_db.execute(
+        "create table child (x text, y text, foreign key (x, y) references other)"
+    )
+    fresh_db.execute("PRAGMA foreign_keys = ON")
+    fresh_db["other"].insert({"a": "A", "b": "B"})
+    fresh_db["child"].insert({"x": "A", "y": "B"})
+    fresh_db["child"].transform(types={"x": str})
+    assert fresh_db["child"].foreign_keys[0].other_columns == ("a", "b")
+    # The constraint still points the right way around
+    fresh_db["child"].insert({"x": "A", "y": "B"})
+    with pytest.raises(sqlite3.IntegrityError):
+        fresh_db["child"].insert({"x": "B", "y": "A"})
+
+
+def test_create_compound_foreign_key_guesses_pk_declaration_order(fresh_db):
+    fresh_db.execute("create table other (b text, a text, primary key (a, b))")
+    fresh_db["other"].insert({"a": "A", "b": "B"})
+    fresh_db["child"].create(
+        {"id": int, "x": str, "y": str},
+        pk="id",
+        foreign_keys=[(("x", "y"), "other")],
+    )
+    assert fresh_db["child"].foreign_keys[0].other_columns == ("a", "b")
+    fresh_db.execute("PRAGMA foreign_keys = ON")
+    fresh_db["child"].insert({"id": 1, "x": "A", "y": "B"})
+    with pytest.raises(sqlite3.IntegrityError):
+        fresh_db["child"].insert({"id": 2, "x": "B", "y": "A"})
+
+
+def test_add_compound_foreign_key_guesses_pk_declaration_order(fresh_db):
+    fresh_db.execute("create table other (b text, a text, primary key (a, b))")
+    fresh_db["child"].insert({"id": 1, "x": "A", "y": "B"}, pk="id")
+    fresh_db["child"].add_foreign_key(("x", "y"), "other")
+    assert fresh_db["child"].foreign_keys[0].other_columns == ("a", "b")
+
+
+def test_foreign_keys_are_hashable(fresh_db):
+    # set() over foreign_keys worked with the 3.x namedtuple and must
+    # keep working with the dataclass
+    fresh_db["p"].insert({"id": 1}, pk="id")
+    fresh_db["c"].insert(
+        {"id": 1, "pid": 1}, pk="id", foreign_keys=[("pid", "p", "id")]
+    )
+    fks = set(fresh_db["c"].foreign_keys)
+    assert len(fks) == 1
+    assert ForeignKey("c", "pid", "p", "id") in fks
+    # Usable as dict keys too
+    assert {fk: True for fk in fks}
+
+
+def test_foreign_key_is_immutable():
+    import dataclasses
+
+    fk = ForeignKey("c", "pid", "p", "id")
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        fk.table = "other"
+
+
+def test_foreign_key_equality_and_hash_include_actions():
+    # Two foreign keys differing only in ON DELETE behavior are different
+    # constraints - they compare unequal and hash separately
+    plain = ForeignKey("c", "pid", "p", "id")
+    cascade = ForeignKey("c", "pid", "p", "id", on_delete="CASCADE")
+    assert plain != cascade
+    assert len({plain, cascade}) == 2
+    assert plain == ForeignKey("c", "pid", "p", "id")
+
+
+def test_create_table_mixed_foreign_keys_list(fresh_db):
+    # 3.x accepted a mix of ForeignKey objects, tuples and bare column
+    # strings in foreign_keys= (ForeignKey was a namedtuple, so it passed
+    # the tuple check) - keep accepting the mix
+    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db["publishers"].insert({"id": 1}, pk="id")
+    fresh_db["books"].create(
+        {"id": int, "author_id": int, "publisher_id": int},
+        pk="id",
+        foreign_keys=[
+            ForeignKey("books", "author_id", "authors", "id"),
+            ("publisher_id", "publishers", "id"),
+        ],
+    )
+    fks = {fk.column: fk.other_table for fk in fresh_db["books"].foreign_keys}
+    assert fks == {"author_id": "authors", "publisher_id": "publishers"}
+
+
+def test_create_table_mixed_foreign_keys_with_string(fresh_db):
+    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db["publishers"].insert({"id": 1}, pk="id")
+    fresh_db["books"].create(
+        {"id": int, "author_id": int, "publisher_id": int},
+        pk="id",
+        foreign_keys=[
+            "author_id",  # bare column, table and column guessed
+            ("publisher_id", "publishers", "id"),
+        ],
+    )
+    fks = {fk.column: fk.other_table for fk in fresh_db["books"].foreign_keys}
+    assert fks == {"author_id": "authors", "publisher_id": "publishers"}
+
+
+def test_add_foreign_keys_existing_with_different_actions_errors(fresh_db):
+    # Requesting an existing foreign key with different ON DELETE/ON UPDATE
+    # actions was silently skipped, dropping the requested change
+    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db["books"].insert(
+        {"id": 1, "author_id": 1},
+        pk="id",
+        foreign_keys=[("author_id", "authors", "id")],
+    )
+    with pytest.raises(AlterError) as ex:
+        fresh_db.add_foreign_keys(
+            [ForeignKey("books", "author_id", "authors", "id", on_delete="CASCADE")]
+        )
+    assert "ON DELETE" in str(ex.value)
+    assert fresh_db["books"].foreign_keys[0].on_delete == "NO ACTION"
+
+
+def test_add_foreign_keys_identical_existing_is_noop(fresh_db):
+    # An exact match, including actions, is silently skipped so repeated
+    # calls stay idempotent
+    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db["books"].insert({"id": 1, "author_id": 1}, pk="id")
+    fresh_db["books"].add_foreign_key("author_id", "authors", "id", on_delete="CASCADE")
+    fresh_db.add_foreign_keys(
+        [ForeignKey("books", "author_id", "authors", "id", on_delete="CASCADE")]
+    )
+    fks = fresh_db["books"].foreign_keys
+    assert len(fks) == 1
+    assert fks[0].on_delete == "CASCADE"
+
+
+def test_add_foreign_keys_compound_column_count_mismatch_errors(fresh_db):
+    # Previously the extra other-column was silently discarded, creating
+    # a single-column foreign key to just ("id")
+    fresh_db["departments"].insert(
+        {"campus": "north", "code": "cs"}, pk=("campus", "code")
+    )
+    fresh_db["courses"].insert({"id": 1, "campus": "north"}, pk="id")
+    with pytest.raises(ValueError) as ex:
+        fresh_db.add_foreign_keys(
+            [("courses", ("campus",), "departments", ("campus", "code"))]
+        )
+    assert "same number of columns" in str(ex.value)
+    assert fresh_db["courses"].foreign_keys == []

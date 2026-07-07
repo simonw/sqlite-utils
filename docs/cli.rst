@@ -1326,6 +1326,8 @@ A progress bar is displayed when inserting data from a file. You can hide the pr
 
 By default, column types are automatically detected for CSV or TSV files - resulting in a mix of ``TEXT``, ``INTEGER`` and ``REAL`` columns. To disable type detection and treat all columns as ``TEXT``, use the ``--no-detect-types`` option.
 
+Detected types are only applied when the table is created by the command. Inserting CSV or TSV data into a table that already exists leaves the existing column types unchanged - values are inserted using the table's existing schema.
+
 For example, given a ``creatures.csv`` file containing this:
 
 .. code-block::

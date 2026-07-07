@@ -122,6 +122,18 @@ def test_query_pragma(tmpdir):
     db.close()
 
 
+def test_query_rejected_pragma_still_takes_effect(fresh_db):
+    # Documented limitation: PRAGMAs run outside the savepoint guard,
+    # because some of them refuse to run inside a transaction - so a
+    # row-less PRAGMA takes effect even though it raises ValueError.
+    # If this test starts failing because the pragma was rolled back,
+    # the limitation has been fixed - update the docs in python-api.rst
+    # and the query() docstring to remove the carve-out
+    with pytest.raises(ValueError):
+        fresh_db.query("pragma user_version = 5")
+    assert fresh_db.execute("pragma user_version").fetchone()[0] == 5
+
+
 def test_query_comment_prefixed_pragma(tmpdir):
     from sqlite_utils import Database
 
@@ -268,3 +280,24 @@ def test_execute_returning_dicts(fresh_db):
     assert fresh_db.execute_returning_dicts("select * from test") == [
         {"id": 1, "bar": 2}
     ]
+
+
+@pytest.mark.skipif(
+    sqlite3.sqlite_version_info < (3, 35, 0),
+    reason="RETURNING requires SQLite 3.35.0 or higher",
+)
+def test_query_preserves_error_from_transaction_destroying_trigger(fresh_db):
+    # RAISE(ROLLBACK) destroys the savepoint guard - the original
+    # IntegrityError must propagate, not "no such savepoint"
+    fresh_db.execute("create table t (id integer primary key, v text)")
+    fresh_db.execute("""
+        create trigger no_bad before insert on t
+        when new.v = 'bad'
+        begin
+            select raise(rollback, 'trigger says no');
+        end
+    """)
+    with pytest.raises(sqlite3.IntegrityError, match="trigger says no"):
+        fresh_db.query("insert into t (id, v) values (1, 'bad') returning id")
+    assert not fresh_db.conn.in_transaction
+    assert fresh_db.execute("select count(*) from t").fetchone()[0] == 0
