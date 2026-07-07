@@ -933,11 +933,48 @@ def test_insert_all_pk_not_in_records_raises(fresh_db, num_rows):
     rows = [{"a": "x{}".format(i), "b": i} for i in range(num_rows)]
 
     with pytest.raises(InvalidColumns) as ex:
+        fresh_db["t"].insert_all(rows, pk="not_a_column")
+
+    assert ex.value.args == (
+        "Invalid primary key column ['not_a_column'] for table t with columns ['a', 'b']",
+    )
+    assert fresh_db["t"].count == 0
+
+
+@pytest.mark.parametrize("num_rows", (1, 2, 3, 10))
+def test_insert_all_pk_not_in_records_alter_raises(fresh_db, num_rows):
+    # With alter=True the check is deferred until the record keys are
+    # known - a pk column that is in neither the table nor the records
+    # still raises
+    fresh_db.conn.execute("CREATE TABLE t (a TEXT, b INT, PRIMARY KEY (a, b))")
+    rows = [{"a": "x{}".format(i), "b": i} for i in range(num_rows)]
+
+    with pytest.raises(InvalidColumns) as ex:
         fresh_db["t"].insert_all(rows, pk="not_a_column", alter=True)
 
     assert ex.value.args == (
         "Invalid primary key column ['not_a_column'] for table t with columns ['a', 'b']",
     )
+    assert fresh_db["t"].count == 0
+
+
+def test_insert_pk_in_records_with_alter_adds_column(fresh_db):
+    # 3.x allowed insert(pk=..., alter=True) to add the pk column from the
+    # records - the InvalidColumns check must not fire in that case
+    fresh_db["t"].insert({"a": 1})
+    fresh_db["t"].insert({"id": 5, "a": 2}, pk="id", alter=True)
+    assert fresh_db["t"].columns_dict.keys() == {"a", "id"}
+    assert list(fresh_db.query("select * from t order by a")) == [
+        {"a": 1, "id": None},
+        {"a": 2, "id": 5},
+    ]
+
+
+def test_insert_all_invalid_pk_alter_empty_records_is_noop(fresh_db):
+    # With alter=True the pk check needs record keys, so an empty iterator
+    # returns without error - matching the 3.x no-op for empty inserts
+    fresh_db.conn.execute("CREATE TABLE t (a TEXT)")
+    fresh_db["t"].insert_all([], pk="not_a_column", alter=True)
     assert fresh_db["t"].count == 0
 
 

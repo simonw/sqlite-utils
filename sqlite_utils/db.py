@@ -4282,6 +4282,10 @@ class Table(Queryable):
         if hash_id:
             pk = hash_id
 
+        # pk columns missing from an existing table are an error - unless
+        # alter=True, where a pk column supplied by the records will be
+        # added, so validation waits until the record keys are known
+        deferred_invalid_pk_check = None
         if pk and not hash_id and self.exists():
             pk_cols = [pk] if isinstance(pk, str) else list(pk)
             existing_columns = self.columns_dict
@@ -4291,7 +4295,7 @@ class Table(Queryable):
                 if resolve_casing(col, existing_columns) not in existing_columns
             ]
             if missing_pk_cols:
-                raise InvalidColumns(
+                invalid_pk_error = InvalidColumns(
                     "Invalid primary key column{} {} for table {} with columns {}".format(
                         "s" if len(missing_pk_cols) > 1 else "",
                         missing_pk_cols,
@@ -4299,6 +4303,9 @@ class Table(Queryable):
                         list(existing_columns),
                     )
                 )
+                if not alter:
+                    raise invalid_pk_error
+                deferred_invalid_pk_check = (missing_pk_cols, invalid_pk_error)
 
         if ignore and replace:
             raise ValueError("Use either ignore=True or replace=True, not both")
@@ -4409,6 +4416,16 @@ class Table(Queryable):
                     all_columns = list(sorted(all_columns_set))
                     if hash_id:
                         all_columns.insert(0, hash_id)
+                if deferred_invalid_pk_check is not None:
+                    # alter=True - pk columns the table lacks are valid if
+                    # the records supply them, otherwise raise the error
+                    missing_pk_cols, invalid_pk_error = deferred_invalid_pk_check
+                    record_columns = {column: True for column in all_columns}
+                    if any(
+                        resolve_casing(col, record_columns) not in record_columns
+                        for col in missing_pk_cols
+                    ):
+                        raise invalid_pk_error
             else:
                 if not list_mode:
                     for record in cast(List[Dict[str, Any]], chunk):
