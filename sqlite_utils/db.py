@@ -436,14 +436,15 @@ _QUERY_REJECTED_KEYWORDS = _TRANSACTION_CONTROL_KEYWORDS | {
 
 def _first_keyword(sql: str) -> str:
     """
-    Return the first keyword of a SQL statement, uppercased, skipping any
-    leading whitespace and ``--`` or ``/* ... */`` comments - the only
-    things SQLite's tokenizer allows before the first token. Returns an
-    empty string if there is no leading keyword.
+    Return the first keyword of a SQL statement, uppercased, skipping
+    everything the sqlite3 driver tolerates before the first real token:
+    whitespace, ``--`` or ``/* ... */`` comments, empty statements
+    (bare ``;``) and a UTF-8 byte order mark. Returns an empty string if
+    there is no leading keyword.
     """
     i, n = 0, len(sql)
     while i < n:
-        if sql[i].isspace():
+        if sql[i].isspace() or sql[i] in (";", "\ufeff"):
             i += 1
         elif sql.startswith("--", i):
             newline = sql.find("\n", i)

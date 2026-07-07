@@ -258,6 +258,19 @@ def test_execute_comment_prefixed_begin_leaves_transaction_open(fresh_db):
     assert [r["id"] for r in fresh_db["t"].rows] == [1]
 
 
+@pytest.mark.parametrize("begin_sql", ["; begin", "\ufeffbegin"])
+def test_execute_prefixed_begin_leaves_transaction_open(fresh_db, begin_sql):
+    # sqlite3 tolerates empty statements and a UTF-8 BOM before the first
+    # real token, so a BEGIN behind either must not be auto-committed
+    # out from under the caller
+    fresh_db["t"].insert({"id": 1}, pk="id")
+    fresh_db.execute(begin_sql)
+    assert fresh_db.conn.in_transaction
+    fresh_db.execute("insert into t (id) values (2)")
+    fresh_db.rollback()
+    assert [r["id"] for r in fresh_db["t"].rows] == [1]
+
+
 def test_execute_failed_write_rolls_back_implicit_transaction(tmpdir):
     # A failed write must not leave the driver's implicit transaction open -
     # that would silently disable auto-commit for every subsequent write

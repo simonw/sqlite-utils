@@ -59,6 +59,10 @@ def test_query_rejected_write_inside_transaction_is_rolled_back(fresh_db):
         "-- comment\nbegin",
         "/* multi\nline */ -- and another\n  vacuum",
         "\t /* a */ /* b */ savepoint s1",
+        "; commit",
+        ";;\n ; rollback",
+        "; /* comment */ vacuum",
+        "\ufeffbegin",
     ],
 )
 def test_query_rejects_transaction_control_and_vacuum(fresh_db, sql):
@@ -77,6 +81,23 @@ def test_query_comment_prefixed_commit_does_not_commit_transaction(fresh_db):
     fresh_db.execute("insert into dogs (name) values ('Pancakes')")
     with pytest.raises(ValueError):
         fresh_db.query("/* comment */ COMMIT")
+    # The explicit transaction is still open and can still be rolled back
+    assert fresh_db.conn.in_transaction
+    fresh_db.rollback()
+    assert [row["name"] for row in fresh_db["dogs"].rows] == ["Cleo"]
+
+
+@pytest.mark.parametrize("sql", ["; COMMIT", "\ufeffCOMMIT"])
+def test_query_prefixed_commit_does_not_commit_transaction(fresh_db, sql):
+    # sqlite3 tolerates empty statements and a UTF-8 BOM before the first
+    # real token, so the keyword scanner must skip them too - previously
+    # '; COMMIT' slipped past the check and committed the caller's open
+    # transaction before raising OperationalError
+    fresh_db["dogs"].insert({"name": "Cleo"})
+    fresh_db.begin()
+    fresh_db.execute("insert into dogs (name) values ('Pancakes')")
+    with pytest.raises(ValueError):
+        fresh_db.query(sql)
     # The explicit transaction is still open and can still be rolled back
     assert fresh_db.conn.in_transaction
     fresh_db.rollback()
@@ -137,6 +158,12 @@ def test_query_comment_prefixed_pragma_inside_transaction(fresh_db):
         ("", ""),
         ("   ", ""),
         ("123", ""),
+        ("; commit", "COMMIT"),
+        (";;\n ; rollback", "ROLLBACK"),
+        ("; -- comment\n begin", "BEGIN"),
+        ("\ufeffcommit", "COMMIT"),
+        ("\ufeff ; select 1", "SELECT"),
+        (";", ""),
     ],
 )
 def test_first_keyword(sql, expected):
