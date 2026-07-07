@@ -258,11 +258,21 @@ def test_execute_comment_prefixed_begin_leaves_transaction_open(fresh_db):
     assert [r["id"] for r in fresh_db["t"].rows] == [1]
 
 
+def _sqlite_accepts_bom():
+    try:
+        sqlite3.connect(":memory:").execute("\ufeffselect 1")
+        return True
+    except sqlite3.OperationalError:
+        return False
+
+
 @pytest.mark.parametrize("begin_sql", ["; begin", "\ufeffbegin"])
 def test_execute_prefixed_begin_leaves_transaction_open(fresh_db, begin_sql):
     # sqlite3 tolerates empty statements and a UTF-8 BOM before the first
     # real token, so a BEGIN behind either must not be auto-committed
     # out from under the caller
+    if begin_sql.startswith("\ufeff") and not _sqlite_accepts_bom():
+        pytest.skip("This SQLite version rejects a leading byte order mark")
     fresh_db["t"].insert({"id": 1}, pk="id")
     fresh_db.execute(begin_sql)
     assert fresh_db.conn.in_transaction
@@ -327,3 +337,46 @@ def test_query_returning_commits_after_iteration(tmpdir):
     assert other.execute("select count(*) from t").fetchone()[0] == 2
     other.close()
     db.close()
+
+
+TRIGGER_SQL = """
+create trigger no_bad before insert on t
+when new.v = 'bad'
+begin
+    select raise(rollback, 'trigger says no');
+end
+"""
+
+
+def test_atomic_preserves_error_from_transaction_destroying_trigger(fresh_db):
+    # RAISE(ROLLBACK) rolls back the whole transaction and destroys every
+    # savepoint - atomic()'s cleanup must not mask the IntegrityError
+    # with "cannot rollback - no transaction is active"
+    fresh_db.execute("create table t (id integer primary key, v text)")
+    fresh_db.execute(TRIGGER_SQL)
+    with pytest.raises(sqlite3.IntegrityError, match="trigger says no"):
+        with fresh_db.atomic():
+            fresh_db.execute("insert into t (v) values ('bad')")
+    assert not fresh_db.conn.in_transaction
+
+
+def test_nested_atomic_preserves_error_from_transaction_destroying_trigger(
+    fresh_db,
+):
+    # The nested savepoint branch previously raised
+    # "no such savepoint" from ROLLBACK TO SAVEPOINT
+    fresh_db.execute("create table t (id integer primary key, v text)")
+    fresh_db.execute(TRIGGER_SQL)
+    with pytest.raises(sqlite3.IntegrityError, match="trigger says no"):
+        with fresh_db.atomic():
+            with fresh_db.atomic():
+                fresh_db.execute("insert into t (v) values ('bad')")
+    assert not fresh_db.conn.in_transaction
+
+
+def test_atomic_preserves_error_from_insert_or_rollback(fresh_db):
+    fresh_db["t"].insert({"id": 1}, pk="id")
+    with pytest.raises(sqlite3.IntegrityError):
+        with fresh_db.atomic():
+            fresh_db.execute("insert or rollback into t (id) values (1)")
+    assert not fresh_db.conn.in_transaction

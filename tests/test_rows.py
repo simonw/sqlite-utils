@@ -115,15 +115,21 @@ def test_rows_where_duplicate_select_columns_are_deduped(fresh_db):
 
 def test_pks_and_rows_where_view(fresh_db):
     # pks_and_rows_where() lives on Queryable so views expose it, but
-    # SQLite views have no rowid - it has always failed with an
-    # OperationalError from the generated SQL. Guard against it failing
-    # earlier with an AttributeError from View lacking Table properties
+    # SQLite views have no rowid. Modern SQLite (3.36+) raises an
+    # OperationalError from the generated SQL; older versions returned
+    # NULL for a view's rowid. Either way it must not fail earlier with
+    # an AttributeError from View lacking Table-only properties
     from sqlite_utils.utils import sqlite3
 
     fresh_db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
     fresh_db.create_view("dog_names", "select name from dogs")
-    with pytest.raises(sqlite3.OperationalError):
-        list(fresh_db["dog_names"].pks_and_rows_where())
+    try:
+        result = list(fresh_db["dog_names"].pks_and_rows_where())
+    except sqlite3.OperationalError:
+        pass  # SQLite 3.36+: no such column: rowid
+    else:
+        # Older SQLite returns NULL rowids for views
+        assert result == [(None, {"rowid": None, "name": "Cleo"})]
 
 
 def test_pks_and_rows_where_compound_pk_declaration_order(fresh_db):
