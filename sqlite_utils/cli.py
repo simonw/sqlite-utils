@@ -153,6 +153,17 @@ def load_extension_option(fn):
     )(fn)
 
 
+def functions_option(fn):
+    return click.option(
+        "--functions",
+        help=(
+            "Python code or a file path defining custom SQL functions; "
+            "can be used multiple times"
+        ),
+        multiple=True,
+    )(fn)
+
+
 @click.group(
     cls=DefaultGroup,
     default="query",
@@ -1450,11 +1461,7 @@ def upsert(
 @click.argument("sql")
 @click.argument("file", type=click.File("rb"), required=True)
 @click.option("--batch-size", type=int, default=100, help="Commit every X records")
-@click.option(
-    "--functions",
-    help="Python code or file path defining custom SQL functions",
-    multiple=True,
-)
+@functions_option
 @import_options
 @load_extension_option
 def bulk(
@@ -1860,11 +1867,7 @@ def drop_view(path, view, ignore, load_extension):
     type=(str, str),
     help="Named :parameters for SQL query",
 )
-@click.option(
-    "--functions",
-    help="Python code or file path defining custom SQL functions",
-    multiple=True,
-)
+@functions_option
 @load_extension_option
 def query(
     path,
@@ -1937,11 +1940,7 @@ def query(
     nargs=-1,
 )
 @click.argument("sql")
-@click.option(
-    "--functions",
-    help="Python code or file path defining custom SQL functions",
-    multiple=True,
-)
+@functions_option
 @click.option(
     "--attach",
     type=(str, click.Path(file_okay=True, dir_okay=False, allow_dash=False)),
