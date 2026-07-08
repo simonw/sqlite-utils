@@ -706,7 +706,7 @@ def create_index(
 def enable_fts(
     path, table, column, fts4, fts5, tokenize, create_triggers, replace, load_extension
 ):
-    """Enable full-text search for specific table and columns"
+    """Enable full-text search for specific table and columns
 
     Example:
 

@@ -1028,7 +1028,7 @@ See :ref:`cli_fts`.
 
     Usage: sqlite-utils enable-fts [OPTIONS] PATH TABLE COLUMN...
 
-      Enable full-text search for specific table and columns"
+      Enable full-text search for specific table and columns
 
       Example:
 
