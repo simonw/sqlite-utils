@@ -1634,10 +1634,10 @@ def create_table(
         sqlite-utils create-table my.db people \\
             id integer \\
             name text \\
-            height float \\
+            height real \\
             photo blob --pk id
 
-    Valid column types are text, integer, float and blob.
+    Valid column types are text, integer, real, float and blob.
     """
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)

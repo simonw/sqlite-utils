@@ -930,10 +930,10 @@ See :ref:`cli_create_table`.
           sqlite-utils create-table my.db people \
               id integer \
               name text \
-              height float \
+              height real \
               photo blob --pk id
 
-      Valid column types are text, integer, float and blob.
+      Valid column types are text, integer, real, float and blob.
 
     Options:
       --pk TEXT                 Column to use as primary key
