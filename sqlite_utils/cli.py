@@ -1,7 +1,8 @@
 import base64
+import difflib
 from typing import Any
 import click
-from click_default_group import DefaultGroup  # type: ignore
+from click_default_group import DefaultGroup
 from datetime import datetime, timezone
 import hashlib
 import pathlib
@@ -10,11 +11,15 @@ import sqlite_utils
 from sqlite_utils.db import (
     AlterError,
     BadMultiValues,
+    DEFAULT,
     DescIndex,
+    InvalidColumns,
     NoTable,
+    NoView,
+    PrimaryKeyRequired,
     quote_identifier,
 )
-from sqlite_utils.plugins import pm, get_plugins
+from sqlite_utils.plugins import ensure_plugins_loaded, pm, get_plugins
 from sqlite_utils.utils import maximize_csv_field_size_limit
 from sqlite_utils import recipes
 import textwrap
@@ -31,6 +36,7 @@ from .utils import (
     OperationalError,
     _compile_code,
     chunks,
+    dedupe_keys,
     file_progress,
     find_spatialite,
     flatten as _flatten,
@@ -41,7 +47,6 @@ from .utils import (
     Format,
     TypeTracker,
 )
-
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
@@ -108,7 +113,11 @@ def output_options(fn):
             ),
             click.option("--csv", is_flag=True, help="Output CSV"),
             click.option("--tsv", is_flag=True, help="Output TSV"),
-            click.option("--no-headers", is_flag=True, help="Omit CSV headers"),
+            click.option(
+                "--no-headers",
+                is_flag=True,
+                help="Omit headers from CSV/TSV and table/--fmt output",
+            ),
             click.option(
                 "-t", "--table", is_flag=True, help="Output as a formatted table"
             ),
@@ -124,6 +133,13 @@ def output_options(fn):
                 is_flag=True,
                 default=False,
             ),
+            click.option(
+                "--ascii",
+                "ascii_",
+                help="Escape non-ASCII characters in JSON output as \\uXXXX",
+                is_flag=True,
+                default=False,
+            ),
         )
     ):
         fn = decorator(fn)
@@ -135,6 +151,17 @@ def load_extension_option(fn):
         "--load-extension",
         multiple=True,
         help="Path to SQLite extension, with optional :entrypoint",
+    )(fn)
+
+
+def functions_option(fn):
+    return click.option(
+        "--functions",
+        help=(
+            "Python code or a file path defining custom SQL functions; "
+            "can be used multiple times"
+        ),
+        multiple=True,
     )(fn)
 
 
@@ -192,6 +219,7 @@ def tables(
     table,
     fmt,
     json_cols,
+    ascii_,
     columns,
     schema,
     load_extension,
@@ -223,7 +251,7 @@ def tables(
         else:
             items = db.table_names(fts4=fts4, fts5=fts5)
         for name in items:
-            row = [name]
+            row: list[Any] = [name]
             if counts:
                 row.append(method(name).count)
             if columns:
@@ -237,7 +265,13 @@ def tables(
             yield row
 
     if table or fmt:
-        print(tabulate.tabulate(_iter(), headers=headers, tablefmt=fmt or "simple"))
+        print(
+            tabulate.tabulate(
+                _iter(),
+                headers=() if no_headers else headers,
+                tablefmt=fmt or "simple",
+            )
+        )
     elif csv or tsv:
         writer = csv_std.writer(sys.stdout, dialect="excel-tab" if tsv else "excel")
         if not no_headers:
@@ -245,7 +279,7 @@ def tables(
         for row in _iter():
             writer.writerow(row)
     else:
-        for line in output_rows(_iter(), headers, nl, arrays, json_cols):
+        for line in output_rows(_iter(), headers, nl, arrays, json_cols, ascii_):
             click.echo(line)
 
 
@@ -283,6 +317,7 @@ def views(
     table,
     fmt,
     json_cols,
+    ascii_,
     columns,
     schema,
     load_extension,
@@ -308,6 +343,7 @@ def views(
         table=table,
         fmt=fmt,
         json_cols=json_cols,
+        ascii_=ascii_,
         columns=columns,
         schema=schema,
         load_extension=load_extension,
@@ -682,7 +718,7 @@ def create_index(
 def enable_fts(
     path, table, column, fts4, fts5, tokenize, create_triggers, replace, load_extension
 ):
-    """Enable full-text search for specific table and columns"
+    """Enable full-text search for specific table and columns
 
     Example:
 
@@ -700,14 +736,14 @@ def enable_fts(
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[table].enable_fts(
+        db.table(table).enable_fts(
             column,
             fts_version=fts_version,
             tokenize=tokenize,
             create_triggers=create_triggers,
             replace=replace,
         )
-    except OperationalError as ex:
+    except (NoTable, OperationalError) as ex:
         raise click.ClickException(str(ex))
 
 
@@ -908,12 +944,18 @@ def insert_upsert_options(*, require_pk=False):
                     required=True,
                 ),
                 click.argument("table"),
-                click.argument("file", type=click.File("rb", lazy=True), required=True),
+                click.argument(
+                    "file", type=click.File("rb", lazy=True), required=False
+                ),
                 click.option(
                     "--pk",
                     help="Columns to use as the primary key, e.g. id",
                     multiple=True,
                     required=require_pk,
+                ),
+                click.option(
+                    "--code",
+                    help="Python code defining a rows() function or iterable of rows to insert",
                 ),
             )
             + _import_options
@@ -939,10 +981,14 @@ def insert_upsert_options(*, require_pk=False):
                     help="Default value that should be set for a column",
                 ),
                 click.option(
-                    "-d",
-                    "--detect-types",
-                    is_flag=True,
-                    help="Detect types for columns in CSV/TSV data (default)",
+                    "--type",
+                    "types",
+                    type=(
+                        str,
+                        click.Choice(list(VALID_COLUMN_TYPES), case_sensitive=False),
+                    ),
+                    multiple=True,
+                    help="Column types to use when creating the table",
                 ),
                 click.option(
                     "--no-detect-types",
@@ -998,7 +1044,7 @@ def insert_upsert_implementation(
     truncate=False,
     not_null=None,
     default=None,
-    detect_types=None,
+    types=None,
     no_detect_types=False,
     analyze=False,
     load_extension=None,
@@ -1006,11 +1052,123 @@ def insert_upsert_implementation(
     bulk_sql=None,
     functions=None,
     strict=False,
+    code=None,
 ):
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     _maybe_register_functions(db, functions)
+    column_type_overrides = {column: ctype.upper() for column, ctype in (types or [])}
+
+    def _insert_docs(docs, tracker=None):
+        extra_kwargs = {
+            "ignore": ignore,
+            "replace": replace,
+            "truncate": truncate,
+            "analyze": analyze,
+            "strict": strict,
+        }
+        if not_null:
+            extra_kwargs["not_null"] = set(not_null)
+        if default:
+            extra_kwargs["defaults"] = dict(default)
+        if column_type_overrides:
+            extra_kwargs["columns"] = column_type_overrides
+        if upsert:
+            extra_kwargs["upsert"] = upsert
+
+        # docs should all be dictionaries
+        docs = (verify_is_dict(doc) for doc in docs)
+
+        # Apply {"$base64": true, ...} decoding, if needed
+        docs = (decode_base64_values(doc) for doc in docs)
+
+        # For bulk_sql= we use cursor.executemany() instead
+        if bulk_sql:
+            if batch_size:
+                doc_chunks = chunks(docs, batch_size)
+            else:
+                doc_chunks = [docs]
+            for doc_chunk in doc_chunks:
+                with db.atomic():
+                    db.conn.cursor().executemany(bulk_sql, doc_chunk)
+            return
+
+        # table_names() rather than db.table(), which raises NoTable for
+        # views before the error handling below can deal with them
+        table_existed_before_insert = table in db.table_names()
+        try:
+            db.table(table).insert_all(
+                docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
+            )
+        except (NoTable, InvalidColumns, PrimaryKeyRequired) as e:
+            raise click.ClickException(str(e))
+        except Exception as e:
+            if (
+                isinstance(e, OperationalError)
+                and e.args
+                and (
+                    "has no column named" in e.args[0] or "no such column" in e.args[0]
+                )
+            ):
+                raise click.ClickException(
+                    "{}\n\nTry using --alter to add additional columns".format(
+                        e.args[0]
+                    )
+                )
+            # If we can find sql= and parameters= arguments, show those
+            variables = _find_variables(e.__traceback__, ["sql", "parameters"])
+            if "sql" in variables and "parameters" in variables:
+                raise click.ClickException(
+                    "{}\n\nsql = {}\nparameters = {}".format(
+                        str(e), variables["sql"], variables["parameters"]
+                    )
+                )
+            else:
+                raise
+        # Apply detected types only to a table this command created -
+        # transforming a pre-existing table would rewrite its column types
+        # and corrupt values such as TEXT zip codes with leading zeros
+        if (
+            tracker is not None
+            and not table_existed_before_insert
+            and db.table(table).exists()
+        ):
+            detected_types = tracker.types
+            detected_types.update(column_type_overrides)
+            db.table(table).transform(types=detected_types)
+
+    if code is not None:
+        if file is not None:
+            raise click.ClickException("--code cannot be used with a FILE argument")
+        if any(
+            [
+                flatten,
+                nl,
+                csv,
+                tsv,
+                empty_null,
+                lines,
+                text,
+                convert,
+                sniff,
+                no_headers,
+                delimiter,
+                quotechar,
+                encoding,
+            ]
+        ):
+            raise click.ClickException(
+                "--code cannot be used with input format options"
+            )
+        _insert_docs(_rows_from_code(code))
+        return
+
+    if file is None:
+        raise click.ClickException(
+            "Provide either a FILE argument or --code to specify rows to insert"
+        )
+
     if (delimiter or quotechar or sniff or no_headers) and not tsv:
         csv = True
     if (nl + csv + tsv) >= 2:
@@ -1065,7 +1223,7 @@ def insert_upsert_implementation(
                 )
             else:
                 docs = (dict(zip(headers, row)) for row in reader)
-            # detect_types is now the default, unless --no-detect-types is passed
+            # Type detection is the default, unless --no-detect-types is passed
             if not no_detect_types:
                 tracker = TypeTracker()
                 docs = tracker.wrap(docs)
@@ -1118,66 +1276,7 @@ def insert_upsert_implementation(
             else:
                 docs = (fn(doc) or doc for doc in docs)
 
-        extra_kwargs = {
-            "ignore": ignore,
-            "replace": replace,
-            "truncate": truncate,
-            "analyze": analyze,
-            "strict": strict,
-        }
-        if not_null:
-            extra_kwargs["not_null"] = set(not_null)
-        if default:
-            extra_kwargs["defaults"] = dict(default)
-        if upsert:
-            extra_kwargs["upsert"] = upsert
-
-        # docs should all be dictionaries
-        docs = (verify_is_dict(doc) for doc in docs)
-
-        # Apply {"$base64": true, ...} decoding, if needed
-        docs = (decode_base64_values(doc) for doc in docs)
-
-        # For bulk_sql= we use cursor.executemany() instead
-        if bulk_sql:
-            if batch_size:
-                doc_chunks = chunks(docs, batch_size)
-            else:
-                doc_chunks = [docs]
-            for doc_chunk in doc_chunks:
-                with db.conn:
-                    db.conn.cursor().executemany(bulk_sql, doc_chunk)
-            return
-
-        try:
-            db.table(table).insert_all(
-                docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
-            )
-        except Exception as e:
-            if (
-                isinstance(e, OperationalError)
-                and e.args
-                and (
-                    "has no column named" in e.args[0] or "no such column" in e.args[0]
-                )
-            ):
-                raise click.ClickException(
-                    "{}\n\nTry using --alter to add additional columns".format(
-                        e.args[0]
-                    )
-                )
-            # If we can find sql= and parameters= arguments, show those
-            variables = _find_variables(e.__traceback__, ["sql", "parameters"])
-            if "sql" in variables and "parameters" in variables:
-                raise click.ClickException(
-                    "{}\n\nsql = {}\nparameters = {}".format(
-                        str(e), variables["sql"], variables["parameters"]
-                    )
-                )
-            else:
-                raise
-        if tracker is not None:
-            db.table(table).transform(types=tracker.types)
+        _insert_docs(docs, tracker=tracker)
 
         # Clean up open file-like objects
         if sniff_buffer:
@@ -1220,6 +1319,7 @@ def insert(
     table,
     file,
     pk,
+    code,
     flatten,
     nl,
     csv,
@@ -1237,7 +1337,6 @@ def insert(
     batch_size,
     stop_after,
     alter,
-    detect_types,
     no_detect_types,
     analyze,
     load_extension,
@@ -1247,6 +1346,7 @@ def insert(
     truncate,
     not_null,
     default,
+    types,
     strict,
 ):
     """
@@ -1264,6 +1364,9 @@ def insert(
     - Use --csv or --tsv for comma-separated or tab-separated input
     - Use --lines to write each incoming line to a column called "line"
     - Use --text to write the entire input to a column called "text"
+
+    Use --type column-name type to override the type automatically chosen
+    when the table is created.
 
     You can also use --convert to pass a fragment of Python code that will
     be used to convert each input.
@@ -1292,6 +1395,17 @@ def insert(
     \b
         echo 'A bunch of words' | sqlite-utils insert words.db words - \\
           --text --convert '({"word": w} for w in text.split())'
+
+    Instead of a FILE you can use --code to provide a block of Python code
+    that defines the rows to insert, as either a rows() function that yields
+    dictionaries or a "rows" iterable. --code can also be a path to a .py file:
+
+    \b
+        sqlite-utils insert data.db creatures --code '
+        def rows():
+            yield {"id": 1, "name": "Cleo"}
+            yield {"id": 2, "name": "Suna"}
+        ' --pk id
     """
     try:
         insert_upsert_implementation(
@@ -1320,26 +1434,28 @@ def insert(
             ignore=ignore,
             replace=replace,
             truncate=truncate,
-            detect_types=detect_types,
             no_detect_types=no_detect_types,
             analyze=analyze,
             load_extension=load_extension,
             silent=silent,
             not_null=not_null,
             default=default,
+            types=types,
             strict=strict,
+            code=code,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
 
 
 @cli.command()
-@insert_upsert_options(require_pk=True)
+@insert_upsert_options()
 def upsert(
     path,
     table,
     file,
     pk,
+    code,
     flatten,
     nl,
     csv,
@@ -1359,7 +1475,7 @@ def upsert(
     alter,
     not_null,
     default,
-    detect_types,
+    types,
     no_detect_types,
     analyze,
     load_extension,
@@ -1370,6 +1486,11 @@ def upsert(
     Upsert records based on their primary key. Works like 'insert' but if
     an incoming record has a primary key that matches an existing record
     the existing record will be updated.
+
+    If the table already exists and has a primary key, --pk can be omitted.
+
+    Use --type column-name type to override the type automatically chosen
+    when the table is created.
 
     Example:
 
@@ -1405,12 +1526,13 @@ def upsert(
             upsert=True,
             not_null=not_null,
             default=default,
-            detect_types=detect_types,
+            types=types,
             no_detect_types=no_detect_types,
             analyze=analyze,
             load_extension=load_extension,
             silent=silent,
             strict=strict,
+            code=code,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
@@ -1425,11 +1547,7 @@ def upsert(
 @click.argument("sql")
 @click.argument("file", type=click.File("rb"), required=True)
 @click.option("--batch-size", type=int, default=100, help="Commit every X records")
-@click.option(
-    "--functions",
-    help="Python code or file path defining custom SQL functions",
-    multiple=True,
-)
+@functions_option
 @import_options
 @load_extension_option
 def bulk(
@@ -1493,7 +1611,6 @@ def bulk(
             upsert=False,
             not_null=set(),
             default={},
-            detect_types=False,
             no_detect_types=True,
             load_extension=load_extension,
             silent=False,
@@ -1610,10 +1727,10 @@ def create_table(
         sqlite-utils create-table my.db people \\
             id integer \\
             name text \\
-            height float \\
+            height real \\
             photo blob --pk id
 
-    Valid column types are text, integer, float and blob.
+    Valid column types are text, integer, real, float and blob.
     """
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
@@ -1724,7 +1841,13 @@ def drop_table(path, table, ignore, load_extension):
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[table].drop(ignore=ignore)
+        db.table(table).drop(ignore=ignore)
+    except NoTable:
+        # A view exists with this name
+        if not ignore:
+            raise click.ClickException(
+                '"{}" is a view, not a table - use drop-view to drop it'.format(table)
+            )
     except OperationalError:
         raise click.ClickException('Table "{}" does not exist'.format(table))
 
@@ -1796,8 +1919,14 @@ def drop_view(path, view, ignore, load_extension):
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     try:
-        db[view].drop(ignore=ignore)
-    except OperationalError:
+        db.view(view).drop(ignore=ignore)
+    except NoView:
+        if ignore:
+            return
+        if view in db.table_names():
+            raise click.ClickException(
+                '"{}" is a table, not a view - use drop-table to drop it'.format(view)
+            )
         raise click.ClickException('View "{}" does not exist'.format(view))
 
 
@@ -1824,11 +1953,7 @@ def drop_view(path, view, ignore, load_extension):
     type=(str, str),
     help="Named :parameters for SQL query",
 )
-@click.option(
-    "--functions",
-    help="Python code or file path defining custom SQL functions",
-    multiple=True,
-)
+@functions_option
 @load_extension_option
 def query(
     path,
@@ -1842,6 +1967,7 @@ def query(
     table,
     fmt,
     json_cols,
+    ascii_,
     raw,
     raw_lines,
     param,
@@ -1856,7 +1982,15 @@ def query(
         sqlite-utils data.db \\
             "select * from chickens where age > :age" \\
             -p age 1
+
+    Pass "-" as the SQL to read the query from standard input:
+
+    \b
+        echo "select * from chickens" | sqlite-utils data.db -
     """
+    if sql == "-":
+        # Read SQL from standard input
+        sql = sys.stdin.read()
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
     for alias, attach_path in attach:
@@ -1880,6 +2014,7 @@ def query(
         nl,
         arrays,
         json_cols,
+        ascii_,
     )
 
 
@@ -1891,11 +2026,7 @@ def query(
     nargs=-1,
 )
 @click.argument("sql")
-@click.option(
-    "--functions",
-    help="Python code or file path defining custom SQL functions",
-    multiple=True,
-)
+@functions_option
 @click.option(
     "--attach",
     type=(str, click.Path(file_okay=True, dir_okay=False, allow_dash=False)),
@@ -1954,6 +2085,7 @@ def memory(
     table,
     fmt,
     json_cols,
+    ascii_,
     raw,
     raw_lines,
     param,
@@ -2033,7 +2165,7 @@ def memory(
                 rows = (_flatten(row) for row in rows)
 
             db.table(file_table).insert_all(rows, alter=True)
-            if tracker is not None:
+            if tracker is not None and db.table(file_table).exists():
                 db.table(file_table).transform(types=tracker.types)
             # Add convenient t / t1 / t2 views
             view_names = ["t{}".format(i + 1)]
@@ -2093,6 +2225,7 @@ def memory(
         nl,
         arrays,
         json_cols,
+        ascii_,
     )
 
 
@@ -2110,6 +2243,7 @@ def _execute_query(
     nl,
     arrays,
     json_cols,
+    ascii_,
 ):
     with db.conn:
         try:
@@ -2122,8 +2256,9 @@ def _execute_query(
             cursor = [[cursor.rowcount]]
         else:
             headers = [c[0] for c in cursor.description]
+        cursor_or_rows: Any = cursor
         if raw:
-            row = cursor.fetchone()  # type: ignore[union-attr]
+            row = cursor_or_rows.fetchone()
             data = row[0] if row else None
             if isinstance(data, bytes):
                 sys.stdout.buffer.write(data)
@@ -2139,7 +2274,9 @@ def _execute_query(
         elif fmt or table:
             print(
                 tabulate.tabulate(
-                    list(cursor), headers=headers, tablefmt=fmt or "simple"
+                    list(cursor),
+                    headers=() if no_headers else headers,
+                    tablefmt=fmt or "simple",
                 )
             )
         elif csv or tsv:
@@ -2149,7 +2286,7 @@ def _execute_query(
             for row in cursor:
                 writer.writerow(row)
         else:
-            for line in output_rows(cursor, headers, nl, arrays, json_cols):
+            for line in output_rows(cursor, headers, nl, arrays, json_cols, ascii_):
                 click.echo(line)
 
 
@@ -2193,6 +2330,7 @@ def search(
     table,
     fmt,
     json_cols,
+    ascii_,
     load_extension,
 ):
     """Execute a full-text search against this table
@@ -2239,6 +2377,7 @@ def search(
             table=table,
             fmt=fmt,
             json_cols=json_cols,
+            ascii_=ascii_,
             param=[("query", q)],
             load_extension=load_extension,
         )
@@ -2299,6 +2438,7 @@ def rows(
     table,
     fmt,
     json_cols,
+    ascii_,
     load_extension,
 ):
     """Output all rows in the specified table
@@ -2333,6 +2473,7 @@ def rows(
         fmt=fmt,
         param=param,
         json_cols=json_cols,
+        ascii_=ascii_,
         load_extension=load_extension,
     )
 
@@ -2359,6 +2500,7 @@ def triggers(
     table,
     fmt,
     json_cols,
+    ascii_,
     load_extension,
 ):
     """Show triggers configured in this database
@@ -2388,6 +2530,7 @@ def triggers(
         table=table,
         fmt=fmt,
         json_cols=json_cols,
+        ascii_=ascii_,
         load_extension=load_extension,
     )
 
@@ -2416,6 +2559,7 @@ def indexes(
     table,
     fmt,
     json_cols,
+    ascii_,
     load_extension,
 ):
     """Show indexes for the whole database or specific tables
@@ -2457,6 +2601,7 @@ def indexes(
         table=table,
         fmt=fmt,
         json_cols=json_cols,
+        ascii_=ascii_,
         load_extension=load_extension,
     )
 
@@ -2578,7 +2723,6 @@ def transform(
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     types = {}
-    kwargs = {}
     for column, ctype in type:
         if ctype.upper() not in VALID_COLUMN_TYPES:
             raise click.ClickException(
@@ -2598,29 +2742,46 @@ def transform(
     for column in default_none:
         default_dict[column] = None
 
-    kwargs["types"] = types
-    kwargs["drop"] = set(drop)
-    kwargs["rename"] = dict(rename)
-    kwargs["column_order"] = column_order or None
-    kwargs["not_null"] = not_null_dict
+    drop_set = set(drop)
+    rename_dict = dict(rename)
+    column_order_list = list(column_order) or None
+    drop_foreign_keys_value = drop_foreign_keys or None
+    add_foreign_keys_value = add_foreign_keys or None
+    pk_value = DEFAULT
     if pk:
         if len(pk) == 1:
-            kwargs["pk"] = pk[0]
+            pk_value = pk[0]
         else:
-            kwargs["pk"] = pk
+            pk_value = pk
     elif pk_none:
-        kwargs["pk"] = None
-    kwargs["defaults"] = default_dict
-    if drop_foreign_keys:
-        kwargs["drop_foreign_keys"] = drop_foreign_keys
-    if add_foreign_keys:
-        kwargs["add_foreign_keys"] = add_foreign_keys
+        pk_value = None
 
+    table_obj = db.table(table)
     if sql:
-        for line in db.table(table).transform_sql(**kwargs):
+        for line in table_obj.transform_sql(
+            types=types,
+            drop=drop_set,
+            rename=rename_dict,
+            column_order=column_order_list,
+            not_null=not_null_dict,
+            pk=pk_value,
+            defaults=default_dict,
+            drop_foreign_keys=drop_foreign_keys_value,
+            add_foreign_keys=add_foreign_keys_value,
+        ):
             click.echo(line)
     else:
-        db.table(table).transform(**kwargs)
+        table_obj.transform(
+            types=types,
+            drop=drop_set,
+            rename=rename_dict,
+            column_order=column_order_list,
+            not_null=not_null_dict,
+            pk=pk_value,
+            defaults=default_dict,
+            drop_foreign_keys=drop_foreign_keys_value,
+            add_foreign_keys=add_foreign_keys_value,
+        )
 
 
 @cli.command()
@@ -2667,7 +2828,10 @@ def extract(
         fk_column=fk_column,
         rename=dict(rename),
     )
-    db.table(table).extract(**kwargs)
+    try:
+        db.table(table).extract(**kwargs)
+    except (NoTable, InvalidColumns) as e:
+        raise click.ClickException(str(e))
 
 
 @cli.command(name="insert-files")
@@ -2911,8 +3075,7 @@ def _analyze(db, tables, columns, save, common_limit=10, no_most=False, no_least
         )
         details = (
             (
-                textwrap.dedent(
-                    """
+                textwrap.dedent("""
         {table}.{column}: ({i}/{total})
 
           Total rows: {total_rows}
@@ -2920,8 +3083,7 @@ def _analyze(db, tables, columns, save, common_limit=10, no_most=False, no_least
           Blank rows: {num_blank}
 
           Distinct values: {num_distinct}{most_common_rendered}{least_common_rendered}
-        """
-                )
+        """)
                 .strip()
                 .format(
                     i=i + 1,
@@ -2968,8 +3130,7 @@ def uninstall(packages, yes):
 
 
 def _generate_convert_help():
-    help = textwrap.dedent(
-        """
+    help = textwrap.dedent("""
     Convert columns using Python code you supply. For example:
 
     \b
@@ -2979,11 +3140,16 @@ def _generate_convert_help():
 
     "value" is a variable with the column value to be converted.
 
+    CODE can also be a reference to a callable that takes the value, for example:
+
+    \b
+    sqlite-utils convert my.db mytable date r.parsedate
+    sqlite-utils convert my.db mytable data json.loads --import json
+
     Use "-" for CODE to read Python code from standard input.
 
     The following common operations are available as recipe functions:
-    """
-    ).strip()
+    """).strip()
     recipe_names = [
         n
         for n in dir(recipes)
@@ -2993,19 +3159,16 @@ def _generate_convert_help():
     ]
     for name in recipe_names:
         fn = getattr(recipes, name)
-        help += "\n\nr.{}{}\n\n\b{}".format(
-            name, str(inspect.signature(fn)), textwrap.dedent(fn.__doc__.rstrip())
-        )
+        doc = textwrap.dedent(fn.__doc__.rstrip()).replace("\b\n", "")
+        help += "\n\nr.{}{}\n\n\b{}".format(name, str(inspect.signature(fn)), doc)
     help += "\n\n"
-    help += textwrap.dedent(
-        """
+    help += textwrap.dedent("""
     You can use these recipes like so:
 
     \b
     sqlite-utils convert my.db mytable mycolumn \\
         'r.jsonsplit(value, delimiter=":")'
-    """
-    ).strip()
+    """).strip()
     return help
 
 
@@ -3084,7 +3247,7 @@ def convert(
         if multi:
 
             def preview(v):
-                return json.dumps(fn(v), default=repr) if v else v
+                return json.dumps(fn(v), default=repr, ensure_ascii=False) if v else v
 
         else:
 
@@ -3258,13 +3421,194 @@ def create_spatial_index(db_path, table, column_name, load_extension):
     db.table(table).create_spatial_index(column_name)
 
 
+def _find_migration_files(migrations):
+    if not migrations:
+        migrations = [pathlib.Path(".").resolve()]
+    files = set()
+    for path_str in migrations:
+        path = pathlib.Path(path_str)
+        if path.is_dir():
+            files.update(path.rglob("migrations.py"))
+        else:
+            files.add(path)
+    return sorted(files)
+
+
+def _compatible_migration_set(obj):
+    return isinstance(obj, sqlite_utils.Migrations) or all(
+        hasattr(obj, attr) for attr in ("name", "applied", "pending", "apply")
+    )
+
+
+def _load_migration_sets(files):
+    migration_sets = []
+    for filepath in files:
+        code = filepath.read_text()
+        namespace = {
+            "__file__": str(filepath),
+            "__name__": "__sqlite_utils_migration__",
+        }
+        exec(code, namespace)
+        migration_sets.extend(
+            obj for obj in namespace.values() if _compatible_migration_set(obj)
+        )
+    return migration_sets
+
+
+def _display_migration_list(db, migration_sets):
+    for migration_set in migration_sets:
+        click.echo("Migrations for: {}".format(migration_set.name))
+        click.echo()
+        click.echo("  Applied:")
+        for migration in migration_set.applied(db):
+            click.echo("    {} - {}".format(migration.name, migration.applied_at))
+        click.echo()
+        click.echo("  Pending:")
+        output = False
+        for migration in migration_set.pending(db):
+            output = True
+            click.echo("    {}".format(migration.name))
+        if not output:
+            click.echo("    (none)")
+        click.echo()
+
+
+def _stop_before_for_migration_set(stop_before, migration_set_name):
+    matches = []
+    for value in stop_before:
+        set_name, separator, migration_name = value.partition(":")
+        if separator:
+            if set_name == migration_set_name:
+                matches.append(migration_name)
+        else:
+            matches.append(value)
+    return matches
+
+
+@click.command()
+@click.argument(
+    "db_path", type=click.Path(dir_okay=False, readable=True, writable=True)
+)
+@click.argument("migrations", type=click.Path(dir_okay=True, exists=True), nargs=-1)
+@click.option(
+    "--stop-before",
+    multiple=True,
+    help="Stop before applying this migration. Use set:name to target a migration set.",
+)
+@click.option(
+    "list_", "--list", is_flag=True, help="List migrations without running them"
+)
+@click.option("-v", "--verbose", is_flag=True, help="Show verbose output")
+def migrate(db_path, migrations, stop_before, list_, verbose):
+    """
+    Apply pending database migrations.
+
+    Usage:
+
+        sqlite-utils migrate database.db
+
+    This will find the migrations.py file in the current directory
+    or subdirectories and apply any pending migrations.
+
+    Or pass paths to one or more migrations.py files directly:
+
+        sqlite-utils migrate database.db path/to/migrations.py
+
+    Pass --list to see a list of applied and pending migrations
+    without applying them.
+
+    Use --stop-before migration_set:name to stop before a
+    migration. This option can be used multiple times.
+    """
+    files = _find_migration_files(migrations)
+    migration_sets = _load_migration_sets(files)
+    if not migration_sets:
+        raise click.ClickException("No migrations.py files found")
+
+    if list_:
+        if pathlib.Path(db_path).exists():
+            db = sqlite_utils.Database(db_path)
+        else:
+            # Listing is read-only - don't create the database file
+            db = sqlite_utils.Database(memory=True)
+        _register_db_for_cleanup(db)
+        # Legacy sqlite-migrate classes create the migrations table from
+        # their pending()/applied() methods - run the listing inside a
+        # transaction and roll it back so --list stays read-only
+        db.begin()
+        try:
+            _display_migration_list(db, migration_sets)
+        finally:
+            db.rollback()
+        return
+
+    db = sqlite_utils.Database(db_path)
+    _register_db_for_cleanup(db)
+
+    prev_schema = db.schema
+    if verbose:
+        click.echo("Migrating {}".format(db_path))
+        click.echo("\nSchema before:\n")
+        click.echo(textwrap.indent(prev_schema, "  ") or "  (empty)")
+        click.echo()
+    if stop_before:
+        # Every --stop-before value must match at least one known migration
+        known_names = set()
+        for migration_set in migration_sets:
+            names = {m.name for m in migration_set.pending(db)}
+            names.update(m.name for m in migration_set.applied(db))
+            known_names.update(names)
+            known_names.update(
+                "{}:{}".format(migration_set.name, name) for name in names
+            )
+        unknown = [value for value in stop_before if value not in known_names]
+        if unknown:
+            raise click.ClickException(
+                "--stop-before did not match any migrations: {}".format(
+                    ", ".join(unknown)
+                )
+            )
+    for migration_set in migration_sets:
+        matches = _stop_before_for_migration_set(stop_before, migration_set.name)
+        if isinstance(migration_set, sqlite_utils.Migrations):
+            try:
+                migration_set.apply(db, stop_before=matches)
+            except ValueError as e:
+                raise click.ClickException(str(e))
+        else:
+            # Legacy sqlite-migrate Migrations objects take a single string
+            # for stop_before, not a list
+            distinct = list(dict.fromkeys(matches))
+            if len(distinct) > 1:
+                raise click.ClickException(
+                    "Migration set '{}' uses the older sqlite-migrate class, "
+                    "which only supports a single --stop-before value - "
+                    "got: {}".format(migration_set.name, ", ".join(distinct))
+                )
+            migration_set.apply(db, stop_before=distinct[0] if distinct else None)
+    if verbose:
+        click.echo("Schema after:\n")
+        post_schema = db.schema
+        if post_schema == prev_schema:
+            click.echo("  (unchanged)")
+        else:
+            click.echo(textwrap.indent(post_schema, "  "))
+            click.echo("\nSchema diff:\n")
+            diff = list(
+                difflib.unified_diff(prev_schema.splitlines(), post_schema.splitlines())
+            )
+            click.echo("\n".join(diff[3:]))
+
+
 @cli.command(name="plugins")
 def plugins_list():
     "List installed plugins"
-    click.echo(json.dumps(get_plugins(), indent=2))
+    click.echo(json.dumps(get_plugins(), indent=2, ensure_ascii=False))
 
 
+ensure_plugins_loaded()
 pm.hook.register_commands(cli=cli)
+cli.add_command(migrate)
 
 
 def _render_common(title, values):
@@ -3306,7 +3650,11 @@ FILE_COLUMNS = {
 }
 
 
-def output_rows(iterator, headers, nl, arrays, json_cols):
+def output_rows(iterator, headers, nl, arrays, json_cols, ascii_=False):
+    # Duplicate column names would collide as dictionary keys, so rename
+    # later occurrences id, id -> id, id_2 - CSV and table output keep
+    # the original duplicate headers since they never build dictionaries
+    headers = dedupe_keys(headers)
     # We have to iterate two-at-a-time so we can know if we
     # should output a trailing comma or if we have reached
     # the last row.
@@ -3323,7 +3671,7 @@ def output_rows(iterator, headers, nl, arrays, json_cols):
             data = dict(zip(headers, data))
         line = "{firstchar}{serialized}{maybecomma}{lastchar}".format(
             firstchar=("[" if first else " ") if not nl else "",
-            serialized=json.dumps(data, default=json_binary),
+            serialized=json.dumps(data, default=json_binary, ensure_ascii=ascii_),
             maybecomma="," if (not nl and not is_last) else "",
             lastchar="]" if (is_last and not nl) else "",
         )
@@ -3404,3 +3752,32 @@ def _maybe_register_functions(db, functions_list):
     for functions in functions_list:
         if isinstance(functions, str) and functions.strip():
             _register_functions(db, functions)
+
+
+def _rows_from_code(code):
+    # code may be a path to a .py file
+    if "\n" not in code and code.endswith(".py"):
+        try:
+            code = pathlib.Path(code).read_text()
+        except FileNotFoundError:
+            raise click.ClickException("File not found: {}".format(code))
+    namespace = {}
+    try:
+        exec(code, namespace)
+    except SyntaxError as ex:
+        raise click.ClickException("Error in --code: {}".format(ex))
+    rows = namespace.get("rows")
+    if callable(rows):
+        rows = rows()
+    if isinstance(rows, dict):
+        rows = [rows]
+    error = click.ClickException(
+        "--code must define a 'rows' function or iterable of rows to insert"
+    )
+    if rows is None or isinstance(rows, (str, bytes)):
+        raise error
+    try:
+        iter(rows)
+    except TypeError:
+        raise error
+    return rows

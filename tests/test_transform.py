@@ -224,6 +224,40 @@ def test_transform_rename_pk(fresh_db):
     )
 
 
+def test_transform_preserves_keyword_literal_defaults(fresh_db):
+    # transform() used to requote keyword-literal defaults (DEFAULT TRUE became
+    # DEFAULT 'TRUE'), so a default insert stored the text 'TRUE' instead of the
+    # integer 1 -- silent value corruption on every rebuilt table.
+    fresh_db.execute(
+        "CREATE TABLE t ("
+        " id INTEGER PRIMARY KEY,"
+        " is_active INTEGER DEFAULT TRUE,"
+        " flag INTEGER DEFAULT FALSE,"
+        " note TEXT DEFAULT NULL"
+        ")"
+    )
+    table = fresh_db["t"]
+    table.insert({"id": 1})
+    before = fresh_db.execute("SELECT is_active, flag, note FROM t").fetchone()
+    assert before == (1, 0, None)
+
+    # Rebuild the table via an unrelated change.
+    table.transform(rename={"note": "note2"})
+
+    # The keyword literals stay unquoted in the schema ...
+    assert "DEFAULT TRUE" in table.schema
+    assert "DEFAULT FALSE" in table.schema
+    assert "DEFAULT NULL" in table.schema
+    assert "'TRUE'" not in table.schema
+
+    # ... and a fresh default insert still yields 1 / 0 / NULL, not strings.
+    table.insert({"id": 2})
+    after = fresh_db.execute(
+        "SELECT is_active, flag, note2 FROM t WHERE id = 2"
+    ).fetchone()
+    assert after == (1, 0, None)
+
+
 def test_transform_not_null(fresh_db):
     dogs = fresh_db["dogs"]
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
@@ -638,15 +672,13 @@ def test_transform_with_indexes_errors(fresh_db, transform_params):
 def test_transform_with_unique_constraint_implicit_index(fresh_db):
     dogs = fresh_db["dogs"]
     # Create a table with a UNIQUE constraint on 'name', which creates an implicit index
-    fresh_db.execute(
-        """
+    fresh_db.execute("""
         CREATE TABLE dogs (
             id INTEGER PRIMARY KEY,
             name TEXT UNIQUE,
             age INTEGER
         );
-    """
-    )
+    """)
     dogs.insert({"id": 1, "name": "Cleo", "age": 5})
 
     # Attempt to transform the table without modifying 'name'

@@ -109,13 +109,11 @@ def test_table_repr(fresh_db):
 
 
 def test_indexes(fresh_db):
-    fresh_db.executescript(
-        """
+    fresh_db.executescript("""
         create table Gosh (c1 text, c2 text, c3 text);
         create index Gosh_c1 on Gosh(c1);
         create index Gosh_c2c3 on Gosh(c2, c3);
-    """
-    )
+    """)
     assert [
         Index(
             seq=0,
@@ -130,13 +128,11 @@ def test_indexes(fresh_db):
 
 
 def test_xindexes(fresh_db):
-    fresh_db.executescript(
-        """
+    fresh_db.executescript("""
         create table Gosh (c1 text, c2 text, c3 text);
         create index Gosh_c1 on Gosh(c1);
         create index Gosh_c2c3 on Gosh(c2, c3 desc);
-    """
-    )
+    """)
     assert fresh_db["Gosh"].xindexes == [
         XIndex(
             name="Gosh_c2c3",
@@ -325,3 +321,18 @@ def test_table_default_values(fresh_db, value):
     )
     default_values = fresh_db["default_values"].default_values
     assert default_values == {"value": value}
+
+
+def test_pks_use_primary_key_declaration_order(fresh_db):
+    # PRIMARY KEY (a, b) declared against columns stored in order (b, a) -
+    # pks must follow the declaration order, which is what SQLite uses to
+    # resolve implicit foreign key references and compound pk lookups
+    fresh_db.execute("create table t (b text, a text, primary key (a, b))")
+    assert fresh_db["t"].pks == ["a", "b"]
+
+
+def test_transform_preserves_compound_pk_declaration_order(fresh_db):
+    fresh_db.execute("create table t (a text, b text, c text, primary key (b, a))")
+    fresh_db["t"].transform(drop={"c"})
+    assert fresh_db["t"].pks == ["b", "a"]
+    assert 'PRIMARY KEY ("b", "a")' in fresh_db["t"].schema

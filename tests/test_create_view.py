@@ -15,7 +15,7 @@ def test_create_view_error(fresh_db):
 
 
 def test_create_view_only_arrow_one_param(fresh_db):
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         fresh_db.create_view("bar", "select 1 + 2", ignore=True, replace=True)
 
 

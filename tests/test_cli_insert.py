@@ -597,3 +597,294 @@ def test_insert_streaming_batch_size_1(db_path):
     proc.stdin.close()
     proc.wait()
     assert proc.returncode == 0
+
+
+def test_insert_csv_headers_only(tmpdir):
+    """Test that CSV with only header row (no data) works with --detect-types (issue #702)"""
+    db_path = str(tmpdir / "test.db")
+    csv_path = str(tmpdir / "headers_only.csv")
+    with open(csv_path, "w") as fp:
+        fp.write("id,name,age\n")
+    # Should not crash with --detect-types (which is now the default)
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "data", csv_path, "--csv"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    # Table should not exist since there were no data rows
+    db = Database(db_path)
+    assert not db["data"].exists()
+
+
+def test_insert_into_view_errors(tmpdir):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    db["t"].insert({"id": 1})
+    db.create_view("v", "select * from t")
+    db.close()
+    result = CliRunner().invoke(
+        cli.cli, ["insert", db_path, "v", "-"], input='{"id": 2}'
+    )
+    assert result.exit_code == 1
+    assert result.output.strip() == "Error: Table v is actually a view"
+
+
+def test_insert_csv_detect_types_leaves_existing_table_alone(db_path):
+    # Type detection is the default for CSV/TSV inserts, but it must only
+    # apply to tables created by this command - transforming a pre-existing
+    # table would rewrite its column types and corrupt data such as
+    # TEXT zip codes with leading zeros
+    db = Database(db_path)
+    db["places"].insert({"name": "Boston", "zip": "01234"})
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "places", "-", "--csv"],
+        catch_exceptions=False,
+        input="name,zip\nSF,94107",
+    )
+    assert result.exit_code == 0, result.output
+    assert db["places"].columns_dict["zip"] is str
+    assert list(db["places"].rows) == [
+        {"name": "Boston", "zip": "01234"},
+        {"name": "SF", "zip": "94107"},
+    ]
+
+
+def test_insert_csv_detect_types_new_table(db_path):
+    # A table created by the insert still gets detected types
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "data", "-", "--csv"],
+        catch_exceptions=False,
+        input="name,age,weight\nCleo,5,12.5",
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    assert db["data"].columns_dict == {"name": str, "age": int, "weight": float}
+
+
+@pytest.mark.parametrize(
+    "command,extra_args,input_text,expected_row",
+    (
+        (
+            "insert",
+            [],
+            "zipcode,score\n01234,9.5\n",
+            {"zipcode": "01234", "score": 9.5},
+        ),
+        (
+            "upsert",
+            ["--pk", "id"],
+            "id,zipcode,score\n1,01234,9.5\n",
+            {"id": 1, "zipcode": "01234", "score": 9.5},
+        ),
+    ),
+)
+def test_insert_upsert_csv_type_overrides_detected_types(
+    db_path, command, extra_args, input_text, expected_row
+):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            command,
+            db_path,
+            "places",
+            "-",
+            "--csv",
+        ]
+        + extra_args
+        + [
+            "--type",
+            "zipcode",
+            "text",
+        ],
+        catch_exceptions=False,
+        input=input_text,
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    expected_columns = {"zipcode": str, "score": float}
+    if command == "upsert":
+        expected_columns = {"id": int, **expected_columns}
+    assert db["places"].columns_dict == expected_columns
+    assert list(db["places"].rows) == [expected_row]
+
+
+def test_upsert_csv_detect_types_leaves_existing_table_alone(db_path):
+    db = Database(db_path)
+    db["places"].insert({"id": 1, "name": "Boston", "zip": "01234"}, pk="id")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "places", "-", "--csv", "--pk", "id"],
+        catch_exceptions=False,
+        input="id,name,zip\n2,SF,94107",
+    )
+    assert result.exit_code == 0, result.output
+    assert db["places"].columns_dict["zip"] is str
+    assert db["places"].get(1)["zip"] == "01234"
+
+
+def test_insert_invalid_pk_clean_error(db_path):
+    # An invalid --pk against an existing table should be a clean CLI
+    # error, not a raw InvalidColumns traceback
+    db = Database(db_path)
+    db["t"].insert({"a": 1})
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "t", "-", "--pk", "badcol"],
+        input='{"a": 2}',
+    )
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert result.output.startswith("Error: Invalid primary key column")
+
+
+# --code tests, see https://github.com/simonw/sqlite-utils/issues/684
+CODE_ROWS_FUNCTION = """
+def rows():
+    yield {"id": 1, "name": "Cleo"}
+    yield {"id": 2, "name": "Suna"}
+"""
+
+CODE_ROWS_ITERABLE = """
+rows = [
+    {"id": 1, "name": "Cleo"},
+    {"id": 2, "name": "Suna"},
+]
+"""
+
+
+@pytest.mark.parametrize("code", (CODE_ROWS_FUNCTION, CODE_ROWS_ITERABLE))
+def test_insert_code(tmpdir, code):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", code, "--pk", "id"],
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    assert db["creatures"].pks == ["id"]
+    assert list(db["creatures"].rows) == [
+        {"id": 1, "name": "Cleo"},
+        {"id": 2, "name": "Suna"},
+    ]
+
+
+def test_insert_code_from_file(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    code_path = str(tmpdir / "gen.py")
+    with open(code_path, "w") as fp:
+        fp.write(CODE_ROWS_FUNCTION)
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", code_path],
+    )
+    assert result.exit_code == 0, result.output
+    assert list(Database(db_path)["creatures"].rows) == [
+        {"id": 1, "name": "Cleo"},
+        {"id": 2, "name": "Suna"},
+    ]
+
+
+def test_upsert_code(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    db = Database(db_path)
+    db["creatures"].insert_all(
+        [{"id": 1, "name": "old"}, {"id": 2, "name": "Suna"}], pk="id"
+    )
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "creatures", "--code", CODE_ROWS_FUNCTION, "--pk", "id"],
+    )
+    assert result.exit_code == 0, result.output
+    assert list(db["creatures"].rows) == [
+        {"id": 1, "name": "Cleo"},
+        {"id": 2, "name": "Suna"},
+    ]
+
+
+def test_insert_code_requires_file_or_code(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(cli.cli, ["insert", db_path, "creatures"])
+    assert result.exit_code == 1
+    assert "Provide either a FILE argument or --code" in result.output
+
+
+def test_insert_code_mutually_exclusive_with_file(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "-", "--code", CODE_ROWS_FUNCTION],
+        input="{}",
+    )
+    assert result.exit_code == 1
+    assert "--code cannot be used with a FILE argument" in result.output
+
+
+def test_insert_code_rejects_input_format_options(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", CODE_ROWS_FUNCTION, "--csv"],
+    )
+    assert result.exit_code == 1
+    assert "--code cannot be used with input format options" in result.output
+
+
+def test_insert_code_missing_rows(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", "x = 1"],
+    )
+    assert result.exit_code == 1
+    assert "must define a 'rows' function or iterable" in result.output
+
+
+def test_insert_code_single_dict(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            db_path,
+            "creatures",
+            "--code",
+            'rows = {"id": 1, "name": "Cleo"}',
+            "--pk",
+            "id",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert list(Database(db_path)["creatures"].rows) == [{"id": 1, "name": "Cleo"}]
+
+
+def test_insert_code_not_iterable(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", "rows = 5"],
+    )
+    assert result.exit_code == 1
+    assert "must define a 'rows' function or iterable" in result.output
+
+
+def test_insert_code_syntax_error(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", "def rows(:"],
+    )
+    assert result.exit_code == 1
+    assert "Error in --code" in result.output
+
+
+def test_insert_code_file_not_found(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", "missing.py"],
+    )
+    assert result.exit_code == 1
+    assert "File not found: missing.py" in result.output

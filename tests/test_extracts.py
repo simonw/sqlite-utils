@@ -67,3 +67,51 @@ def test_extracts(fresh_db, kwargs, expected_table, use_table_factory):
         {"id": 2, "species_id": 1},
         {"id": 3, "species_id": 2},
     ] == list(fresh_db["Trees"].rows)
+
+
+def test_extracts_null_values(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/186
+    # Null values should stay null, not be extracted into the lookup table
+    fresh_db["Trees"].insert_all(
+        [
+            {"id": 1, "species_id": "Oak"},
+            {"id": 2, "species_id": None},
+            {"id": 3, "species_id": "Palm"},
+            {"id": 4, "species_id": None},
+        ],
+        extracts={"species_id": "Species"},
+    )
+    assert list(fresh_db["Species"].rows) == [
+        {"id": 1, "value": "Oak"},
+        {"id": 2, "value": "Palm"},
+    ]
+    assert list(fresh_db["Trees"].rows) == [
+        {"id": 1, "species_id": 1},
+        {"id": 2, "species_id": None},
+        {"id": 3, "species_id": 2},
+        {"id": 4, "species_id": None},
+    ]
+
+
+def test_extracts_null_values_list_mode(fresh_db):
+    # Same as test_extracts_null_values but for list-based records
+    fresh_db["Trees"].insert_all(
+        [
+            ["id", "species_id"],
+            [1, "Oak"],
+            [2, None],
+            [3, "Palm"],
+            [4, None],
+        ],
+        extracts={"species_id": "Species"},
+    )
+    assert list(fresh_db["Species"].rows) == [
+        {"id": 1, "value": "Oak"},
+        {"id": 2, "value": "Palm"},
+    ]
+    assert list(fresh_db["Trees"].rows) == [
+        {"id": 1, "species_id": 1},
+        {"id": 2, "species_id": None},
+        {"id": 3, "species_id": 2},
+        {"id": 4, "species_id": None},
+    ]

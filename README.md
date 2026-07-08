@@ -18,9 +18,12 @@ Python CLI utility and library for manipulating SQLite databases.
 - [Configure SQLite full-text search](https://sqlite-utils.datasette.io/en/stable/cli.html#configuring-full-text-search) against your database tables and run search queries against them, ordered by relevance
 - Run [transformations against your tables](https://sqlite-utils.datasette.io/en/stable/cli.html#transforming-tables) to make schema changes that SQLite `ALTER TABLE` does not directly support, such as changing the type of a column
 - [Extract columns](https://sqlite-utils.datasette.io/en/stable/cli.html#extracting-columns-into-a-separate-table) into separate tables to better normalize your existing data
+- [Manage database migrations](https://sqlite-utils.datasette.io/en/stable/migrations.html) using Python migration files and the `sqlite-utils migrate` command
 - [Install plugins](https://sqlite-utils.datasette.io/en/stable/plugins.html) to add custom SQL functions and additional features
 
-Read more on my blog, in this series of posts on [New features in sqlite-utils](https://simonwillison.net/series/sqlite-utils-features/) and other [entries tagged sqliteutils](https://simonwillison.net/tags/sqliteutils/).
+Upgrading from sqlite-utils 3.x? See the [4.0 upgrade guide](https://sqlite-utils.datasette.io/en/stable/upgrading.html#upgrading-from-3-x-to-4-0).
+
+Read more on my blog, in this series of posts on [New features in sqlite-utils](https://simonwillison.net/series/sqlite-utils-features/) and other [entries tagged sqlite-utils](https://simonwillison.net/tags/sqlite-utils/).
 
 ## Installation
 

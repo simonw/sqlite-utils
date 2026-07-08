@@ -64,7 +64,7 @@ def test_with_tracer():
             "        )\n"
             "    )",
             {
-                "like": '%VIRTUAL TABLE%USING FTS%content="dogs"%',
+                "like": "%VIRTUAL TABLE%USING FTS%content=[dogs]%",
                 "like2": '%VIRTUAL TABLE%USING FTS%content="dogs"%',
                 "table": "dogs",
             },

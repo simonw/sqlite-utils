@@ -126,9 +126,7 @@ def test_extract_rowid_table(fresh_db):
         '   "common_name_latin_name_id" INTEGER REFERENCES "common_name_latin_name"("id")\n'
         ")"
     )
-    assert (
-        fresh_db.execute(
-            """
+    assert fresh_db.execute("""
         select
             tree.name,
             common_name_latin_name.common_name,
@@ -136,10 +134,7 @@ def test_extract_rowid_table(fresh_db):
         from tree
             join common_name_latin_name
             on tree.common_name_latin_name_id = common_name_latin_name.id
-    """
-        ).fetchall()
-        == [("Tree 1", "Palm", "Arecaceae")]
-    )
+    """).fetchall() == [("Tree 1", "Palm", "Arecaceae")]
 
 
 def test_reuse_lookup_table(fresh_db):
@@ -194,9 +189,116 @@ def test_extract_works_with_null_values(fresh_db):
     )
     assert list(fresh_db["listens"].rows) == [
         {"id": 1, "track_title": "foo", "album_id": 1},
-        {"id": 2, "track_title": "baz", "album_id": 2},
+        {"id": 2, "track_title": "baz", "album_id": None},
     ]
     assert list(fresh_db["albums"].rows) == [
         {"id": 1, "album_title": "bar"},
-        {"id": 2, "album_title": None},
     ]
+
+
+def test_extract_null_values_single_column(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/186
+    fresh_db["species"].insert({"id": 1, "species": "Wolf"}, pk="id")
+    fresh_db["individuals"].insert_all(
+        [
+            {"id": 10, "name": "Terriana", "species": "Fox"},
+            {"id": 11, "name": "Spenidorm", "species": None},
+            {"id": 12, "name": "Grantheim", "species": "Wolf"},
+            {"id": 13, "name": "Turnutopia", "species": None},
+            {"id": 14, "name": "Wargal", "species": "Wolf"},
+        ],
+        pk="id",
+    )
+    fresh_db["individuals"].extract("species")
+    # No null row should have been added to species
+    assert list(fresh_db["species"].rows) == [
+        {"id": 1, "species": "Wolf"},
+        {"id": 2, "species": "Fox"},
+    ]
+    assert list(fresh_db["individuals"].rows) == [
+        {"id": 10, "name": "Terriana", "species_id": 2},
+        {"id": 11, "name": "Spenidorm", "species_id": None},
+        {"id": 12, "name": "Grantheim", "species_id": 1},
+        {"id": 13, "name": "Turnutopia", "species_id": None},
+        {"id": 14, "name": "Wargal", "species_id": 1},
+    ]
+
+
+def test_extract_null_values_multiple_columns(fresh_db):
+    # A row should be extracted if at least one column is not null -
+    # only rows where ALL extracted columns are null are left alone
+    fresh_db["circulation"].insert_all(
+        [
+            {"id": 1, "title": "title one", "creator": "creator one", "year": 2018},
+            {"id": 2, "title": "title two", "creator": None, "year": 2019},
+            {"id": 3, "title": None, "creator": None, "year": 2020},
+            {"id": 4, "title": None, "creator": None, "year": 2021},
+        ],
+        pk="id",
+    )
+    fresh_db["circulation"].extract(
+        ["title", "creator"], table="books", fk_column="book_id"
+    )
+    assert list(fresh_db["books"].rows) == [
+        {"id": 1, "title": "title one", "creator": "creator one"},
+        {"id": 2, "title": "title two", "creator": None},
+    ]
+    assert list(fresh_db["circulation"].rows) == [
+        {"id": 1, "book_id": 1, "year": 2018},
+        {"id": 2, "book_id": 2, "year": 2019},
+        {"id": 3, "book_id": None, "year": 2020},
+        {"id": 4, "book_id": None, "year": 2021},
+    ]
+
+
+def test_extract_null_values_existing_lookup_table_with_null_row(fresh_db):
+    # Even if the lookup table already contains an all-null row, rows where
+    # every extracted column is null should keep a null foreign key
+    fresh_db["species"].insert({"id": 1, "species": None}, pk="id")
+    fresh_db["individuals"].insert_all(
+        [
+            {"id": 10, "name": "Terriana", "species": "Fox"},
+            {"id": 11, "name": "Spenidorm", "species": None},
+        ],
+        pk="id",
+    )
+    fresh_db["individuals"].extract("species")
+    assert list(fresh_db["species"].rows) == [
+        {"id": 1, "species": None},
+        {"id": 2, "species": "Fox"},
+    ]
+    assert list(fresh_db["individuals"].rows) == [
+        {"id": 10, "name": "Terriana", "species_id": 2},
+        {"id": 11, "name": "Spenidorm", "species_id": None},
+    ]
+
+
+def test_extract_repeated_into_shared_lookup_with_nulls(fresh_db):
+    # Unique indexes treat NULLs as distinct, so INSERT OR IGNORE alone
+    # cannot dedupe NULL-containing rows against the existing lookup
+    # table - extracting a second table into the same lookup previously
+    # inserted duplicate rows that nothing pointed to
+    fresh_db["t1"].insert_all(
+        [
+            {"id": 1, "species": None, "common": "X"},
+            {"id": 2, "species": "Oak", "common": "Oak"},
+        ],
+        pk="id",
+    )
+    fresh_db["t2"].insert_all([{"id": 1, "species": None, "common": "X"}], pk="id")
+    fresh_db["t1"].extract(["species", "common"], table="lk")
+    fresh_db["t2"].extract(["species", "common"], table="lk")
+    assert fresh_db["lk"].count == 2
+    # Both tables point at the same lookup row
+    t1_fk = fresh_db.execute("select lk_id from t1 where id = 1").fetchone()[0]
+    t2_fk = fresh_db.execute("select lk_id from t2 where id = 1").fetchone()[0]
+    assert t1_fk == t2_fk
+
+
+def test_extract_repeated_into_shared_lookup_no_nulls(fresh_db):
+    # Non-NULL rows were already deduped by the unique index - keep it so
+    fresh_db["t1"].insert_all([{"id": 1, "species": "Oak"}], pk="id")
+    fresh_db["t2"].insert_all([{"id": 1, "species": "Oak"}], pk="id")
+    fresh_db["t1"].extract(["species"], table="lk")
+    fresh_db["t2"].extract(["species"], table="lk")
+    assert fresh_db["lk"].count == 1

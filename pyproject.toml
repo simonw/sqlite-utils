@@ -1,6 +1,6 @@
 [project]
 name = "sqlite-utils"
-version = "4.0a1"
+version = "4.0"
 description = "CLI tool and Python library for manipulating SQLite databases"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
@@ -33,7 +33,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "black>=24.1.1",
+    "black>=26.3.1",
+    "click>=8.4.2",
     "cogapp",
     "hypothesis",
     "pytest",
@@ -47,10 +48,11 @@ dev = [
     # flake8
     "flake8",
     "flake8-pyproject",
-    "ty",
+    "ty>=0.0.37",
+    # For stable cog:
+    "tabulate>=0.10.0",
 ]
 docs = [
-    "beanbag-docutils>=2.0",
     "codespell",
     "furo",
     "pygments-csv-lexer",
@@ -69,7 +71,8 @@ CI = "https://github.com/simonw/sqlite-utils/actions"
 sqlite-utils = "sqlite_utils.cli:cli"
 
 [build-system]
-requires = ["setuptools"]
+# setuptools 77+ is needed for the PEP 639 license = "Apache-2.0" expression
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.flake8]

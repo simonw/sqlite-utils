@@ -195,6 +195,50 @@ def test_output_table(db_path, options, expected):
     assert expected == result.output.strip()
 
 
+@pytest.mark.parametrize(
+    "fmt_option", [["--fmt", "simple"], ["-t"], ["--fmt", "github"]]
+)
+def test_output_table_no_headers(db_path, fmt_option):
+    # --no-headers should omit the header row from --fmt/--table output too, not
+    # just from --csv/--tsv (#566). Previously the flag was silently ignored for
+    # tabulate formats and the column names were always printed.
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert_all(
+            [
+                {"id": 1, "name": "Cleo", "age": 4},
+                {"id": 2, "name": "Pancakes", "age": 2},
+            ]
+        )
+    sql = "select id, name, age from dogs order by id"
+
+    with_headers = CliRunner().invoke(cli.cli, ["query", db_path, sql] + fmt_option)
+    without_headers = CliRunner().invoke(
+        cli.cli, ["query", db_path, sql] + fmt_option + ["--no-headers"]
+    )
+    assert with_headers.exit_code == 0
+    assert without_headers.exit_code == 0
+
+    # The column names appear when headers are shown, and must not appear at all
+    # once --no-headers is passed.
+    assert "name" in with_headers.output
+    for header in ("id", "name", "age"):
+        assert (
+            header not in without_headers.output
+        ), f"header {header!r} leaked into --no-headers output"
+    # The data is still all present.
+    for value in ("Cleo", "Pancakes", "1", "2", "4"):
+        assert value in without_headers.output
+
+    # The rows command shares the same code path.
+    rows_no_headers = CliRunner().invoke(
+        cli.cli, ["rows", db_path, "dogs"] + fmt_option + ["--no-headers"]
+    )
+    assert rows_no_headers.exit_code == 0
+    assert "name" not in rows_no_headers.output
+    assert "Cleo" in rows_no_headers.output
+
+
 def test_create_index(db_path):
     db = Database(db_path)
     assert [] == db["Gosh"].indexes
@@ -738,12 +782,51 @@ def test_query_json(db_path, sql, args, expected):
     assert expected == result.output.strip()
 
 
+def test_query_sql_from_stdin(db_path):
+    # https://github.com/simonw/sqlite-utils/issues/765
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert_all(
+            [
+                {"id": 1, "age": 4, "name": "Cleo"},
+                {"id": 2, "age": 2, "name": "Pancakes"},
+            ]
+        )
+    result = CliRunner().invoke(
+        cli.cli,
+        ["query", db_path, "-"],
+        input="select name from dogs order by name",
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == [{"name": "Cleo"}, {"name": "Pancakes"}]
+
+
 def test_query_json_empty(db_path):
     result = CliRunner().invoke(
         cli.cli,
         [db_path, "select * from sqlite_master where 0"],
     )
     assert result.output.strip() == "[]"
+
+
+def test_query_json_duplicate_columns_are_deduped(db_path):
+    # https://github.com/simonw/sqlite-utils/issues/624
+    result = CliRunner().invoke(
+        cli.cli,
+        [db_path, "select 1 as id, 2 as id, 'x' as value, 'y' as value"],
+    )
+    assert result.output.strip() == (
+        '[{"id": 1, "id_2": 2, "value": "x", "value_2": "y"}]'
+    )
+
+
+def test_query_csv_duplicate_columns_are_preserved(db_path):
+    # CSV output should keep the duplicate headers, not rename them
+    result = CliRunner().invoke(
+        cli.cli,
+        [db_path, "select 1 as id, 2 as id", "--csv"],
+    )
+    assert result.output.replace("\r", "").strip() == "id,id\n1,2"
 
 
 def test_query_invalid_function(db_path):
@@ -967,12 +1050,9 @@ def test_query_json_with_json_cols(db_path):
     result = CliRunner().invoke(
         cli.cli, [db_path, "select id, name, friends from dogs"]
     )
-    assert (
-        r"""
+    assert r"""
     [{"id": 1, "name": "Cleo", "friends": "[{\"name\": \"Pancakes\"}, {\"name\": \"Bailey\"}]"}]
-    """.strip()
-        == result.output.strip()
-    )
+    """.strip() == result.output.strip()
     # With --json-cols:
     result = CliRunner().invoke(
         cli.cli, [db_path, "select id, name, friends from dogs", "--json-cols"]
@@ -984,6 +1064,34 @@ def test_query_json_with_json_cols(db_path):
     # Test rows command too
     result_rows = CliRunner().invoke(cli.cli, ["rows", db_path, "dogs", "--json-cols"])
     assert expected == result_rows.output.strip()
+
+
+def test_query_json_unicode_not_escaped_by_default(db_path):
+    db = Database(db_path)
+    with db.conn:
+        db["text"].insert({"id": 1, "text": "Japanese 日本語"}, pk="id")
+    result = CliRunner().invoke(cli.cli, [db_path, "select id, text from text"])
+    assert result.exit_code == 0
+    assert result.output.strip() == '[{"id": 1, "text": "Japanese 日本語"}]'
+    # Same for --nl
+    result = CliRunner().invoke(cli.cli, [db_path, "select id, text from text", "--nl"])
+    assert result.exit_code == 0
+    assert result.output.strip() == '{"id": 1, "text": "Japanese 日本語"}'
+
+
+@pytest.mark.parametrize("command", ["query", "rows"])
+def test_query_json_ascii_option(db_path, command):
+    db = Database(db_path)
+    with db.conn:
+        db["text"].insert({"id": 1, "text": "Japanese 日本語"}, pk="id")
+    if command == "query":
+        args = [db_path, "select id, text from text", "--ascii"]
+    else:
+        args = ["rows", db_path, "text", "--ascii"]
+    result = CliRunner().invoke(cli.cli, args)
+    assert result.exit_code == 0
+    expected = '[{"id": 1, "text": "Japanese ' + "\\u65e5\\u672c\\u8a9e" + '"}]'
+    assert result.output.strip() == expected
 
 
 @pytest.mark.parametrize(
@@ -1127,8 +1235,9 @@ def test_upsert(db_path, tmpdir):
     ]
 
 
-def test_upsert_pk_required(db_path, tmpdir):
+def test_upsert_pk_inferred_from_existing_table(db_path, tmpdir):
     json_path = str(tmpdir / "dogs.json")
+    db = Database(db_path)
     insert_dogs = [
         {"id": 1, "name": "Cleo", "age": 4},
         {"id": 2, "name": "Nixie", "age": 4},
@@ -1136,11 +1245,28 @@ def test_upsert_pk_required(db_path, tmpdir):
     write_json(json_path, insert_dogs)
     result = CliRunner().invoke(
         cli.cli,
+        ["insert", db_path, "dogs", json_path, "--pk", "id"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    write_json(
+        json_path,
+        [
+            {"id": 1, "age": 5},
+            {"id": 2, "age": 5},
+        ],
+    )
+    result = CliRunner().invoke(
+        cli.cli,
         ["upsert", db_path, "dogs", json_path],
         catch_exceptions=False,
     )
-    assert result.exit_code == 2
-    assert "Error: Missing option '--pk'" in result.output
+    assert result.exit_code == 0, result.output
+    assert list(db.query("select * from dogs order by id")) == [
+        {"id": 1, "name": "Cleo", "age": 5},
+        {"id": 2, "name": "Nixie", "age": 5},
+    ]
 
 
 def test_upsert_analyze(db_path, tmpdir):
@@ -1470,6 +1596,24 @@ def test_drop_table_error():
         assert result.exit_code == 0
 
 
+def test_drop_table_on_view_errors():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["t"].insert({"id": 1})
+        db.create_view("v", "select * from t")
+        result = runner.invoke(cli.cli, ["drop-table", "test.db", "v"])
+        assert result.exit_code == 1
+        assert 'Error: "v" is a view, not a table - use drop-view to drop it' == (
+            result.output.strip()
+        )
+        assert "v" in db.view_names()
+        # --ignore exits cleanly but must still not drop the view
+        result = runner.invoke(cli.cli, ["drop-table", "test.db", "v", "--ignore"])
+        assert result.exit_code == 0
+        assert "v" in db.view_names()
+
+
 def test_drop_view():
     runner = CliRunner()
     with runner.isolated_filesystem():
@@ -1486,6 +1630,23 @@ def test_drop_view():
         )
         assert result.exit_code == 0
         assert "hello" not in db.view_names()
+
+
+def test_drop_view_on_table_errors():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["t"].insert({"id": 1})
+        result = runner.invoke(cli.cli, ["drop-view", "test.db", "t"])
+        assert result.exit_code == 1
+        assert 'Error: "t" is a table, not a view - use drop-table to drop it' == (
+            result.output.strip()
+        )
+        assert "t" in db.table_names()
+        # --ignore exits cleanly but must still not drop the table
+        result = runner.invoke(cli.cli, ["drop-view", "test.db", "t", "--ignore"])
+        assert result.exit_code == 0
+        assert "t" in db.table_names()
 
 
 def test_drop_view_error():
@@ -1735,6 +1896,29 @@ def test_transform(db_path, args, expected_schema):
     assert result.exit_code == 0
     schema = db["dogs"].schema
     assert schema == expected_schema
+
+
+def test_transform_sql(db_path):
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert(
+            {"id": 1, "age": 4, "name": "Cleo"},
+            not_null={"age"},
+            defaults={"age": 1},
+            pk="id",
+        )
+    original_schema = db["dogs"].schema
+
+    result = CliRunner().invoke(
+        cli.cli, ["transform", db_path, "dogs", "--drop", "name", "--sql"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert 'CREATE TABLE "dogs_new_' in result.output
+    assert '"age" INTEGER NOT NULL DEFAULT' in result.output
+    assert 'DROP TABLE "dogs";' in result.output
+    assert 'ALTER TABLE "dogs_new_' in result.output
+    assert db["dogs"].schema == original_schema
 
 
 @pytest.mark.parametrize(
@@ -1998,12 +2182,10 @@ def test_search_quote(tmpdir):
 def test_indexes(tmpdir):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db.conn.executescript(
-        """
+    db.conn.executescript("""
         create table Gosh (c1 text, c2 text, c3 text);
         create index Gosh_idx on Gosh(c2, c3 desc);
-    """
-    )
+    """)
     result = CliRunner().invoke(
         cli.cli,
         ["indexes", str(db_path)],
@@ -2094,16 +2276,12 @@ def test_triggers(tmpdir, extra_args, expected):
         pk="id",
     )
     db["counter"].insert({"count": 1})
-    db.conn.execute(
-        textwrap.dedent(
-            """
+    db.conn.execute(textwrap.dedent("""
         CREATE TRIGGER blah AFTER INSERT ON articles
         BEGIN
             UPDATE counter SET count = count + 1;
         END
-    """
-        )
-    )
+    """))
     args = ["triggers", db_path]
     if extra_args:
         args.extend(extra_args)
@@ -2282,18 +2460,14 @@ def test_csv_insert_bom(tmpdir):
     ]
 
 
-@pytest.mark.parametrize("option", (None, "-d", "--detect-types"))
-def test_insert_detect_types(tmpdir, option):
-    """Test that type detection is now the default behavior"""
+def test_insert_detect_types(tmpdir):
+    """Test that type detection is the default behavior"""
     db_path = str(tmpdir / "test.db")
     data = "name,age,weight\nCleo,6,45.5\nDori,1,3.5"
-    extra = []
-    if option:
-        extra = [option]
 
     result = CliRunner().invoke(
         cli.cli,
-        ["insert", db_path, "creatures", "-", "--csv"] + extra,
+        ["insert", db_path, "creatures", "-", "--csv"],
         catch_exceptions=False,
         input=data,
     )
@@ -2305,17 +2479,27 @@ def test_insert_detect_types(tmpdir, option):
     ]
 
 
-@pytest.mark.parametrize("option", (None, "-d", "--detect-types"))
-def test_upsert_detect_types(tmpdir, option):
-    """Test that type detection is now the default behavior for upsert"""
+@pytest.mark.parametrize("command", ("insert", "upsert"))
+@pytest.mark.parametrize("option", ("-d", "--detect-types"))
+def test_detect_types_flag_removed(tmpdir, command, option):
+    # The old no-op flag was removed in 4.0 - it should now error
     db_path = str(tmpdir / "test.db")
-    data = "id,name,age,weight\n1,Cleo,6,45.5\n2,Dori,1,3.5"
-    extra = []
-    if option:
-        extra = [option]
     result = CliRunner().invoke(
         cli.cli,
-        ["upsert", db_path, "creatures", "-", "--csv", "--pk", "id"] + extra,
+        [command, db_path, "creatures", "-", "--csv", "--pk", "id", option],
+        input="id,name\n1,Cleo",
+    )
+    assert result.exit_code == 2
+    assert "No such option" in result.output
+
+
+def test_upsert_detect_types(tmpdir):
+    """Test that type detection is the default behavior for upsert"""
+    db_path = str(tmpdir / "test.db")
+    data = "id,name,age,weight\n1,Cleo,6,45.5\n2,Dori,1,3.5"
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "creatures", "-", "--csv", "--pk", "id"],
         catch_exceptions=False,
         input=data,
     )
@@ -2611,3 +2795,22 @@ def test_insert_upsert_strict(tmpdir, method, strict):
     assert result.exit_code == 0
     db = Database(db_path)
     assert db["items"].strict == strict or not db.supports_strict
+
+
+def test_extract_bad_column_clean_error(db_path):
+    db = Database(db_path)
+    db["trees"].insert({"id": 1, "species": "Palm"}, pk="id")
+    result = CliRunner().invoke(cli.cli, ["extract", db_path, "trees", "nope"])
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert result.output.startswith("Error: Invalid columns")
+
+
+def test_extract_view_clean_error(db_path):
+    db = Database(db_path)
+    db["trees"].insert({"id": 1, "species": "Palm"}, pk="id")
+    db.create_view("v", "select * from trees")
+    result = CliRunner().invoke(cli.cli, ["extract", db_path, "v", "species"])
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert result.output.startswith("Error:")

@@ -215,6 +215,25 @@ def test_convert_multi_dryrun(test_db_and_path):
     )
 
 
+def test_convert_multi_dryrun_unicode_not_escaped(test_db_and_path):
+    db_path = test_db_and_path[1]
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "convert",
+            db_path,
+            "example",
+            "dt",
+            "{'text': 'Japanese 日本語'}",
+            "--dry-run",
+            "--multi",
+        ],
+    )
+    assert result.exit_code == 0
+    # Preview should match what jsonify_if_needed() would actually store
+    assert '{"text": "Japanese 日本語"}' in result.output
+
+
 @pytest.mark.parametrize("drop", (True, False))
 def test_convert_output_column(test_db_and_path, drop):
     db, db_path = test_db_and_path
@@ -371,16 +390,14 @@ def test_convert_multi_complex_column_types(fresh_db_and_path):
         ],
         pk="id",
     )
-    code = textwrap.dedent(
-        """
+    code = textwrap.dedent("""
     if value == 1:
         return {"is_str": "", "is_float": 1.2, "is_int": None}
     elif value == 2:
         return {"is_float": 1, "is_int": 12}
     elif value == 3:
         return {"is_bytes": b"blah"}
-    """
-    )
+    """)
     result = CliRunner().invoke(
         cli.cli,
         [
