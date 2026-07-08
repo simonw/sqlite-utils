@@ -782,6 +782,25 @@ def test_query_json(db_path, sql, args, expected):
     assert expected == result.output.strip()
 
 
+def test_query_sql_from_stdin(db_path):
+    # https://github.com/simonw/sqlite-utils/issues/765
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert_all(
+            [
+                {"id": 1, "age": 4, "name": "Cleo"},
+                {"id": 2, "age": 2, "name": "Pancakes"},
+            ]
+        )
+    result = CliRunner().invoke(
+        cli.cli,
+        ["query", db_path, "-"],
+        input="select name from dogs order by name",
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == [{"name": "Cleo"}, {"name": "Pancakes"}]
+
+
 def test_query_json_empty(db_path):
     result = CliRunner().invoke(
         cli.cli,

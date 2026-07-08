@@ -109,6 +109,10 @@ See :ref:`cli_query`.
               "select * from chickens where age > :age" \
               -p age 1
 
+      Pass "-" as the SQL to read the query from standard input:
+
+          echo "select * from chickens" | sqlite-utils data.db -
+
     Options:
       --attach <TEXT FILE>...     Additional databases to attach - specify alias and
                                   filepath

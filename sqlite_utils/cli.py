@@ -1893,7 +1893,15 @@ def query(
         sqlite-utils data.db \\
             "select * from chickens where age > :age" \\
             -p age 1
+
+    Pass "-" as the SQL to read the query from standard input:
+
+    \b
+        echo "select * from chickens" | sqlite-utils data.db -
     """
+    if sql == "-":
+        # Read SQL from standard input
+        sql = sys.stdin.read()
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
     for alias, attach_path in attach:
