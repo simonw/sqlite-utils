@@ -2820,10 +2820,24 @@ class Table(Queryable):
         if "rowid" not in new_cols:
             new_cols.insert(0, "rowid")
             old_cols.insert(0, "rowid")
+        # Columns explicitly converted to a numeric type need NULLIF(col, '') so
+        # that empty strings stored in a previously TEXT column become NULL rather
+        # than being coerced to 0 or raising a type error.
+        _numeric_kws = ("INT", "REAL", "FLOA", "DOUB", "NUMERIC", "DECIMAL")
+
+        def _col_expr(from_, to_):
+            if from_ in types:
+                raw = COLUMN_TYPE_MAPPING.get(types[from_])
+                if raw is None and isinstance(types[from_], str):
+                    raw = types[from_]
+                if raw and any(kw in raw.upper() for kw in _numeric_kws):
+                    return "NULLIF({}, '')".format(quote_identifier(from_))
+            return quote_identifier(from_)
+
         copy_sql = "INSERT INTO {} ({new_cols})\n   SELECT {old_cols} FROM {};".format(
             quote_identifier(new_table_name),
             quote_identifier(self.name),
-            old_cols=", ".join(quote_identifier(col) for col in old_cols),
+            old_cols=", ".join(_col_expr(f, t) for f, t in zip(old_cols, new_cols)),
             new_cols=", ".join(quote_identifier(col) for col in new_cols),
         )
         sqls.append(copy_sql)
