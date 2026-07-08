@@ -291,6 +291,24 @@ def test_create_index(db_path):
         )
 
 
+def test_drop_index(db_path):
+    db = Database(db_path)
+    db["Gosh"].create_index(["c1"])
+    assert [index.name for index in db["Gosh"].indexes] == ["idx_Gosh_c1"]
+    result = CliRunner().invoke(cli.cli, ["drop-index", db_path, "Gosh", "idx_Gosh_c1"])
+    assert result.exit_code == 0
+    assert db["Gosh"].indexes == []
+
+    result = CliRunner().invoke(cli.cli, ["drop-index", db_path, "Gosh", "idx_Gosh_c1"])
+    assert result.exit_code == 1
+    assert "No index named idx_Gosh_c1" in result.output
+
+    result = CliRunner().invoke(
+        cli.cli, ["drop-index", db_path, "Gosh", "idx_Gosh_c1", "--ignore"]
+    )
+    assert result.exit_code == 0
+
+
 def test_create_index_analyze(db_path):
     db = Database(db_path)
     assert "sqlite_stat1" not in db.table_names()

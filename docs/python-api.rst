@@ -2877,6 +2877,14 @@ Use ``if_not_exists=True`` to do nothing if an index with that name already exis
 
 Pass ``analyze=True`` to run ``ANALYZE`` against the new index after creating it.
 
+You can drop an index from a table using ``.drop_index(index_name)``:
+
+.. code-block:: python
+
+    db.table("dogs").drop_index("idx_dogs_name")
+
+Use ``ignore=True`` to ignore the error if the index does not exist.
+
 .. _python_api_analyze:
 
 Optimizing index usage with ANALYZE

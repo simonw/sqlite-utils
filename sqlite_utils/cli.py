@@ -692,6 +692,34 @@ def create_index(
     )
 
 
+@cli.command(name="drop-index")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
+    required=True,
+)
+@click.argument("table")
+@click.argument("index")
+@click.option("--ignore", help="Ignore if index does not exist", is_flag=True)
+@load_extension_option
+def drop_index(path, table, index, ignore, load_extension):
+    """
+    Drop an index by index name from the specified table
+
+    Example:
+
+    \b
+        sqlite-utils drop-index chickens.db chickens idx_chickens_name
+    """
+    db = sqlite_utils.Database(path)
+    _register_db_for_cleanup(db)
+    _load_extensions(db, load_extension)
+    try:
+        db.table(table).drop_index(index, ignore=ignore)
+    except OperationalError as ex:
+        raise click.ClickException(str(ex))
+
+
 @cli.command(name="enable-fts")
 @click.argument(
     "path",

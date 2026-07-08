@@ -19,7 +19,7 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
     go_first = [
         "query", "memory", "insert", "upsert", "bulk", "search", "transform", "extract",
         "schema", "insert-files", "analyze-tables", "convert", "tables", "views", "rows",
-        "triggers", "indexes", "create-database", "create-table", "create-index",
+        "triggers", "indexes", "create-database", "create-table", "create-index", "drop-index",
         "migrate", "enable-fts", "populate-fts", "rebuild-fts", "disable-fts"
     ]
     refs = {
@@ -46,6 +46,7 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         "add-foreign-keys": "cli_add_foreign_keys",
         "index-foreign-keys": "cli_index_foreign_keys",
         "create-index": "cli_create_index",
+        "drop-index": "cli_drop_index",
         "enable-wal": "cli_wal",
         "enable-counts": "cli_enable_counts",
         "bulk": "cli_bulk",
@@ -1004,6 +1005,29 @@ See :ref:`cli_create_index`.
       --analyze                  Run ANALYZE after creating the index
       --load-extension TEXT      Path to SQLite extension, with optional :entrypoint
       -h, --help                 Show this message and exit.
+
+
+.. _cli_ref_drop_index:
+
+drop-index
+==========
+
+See :ref:`cli_drop_index`.
+
+::
+
+    Usage: sqlite-utils drop-index [OPTIONS] PATH TABLE INDEX
+
+      Drop an index by index name from the specified table
+
+      Example:
+
+          sqlite-utils drop-index chickens.db chickens idx_chickens_name
+
+    Options:
+      --ignore               Ignore if index does not exist
+      --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
+      -h, --help             Show this message and exit.
 
 
 .. _cli_ref_migrate:

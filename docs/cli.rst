@@ -2615,6 +2615,19 @@ If your column names are already prefixed with a hyphen you'll need to manually 
 
 Add the ``--analyze`` option to run ``ANALYZE`` against the index after it has been created.
 
+.. _cli_drop_index:
+
+Dropping indexes
+================
+
+You can drop an index from an existing table using the ``drop-index`` command:
+
+.. code-block:: bash
+
+    sqlite-utils drop-index mydb.db mytable idx_mytable_col1
+
+Use ``--ignore`` to ignore the error if the index does not exist on that table.
+
 .. _cli_fts:
 
 Configuring full-text search

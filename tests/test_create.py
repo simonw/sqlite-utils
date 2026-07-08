@@ -809,6 +809,34 @@ def test_create_index_if_not_exists(fresh_db):
     dogs.create_index(["name"], if_not_exists=True)
 
 
+def test_drop_index(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is_good_dog": True})
+    dogs.create_index(["name"])
+    assert [index.name for index in dogs.indexes] == ["idx_dogs_name"]
+    dogs.drop_index("idx_dogs_name")
+    assert dogs.indexes == []
+
+
+def test_drop_index_ignore(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"name": "Cleo"})
+    with pytest.raises(OperationalError, match="No index named idx_dogs_name"):
+        dogs.drop_index("idx_dogs_name")
+    dogs.drop_index("idx_dogs_name", ignore=True)
+
+
+def test_drop_index_wrong_table(fresh_db):
+    dogs = fresh_db["dogs"]
+    cats = fresh_db["cats"]
+    dogs.insert({"name": "Cleo"})
+    cats.insert({"name": "Misty"})
+    dogs.create_index(["name"])
+    with pytest.raises(OperationalError, match="No index named idx_dogs_name"):
+        cats.drop_index("idx_dogs_name")
+    assert [index.name for index in dogs.indexes] == ["idx_dogs_name"]
+
+
 def test_create_index_desc(fresh_db):
     dogs = fresh_db["dogs"]
     dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is good dog": True})

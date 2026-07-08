@@ -3080,6 +3080,22 @@ class Table(Queryable):
             self.db.analyze(created_index_name)
         return self
 
+    def drop_index(self, index_name: str, ignore: bool = False):
+        """
+        Drop an index on this table.
+
+        :param index_name: Name of the index to drop
+        :param ignore: Set to ``True`` to ignore the error if the index does not exist
+        """
+        if index_name not in {index.name for index in self.indexes}:
+            if ignore:
+                return self
+            raise OperationalError(
+                "No index named {} on table {}".format(index_name, self.name)
+            )
+        self.db.execute("DROP INDEX {}".format(quote_identifier(index_name)))
+        return self
+
     def add_column(
         self,
         col_name: str,

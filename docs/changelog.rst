@@ -12,6 +12,7 @@ Unreleased
 - ``sqlite-utils query`` can now read the SQL query from standard input by passing ``-`` in place of the query, for example ``echo "select * from dogs" | sqlite-utils query dogs.db -``. (:issue:`765`)
 - ``sqlite-utils insert`` and ``sqlite-utils upsert`` now accept a ``--code`` option for :ref:`providing a block of Python code <cli_insert_code>` (or a path to a ``.py`` file) that defines a ``rows()`` function or ``rows`` iterable of rows to insert, as an alternative to importing from a file. (:issue:`684`)
 - ``sqlite-utils insert`` and ``sqlite-utils upsert`` now accept ``--type column-name type`` to :ref:`override the type automatically chosen when the table is created <cli_insert_csv_tsv_column_types>`. This is useful for CSV or TSV columns such as ZIP codes that look like integers but should be stored as ``TEXT`` to preserve leading zeros. (:issue:`131`)
+- New ``table.drop_index(name)`` method and ``sqlite-utils drop-index`` command for dropping an index by name. Both accept ``ignore=True``/``--ignore`` to ignore a missing index. (:issue:`626`)
 
 .. _v4_0:
 
