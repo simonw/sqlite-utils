@@ -621,6 +621,11 @@ See :ref:`cli_convert`.
 
       "value" is a variable with the column value to be converted.
 
+      CODE can also be a reference to a callable that takes the value, for example:
+
+      sqlite-utils convert my.db mytable date r.parsedate
+      sqlite-utils convert my.db mytable data json.loads --import json
+
       Use "-" for CODE to read Python code from standard input.
 
       The following common operations are available as recipe functions:
@@ -634,7 +639,6 @@ See :ref:`cli_convert`.
       errors: 'Optional[object]' = None) -> 'Optional[str]'
 
       Parse a date and convert it to ISO date format: yyyy-mm-dd
-  
       - dayfirst=True: treat xx as the day in xx/yy/zz
       - yearfirst=True: treat xx as the year in xx/yy/zz
       - errors=r.IGNORE to ignore values that cannot be parsed
@@ -644,7 +648,6 @@ See :ref:`cli_convert`.
       False, errors: 'Optional[object]' = None) -> 'Optional[str]'
 
       Parse a datetime and convert it to ISO datetime format: yyyy-mm-ddTHH:MM:SS
-  
       - dayfirst=True: treat xx as the day in xx/yy/zz
       - yearfirst=True: treat xx as the year in xx/yy/zz
       - errors=r.IGNORE to ignore values that cannot be parsed

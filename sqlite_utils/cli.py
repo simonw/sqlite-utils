@@ -3054,6 +3054,12 @@ def _generate_convert_help():
 
     "value" is a variable with the column value to be converted.
 
+    CODE can also be a reference to a callable that takes the value, for example:
+
+    \b
+    sqlite-utils convert my.db mytable date r.parsedate
+    sqlite-utils convert my.db mytable data json.loads --import json
+
     Use "-" for CODE to read Python code from standard input.
 
     The following common operations are available as recipe functions:
@@ -3067,8 +3073,9 @@ def _generate_convert_help():
     ]
     for name in recipe_names:
         fn = getattr(recipes, name)
+        doc = textwrap.dedent(fn.__doc__.rstrip()).replace("\b\n", "")
         help += "\n\nr.{}{}\n\n\b{}".format(
-            name, str(inspect.signature(fn)), textwrap.dedent(fn.__doc__.rstrip())
+            name, str(inspect.signature(fn)), doc
         )
     help += "\n\n"
     help += textwrap.dedent("""
