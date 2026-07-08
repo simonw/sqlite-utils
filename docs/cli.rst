@@ -1593,6 +1593,8 @@ For example:
 
 This will update the dog with an ID of 2 to have an age of 4, creating a new record (with a null name) if one does not exist. If a row DOES exist the name will be left as-is.
 
+If the table already exists and has a primary key, you can omit the ``--pk`` option and ``sqlite-utils`` will use that existing primary key.
+
 The command will fail if you reference columns that do not exist on the table. To automatically create missing columns, use the ``--alter`` option.
 
 .. note::

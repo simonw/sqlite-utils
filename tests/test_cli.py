@@ -1235,8 +1235,9 @@ def test_upsert(db_path, tmpdir):
     ]
 
 
-def test_upsert_pk_required(db_path, tmpdir):
+def test_upsert_pk_inferred_from_existing_table(db_path, tmpdir):
     json_path = str(tmpdir / "dogs.json")
+    db = Database(db_path)
     insert_dogs = [
         {"id": 1, "name": "Cleo", "age": 4},
         {"id": 2, "name": "Nixie", "age": 4},
@@ -1244,11 +1245,28 @@ def test_upsert_pk_required(db_path, tmpdir):
     write_json(json_path, insert_dogs)
     result = CliRunner().invoke(
         cli.cli,
+        ["insert", db_path, "dogs", json_path, "--pk", "id"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    write_json(
+        json_path,
+        [
+            {"id": 1, "age": 5},
+            {"id": 2, "age": 5},
+        ],
+    )
+    result = CliRunner().invoke(
+        cli.cli,
         ["upsert", db_path, "dogs", json_path],
         catch_exceptions=False,
     )
-    assert result.exit_code == 2
-    assert "Error: Missing option '--pk'" in result.output
+    assert result.exit_code == 0, result.output
+    assert list(db.query("select * from dogs order by id")) == [
+        {"id": 1, "name": "Cleo", "age": 5},
+        {"id": 2, "name": "Nixie", "age": 5},
+    ]
 
 
 def test_upsert_analyze(db_path, tmpdir):

@@ -16,6 +16,7 @@ from sqlite_utils.db import (
     InvalidColumns,
     NoTable,
     NoView,
+    PrimaryKeyRequired,
     quote_identifier,
 )
 from sqlite_utils.plugins import ensure_plugins_loaded, pm, get_plugins
@@ -1184,7 +1185,7 @@ def insert_upsert_implementation(
             db.table(table).insert_all(
                 docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
             )
-        except (NoTable, InvalidColumns) as e:
+        except (NoTable, InvalidColumns, PrimaryKeyRequired) as e:
             raise click.ClickException(str(e))
         except Exception as e:
             if (
@@ -1372,7 +1373,7 @@ def insert(
 
 
 @cli.command()
-@insert_upsert_options(require_pk=True)
+@insert_upsert_options()
 def upsert(
     path,
     table,
@@ -1407,6 +1408,8 @@ def upsert(
     Upsert records based on their primary key. Works like 'insert' but if
     an incoming record has a primary key that matches an existing record
     the existing record will be updated.
+
+    If the table already exists and has a primary key, --pk can be omitted.
 
     Example:
 
