@@ -1366,6 +1366,25 @@ Will produce this schema with automatically detected types:
        "weight" REAL
     );
 
+.. _cli_insert_csv_tsv_column_types:
+
+Overriding column types
+-----------------------
+
+Use ``--type column-name type`` to override the type automatically chosen when the table is created. This option can be used more than once, and works with both ``insert`` and ``upsert``:
+
+.. code-block:: bash
+
+    sqlite-utils insert places.db places places.csv --csv \
+        --type zipcode text \
+        --type score real
+
+This is useful for values such as ZIP codes, which may look like integers but should be stored as ``TEXT`` to preserve leading zeros.
+
+The column type should be one of ``TEXT``, ``INTEGER``, ``FLOAT``, ``REAL`` or ``BLOB``. Column types are matched case-insensitively.
+
+As with detected column types, ``--type`` only affects tables created by the command. If the table already exists, its existing column types are left unchanged.
+
 To disable type detection and treat all columns as TEXT, use ``--no-detect-types``:
 
 .. code-block:: bash

@@ -981,6 +981,16 @@ def insert_upsert_options(*, require_pk=False):
                     help="Default value that should be set for a column",
                 ),
                 click.option(
+                    "--type",
+                    "types",
+                    type=(
+                        str,
+                        click.Choice(list(VALID_COLUMN_TYPES), case_sensitive=False),
+                    ),
+                    multiple=True,
+                    help="Column types to use when creating the table",
+                ),
+                click.option(
                     "--no-detect-types",
                     is_flag=True,
                     help="Treat all CSV/TSV columns as TEXT",
@@ -1034,6 +1044,7 @@ def insert_upsert_implementation(
     truncate=False,
     not_null=None,
     default=None,
+    types=None,
     no_detect_types=False,
     analyze=False,
     load_extension=None,
@@ -1047,6 +1058,7 @@ def insert_upsert_implementation(
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     _maybe_register_functions(db, functions)
+    column_type_overrides = {column: ctype.upper() for column, ctype in (types or [])}
 
     def _insert_docs(docs, tracker=None):
         extra_kwargs = {
@@ -1060,6 +1072,8 @@ def insert_upsert_implementation(
             extra_kwargs["not_null"] = set(not_null)
         if default:
             extra_kwargs["defaults"] = dict(default)
+        if column_type_overrides:
+            extra_kwargs["columns"] = column_type_overrides
         if upsert:
             extra_kwargs["upsert"] = upsert
 
@@ -1120,7 +1134,9 @@ def insert_upsert_implementation(
             and not table_existed_before_insert
             and db.table(table).exists()
         ):
-            db.table(table).transform(types=tracker.types)
+            detected_types = tracker.types
+            detected_types.update(column_type_overrides)
+            db.table(table).transform(types=detected_types)
 
     if code is not None:
         if file is not None:
@@ -1330,6 +1346,7 @@ def insert(
     truncate,
     not_null,
     default,
+    types,
     strict,
 ):
     """
@@ -1347,6 +1364,9 @@ def insert(
     - Use --csv or --tsv for comma-separated or tab-separated input
     - Use --lines to write each incoming line to a column called "line"
     - Use --text to write the entire input to a column called "text"
+
+    Use --type column-name type to override the type automatically chosen
+    when the table is created.
 
     You can also use --convert to pass a fragment of Python code that will
     be used to convert each input.
@@ -1420,6 +1440,7 @@ def insert(
             silent=silent,
             not_null=not_null,
             default=default,
+            types=types,
             strict=strict,
             code=code,
         )
@@ -1454,6 +1475,7 @@ def upsert(
     alter,
     not_null,
     default,
+    types,
     no_detect_types,
     analyze,
     load_extension,
@@ -1466,6 +1488,9 @@ def upsert(
     the existing record will be updated.
 
     If the table already exists and has a primary key, --pk can be omitted.
+
+    Use --type column-name type to override the type automatically chosen
+    when the table is created.
 
     Example:
 
@@ -1501,6 +1526,7 @@ def upsert(
             upsert=True,
             not_null=not_null,
             default=default,
+            types=types,
             no_detect_types=no_detect_types,
             analyze=analyze,
             load_extension=load_extension,

@@ -664,6 +664,53 @@ def test_insert_csv_detect_types_new_table(db_path):
     assert db["data"].columns_dict == {"name": str, "age": int, "weight": float}
 
 
+@pytest.mark.parametrize(
+    "command,extra_args,input_text,expected_row",
+    (
+        (
+            "insert",
+            [],
+            "zipcode,score\n01234,9.5\n",
+            {"zipcode": "01234", "score": 9.5},
+        ),
+        (
+            "upsert",
+            ["--pk", "id"],
+            "id,zipcode,score\n1,01234,9.5\n",
+            {"id": 1, "zipcode": "01234", "score": 9.5},
+        ),
+    ),
+)
+def test_insert_upsert_csv_type_overrides_detected_types(
+    db_path, command, extra_args, input_text, expected_row
+):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            command,
+            db_path,
+            "places",
+            "-",
+            "--csv",
+        ]
+        + extra_args
+        + [
+            "--type",
+            "zipcode",
+            "text",
+        ],
+        catch_exceptions=False,
+        input=input_text,
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    expected_columns = {"zipcode": str, "score": float}
+    if command == "upsert":
+        expected_columns = {"id": int, **expected_columns}
+    assert db["places"].columns_dict == expected_columns
+    assert list(db["places"].rows) == [expected_row]
+
+
 def test_upsert_csv_detect_types_leaves_existing_table_alone(db_path):
     db = Database(db_path)
     db["places"].insert({"id": 1, "name": "Boston", "zip": "01234"}, pk="id")
