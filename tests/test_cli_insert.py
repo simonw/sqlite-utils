@@ -691,3 +691,153 @@ def test_insert_invalid_pk_clean_error(db_path):
     assert result.exit_code == 1
     assert result.exception is None or isinstance(result.exception, SystemExit)
     assert result.output.startswith("Error: Invalid primary key column")
+
+
+# --code tests, see https://github.com/simonw/sqlite-utils/issues/684
+CODE_ROWS_FUNCTION = """
+def rows():
+    yield {"id": 1, "name": "Cleo"}
+    yield {"id": 2, "name": "Suna"}
+"""
+
+CODE_ROWS_ITERABLE = """
+rows = [
+    {"id": 1, "name": "Cleo"},
+    {"id": 2, "name": "Suna"},
+]
+"""
+
+
+@pytest.mark.parametrize("code", (CODE_ROWS_FUNCTION, CODE_ROWS_ITERABLE))
+def test_insert_code(tmpdir, code):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", code, "--pk", "id"],
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    assert db["creatures"].pks == ["id"]
+    assert list(db["creatures"].rows) == [
+        {"id": 1, "name": "Cleo"},
+        {"id": 2, "name": "Suna"},
+    ]
+
+
+def test_insert_code_from_file(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    code_path = str(tmpdir / "gen.py")
+    with open(code_path, "w") as fp:
+        fp.write(CODE_ROWS_FUNCTION)
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", code_path],
+    )
+    assert result.exit_code == 0, result.output
+    assert list(Database(db_path)["creatures"].rows) == [
+        {"id": 1, "name": "Cleo"},
+        {"id": 2, "name": "Suna"},
+    ]
+
+
+def test_upsert_code(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    db = Database(db_path)
+    db["creatures"].insert_all(
+        [{"id": 1, "name": "old"}, {"id": 2, "name": "Suna"}], pk="id"
+    )
+    result = CliRunner().invoke(
+        cli.cli,
+        ["upsert", db_path, "creatures", "--code", CODE_ROWS_FUNCTION, "--pk", "id"],
+    )
+    assert result.exit_code == 0, result.output
+    assert list(db["creatures"].rows) == [
+        {"id": 1, "name": "Cleo"},
+        {"id": 2, "name": "Suna"},
+    ]
+
+
+def test_insert_code_requires_file_or_code(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(cli.cli, ["insert", db_path, "creatures"])
+    assert result.exit_code == 1
+    assert "Provide either a FILE argument or --code" in result.output
+
+
+def test_insert_code_mutually_exclusive_with_file(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "-", "--code", CODE_ROWS_FUNCTION],
+        input="{}",
+    )
+    assert result.exit_code == 1
+    assert "--code cannot be used with a FILE argument" in result.output
+
+
+def test_insert_code_rejects_input_format_options(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", CODE_ROWS_FUNCTION, "--csv"],
+    )
+    assert result.exit_code == 1
+    assert "--code cannot be used with input format options" in result.output
+
+
+def test_insert_code_missing_rows(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", "x = 1"],
+    )
+    assert result.exit_code == 1
+    assert "must define a 'rows' function or iterable" in result.output
+
+
+def test_insert_code_single_dict(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            db_path,
+            "creatures",
+            "--code",
+            'rows = {"id": 1, "name": "Cleo"}',
+            "--pk",
+            "id",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert list(Database(db_path)["creatures"].rows) == [{"id": 1, "name": "Cleo"}]
+
+
+def test_insert_code_not_iterable(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", "rows = 5"],
+    )
+    assert result.exit_code == 1
+    assert "must define a 'rows' function or iterable" in result.output
+
+
+def test_insert_code_syntax_error(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", "def rows(:"],
+    )
+    assert result.exit_code == 1
+    assert "Error in --code" in result.output
+
+
+def test_insert_code_file_not_found(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", "missing.py"],
+    )
+    assert result.exit_code == 1
+    assert "File not found: missing.py" in result.output

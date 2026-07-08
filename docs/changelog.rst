@@ -10,6 +10,7 @@ Unreleased
 ----------
 
 - ``sqlite-utils query`` can now read the SQL query from standard input by passing ``-`` in place of the query, for example ``echo "select * from dogs" | sqlite-utils query dogs.db -``. (:issue:`765`)
+- ``sqlite-utils insert`` and ``sqlite-utils upsert`` now accept a ``--code`` option for providing a block of Python code (or a path to a ``.py`` file) that defines a ``rows()`` function or ``rows`` iterable of rows to insert, as an alternative to importing from a file. (:issue:`684`)
 
 .. _v4_0:
 

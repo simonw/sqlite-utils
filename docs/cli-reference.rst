@@ -230,7 +230,7 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
 
 ::
 
-    Usage: sqlite-utils insert [OPTIONS] PATH TABLE FILE
+    Usage: sqlite-utils insert [OPTIONS] PATH TABLE [FILE]
 
       Insert records from FILE into a table, creating the table if it does not
       already exist.
@@ -272,8 +272,20 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
           echo 'A bunch of words' | sqlite-utils insert words.db words - \
             --text --convert '({"word": w} for w in text.split())'
 
+      Instead of a FILE you can use --code to provide a block of Python code that
+      defines the rows to insert, as either a rows() function that yields
+      dictionaries or a "rows" iterable. --code can also be a path to a .py file:
+
+          sqlite-utils insert data.db creatures --code '
+          def rows():
+              yield {"id": 1, "name": "Cleo"}
+              yield {"id": 2, "name": "Suna"}
+          ' --pk id
+
     Options:
       --pk TEXT                 Columns to use as the primary key, e.g. id
+      --code TEXT               Python code defining a rows() function or iterable
+                                of rows to insert
       --flatten                 Flatten nested JSON objects, so {"a": {"b": 1}}
                                 becomes {"a_b": 1}
       --nl                      Expect newline-delimited JSON
@@ -315,7 +327,7 @@ See :ref:`cli_upsert`.
 
 ::
 
-    Usage: sqlite-utils upsert [OPTIONS] PATH TABLE FILE
+    Usage: sqlite-utils upsert [OPTIONS] PATH TABLE [FILE]
 
       Upsert records based on their primary key. Works like 'insert' but if an
       incoming record has a primary key that matches an existing record the existing
@@ -332,6 +344,8 @@ See :ref:`cli_upsert`.
 
     Options:
       --pk TEXT                 Columns to use as the primary key, e.g. id
+      --code TEXT               Python code defining a rows() function or iterable
+                                of rows to insert
       --flatten                 Flatten nested JSON objects, so {"a": {"b": 1}}
                                 becomes {"a_b": 1}
       --nl                      Expect newline-delimited JSON

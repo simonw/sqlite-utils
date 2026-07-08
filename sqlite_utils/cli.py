@@ -944,12 +944,18 @@ def insert_upsert_options(*, require_pk=False):
                     required=True,
                 ),
                 click.argument("table"),
-                click.argument("file", type=click.File("rb", lazy=True), required=True),
+                click.argument(
+                    "file", type=click.File("rb", lazy=True), required=False
+                ),
                 click.option(
                     "--pk",
                     help="Columns to use as the primary key, e.g. id",
                     multiple=True,
                     required=require_pk,
+                ),
+                click.option(
+                    "--code",
+                    help="Python code defining a rows() function or iterable of rows to insert",
                 ),
             )
             + _import_options
@@ -1035,11 +1041,118 @@ def insert_upsert_implementation(
     bulk_sql=None,
     functions=None,
     strict=False,
+    code=None,
 ):
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
     _maybe_register_functions(db, functions)
+
+    def _insert_docs(docs, tracker=None):
+        extra_kwargs = {
+            "ignore": ignore,
+            "replace": replace,
+            "truncate": truncate,
+            "analyze": analyze,
+            "strict": strict,
+        }
+        if not_null:
+            extra_kwargs["not_null"] = set(not_null)
+        if default:
+            extra_kwargs["defaults"] = dict(default)
+        if upsert:
+            extra_kwargs["upsert"] = upsert
+
+        # docs should all be dictionaries
+        docs = (verify_is_dict(doc) for doc in docs)
+
+        # Apply {"$base64": true, ...} decoding, if needed
+        docs = (decode_base64_values(doc) for doc in docs)
+
+        # For bulk_sql= we use cursor.executemany() instead
+        if bulk_sql:
+            if batch_size:
+                doc_chunks = chunks(docs, batch_size)
+            else:
+                doc_chunks = [docs]
+            for doc_chunk in doc_chunks:
+                with db.atomic():
+                    db.conn.cursor().executemany(bulk_sql, doc_chunk)
+            return
+
+        # table_names() rather than db.table(), which raises NoTable for
+        # views before the error handling below can deal with them
+        table_existed_before_insert = table in db.table_names()
+        try:
+            db.table(table).insert_all(
+                docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
+            )
+        except (NoTable, InvalidColumns, PrimaryKeyRequired) as e:
+            raise click.ClickException(str(e))
+        except Exception as e:
+            if (
+                isinstance(e, OperationalError)
+                and e.args
+                and (
+                    "has no column named" in e.args[0] or "no such column" in e.args[0]
+                )
+            ):
+                raise click.ClickException(
+                    "{}\n\nTry using --alter to add additional columns".format(
+                        e.args[0]
+                    )
+                )
+            # If we can find sql= and parameters= arguments, show those
+            variables = _find_variables(e.__traceback__, ["sql", "parameters"])
+            if "sql" in variables and "parameters" in variables:
+                raise click.ClickException(
+                    "{}\n\nsql = {}\nparameters = {}".format(
+                        str(e), variables["sql"], variables["parameters"]
+                    )
+                )
+            else:
+                raise
+        # Apply detected types only to a table this command created -
+        # transforming a pre-existing table would rewrite its column types
+        # and corrupt values such as TEXT zip codes with leading zeros
+        if (
+            tracker is not None
+            and not table_existed_before_insert
+            and db.table(table).exists()
+        ):
+            db.table(table).transform(types=tracker.types)
+
+    if code is not None:
+        if file is not None:
+            raise click.ClickException("--code cannot be used with a FILE argument")
+        if any(
+            [
+                flatten,
+                nl,
+                csv,
+                tsv,
+                empty_null,
+                lines,
+                text,
+                convert,
+                sniff,
+                no_headers,
+                delimiter,
+                quotechar,
+                encoding,
+            ]
+        ):
+            raise click.ClickException(
+                "--code cannot be used with input format options"
+            )
+        _insert_docs(_rows_from_code(code))
+        return
+
+    if file is None:
+        raise click.ClickException(
+            "Provide either a FILE argument or --code to specify rows to insert"
+        )
+
     if (delimiter or quotechar or sniff or no_headers) and not tsv:
         csv = True
     if (nl + csv + tsv) >= 2:
@@ -1147,78 +1260,7 @@ def insert_upsert_implementation(
             else:
                 docs = (fn(doc) or doc for doc in docs)
 
-        extra_kwargs = {
-            "ignore": ignore,
-            "replace": replace,
-            "truncate": truncate,
-            "analyze": analyze,
-            "strict": strict,
-        }
-        if not_null:
-            extra_kwargs["not_null"] = set(not_null)
-        if default:
-            extra_kwargs["defaults"] = dict(default)
-        if upsert:
-            extra_kwargs["upsert"] = upsert
-
-        # docs should all be dictionaries
-        docs = (verify_is_dict(doc) for doc in docs)
-
-        # Apply {"$base64": true, ...} decoding, if needed
-        docs = (decode_base64_values(doc) for doc in docs)
-
-        # For bulk_sql= we use cursor.executemany() instead
-        if bulk_sql:
-            if batch_size:
-                doc_chunks = chunks(docs, batch_size)
-            else:
-                doc_chunks = [docs]
-            for doc_chunk in doc_chunks:
-                with db.atomic():
-                    db.conn.cursor().executemany(bulk_sql, doc_chunk)
-            return
-
-        # table_names() rather than db.table(), which raises NoTable for
-        # views before the error handling below can deal with them
-        table_existed_before_insert = table in db.table_names()
-        try:
-            db.table(table).insert_all(
-                docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
-            )
-        except (NoTable, InvalidColumns, PrimaryKeyRequired) as e:
-            raise click.ClickException(str(e))
-        except Exception as e:
-            if (
-                isinstance(e, OperationalError)
-                and e.args
-                and (
-                    "has no column named" in e.args[0] or "no such column" in e.args[0]
-                )
-            ):
-                raise click.ClickException(
-                    "{}\n\nTry using --alter to add additional columns".format(
-                        e.args[0]
-                    )
-                )
-            # If we can find sql= and parameters= arguments, show those
-            variables = _find_variables(e.__traceback__, ["sql", "parameters"])
-            if "sql" in variables and "parameters" in variables:
-                raise click.ClickException(
-                    "{}\n\nsql = {}\nparameters = {}".format(
-                        str(e), variables["sql"], variables["parameters"]
-                    )
-                )
-            else:
-                raise
-        # Apply detected types only to a table this command created -
-        # transforming a pre-existing table would rewrite its column types
-        # and corrupt values such as TEXT zip codes with leading zeros
-        if (
-            tracker is not None
-            and not table_existed_before_insert
-            and db.table(table).exists()
-        ):
-            db.table(table).transform(types=tracker.types)
+        _insert_docs(docs, tracker=tracker)
 
         # Clean up open file-like objects
         if sniff_buffer:
@@ -1261,6 +1303,7 @@ def insert(
     table,
     file,
     pk,
+    code,
     flatten,
     nl,
     csv,
@@ -1332,6 +1375,17 @@ def insert(
     \b
         echo 'A bunch of words' | sqlite-utils insert words.db words - \\
           --text --convert '({"word": w} for w in text.split())'
+
+    Instead of a FILE you can use --code to provide a block of Python code
+    that defines the rows to insert, as either a rows() function that yields
+    dictionaries or a "rows" iterable. --code can also be a path to a .py file:
+
+    \b
+        sqlite-utils insert data.db creatures --code '
+        def rows():
+            yield {"id": 1, "name": "Cleo"}
+            yield {"id": 2, "name": "Suna"}
+        ' --pk id
     """
     try:
         insert_upsert_implementation(
@@ -1367,6 +1421,7 @@ def insert(
             not_null=not_null,
             default=default,
             strict=strict,
+            code=code,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
@@ -1379,6 +1434,7 @@ def upsert(
     table,
     file,
     pk,
+    code,
     flatten,
     nl,
     csv,
@@ -1450,6 +1506,7 @@ def upsert(
             load_extension=load_extension,
             silent=silent,
             strict=strict,
+            code=code,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
@@ -3669,3 +3726,32 @@ def _maybe_register_functions(db, functions_list):
     for functions in functions_list:
         if isinstance(functions, str) and functions.strip():
             _register_functions(db, functions)
+
+
+def _rows_from_code(code):
+    # code may be a path to a .py file
+    if "\n" not in code and code.endswith(".py"):
+        try:
+            code = pathlib.Path(code).read_text()
+        except FileNotFoundError:
+            raise click.ClickException("File not found: {}".format(code))
+    namespace = {}
+    try:
+        exec(code, namespace)
+    except SyntaxError as ex:
+        raise click.ClickException("Error in --code: {}".format(ex))
+    rows = namespace.get("rows")
+    if callable(rows):
+        rows = rows()
+    if isinstance(rows, dict):
+        rows = [rows]
+    error = click.ClickException(
+        "--code must define a 'rows' function or iterable of rows to insert"
+    )
+    if rows is None or isinstance(rows, (str, bytes)):
+        raise error
+    try:
+        iter(rows)
+    except TypeError:
+        raise error
+    return rows
