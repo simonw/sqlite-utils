@@ -3077,9 +3077,7 @@ def _generate_convert_help():
     for name in recipe_names:
         fn = getattr(recipes, name)
         doc = textwrap.dedent(fn.__doc__.rstrip()).replace("\b\n", "")
-        help += "\n\nr.{}{}\n\n\b{}".format(
-            name, str(inspect.signature(fn)), doc
-        )
+        help += "\n\nr.{}{}\n\n\b{}".format(name, str(inspect.signature(fn)), doc)
     help += "\n\n"
     help += textwrap.dedent("""
     You can use these recipes like so:
