@@ -83,3 +83,20 @@ def test_maximize_csv_field_size_limit():
 )
 def test_flatten(input, expected):
     assert utils.flatten(input) == expected
+
+
+@pytest.mark.parametrize(
+    "input,expected",
+    (
+        ([], []),
+        (["id", "name"], ["id", "name"]),
+        (["id", "id"], ["id", "id_2"]),
+        (["id", "id", "id"], ["id", "id_2", "id_3"]),
+        # A renamed duplicate must not clobber a real column called id_2
+        (["id", "id", "id_2"], ["id", "id_3", "id_2"]),
+        (["id_2", "id", "id"], ["id_2", "id", "id_3"]),
+        (["id", "id", "id_2", "id_2"], ["id", "id_3", "id_2", "id_2_2"]),
+    ),
+)
+def test_dedupe_keys(input, expected):
+    assert utils.dedupe_keys(input) == expected

@@ -20,7 +20,7 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         "query", "memory", "insert", "upsert", "bulk", "search", "transform", "extract",
         "schema", "insert-files", "analyze-tables", "convert", "tables", "views", "rows",
         "triggers", "indexes", "create-database", "create-table", "create-index",
-        "enable-fts", "populate-fts", "rebuild-fts", "disable-fts"
+        "migrate", "enable-fts", "populate-fts", "rebuild-fts", "disable-fts"
     ]
     refs = {
         "query": "cli_query",
@@ -49,6 +49,7 @@ This page lists the ``--help`` for every ``sqlite-utils`` CLI sub-command.
         "enable-wal": "cli_wal",
         "enable-counts": "cli_enable_counts",
         "bulk": "cli_bulk",
+        "migrate": "cli_migrate",
         "create-database": "cli_create_database",
         "create-table": "cli_create_table",
         "drop-table": "cli_drop_table",
@@ -108,6 +109,10 @@ See :ref:`cli_query`.
               "select * from chickens where age > :age" \
               -p age 1
 
+      Pass "-" as the SQL to read the query from standard input:
+
+          echo "select * from chickens" | sqlite-utils data.db -
+
     Options:
       --attach <TEXT FILE>...     Additional databases to attach - specify alias and
                                   filepath
@@ -115,24 +120,26 @@ See :ref:`cli_query`.
       --arrays                    Output rows as arrays instead of objects
       --csv                       Output CSV
       --tsv                       Output TSV
-      --no-headers                Omit CSV headers
+      --no-headers                Omit headers from CSV/TSV and table/--fmt output
       -t, --table                 Output as a formatted table
-      --fmt TEXT                  Table format - one of asciidoc, double_grid,
-                                  double_outline, fancy_grid, fancy_outline, github,
-                                  grid, heavy_grid, heavy_outline, html, jira,
-                                  latex, latex_booktabs, latex_longtable, latex_raw,
-                                  mediawiki, mixed_grid, mixed_outline, moinmoin,
-                                  orgtbl, outline, pipe, plain, presto, pretty,
-                                  psql, rounded_grid, rounded_outline, rst, simple,
-                                  simple_grid, simple_outline, textile, tsv,
-                                  unsafehtml, youtrack
+      --fmt TEXT                  Table format - one of asciidoc, colon_grid,
+                                  double_grid, double_outline, fancy_grid,
+                                  fancy_outline, github, grid, heavy_grid,
+                                  heavy_outline, html, jira, latex, latex_booktabs,
+                                  latex_longtable, latex_raw, mediawiki, mixed_grid,
+                                  mixed_outline, moinmoin, orgtbl, outline, pipe,
+                                  plain, presto, pretty, psql, rounded_grid,
+                                  rounded_outline, rst, simple, simple_grid,
+                                  simple_outline, textile, tsv, unsafehtml, youtrack
       --json-cols                 Detect JSON cols and output them as JSON, not
                                   escaped strings
+      --ascii                     Escape non-ASCII characters in JSON output as
+                                  \uXXXX
       -r, --raw                   Raw output, first column of first row
       --raw-lines                 Raw output, first column of each row
       -p, --param <TEXT TEXT>...  Named :parameters for SQL query
-      --functions TEXT            Python code or file path defining custom SQL
-                                  functions
+      --functions TEXT            Python code or a file path defining custom SQL
+                                  functions; can be used multiple times
       --load-extension TEXT       Path to SQLite extension, with optional
                                   :entrypoint
       -h, --help                  Show this message and exit.
@@ -174,8 +181,8 @@ See :ref:`cli_memory`.
           sqlite-utils memory animals.csv --schema
 
     Options:
-      --functions TEXT            Python code or file path defining custom SQL
-                                  functions
+      --functions TEXT            Python code or a file path defining custom SQL
+                                  functions; can be used multiple times
       --attach <TEXT FILE>...     Additional databases to attach - specify alias and
                                   filepath
       --flatten                   Flatten nested JSON objects, so {"foo": {"bar":
@@ -184,19 +191,21 @@ See :ref:`cli_memory`.
       --arrays                    Output rows as arrays instead of objects
       --csv                       Output CSV
       --tsv                       Output TSV
-      --no-headers                Omit CSV headers
+      --no-headers                Omit headers from CSV/TSV and table/--fmt output
       -t, --table                 Output as a formatted table
-      --fmt TEXT                  Table format - one of asciidoc, double_grid,
-                                  double_outline, fancy_grid, fancy_outline, github,
-                                  grid, heavy_grid, heavy_outline, html, jira,
-                                  latex, latex_booktabs, latex_longtable, latex_raw,
-                                  mediawiki, mixed_grid, mixed_outline, moinmoin,
-                                  orgtbl, outline, pipe, plain, presto, pretty,
-                                  psql, rounded_grid, rounded_outline, rst, simple,
-                                  simple_grid, simple_outline, textile, tsv,
-                                  unsafehtml, youtrack
+      --fmt TEXT                  Table format - one of asciidoc, colon_grid,
+                                  double_grid, double_outline, fancy_grid,
+                                  fancy_outline, github, grid, heavy_grid,
+                                  heavy_outline, html, jira, latex, latex_booktabs,
+                                  latex_longtable, latex_raw, mediawiki, mixed_grid,
+                                  mixed_outline, moinmoin, orgtbl, outline, pipe,
+                                  plain, presto, pretty, psql, rounded_grid,
+                                  rounded_outline, rst, simple, simple_grid,
+                                  simple_outline, textile, tsv, unsafehtml, youtrack
       --json-cols                 Detect JSON cols and output them as JSON, not
                                   escaped strings
+      --ascii                     Escape non-ASCII characters in JSON output as
+                                  \uXXXX
       -r, --raw                   Raw output, first column of first row
       --raw-lines                 Raw output, first column of each row
       -p, --param <TEXT TEXT>...  Named :parameters for SQL query
@@ -221,7 +230,7 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
 
 ::
 
-    Usage: sqlite-utils insert [OPTIONS] PATH TABLE FILE
+    Usage: sqlite-utils insert [OPTIONS] PATH TABLE [FILE]
 
       Insert records from FILE into a table, creating the table if it does not
       already exist.
@@ -236,6 +245,9 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       - Use --csv or --tsv for comma-separated or tab-separated input
       - Use --lines to write each incoming line to a column called "line"
       - Use --text to write the entire input to a column called "text"
+
+      Use --type column-name type to override the type automatically chosen when the
+      table is created.
 
       You can also use --convert to pass a fragment of Python code that will be used
       to convert each input.
@@ -263,8 +275,20 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
           echo 'A bunch of words' | sqlite-utils insert words.db words - \
             --text --convert '({"word": w} for w in text.split())'
 
+      Instead of a FILE you can use --code to provide a block of Python code that
+      defines the rows to insert, as either a rows() function that yields
+      dictionaries or a "rows" iterable. --code can also be a path to a .py file:
+
+          sqlite-utils insert data.db creatures --code '
+          def rows():
+              yield {"id": 1, "name": "Cleo"}
+              yield {"id": 2, "name": "Suna"}
+          ' --pk id
+
     Options:
       --pk TEXT                 Columns to use as the primary key, e.g. id
+      --code TEXT               Python code defining a rows() function or iterable
+                                of rows to insert
       --flatten                 Flatten nested JSON objects, so {"a": {"b": 1}}
                                 becomes {"a_b": 1}
       --nl                      Expect newline-delimited JSON
@@ -285,7 +309,7 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --alter                   Alter existing table to add any missing columns
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column
-      -d, --detect-types        Detect types for columns in CSV/TSV data (default)
+      --type <TEXT CHOICE>...   Column types to use when creating the table
       --no-detect-types         Treat all CSV/TSV columns as TEXT
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
@@ -307,11 +331,16 @@ See :ref:`cli_upsert`.
 
 ::
 
-    Usage: sqlite-utils upsert [OPTIONS] PATH TABLE FILE
+    Usage: sqlite-utils upsert [OPTIONS] PATH TABLE [FILE]
 
       Upsert records based on their primary key. Works like 'insert' but if an
       incoming record has a primary key that matches an existing record the existing
       record will be updated.
+
+      If the table already exists and has a primary key, --pk can be omitted.
+
+      Use --type column-name type to override the type automatically chosen when the
+      table is created.
 
       Example:
 
@@ -322,7 +351,8 @@ See :ref:`cli_upsert`.
 
     Options:
       --pk TEXT                 Columns to use as the primary key, e.g. id
-                                [required]
+      --code TEXT               Python code defining a rows() function or iterable
+                                of rows to insert
       --flatten                 Flatten nested JSON objects, so {"a": {"b": 1}}
                                 becomes {"a_b": 1}
       --nl                      Expect newline-delimited JSON
@@ -343,7 +373,7 @@ See :ref:`cli_upsert`.
       --alter                   Alter existing table to add any missing columns
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column
-      -d, --detect-types        Detect types for columns in CSV/TSV data (default)
+      --type <TEXT CHOICE>...   Column types to use when creating the table
       --no-detect-types         Treat all CSV/TSV columns as TEXT
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
@@ -376,7 +406,8 @@ See :ref:`cli_bulk`.
 
     Options:
       --batch-size INTEGER   Commit every X records
-      --functions TEXT       Python code or file path defining custom SQL functions
+      --functions TEXT       Python code or a file path defining custom SQL
+                             functions; can be used multiple times
       --flatten              Flatten nested JSON objects, so {"a": {"b": 1}} becomes
                              {"a_b": 1}
       --nl                   Expect newline-delimited JSON
@@ -423,18 +454,20 @@ See :ref:`cli_search`.
       --arrays               Output rows as arrays instead of objects
       --csv                  Output CSV
       --tsv                  Output TSV
-      --no-headers           Omit CSV headers
+      --no-headers           Omit headers from CSV/TSV and table/--fmt output
       -t, --table            Output as a formatted table
-      --fmt TEXT             Table format - one of asciidoc, double_grid,
-                             double_outline, fancy_grid, fancy_outline, github,
-                             grid, heavy_grid, heavy_outline, html, jira, latex,
-                             latex_booktabs, latex_longtable, latex_raw, mediawiki,
-                             mixed_grid, mixed_outline, moinmoin, orgtbl, outline,
-                             pipe, plain, presto, pretty, psql, rounded_grid,
-                             rounded_outline, rst, simple, simple_grid,
-                             simple_outline, textile, tsv, unsafehtml, youtrack
+      --fmt TEXT             Table format - one of asciidoc, colon_grid,
+                             double_grid, double_outline, fancy_grid, fancy_outline,
+                             github, grid, heavy_grid, heavy_outline, html, jira,
+                             latex, latex_booktabs, latex_longtable, latex_raw,
+                             mediawiki, mixed_grid, mixed_outline, moinmoin, orgtbl,
+                             outline, pipe, plain, presto, pretty, psql,
+                             rounded_grid, rounded_outline, rst, simple,
+                             simple_grid, simple_outline, textile, tsv, unsafehtml,
+                             youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
+      --ascii                Escape non-ASCII characters in JSON output as \uXXXX
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
@@ -611,6 +644,11 @@ See :ref:`cli_convert`.
 
       "value" is a variable with the column value to be converted.
 
+      CODE can also be a reference to a callable that takes the value, for example:
+
+      sqlite-utils convert my.db mytable date r.parsedate
+      sqlite-utils convert my.db mytable data json.loads --import json
+
       Use "-" for CODE to read Python code from standard input.
 
       The following common operations are available as recipe functions:
@@ -624,7 +662,6 @@ See :ref:`cli_convert`.
       errors: 'Optional[object]' = None) -> 'Optional[str]'
 
       Parse a date and convert it to ISO date format: yyyy-mm-dd
-  
       - dayfirst=True: treat xx as the day in xx/yy/zz
       - yearfirst=True: treat xx as the year in xx/yy/zz
       - errors=r.IGNORE to ignore values that cannot be parsed
@@ -634,7 +671,6 @@ See :ref:`cli_convert`.
       False, errors: 'Optional[object]' = None) -> 'Optional[str]'
 
       Parse a datetime and convert it to ISO datetime format: yyyy-mm-ddTHH:MM:SS
-  
       - dayfirst=True: treat xx as the day in xx/yy/zz
       - yearfirst=True: treat xx as the year in xx/yy/zz
       - errors=r.IGNORE to ignore values that cannot be parsed
@@ -688,18 +724,20 @@ See :ref:`cli_tables`.
       --arrays               Output rows as arrays instead of objects
       --csv                  Output CSV
       --tsv                  Output TSV
-      --no-headers           Omit CSV headers
+      --no-headers           Omit headers from CSV/TSV and table/--fmt output
       -t, --table            Output as a formatted table
-      --fmt TEXT             Table format - one of asciidoc, double_grid,
-                             double_outline, fancy_grid, fancy_outline, github,
-                             grid, heavy_grid, heavy_outline, html, jira, latex,
-                             latex_booktabs, latex_longtable, latex_raw, mediawiki,
-                             mixed_grid, mixed_outline, moinmoin, orgtbl, outline,
-                             pipe, plain, presto, pretty, psql, rounded_grid,
-                             rounded_outline, rst, simple, simple_grid,
-                             simple_outline, textile, tsv, unsafehtml, youtrack
+      --fmt TEXT             Table format - one of asciidoc, colon_grid,
+                             double_grid, double_outline, fancy_grid, fancy_outline,
+                             github, grid, heavy_grid, heavy_outline, html, jira,
+                             latex, latex_booktabs, latex_longtable, latex_raw,
+                             mediawiki, mixed_grid, mixed_outline, moinmoin, orgtbl,
+                             outline, pipe, plain, presto, pretty, psql,
+                             rounded_grid, rounded_outline, rst, simple,
+                             simple_grid, simple_outline, textile, tsv, unsafehtml,
+                             youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
+      --ascii                Escape non-ASCII characters in JSON output as \uXXXX
       --columns              Include list of columns for each table
       --schema               Include schema for each table
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
@@ -729,18 +767,20 @@ See :ref:`cli_views`.
       --arrays               Output rows as arrays instead of objects
       --csv                  Output CSV
       --tsv                  Output TSV
-      --no-headers           Omit CSV headers
+      --no-headers           Omit headers from CSV/TSV and table/--fmt output
       -t, --table            Output as a formatted table
-      --fmt TEXT             Table format - one of asciidoc, double_grid,
-                             double_outline, fancy_grid, fancy_outline, github,
-                             grid, heavy_grid, heavy_outline, html, jira, latex,
-                             latex_booktabs, latex_longtable, latex_raw, mediawiki,
-                             mixed_grid, mixed_outline, moinmoin, orgtbl, outline,
-                             pipe, plain, presto, pretty, psql, rounded_grid,
-                             rounded_outline, rst, simple, simple_grid,
-                             simple_outline, textile, tsv, unsafehtml, youtrack
+      --fmt TEXT             Table format - one of asciidoc, colon_grid,
+                             double_grid, double_outline, fancy_grid, fancy_outline,
+                             github, grid, heavy_grid, heavy_outline, html, jira,
+                             latex, latex_booktabs, latex_longtable, latex_raw,
+                             mediawiki, mixed_grid, mixed_outline, moinmoin, orgtbl,
+                             outline, pipe, plain, presto, pretty, psql,
+                             rounded_grid, rounded_outline, rst, simple,
+                             simple_grid, simple_outline, textile, tsv, unsafehtml,
+                             youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
+      --ascii                Escape non-ASCII characters in JSON output as \uXXXX
       --columns              Include list of columns for each view
       --schema               Include schema for each view
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
@@ -775,19 +815,21 @@ See :ref:`cli_rows`.
       --arrays                    Output rows as arrays instead of objects
       --csv                       Output CSV
       --tsv                       Output TSV
-      --no-headers                Omit CSV headers
+      --no-headers                Omit headers from CSV/TSV and table/--fmt output
       -t, --table                 Output as a formatted table
-      --fmt TEXT                  Table format - one of asciidoc, double_grid,
-                                  double_outline, fancy_grid, fancy_outline, github,
-                                  grid, heavy_grid, heavy_outline, html, jira,
-                                  latex, latex_booktabs, latex_longtable, latex_raw,
-                                  mediawiki, mixed_grid, mixed_outline, moinmoin,
-                                  orgtbl, outline, pipe, plain, presto, pretty,
-                                  psql, rounded_grid, rounded_outline, rst, simple,
-                                  simple_grid, simple_outline, textile, tsv,
-                                  unsafehtml, youtrack
+      --fmt TEXT                  Table format - one of asciidoc, colon_grid,
+                                  double_grid, double_outline, fancy_grid,
+                                  fancy_outline, github, grid, heavy_grid,
+                                  heavy_outline, html, jira, latex, latex_booktabs,
+                                  latex_longtable, latex_raw, mediawiki, mixed_grid,
+                                  mixed_outline, moinmoin, orgtbl, outline, pipe,
+                                  plain, presto, pretty, psql, rounded_grid,
+                                  rounded_outline, rst, simple, simple_grid,
+                                  simple_outline, textile, tsv, unsafehtml, youtrack
       --json-cols                 Detect JSON cols and output them as JSON, not
                                   escaped strings
+      --ascii                     Escape non-ASCII characters in JSON output as
+                                  \uXXXX
       --load-extension TEXT       Path to SQLite extension, with optional
                                   :entrypoint
       -h, --help                  Show this message and exit.
@@ -815,18 +857,20 @@ See :ref:`cli_triggers`.
       --arrays               Output rows as arrays instead of objects
       --csv                  Output CSV
       --tsv                  Output TSV
-      --no-headers           Omit CSV headers
+      --no-headers           Omit headers from CSV/TSV and table/--fmt output
       -t, --table            Output as a formatted table
-      --fmt TEXT             Table format - one of asciidoc, double_grid,
-                             double_outline, fancy_grid, fancy_outline, github,
-                             grid, heavy_grid, heavy_outline, html, jira, latex,
-                             latex_booktabs, latex_longtable, latex_raw, mediawiki,
-                             mixed_grid, mixed_outline, moinmoin, orgtbl, outline,
-                             pipe, plain, presto, pretty, psql, rounded_grid,
-                             rounded_outline, rst, simple, simple_grid,
-                             simple_outline, textile, tsv, unsafehtml, youtrack
+      --fmt TEXT             Table format - one of asciidoc, colon_grid,
+                             double_grid, double_outline, fancy_grid, fancy_outline,
+                             github, grid, heavy_grid, heavy_outline, html, jira,
+                             latex, latex_booktabs, latex_longtable, latex_raw,
+                             mediawiki, mixed_grid, mixed_outline, moinmoin, orgtbl,
+                             outline, pipe, plain, presto, pretty, psql,
+                             rounded_grid, rounded_outline, rst, simple,
+                             simple_grid, simple_outline, textile, tsv, unsafehtml,
+                             youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
+      --ascii                Escape non-ASCII characters in JSON output as \uXXXX
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
@@ -854,18 +898,20 @@ See :ref:`cli_indexes`.
       --arrays               Output rows as arrays instead of objects
       --csv                  Output CSV
       --tsv                  Output TSV
-      --no-headers           Omit CSV headers
+      --no-headers           Omit headers from CSV/TSV and table/--fmt output
       -t, --table            Output as a formatted table
-      --fmt TEXT             Table format - one of asciidoc, double_grid,
-                             double_outline, fancy_grid, fancy_outline, github,
-                             grid, heavy_grid, heavy_outline, html, jira, latex,
-                             latex_booktabs, latex_longtable, latex_raw, mediawiki,
-                             mixed_grid, mixed_outline, moinmoin, orgtbl, outline,
-                             pipe, plain, presto, pretty, psql, rounded_grid,
-                             rounded_outline, rst, simple, simple_grid,
-                             simple_outline, textile, tsv, unsafehtml, youtrack
+      --fmt TEXT             Table format - one of asciidoc, colon_grid,
+                             double_grid, double_outline, fancy_grid, fancy_outline,
+                             github, grid, heavy_grid, heavy_outline, html, jira,
+                             latex, latex_booktabs, latex_longtable, latex_raw,
+                             mediawiki, mixed_grid, mixed_outline, moinmoin, orgtbl,
+                             outline, pipe, plain, presto, pretty, psql,
+                             rounded_grid, rounded_outline, rst, simple,
+                             simple_grid, simple_outline, textile, tsv, unsafehtml,
+                             youtrack
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
+      --ascii                Escape non-ASCII characters in JSON output as \uXXXX
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
@@ -911,10 +957,10 @@ See :ref:`cli_create_table`.
           sqlite-utils create-table my.db people \
               id integer \
               name text \
-              height float \
+              height real \
               photo blob --pk id
 
-      Valid column types are text, integer, float and blob.
+      Valid column types are text, integer, real, float and blob.
 
     Options:
       --pk TEXT                 Column to use as primary key
@@ -960,6 +1006,44 @@ See :ref:`cli_create_index`.
       -h, --help                 Show this message and exit.
 
 
+.. _cli_ref_migrate:
+
+migrate
+=======
+
+See :ref:`cli_migrate`.
+
+::
+
+    Usage: sqlite-utils migrate [OPTIONS] DB_PATH [MIGRATIONS]...
+
+      Apply pending database migrations.
+
+      Usage:
+
+          sqlite-utils migrate database.db
+
+      This will find the migrations.py file in the current directory or
+      subdirectories and apply any pending migrations.
+
+      Or pass paths to one or more migrations.py files directly:
+
+          sqlite-utils migrate database.db path/to/migrations.py
+
+      Pass --list to see a list of applied and pending migrations without applying
+      them.
+
+      Use --stop-before migration_set:name to stop before a migration. This option
+      can be used multiple times.
+
+    Options:
+      --stop-before TEXT  Stop before applying this migration. Use set:name to
+                          target a migration set.
+      --list              List migrations without running them
+      -v, --verbose       Show verbose output
+      -h, --help          Show this message and exit.
+
+
 .. _cli_ref_enable_fts:
 
 enable-fts
@@ -971,7 +1055,7 @@ See :ref:`cli_fts`.
 
     Usage: sqlite-utils enable-fts [OPTIONS] PATH TABLE COLUMN...
 
-      Enable full-text search for specific table and columns"
+      Enable full-text search for specific table and columns
 
       Example:
 
@@ -1147,7 +1231,7 @@ See :ref:`cli_add_column`.
 ::
 
     Usage: sqlite-utils add-column [OPTIONS] PATH TABLE COL_NAME
-                          [[integer|int|float|real|text|str|blob|bytes]]
+                          [integer|int|float|real|text|str|blob|bytes]
 
       Add a column to the specified table
 

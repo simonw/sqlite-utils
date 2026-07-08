@@ -3,6 +3,7 @@ from sqlite_utils.db import (
     Database,
     DescIndex,
     AlterError,
+    InvalidColumns,
     NoObviousTable,
     OperationalError,
     ForeignKey,
@@ -19,7 +20,6 @@ import json
 import pathlib
 import pytest
 import uuid
-
 
 try:
     import pandas as pd  # type: ignore
@@ -109,7 +109,7 @@ def test_create_table_with_defaults(fresh_db):
 
 
 def test_create_table_with_bad_not_null(fresh_db):
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         fresh_db.create_table(
             "players", {"name": str, "score": int}, not_null={"mouse"}
         )
@@ -244,11 +244,11 @@ def test_create_table_column_order(fresh_db, use_table_factory):
         # If you specify a column that doesn't point to a table, you  get an error:
         (("one_id", "two_id", "three_id"), NoObviousTable),
         # Tuples of the wrong length get an error:
-        ((("one_id", "one", "id", "five"), ("two_id", "two", "id")), AssertionError),
+        ((("one_id", "one", "id", "five"), ("two_id", "two", "id")), ValueError),
         # Likewise a bad column:
         ((("one_id", "one", "id2"),), AlterError),
         # Or a list of dicts
-        (({"one_id": "one"},), AssertionError),
+        (({"one_id": "one"},), ValueError),
     ),
 )
 @pytest.mark.parametrize("use_table_factory", [True, False])
@@ -701,7 +701,7 @@ def test_bulk_insert_more_than_999_values(fresh_db):
 def test_error_if_more_than_999_columns(fresh_db, num_columns, should_error):
     record = dict([("c{}".format(i), i) for i in range(num_columns)])
     if should_error:
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             fresh_db["big"].insert(record)
     else:
         fresh_db["big"].insert(record)
@@ -926,6 +926,58 @@ def test_insert_thousands_adds_extra_columns_after_first_100_with_alter(fresh_db
     assert rows == [{"i": 101, "word": None, "extra": "Should trigger ALTER"}]
 
 
+@pytest.mark.parametrize("num_rows", (0, 1, 2, 3, 10))
+def test_insert_all_pk_not_in_records_raises(fresh_db, num_rows):
+    # https://github.com/simonw/sqlite-utils/issues/732
+    fresh_db.conn.execute("CREATE TABLE t (a TEXT, b INT, PRIMARY KEY (a, b))")
+    rows = [{"a": "x{}".format(i), "b": i} for i in range(num_rows)]
+
+    with pytest.raises(InvalidColumns) as ex:
+        fresh_db["t"].insert_all(rows, pk="not_a_column")
+
+    assert ex.value.args == (
+        "Invalid primary key column ['not_a_column'] for table t with columns ['a', 'b']",
+    )
+    assert fresh_db["t"].count == 0
+
+
+@pytest.mark.parametrize("num_rows", (1, 2, 3, 10))
+def test_insert_all_pk_not_in_records_alter_raises(fresh_db, num_rows):
+    # With alter=True the check is deferred until the record keys are
+    # known - a pk column that is in neither the table nor the records
+    # still raises
+    fresh_db.conn.execute("CREATE TABLE t (a TEXT, b INT, PRIMARY KEY (a, b))")
+    rows = [{"a": "x{}".format(i), "b": i} for i in range(num_rows)]
+
+    with pytest.raises(InvalidColumns) as ex:
+        fresh_db["t"].insert_all(rows, pk="not_a_column", alter=True)
+
+    assert ex.value.args == (
+        "Invalid primary key column ['not_a_column'] for table t with columns ['a', 'b']",
+    )
+    assert fresh_db["t"].count == 0
+
+
+def test_insert_pk_in_records_with_alter_adds_column(fresh_db):
+    # 3.x allowed insert(pk=..., alter=True) to add the pk column from the
+    # records - the InvalidColumns check must not fire in that case
+    fresh_db["t"].insert({"a": 1})
+    fresh_db["t"].insert({"id": 5, "a": 2}, pk="id", alter=True)
+    assert fresh_db["t"].columns_dict.keys() == {"a", "id"}
+    assert list(fresh_db.query("select * from t order by a")) == [
+        {"a": 1, "id": None},
+        {"a": 2, "id": 5},
+    ]
+
+
+def test_insert_all_invalid_pk_alter_empty_records_is_noop(fresh_db):
+    # With alter=True the pk check needs record keys, so an empty iterator
+    # returns without error - matching the 3.x no-op for empty inserts
+    fresh_db.conn.execute("CREATE TABLE t (a TEXT)")
+    fresh_db["t"].insert_all([], pk="not_a_column", alter=True)
+    assert fresh_db["t"].count == 0
+
+
 def test_insert_ignore(fresh_db):
     fresh_db["test"].insert({"id": 1, "bar": 2}, pk="id")
     # Should raise an error if we try this again
@@ -936,6 +988,114 @@ def test_insert_ignore(fresh_db):
     # Only one row, and it should be bar=2, not bar=3
     rows = list(fresh_db.query("select * from test"))
     assert rows == [{"id": 1, "bar": 2}]
+
+
+def test_insert_ignore_reports_existing_row(fresh_db):
+    # An ignored insert (row already exists) should point last_rowid and
+    # last_pk at the existing conflicting row - see the Datasette insert API
+    fresh_db["docs"].insert({"id": 1, "title": "Exists"}, pk="id")
+    # Insert a conflicting row with ignore=True and no explicit pk=
+    table = fresh_db["docs"].insert({"id": 1, "title": "One"}, ignore=True)
+    assert table.last_rowid == 1
+    assert table.last_pk == 1
+    assert list(fresh_db["docs"].rows_where("rowid = ?", [table.last_rowid])) == [
+        {"id": 1, "title": "Exists"}
+    ]
+
+
+@pytest.mark.parametrize("rowid_alias", ("rowid", "_rowid_", "oid"))
+@pytest.mark.parametrize("method", ("upsert", "insert_replace", "insert_ignore"))
+def test_pk_rowid_alias_on_rowid_table(fresh_db, rowid_alias, method):
+    # rowid and its aliases are valid primary keys for a rowid table even
+    # though they are not listed among the table's columns - see the Datasette
+    # upsert API against tables without an explicit primary key
+    fresh_db["t"].insert({"title": "Hello"})
+    assert fresh_db["t"].pks == ["rowid"]
+    record = {rowid_alias: 1, "title": "Updated"}
+    if method == "upsert":
+        table = fresh_db["t"].upsert(record, pk=rowid_alias)
+    elif method == "insert_replace":
+        table = fresh_db["t"].insert(record, pk=rowid_alias, replace=True)
+    else:
+        table = fresh_db["t"].insert(record, pk=rowid_alias, ignore=True)
+    assert table.last_pk == 1
+    expected_title = "Hello" if method == "insert_ignore" else "Updated"
+    assert list(fresh_db["t"].rows) == [{"title": expected_title}]
+
+
+def test_insert_ignore_reports_existing_row_compound_pk(fresh_db):
+    # Compound primary key variant of the ignored-insert lookup
+    fresh_db["t"].insert_all([{"a": 1, "b": 2, "note": "first"}], pk=("a", "b"))
+    table = fresh_db["t"].insert(
+        {"a": 1, "b": 2, "note": "second"}, pk=("a", "b"), ignore=True
+    )
+    assert table.last_pk == (1, 2)
+    assert list(fresh_db["t"].rows_where("rowid = ?", [table.last_rowid])) == [
+        {"a": 1, "b": 2, "note": "first"}
+    ]
+
+
+def test_insert_ignore_reports_existing_row_list_mode(fresh_db):
+    # List-based iteration variant of the ignored-insert lookup
+    fresh_db["t"].insert_all([["id", "title"], [1, "first"]], pk="id")
+    table = fresh_db["t"].insert_all(
+        [["id", "title"], [1, "second"]], pk="id", ignore=True
+    )
+    assert table.last_pk == 1
+    assert table.last_rowid == 1
+    assert list(fresh_db["t"].rows) == [{"id": 1, "title": "first"}]
+
+
+def test_insert_ignore_hash_id_reports_pk(fresh_db):
+    # With hash_id the pk is the computed hash; the original record has no id
+    # column to look up so last_rowid is left unset
+    first = fresh_db["dogs"].insert({"name": "Cleo"}, hash_id="id")
+    table = fresh_db["dogs"].insert({"name": "Cleo"}, hash_id="id", ignore=True)
+    assert table.last_pk == first.last_pk
+    assert table.last_rowid is None
+    assert fresh_db["dogs"].count == 1
+
+
+def test_insert_ignore_unresolvable_conflict_leaves_pk_unset(fresh_db):
+    # When the conflict cannot be resolved to a primary key lookup, last_pk and
+    # last_rowid are left unset rather than reporting a misleading value
+
+    # rowid table with a UNIQUE column and no primary key: no pk to look up
+    fresh_db["u"].db.execute("create table u (title text unique)")
+    fresh_db["u"].insert({"title": "x"})
+    table = fresh_db["u"].insert({"title": "x"}, ignore=True)
+    assert table.last_pk is None
+    assert table.last_rowid is None
+    assert fresh_db["u"].count == 1
+
+    # Conflict on a UNIQUE column other than the primary key: the pk value from
+    # the record does not match the existing row, so the lookup finds nothing
+    fresh_db["docs"].db.execute(
+        "create table docs (id integer primary key, email text unique)"
+    )
+    fresh_db["docs"].insert({"id": 1, "email": "a"}, pk="id")
+    table = fresh_db["docs"].insert({"id": 2, "email": "a"}, ignore=True)
+    assert table.last_pk is None
+    assert table.last_rowid is None
+    assert fresh_db["docs"].count == 1
+
+
+def test_insert_ignore_with_pk_after_other_table_insert(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/554
+    user = {"id": "abc", "name": "david"}
+
+    fresh_db["users"].insert(user, pk="id")
+    fresh_db["comments"].insert_all(
+        [
+            {"id": "def", "text": "ok"},
+            {"id": "ghi", "text": "great"},
+        ],
+    )
+
+    table = fresh_db["users"].insert(user, pk="id", ignore=True)
+
+    assert table.last_pk == "abc"
+    assert list(fresh_db["users"].rows) == [user]
 
 
 def test_insert_hash_id(fresh_db):
@@ -1062,7 +1222,7 @@ def test_create_table_numpy(fresh_db):
 
 def test_cannot_provide_both_filename_and_memory():
     with pytest.raises(
-        AssertionError, match="Either specify a filename_or_conn or pass memory=True"
+        ValueError, match="Either specify a filename_or_conn or pass memory=True"
     ):
         Database("/tmp/foo.db", memory=True)
 
@@ -1215,7 +1375,7 @@ def test_create_if_not_exists(fresh_db):
 
 
 def test_create_if_no_columns(fresh_db):
-    with pytest.raises(AssertionError) as error:
+    with pytest.raises(ValueError) as error:
         fresh_db["t"].create({})
     assert error.value.args[0] == "Tables must have at least one column"
 
@@ -1383,7 +1543,10 @@ def test_bad_table_and_view_exceptions(fresh_db):
     assert ex.value.args[0] == "Table v is actually a view"
     with pytest.raises(NoView) as ex2:
         fresh_db.view("t")
-    assert ex2.value.args[0] == "View t does not exist"
+    assert ex2.value.args[0] == "View t does not exist - t is a table"
+    with pytest.raises(NoView) as ex3:
+        fresh_db.view("missing")
+    assert ex3.value.args[0] == "View missing does not exist"
 
 
 # Tests for issue #655: Table configuration should be stored in _defaults

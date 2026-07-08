@@ -156,6 +156,24 @@ def test_memory_csv_encoding(tmpdir, use_stdin):
     }
 
 
+def test_memory_csv_headers_only(tmpdir):
+    csv_path = str(tmpdir / "headers_only.csv")
+    with open(csv_path, "w") as fp:
+        fp.write("id,name,age\n")
+
+    result = CliRunner().invoke(
+        cli.cli,
+        ["memory", csv_path, "", "--schema"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0
+    assert result.output.strip() == (
+        'CREATE VIEW "t1" AS select * from "headers_only";\n'
+        'CREATE VIEW "t" AS select * from "headers_only";'
+    )
+
+
 @pytest.mark.parametrize("extra_args", ([], ["select 1"]))
 def test_memory_dump(extra_args):
     result = CliRunner().invoke(

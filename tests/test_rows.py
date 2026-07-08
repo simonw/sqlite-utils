@@ -104,3 +104,37 @@ def test_pks_and_rows_where_compound_pk(fresh_db):
         (("number", 1), {"type": "number", "number": 1, "plusone": 2}),
         (("number", 2), {"type": "number", "number": 2, "plusone": 3}),
     ]
+
+
+def test_rows_where_duplicate_select_columns_are_deduped(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/624
+    fresh_db["t"].insert({"id": 1, "name": "Cleo"})
+    rows = list(fresh_db["t"].rows_where(select="id, id, name"))
+    assert rows == [{"id": 1, "id_2": 1, "name": "Cleo"}]
+
+
+def test_pks_and_rows_where_view(fresh_db):
+    # pks_and_rows_where() lives on Queryable so views expose it, but
+    # SQLite views have no rowid. Modern SQLite (3.36+) raises an
+    # OperationalError from the generated SQL; older versions returned
+    # NULL for a view's rowid. Either way it must not fail earlier with
+    # an AttributeError from View lacking Table-only properties
+    from sqlite_utils.utils import sqlite3
+
+    fresh_db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.create_view("dog_names", "select name from dogs")
+    try:
+        result = list(fresh_db["dog_names"].pks_and_rows_where())
+    except sqlite3.OperationalError:
+        pass  # SQLite 3.36+: no such column: rowid
+    else:
+        # Older SQLite returns NULL rowids for views
+        assert result == [(None, {"rowid": None, "name": "Cleo"})]
+
+
+def test_pks_and_rows_where_compound_pk_declaration_order(fresh_db):
+    # Compound pks are returned in PRIMARY KEY declaration order
+    fresh_db.execute("create table t (b text, a text, primary key (a, b))")
+    fresh_db["t"].insert({"a": "A", "b": "B"})
+    pks_and_rows = list(fresh_db["t"].pks_and_rows_where())
+    assert pks_and_rows == [(("A", "B"), {"b": "B", "a": "A"})]

@@ -10,13 +10,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15-dev"]
         numpy: [0, 1]
         os: [ubuntu-latest, macos-latest, windows-latest, macos-14]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
@@ -31,9 +31,6 @@ jobs:
     - name: Install SpatiaLite
       if: matrix.os == 'ubuntu-latest'
       run: sudo apt-get install libsqlite3-mod-spatialite
-    - name: On macOS with Python 3.10 test with sqlean.py
-      if: matrix.os == 'macos-latest' && matrix.python-version == '3.10'
-      run: pip install sqlean.py sqlite-dump
     - name: Build extension for --load-extension test
       if: matrix.os == 'ubuntu-latest'
       run: |-
@@ -41,12 +38,15 @@ jobs:
     - name: Run tests
       run: |
         pytest -v
+    - name: Run autocommit tests just on 3.14/Ubuntu
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14'
+      run: pytest --sqlite-autocommit
     - name: run mypy
       run: mypy sqlite_utils tests
     - name: run flake8
       run: flake8
     - name: run ty
-      if: matrix.os != 'windows-latest'
+      if: matrix.os != 'windows-latest' && matrix.python-version == '3.14'
       run: |
         pip install uv
         uv run ty check sqlite_utils

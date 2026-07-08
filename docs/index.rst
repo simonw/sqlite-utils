@@ -36,8 +36,10 @@ Contents
    installation
    cli
    python-api
+   migrations
    plugins
    reference
    cli-reference
+   upgrading
    contributing
    changelog
