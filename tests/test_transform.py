@@ -681,15 +681,20 @@ def test_transform_with_unique_constraint_implicit_index(fresh_db):
     """)
     dogs.insert({"id": 1, "name": "Cleo", "age": 5})
 
-    # Attempt to transform the table without modifying 'name'
-    with pytest.raises(TransformError) as excinfo:
-        dogs.transform(types={"age": str})
+    # Transform should succeed and preserve the UNIQUE constraint
+    dogs.transform(types={"age": str})
+    assert "UNIQUE" in dogs.schema
 
-    assert (
-        "Index 'sqlite_autoindex_dogs_1' on table 'dogs' does not have a CREATE INDEX statement."
-        in str(excinfo.value)
-    )
-    assert (
-        "You must manually drop this index prior to running this transformation and manually recreate the new index after running this transformation."
-        in str(excinfo.value)
-    )
+    # Duplicate name insert should still be rejected
+    import pytest as _pytest
+    with _pytest.raises(Exception):
+        fresh_db.execute("INSERT INTO dogs VALUES (2, 'Cleo', '6')")
+
+    # Rename the UNIQUE column: constraint follows the new name
+    dogs.transform(rename={"name": "dog_name"})
+    assert "UNIQUE" in dogs.schema
+    assert [c.name for c in dogs.columns] == ["id", "dog_name", "age"]
+
+    # Drop the UNIQUE column: transform completes without error
+    dogs.transform(drop={"dog_name"})
+    assert "dog_name" not in [c.name for c in dogs.columns]
