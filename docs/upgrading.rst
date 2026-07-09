@@ -109,7 +109,7 @@ Two related behavior changes to ``table.transform()``: compound foreign keys now
 - Multi-step operations such as ``table.transform()`` no longer commit an existing transaction you have open - they use savepoints inside it instead.
 - ``db.enable_wal()`` and ``db.disable_wal()`` raise a ``sqlite_utils.db.TransactionError`` if called while a transaction is open, instead of silently committing it.
 - Using ``Database`` as a context manager (``with Database(path) as db:``) closes the connection on exit *without* committing - a transaction you explicitly opened with ``db.begin()`` and did not commit is rolled back.
-- ``Database()`` rejects connections created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options, raising ``sqlite_utils.db.TransactionError``. On those connections every write the library made was silently discarded when the connection closed.
+- ``Database()`` rejects connections created with the Python 3.12+ ``sqlite3.connect(..., autocommit=False)`` option, raising ``sqlite_utils.db.TransactionError``. In that mode the driver holds an implicit transaction open at all times, breaking the library's explicit transaction handling. Connections created with ``autocommit=True`` are supported.
 
 Packaging changes
 -----------------

@@ -65,14 +65,73 @@ def test_database_close(tmpdir, memory):
     sys.version_info < (3, 12),
     reason="sqlite3.connect(autocommit=) requires Python 3.12",
 )
-@pytest.mark.parametrize("autocommit", [True, False])
-def test_autocommit_connections_are_rejected(tmpdir, autocommit):
-    # These connection modes break commit()/rollback() in ways that
-    # silently lose data, so the constructor refuses them
-    conn = sqlite3.connect(str(tmpdir / "test.db"), autocommit=autocommit)
+def test_autocommit_false_connections_are_rejected(tmpdir):
+    # autocommit=False keeps an implicit transaction open at all times,
+    # which breaks the explicit transaction handling used by every write
+    # method, so the constructor refuses these connections
+    conn = sqlite3.connect(str(tmpdir / "test.db"), autocommit=False)
     with pytest.raises(TransactionError):
         Database(conn)
     conn.close()
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 12),
+    reason="sqlite3.connect(autocommit=) requires Python 3.12",
+)
+def test_autocommit_true_connection_writes_persist(tmpdir):
+    path = str(tmpdir / "test.db")
+    conn = sqlite3.connect(path, autocommit=True)
+    db = Database(conn)
+    db["t"].insert({"id": 1}, pk="id")
+    db.execute("insert into t (id) values (2)")
+    db.close()
+    # The writes survived closing the connection
+    db2 = Database(path)
+    assert [r["id"] for r in db2["t"].rows] == [1, 2]
+    db2.close()
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 12),
+    reason="sqlite3.connect(autocommit=) requires Python 3.12",
+)
+def test_autocommit_true_connection_transactions(tmpdir):
+    conn = sqlite3.connect(str(tmpdir / "test.db"), autocommit=True)
+    db = Database(conn)
+    db["t"].insert({"id": 1}, pk="id")
+    # atomic() rolls back on error
+    with pytest.raises(ZeroDivisionError):
+        with db.atomic():
+            db["t"].insert({"id": 2}, pk="id")
+            1 / 0
+    assert [r["id"] for r in db["t"].rows] == [1]
+    # atomic() commits on success, including a nested block
+    with db.atomic():
+        db["t"].insert({"id": 3}, pk="id")
+        with db.atomic():
+            db["t"].insert({"id": 4}, pk="id")
+    assert [r["id"] for r in db["t"].rows] == [1, 3, 4]
+    # begin()/rollback() work too
+    db.begin()
+    db["t"].insert({"id": 5}, pk="id")
+    db.rollback()
+    assert [r["id"] for r in db["t"].rows] == [1, 3, 4]
+    db.close()
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 12),
+    reason="sqlite3.connect(autocommit=) requires Python 3.12",
+)
+def test_autocommit_true_connection_wal(tmpdir):
+    conn = sqlite3.connect(str(tmpdir / "test.db"), autocommit=True)
+    db = Database(conn)
+    db.enable_wal()
+    assert db.journal_mode == "wal"
+    db.disable_wal()
+    assert db.journal_mode == "delete"
+    db.close()
 
 
 @pytest.mark.skipif(

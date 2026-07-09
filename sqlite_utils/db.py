@@ -557,17 +557,16 @@ class Database:
             if recreate:
                 raise ValueError("recreate cannot be used with connections, only paths")
             self.conn = cast(sqlite3.Connection, filename_or_conn)
-            # Python 3.12+ autocommit=True/False connections make commit()
-            # and rollback() behave differently, silently breaking the
-            # transaction handling used by every write method
-            autocommit = getattr(self.conn, "autocommit", None)
-            if autocommit is not None and autocommit != getattr(
-                sqlite3, "LEGACY_TRANSACTION_CONTROL", -1
-            ):
+            # Python 3.12+ autocommit=False connections hold an implicit
+            # transaction open at all times, which breaks the explicit
+            # BEGIN/COMMIT transaction handling used by every write method.
+            # autocommit=True connections work fine - the library manages
+            # transactions itself with explicit SQL statements
+            if getattr(self.conn, "autocommit", None) is False:
                 raise TransactionError(
-                    "sqlite-utils requires a connection that uses the default "
-                    "transaction handling - connections created with "
-                    "autocommit=True or autocommit=False are not supported"
+                    "sqlite-utils does not support connections created with "
+                    "autocommit=False - use autocommit=True or the default "
+                    "transaction handling instead"
                 )
         self._tracer: Optional[Tracer] = tracer
         if recursive_triggers:

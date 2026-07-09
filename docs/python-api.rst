@@ -95,7 +95,7 @@ Instead of a file path you can pass in an existing SQLite connection:
 
     db = Database(sqlite3.connect("my_database.db"))
 
-The connection must use Python's default transaction handling. Connections created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options are rejected with a ``sqlite_utils.db.TransactionError`` - see :ref:`python_api_transactions_modes`.
+The connection can use Python's default transaction handling or the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` mode. Connections created with ``autocommit=False`` are rejected with a ``sqlite_utils.db.TransactionError`` - see :ref:`python_api_transactions_modes`.
 
 If you want to create an in-memory database, you can do so like this:
 
@@ -409,9 +409,9 @@ Two related safeguards to be aware of:
 Supported connection modes
 --------------------------
 
-``db.atomic()`` and the automatic per-method transactions require a connection in Python's default transaction handling mode. Passing a connection created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options to ``Database()`` raises a ``sqlite_utils.db.TransactionError``.
+``db.atomic()`` and the automatic per-method transactions work with connections in Python's default transaction handling mode and with connections created using the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` option. The library manages transactions itself using explicit ``BEGIN``, ``COMMIT``, ``ROLLBACK`` and savepoint statements, which behave identically in both modes.
 
-This is because ``commit()`` and ``rollback()`` behave differently on those connections - under ``autocommit=True`` they are documented no-ops - which would cause every write made by this library to be silently discarded when the connection closed, rather than failing loudly.
+Passing a connection created with ``autocommit=False`` to ``Database()`` raises a ``sqlite_utils.db.TransactionError``. In that mode the ``sqlite3`` driver holds an implicit transaction open at all times, which breaks the explicit transaction handling used by every write method - for example ``BEGIN`` fails because a transaction is always already open.
 
 .. _python_api_table:
 

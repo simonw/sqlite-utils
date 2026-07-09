@@ -13,6 +13,7 @@ Unreleased
 - ``sqlite-utils insert`` and ``sqlite-utils upsert`` now accept a ``--code`` option for :ref:`providing a block of Python code <cli_insert_code>` (or a path to a ``.py`` file) that defines a ``rows()`` function or ``rows`` iterable of rows to insert, as an alternative to importing from a file. (:issue:`684`)
 - ``sqlite-utils insert`` and ``sqlite-utils upsert`` now accept ``--type column-name type`` to :ref:`override the type automatically chosen when the table is created <cli_insert_csv_tsv_column_types>`. This is useful for CSV or TSV columns such as ZIP codes that look like integers but should be stored as ``TEXT`` to preserve leading zeros. (:issue:`131`)
 - New ``table.drop_index(name)`` method and ``sqlite-utils drop-index`` command for dropping an index by name. Both accept ``ignore=True``/``--ignore`` to ignore a missing index. (:issue:`626`)
+- ``Database()`` now accepts connections created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` option. The library manages transactions using explicit ``BEGIN``/``COMMIT``/``ROLLBACK`` and savepoint statements, which behave identically in that mode. Connections created with ``autocommit=False`` are still rejected with a ``TransactionError``, because the driver holds an implicit transaction open at all times in that mode, breaking explicit transaction handling. See :ref:`python_api_transactions_modes`.
 
 .. _v4_0:
 
