@@ -95,7 +95,7 @@ Instead of a file path you can pass in an existing SQLite connection:
 
     db = Database(sqlite3.connect("my_database.db"))
 
-The connection can use Python's default transaction handling or the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` mode. Connections created with ``autocommit=False`` are rejected with a ``sqlite_utils.db.TransactionError`` - see :ref:`python_api_transactions_modes`.
+The connection can use Python's default transaction handling, or the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` modes - see :ref:`python_api_transactions_modes`.
 
 If you want to create an in-memory database, you can do so like this:
 
@@ -409,9 +409,19 @@ Two related safeguards to be aware of:
 Supported connection modes
 --------------------------
 
-``db.atomic()`` and the automatic per-method transactions work with connections in Python's default transaction handling mode and with connections created using the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` option. The library manages transactions itself using explicit ``BEGIN``, ``COMMIT``, ``ROLLBACK`` and savepoint statements, which behave identically in both modes.
+``db.atomic()`` and the automatic per-method transactions work with connections in all three of Python's transaction handling modes: the default mode, and the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` and ``autocommit=False`` modes.
 
-Passing a connection created with ``autocommit=False`` to ``Database()`` raises a ``sqlite_utils.db.TransactionError``. In that mode the ``sqlite3`` driver holds an implicit transaction open at all times, which breaks the explicit transaction handling used by every write method - for example ``BEGIN`` fails because a transaction is always already open.
+In the default mode and with ``autocommit=True`` the library manages transactions itself using explicit ``BEGIN``, ``COMMIT``, ``ROLLBACK`` and savepoint statements, which behave identically in both modes.
+
+With ``autocommit=False`` the ``sqlite3`` driver holds an implicit transaction open at all times, so the library adapts to preserve the same behavior:
+
+- Writes made through the library still commit automatically, unless a transaction opened with ``db.begin()`` or ``db.atomic()`` is open. ``db.begin()`` claims the driver's implicit transaction rather than executing ``BEGIN``, which the driver would reject.
+- ``BEGIN``, ``COMMIT`` and ``ROLLBACK`` statements passed to ``db.execute()`` are routed through ``db.begin()``, ``db.commit()`` and ``db.rollback()``.
+- ``PRAGMA`` and ``VACUUM`` statements executed outside of a transaction run in temporary driver-level autocommit mode, because both are silently ignored - or refused - inside the driver's implicit transaction.
+- Row-returning statements executed with ``db.execute()`` or ``db.query()`` outside of a transaction fetch their results eagerly, then commit. A lazily-read cursor would hold the implicit read transaction - and its shared database lock, which blocks writes from other connections - open indefinitely. This means very large result sets are buffered in memory in this mode.
+- Statements executed directly on ``db.conn`` are not managed: the driver's own rules apply, and nothing is committed until you call ``db.conn.commit()`` yourself.
+
+Use the ``db.in_transaction`` property to check whether a transaction opened with ``db.begin()`` or ``db.atomic()`` is currently open - on ``autocommit=False`` connections ``db.conn.in_transaction`` is always ``True``, so it cannot answer that question.
 
 .. _python_api_table:
 

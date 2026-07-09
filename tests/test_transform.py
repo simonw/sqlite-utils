@@ -109,7 +109,7 @@ def test_transform_sql_table_with_primary_key(
 
     dogs = fresh_db["dogs"]
     if use_pragma_foreign_keys:
-        fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+        fresh_db.execute("PRAGMA foreign_keys=ON")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
     sql = dogs.transform_sql(**{**params, **{"tmp_suffix": "suffix"}})
     assert sql == expected_sql
@@ -182,7 +182,7 @@ def test_transform_sql_table_with_no_primary_key(
 
     dogs = fresh_db["dogs"]
     if use_pragma_foreign_keys:
-        fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+        fresh_db.execute("PRAGMA foreign_keys=ON")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"})
     sql = dogs.transform_sql(**{**params, **{"tmp_suffix": "suffix"}})
     assert sql == expected_sql
@@ -351,7 +351,7 @@ def test_transform_foreign_keys_survive_renamed_column(
     authors_db, use_pragma_foreign_keys
 ):
     if use_pragma_foreign_keys:
-        authors_db.conn.execute("PRAGMA foreign_keys=ON")
+        authors_db.execute("PRAGMA foreign_keys=ON")
     authors_db["books"].transform(rename={"author_id": "author_id_2"})
     assert authors_db["books"].foreign_keys == [
         ForeignKey(
@@ -381,7 +381,7 @@ _CAVEAU = {
 @pytest.mark.parametrize("use_pragma_foreign_keys", [False, True])
 def test_transform_drop_foreign_keys(fresh_db, use_pragma_foreign_keys):
     if use_pragma_foreign_keys:
-        fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+        fresh_db.execute("PRAGMA foreign_keys=ON")
     # Create table with three foreign keys so we can drop two of them
     _add_country_city_continent(fresh_db)
     fresh_db["places"].insert(
@@ -413,7 +413,7 @@ def test_transform_drop_foreign_keys(fresh_db, use_pragma_foreign_keys):
 
 
 def test_transform_verify_foreign_keys(fresh_db):
-    fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    fresh_db.execute("PRAGMA foreign_keys=ON")
     fresh_db["authors"].insert({"id": 3, "name": "Tina"}, pk="id")
     fresh_db["books"].insert(
         {"id": 1, "title": "Book", "author_id": 3}, pk="id", foreign_keys={"author_id"}

@@ -1,5 +1,4 @@
 from sqlite_utils import Database
-from sqlite_utils.db import TransactionError
 from sqlite_utils.utils import sqlite3
 import pytest
 import sys
@@ -65,23 +64,10 @@ def test_database_close(tmpdir, memory):
     sys.version_info < (3, 12),
     reason="sqlite3.connect(autocommit=) requires Python 3.12",
 )
-def test_autocommit_false_connections_are_rejected(tmpdir):
-    # autocommit=False keeps an implicit transaction open at all times,
-    # which breaks the explicit transaction handling used by every write
-    # method, so the constructor refuses these connections
-    conn = sqlite3.connect(str(tmpdir / "test.db"), autocommit=False)
-    with pytest.raises(TransactionError):
-        Database(conn)
-    conn.close()
-
-
-@pytest.mark.skipif(
-    sys.version_info < (3, 12),
-    reason="sqlite3.connect(autocommit=) requires Python 3.12",
-)
-def test_autocommit_true_connection_writes_persist(tmpdir):
+@pytest.mark.parametrize("autocommit", [True, False])
+def test_autocommit_connection_writes_persist(tmpdir, autocommit):
     path = str(tmpdir / "test.db")
-    conn = sqlite3.connect(path, autocommit=True)
+    conn = sqlite3.connect(path, autocommit=autocommit)
     db = Database(conn)
     db["t"].insert({"id": 1}, pk="id")
     db.execute("insert into t (id) values (2)")
@@ -96,8 +82,9 @@ def test_autocommit_true_connection_writes_persist(tmpdir):
     sys.version_info < (3, 12),
     reason="sqlite3.connect(autocommit=) requires Python 3.12",
 )
-def test_autocommit_true_connection_transactions(tmpdir):
-    conn = sqlite3.connect(str(tmpdir / "test.db"), autocommit=True)
+@pytest.mark.parametrize("autocommit", [True, False])
+def test_autocommit_connection_transactions(tmpdir, autocommit):
+    conn = sqlite3.connect(str(tmpdir / "test.db"), autocommit=autocommit)
     db = Database(conn)
     db["t"].insert({"id": 1}, pk="id")
     # atomic() rolls back on error
@@ -124,8 +111,9 @@ def test_autocommit_true_connection_transactions(tmpdir):
     sys.version_info < (3, 12),
     reason="sqlite3.connect(autocommit=) requires Python 3.12",
 )
-def test_autocommit_true_connection_wal(tmpdir):
-    conn = sqlite3.connect(str(tmpdir / "test.db"), autocommit=True)
+@pytest.mark.parametrize("autocommit", [True, False])
+def test_autocommit_connection_wal(tmpdir, autocommit):
+    conn = sqlite3.connect(str(tmpdir / "test.db"), autocommit=autocommit)
     db = Database(conn)
     db.enable_wal()
     assert db.journal_mode == "wal"

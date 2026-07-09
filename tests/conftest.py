@@ -18,6 +18,15 @@ def pytest_addoption(parser):
             "sqlite3.connect(autocommit=True) mode"
         ),
     )
+    parser.addoption(
+        "--sqlite-autocommit-false",
+        action="store_true",
+        default=False,
+        help=(
+            "Run every test against connections created with the Python 3.12+ "
+            "sqlite3.connect(autocommit=False) mode"
+        ),
+    )
 
 
 def pytest_configure(config):
@@ -25,15 +34,22 @@ def pytest_configure(config):
 
     sys._called_from_test = True  # type: ignore[attr-defined]
 
-    if config.getoption("--sqlite-autocommit"):
+    autocommit_true = config.getoption("--sqlite-autocommit")
+    autocommit_false = config.getoption("--sqlite-autocommit-false")
+    if autocommit_true and autocommit_false:
+        raise pytest.UsageError(
+            "--sqlite-autocommit and --sqlite-autocommit-false are mutually exclusive"
+        )
+    if autocommit_true or autocommit_false:
         if sys.version_info < (3, 12):
             raise pytest.UsageError(
-                "--sqlite-autocommit requires Python 3.12 or higher"
+                "--sqlite-autocommit and --sqlite-autocommit-false require "
+                "Python 3.12 or higher"
             )
         real_connect = sqlite3.connect
 
         def autocommit_connect(*args, **kwargs):
-            kwargs.setdefault("autocommit", True)
+            kwargs.setdefault("autocommit", autocommit_true)
             return real_connect(*args, **kwargs)
 
         sqlite3.connect = autocommit_connect
@@ -81,5 +97,6 @@ def db_path(tmpdir):
     path = str(tmpdir / "test.db")
     db = sqlite3.connect(path)
     db.executescript(CREATE_TABLES)
+    db.commit()
     db.close()
     return path

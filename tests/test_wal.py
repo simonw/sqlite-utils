@@ -52,12 +52,17 @@ def test_disable_wal_inside_transaction_raises(db_path_tmpdir):
 def test_ensure_autocommit_on(db_path_tmpdir):
     db, path, tmpdir = db_path_tmpdir
     previous_isolation_level = db.conn.isolation_level
-    assert previous_isolation_level is not None
+    previous_autocommit = getattr(db.conn, "autocommit", None)
     with db.ensure_autocommit_on():
-        # isolation_level of None means driver-level autocommit mode
-        assert db.conn.isolation_level is None
+        # Driver-level autocommit mode: raw writes on the connection do not
+        # open an implicit transaction, they commit immediately
+        db.conn.execute("create table t1 (id integer)")
+        db.conn.execute("insert into t1 values (1)")
+        assert not db.conn.in_transaction
     # Restored afterwards
     assert db.conn.isolation_level == previous_isolation_level
+    assert getattr(db.conn, "autocommit", None) == previous_autocommit
+    assert db.execute("select count(*) from t1").fetchone()[0] == 1
 
 
 def test_enable_wal_noop_inside_transaction_is_allowed(db_path_tmpdir):
@@ -83,6 +88,6 @@ def test_ensure_autocommit_on_inside_transaction_raises(db_path_tmpdir):
         with db.ensure_autocommit_on():
             pass
     # The transaction is still open and can still be rolled back
-    assert db.conn.in_transaction
+    assert db.in_transaction
     db.rollback()
     assert [r["id"] for r in db["test"].rows] == [1]

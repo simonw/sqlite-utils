@@ -479,6 +479,48 @@ def _first_keyword(sql: str) -> str:
     return sql[i:j].upper()
 
 
+class _PrefetchedCursor:
+    """
+    Stands in for a ``sqlite3.Cursor`` whose rows were fetched eagerly, so
+    that the driver's implicit read transaction could be committed - used
+    for row-returning statements on Python 3.12+ ``autocommit=False``
+    connections, where a lazily-read cursor would hold the read transaction
+    (and its shared lock) open indefinitely.
+    """
+
+    def __init__(self, cursor: sqlite3.Cursor, rows: list):
+        self.description = cursor.description
+        self.lastrowid = cursor.lastrowid
+        self.rowcount = cursor.rowcount
+        self.arraysize = cursor.arraysize
+        self._rows = iter(rows)
+
+    def __iter__(self) -> "_PrefetchedCursor":
+        return self
+
+    def __next__(self):
+        return next(self._rows)
+
+    def fetchone(self):
+        return next(self._rows, None)
+
+    def fetchmany(self, size: Optional[int] = None) -> list:
+        size = size or self.arraysize
+        results = []
+        for _ in range(size):
+            row = next(self._rows, None)
+            if row is None:
+                break
+            results.append(row)
+        return results
+
+    def fetchall(self) -> list:
+        return list(self._rows)
+
+    def close(self) -> None:
+        pass
+
+
 class Database:
     """
     Wrapper for a SQLite database connection that adds a variety of useful utility methods.
@@ -526,6 +568,10 @@ class Database:
         self.memory_name = None
         self.memory = False
         self.use_old_upsert = use_old_upsert
+        # Tracks transaction ownership for autocommit=False connections,
+        # where conn.in_transaction cannot distinguish the driver's implicit
+        # transaction from one opened with begin() or atomic()
+        self._explicit_transaction = False
         if not (
             (filename_or_conn is not None and (not memory and not memory_name))
             or (filename_or_conn is None and (memory or memory_name))
@@ -557,17 +603,6 @@ class Database:
             if recreate:
                 raise ValueError("recreate cannot be used with connections, only paths")
             self.conn = cast(sqlite3.Connection, filename_or_conn)
-            # Python 3.12+ autocommit=False connections hold an implicit
-            # transaction open at all times, which breaks the explicit
-            # BEGIN/COMMIT transaction handling used by every write method.
-            # autocommit=True connections work fine - the library manages
-            # transactions itself with explicit SQL statements
-            if getattr(self.conn, "autocommit", None) is False:
-                raise TransactionError(
-                    "sqlite-utils does not support connections created with "
-                    "autocommit=False - use autocommit=True or the default "
-                    "transaction handling instead"
-                )
         self._tracer: Optional[Tracer] = tracer
         if recursive_triggers:
             self.execute("PRAGMA recursive_triggers=on;")
@@ -593,6 +628,34 @@ class Database:
         "Close the SQLite connection, and the underlying database file"
         self.conn.close()
 
+    @property
+    def _autocommit_false(self) -> bool:
+        # True for Python 3.12+ sqlite3.connect(autocommit=False) connections,
+        # where the driver holds an implicit transaction open at all times
+        return getattr(self.conn, "autocommit", None) is False
+
+    def _commit_if_in_transaction(self) -> None:
+        # On autocommit=False connections conn.commit() raises if no
+        # transaction is active - which can happen after an error such as a
+        # RAISE(ROLLBACK) trigger destroys the transaction
+        if self.conn.in_transaction:
+            self.conn.commit()
+
+    @property
+    def in_transaction(self) -> bool:
+        """
+        ``True`` if a transaction opened with :meth:`begin` or :meth:`atomic`
+        is currently open.
+
+        Unlike ``conn.in_transaction`` this is meaningful for every connection
+        mode - on Python 3.12+ ``autocommit=False`` connections the driver
+        keeps an implicit transaction open at all times, so
+        ``conn.in_transaction`` is always ``True`` there.
+        """
+        if self._autocommit_false:
+            return self._explicit_transaction
+        return self.conn.in_transaction
+
     @contextlib.contextmanager
     def atomic(self) -> Generator["Database", None, None]:
         """
@@ -600,7 +663,7 @@ class Database:
 
         Nested blocks use SQLite savepoints.
         """
-        if self.conn.in_transaction:
+        if self.in_transaction:
             savepoint = "sqlite_utils_{}".format(secrets.token_hex(16))
             self.conn.execute("SAVEPOINT {};".format(savepoint))
             try:
@@ -617,7 +680,12 @@ class Database:
             else:
                 self.conn.execute("RELEASE SAVEPOINT {};".format(savepoint))
         else:
-            self.conn.execute("BEGIN")
+            if self._autocommit_false:
+                # The driver already holds an open implicit transaction -
+                # claim it, so writes stop committing automatically
+                self._explicit_transaction = True
+            else:
+                self.conn.execute("BEGIN")
             try:
                 yield self
             except BaseException:
@@ -627,7 +695,11 @@ class Database:
                 raise
             else:
                 try:
-                    self.conn.execute("COMMIT")
+                    if self._autocommit_false:
+                        self._explicit_transaction = False
+                        self._commit_if_in_transaction()
+                    else:
+                        self.conn.execute("COMMIT")
                 except BaseException:
                     self.rollback()
                     raise
@@ -642,12 +714,25 @@ class Database:
         Most code should use the :meth:`atomic` context manager instead, which
         commits and rolls back automatically. See :ref:`python_api_transactions`.
         """
+        if self._autocommit_false:
+            if self._explicit_transaction:
+                raise sqlite3.OperationalError(
+                    "cannot start a transaction within a transaction"
+                )
+            # The driver already holds an open implicit transaction - claim
+            # it, so writes stop committing automatically
+            self._explicit_transaction = True
+            return
         self.execute("BEGIN")
 
     def commit(self) -> None:
         """
         Commit the current transaction. Does nothing if no transaction is open.
         """
+        if self._autocommit_false:
+            self._explicit_transaction = False
+            self._commit_if_in_transaction()
+            return
         if self.conn.in_transaction:
             self.conn.execute("COMMIT")
 
@@ -656,6 +741,11 @@ class Database:
         Roll back the current transaction, discarding its changes. Does nothing
         if no transaction is open.
         """
+        if self._autocommit_false:
+            self._explicit_transaction = False
+            if self.conn.in_transaction:
+                self.conn.rollback()
+            return
         if self.conn.in_transaction:
             self.conn.execute("ROLLBACK")
 
@@ -681,11 +771,25 @@ class Database:
           ``isolation_level`` would commit it as a side effect, silently
           breaking the caller's ability to roll back
         """
-        if self.conn.in_transaction:
+        if self.in_transaction:
             raise TransactionError(
                 "ensure_autocommit_on() cannot be used inside a transaction - "
                 "changing isolation_level would commit the open transaction"
             )
+        autocommit = getattr(self.conn, "autocommit", None)
+        if autocommit is True:
+            # Already in driver-level autocommit mode
+            yield
+            return
+        if autocommit is False:
+            # Setting autocommit = True commits the driver's implicit
+            # transaction - safe, because no user transaction is open
+            setattr(self.conn, "autocommit", True)
+            try:
+                yield
+            finally:
+                setattr(self.conn, "autocommit", False)
+            return
         old_isolation_level = self.conn.isolation_level
         try:
             self.conn.isolation_level = None
@@ -848,11 +952,17 @@ class Database:
             # execute these without the savepoint guard used below. Some
             # adapters open an implicit transaction before comment-prefixed
             # PRAGMAs, so temporarily use driver autocommit when it is safe.
-            if self.conn.in_transaction:
+            if self.in_transaction:
                 cursor = self.conn.execute(sql, *args)
             else:
+                fetch_eagerly = self._autocommit_false
                 with self.ensure_autocommit_on():
                     cursor = self.conn.execute(sql, *args)
+                    if fetch_eagerly and cursor.description is not None:
+                        # Rows read lazily after autocommit is restored
+                        # would hold a read transaction open
+                        keys = dedupe_keys(d[0] for d in cursor.description)
+                        return (dict(zip(keys, row)) for row in cursor.fetchall())
             if cursor.description is None:
                 raise ValueError(message)
             keys = dedupe_keys(d[0] for d in cursor.description)
@@ -866,6 +976,16 @@ class Database:
             if cursor.description is None:
                 raise ValueError(message)
             keys = dedupe_keys(d[0] for d in cursor.description)
+            if self._autocommit_false and not self._explicit_transaction:
+                # Fetch eagerly and commit the driver's implicit transaction.
+                # This commits any write (INSERT ... RETURNING) immediately,
+                # and releases the read snapshot which would otherwise stay
+                # open indefinitely, blocking writes from other connections
+                fetched = cursor.fetchall()
+                self.conn.execute('RELEASE "sqlite_utils_query"')
+                released = True
+                self._commit_if_in_transaction()
+                return (dict(zip(keys, row)) for row in fetched)
             try:
                 self.conn.execute('RELEASE "sqlite_utils_query"')
                 released = True
@@ -878,6 +998,10 @@ class Database:
                 fetched = cursor.fetchall()
                 self.conn.execute('RELEASE "sqlite_utils_query"')
                 released = True
+                if self._autocommit_false and not self._explicit_transaction:
+                    # Releasing the savepoint cannot commit here, because the
+                    # driver's implicit transaction encloses it
+                    self._commit_if_in_transaction()
                 return (dict(zip(keys, row)) for row in fetched)
             return (dict(zip(keys, row)) for row in cursor)
         finally:
@@ -888,6 +1012,9 @@ class Database:
                 # and there is nothing left to undo
                 self.conn.execute('ROLLBACK TO "sqlite_utils_query"')
                 self.conn.execute('RELEASE "sqlite_utils_query"')
+                if self._autocommit_false and not self._explicit_transaction:
+                    # Also close the driver's implicit transaction
+                    self.conn.rollback()
 
     def execute(
         self, sql: str, parameters: Optional[Union[Sequence, Dict[str, Any]]] = None
@@ -906,6 +1033,8 @@ class Database:
         """
         if self._tracer:
             self._tracer(sql, parameters)
+        if self._autocommit_false:
+            return self._execute_autocommit_false(sql, parameters)
         was_in_transaction = self.conn.in_transaction
         try:
             if parameters is not None:
@@ -931,6 +1060,68 @@ class Database:
             self.conn.execute("COMMIT")
         return cursor
 
+    def _execute_autocommit_false(
+        self, sql: str, parameters: Optional[Union[Sequence, Dict[str, Any]]] = None
+    ) -> sqlite3.Cursor:
+        # execute() for Python 3.12+ autocommit=False connections, where the
+        # driver holds an implicit transaction open at all times. BEGIN,
+        # COMMIT and ROLLBACK are rerouted through begin()/commit()/rollback()
+        # so they behave identically to the other connection modes - the
+        # driver would otherwise reject BEGIN outright
+        keyword = _first_keyword(sql)
+        if keyword == "BEGIN":
+            self.begin()
+            return self.conn.cursor()
+        if keyword in ("COMMIT", "END"):
+            self.commit()
+            return self.conn.cursor()
+        if keyword == "ROLLBACK" and "TO" not in sql.upper().split():
+            # A full ROLLBACK - but not ROLLBACK TO SAVEPOINT, which runs
+            # inside the transaction
+            self.rollback()
+            return self.conn.cursor()
+        if keyword in ("PRAGMA", "VACUUM") and not self._explicit_transaction:
+            # PRAGMA statements such as foreign_keys are silently ignored
+            # inside a transaction - and VACUUM refuses to run in one - but
+            # the driver's implicit transaction never closes. Run them in
+            # driver autocommit mode instead
+            with self.ensure_autocommit_on():
+                if parameters is not None:
+                    cursor = self.conn.execute(sql, parameters)
+                else:
+                    cursor = self.conn.execute(sql)
+                if cursor.description is not None:
+                    # Fetch eagerly - rows read lazily after autocommit is
+                    # restored would hold a read transaction open
+                    return cast(
+                        sqlite3.Cursor, _PrefetchedCursor(cursor, cursor.fetchall())
+                    )
+                return cursor
+        try:
+            if parameters is not None:
+                cursor = self.conn.execute(sql, parameters)
+            else:
+                cursor = self.conn.execute(sql)
+        except Exception:
+            if not self._explicit_transaction and self.conn.in_transaction:
+                # Discard whatever the failed statement left in the driver's
+                # implicit transaction, matching the other connection modes
+                self.conn.rollback()
+            raise
+        if not self._explicit_transaction:
+            if cursor.description is not None:
+                # A row-returning statement. Fetch eagerly and commit, so the
+                # driver's implicit read transaction - and the shared lock
+                # that blocks writes from other connections - is released
+                rows = cursor.fetchall()
+                self._commit_if_in_transaction()
+                return cast(sqlite3.Cursor, _PrefetchedCursor(cursor, rows))
+            if keyword not in _TRANSACTION_CONTROL_KEYWORDS:
+                # No user transaction is open - commit the driver's implicit
+                # transaction, so writes behave identically across modes
+                self._commit_if_in_transaction()
+        return cursor
+
     def executescript(self, sql: str) -> sqlite3.Cursor:
         """
         Execute multiple SQL statements separated by ; and return the ``sqlite3.Cursor``.
@@ -942,13 +1133,18 @@ class Database:
         return self._executescript(sql)
 
     def _executescript(self, sql: str) -> sqlite3.Cursor:
-        if self.conn.in_transaction:
+        if self.in_transaction:
             cursor = self.conn.cursor()
             # avoid sqlite3.executescript()'s implicit commit:
             for statement in _iter_complete_sql_statements(sql):
                 cursor.execute(statement)
             return cursor
-        return self.conn.executescript(sql)
+        cursor = self.conn.executescript(sql)
+        if self._autocommit_false:
+            # executescript() does not commit in this mode - do it here, so
+            # scripts behave identically across connection modes
+            self._commit_if_in_transaction()
+        return cursor
 
     def table(self, table_name: str, **kwargs: Any) -> "Table":
         """
@@ -1188,7 +1384,7 @@ class Database:
         # Changing journal mode assigns conn.isolation_level, which commits
         # any open transaction as a side effect - breaking the rollback
         # guarantee of atomic() and of user-managed transactions
-        if self.conn.in_transaction:
+        if self.in_transaction:
             raise TransactionError(
                 "{} cannot be used while a transaction is open".format(operation)
             )
@@ -1880,7 +2076,7 @@ class Database:
         for table, fks in by_table.items():
             self.table(table).transform(add_foreign_keys=fks)
 
-        if not self.conn.in_transaction:
+        if not self.in_transaction:
             self.vacuum()
 
     def index_foreign_keys(self) -> None:
@@ -1896,7 +2092,13 @@ class Database:
 
     def vacuum(self) -> None:
         "Run a SQLite ``VACUUM`` against the database."
-        self.execute("VACUUM;")
+        if self.in_transaction:
+            # Fails with OperationalError, as VACUUM always does inside a
+            # transaction - executed anyway for identical errors across modes
+            self.execute("VACUUM;")
+        else:
+            with self.ensure_autocommit_on():
+                self.execute("VACUUM;")
 
     def analyze(self, name: Optional[str] = None) -> None:
         """
@@ -2554,7 +2756,7 @@ class Table(Queryable):
         pragma_foreign_keys_was_on = bool(
             self.db.execute("PRAGMA foreign_keys").fetchone()[0]
         )
-        already_in_transaction = self.db.conn.in_transaction
+        already_in_transaction = self.db.in_transaction
         should_disable_foreign_keys = (
             pragma_foreign_keys_was_on and not already_in_transaction
         )

@@ -24,14 +24,14 @@ def test_query_rejects_statements_that_return_no_rows(fresh_db):
         fresh_db.query("update dogs set name = 'Cleopaws'")
     assert "execute()" in str(ex.value)
     # The rejected update was rolled back, and no transaction is left open
-    assert not fresh_db.conn.in_transaction
+    assert not fresh_db.in_transaction
     assert [row["name"] for row in fresh_db["dogs"].rows] == ["Cleo"]
 
 
 def test_query_rejected_ddl_is_rolled_back(fresh_db):
     with pytest.raises(ValueError):
         fresh_db.query("create table dogs (id integer primary key)")
-    assert not fresh_db.conn.in_transaction
+    assert not fresh_db.in_transaction
     assert fresh_db.table_names() == []
 
 
@@ -42,7 +42,7 @@ def test_query_rejected_write_inside_transaction_is_rolled_back(fresh_db):
     with pytest.raises(ValueError):
         fresh_db.query("update dogs set name = 'Cleopaws'")
     # The transaction is still open and the earlier insert is intact
-    assert fresh_db.conn.in_transaction
+    assert fresh_db.in_transaction
     fresh_db.commit()
     assert [row["name"] for row in fresh_db["dogs"].rows] == ["Cleo", "Pancakes"]
 
@@ -69,7 +69,7 @@ def test_query_rejects_transaction_control_and_vacuum(fresh_db, sql):
     with pytest.raises(ValueError) as ex:
         fresh_db.query(sql)
     assert "execute()" in str(ex.value)
-    assert not fresh_db.conn.in_transaction
+    assert not fresh_db.in_transaction
 
 
 def test_query_comment_prefixed_commit_does_not_commit_transaction(fresh_db):
@@ -82,7 +82,7 @@ def test_query_comment_prefixed_commit_does_not_commit_transaction(fresh_db):
     with pytest.raises(ValueError):
         fresh_db.query("/* comment */ COMMIT")
     # The explicit transaction is still open and can still be rolled back
-    assert fresh_db.conn.in_transaction
+    assert fresh_db.in_transaction
     fresh_db.rollback()
     assert [row["name"] for row in fresh_db["dogs"].rows] == ["Cleo"]
 
@@ -99,7 +99,7 @@ def test_query_prefixed_commit_does_not_commit_transaction(fresh_db, sql):
     with pytest.raises(ValueError):
         fresh_db.query(sql)
     # The explicit transaction is still open and can still be rolled back
-    assert fresh_db.conn.in_transaction
+    assert fresh_db.in_transaction
     fresh_db.rollback()
     assert [row["name"] for row in fresh_db["dogs"].rows] == ["Cleo"]
 
@@ -107,7 +107,7 @@ def test_query_prefixed_commit_does_not_commit_transaction(fresh_db, sql):
 def test_query_error_leaves_no_transaction_open(fresh_db):
     with pytest.raises(sqlite3.OperationalError):
         fresh_db.query("select * from missing_table")
-    assert not fresh_db.conn.in_transaction
+    assert not fresh_db.in_transaction
 
 
 def test_query_pragma(tmpdir):
@@ -152,7 +152,7 @@ def test_query_comment_prefixed_pragma_inside_transaction(fresh_db):
     assert list(fresh_db.query("-- check version\npragma user_version")) == [
         {"user_version": 0}
     ]
-    assert fresh_db.conn.in_transaction
+    assert fresh_db.in_transaction
     fresh_db.rollback()
 
 
@@ -209,7 +209,7 @@ def test_query_insert_returning_commits_without_iteration(tmpdir):
     db["dogs"].insert({"name": "Cleo"})
     # Never iterate over the results
     db.query("insert into dogs (name) values ('Pancakes') returning name")
-    assert not db.conn.in_transaction
+    assert not db.in_transaction
     # A completely separate connection sees the new row straight away
     other = sqlite3.connect(path)
     assert other.execute("select count(*) from dogs").fetchone()[0] == 2
@@ -233,7 +233,7 @@ def test_query_insert_returning_partial_iteration_still_commits(tmpdir):
         )
     )
     assert row == {"name": "Pancakes"}
-    assert not db.conn.in_transaction
+    assert not db.in_transaction
     other = sqlite3.connect(path)
     assert other.execute("select count(*) from dogs").fetchone()[0] == 3
     other.close()
@@ -252,7 +252,7 @@ def test_query_insert_returning_respects_explicit_transaction(fresh_db):
     )
     assert rows == [{"name": "Pancakes"}]
     # Still inside the explicit transaction - not committed
-    assert fresh_db.conn.in_transaction
+    assert fresh_db.in_transaction
     fresh_db.rollback()
     assert [row["name"] for row in fresh_db["dogs"].rows] == ["Cleo"]
 
@@ -299,5 +299,5 @@ def test_query_preserves_error_from_transaction_destroying_trigger(fresh_db):
     """)
     with pytest.raises(sqlite3.IntegrityError, match="trigger says no"):
         fresh_db.query("insert into t (id, v) values (1, 'bad') returning id")
-    assert not fresh_db.conn.in_transaction
+    assert not fresh_db.in_transaction
     assert fresh_db.execute("select count(*) from t").fetchone()[0] == 0

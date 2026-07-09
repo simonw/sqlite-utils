@@ -121,7 +121,7 @@ def test_transform_does_not_commit_open_atomic_block(fresh_db):
 
 
 def test_transform_parent_table_with_foreign_keys_in_atomic(fresh_db):
-    fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    fresh_db.execute("PRAGMA foreign_keys=ON")
     fresh_db["authors"].insert({"id": 1, "name": "Tina"}, pk="id")
     fresh_db["books"].insert(
         {"id": 1, "title": "Book", "author_id": 1},
@@ -141,7 +141,7 @@ def test_transform_parent_table_with_foreign_keys_in_atomic(fresh_db):
 
 
 def test_transform_parent_table_with_foreign_keys_rolls_back(fresh_db):
-    fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    fresh_db.execute("PRAGMA foreign_keys=ON")
     fresh_db["authors"].insert({"id": 1, "name": "Tina"}, pk="id")
     fresh_db["books"].insert(
         {"id": 1, "title": "Book", "author_id": 1},
@@ -163,7 +163,7 @@ def test_transform_parent_table_with_foreign_keys_rolls_back(fresh_db):
 
 
 def test_transform_detects_foreign_key_check_violations(fresh_db):
-    fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    fresh_db.execute("PRAGMA foreign_keys=ON")
     fresh_db["authors"].insert({"id": 1, "name": "Tina"}, pk="id")
     fresh_db["books"].insert({"id": 1, "author_id": 2}, pk="id")
 
@@ -180,7 +180,7 @@ def test_atomic_inside_manual_transaction_uses_savepoint(fresh_db):
     with fresh_db.atomic():
         fresh_db["t"].insert({"id": 2}, pk="id")
     # Nothing is committed until the user's own transaction commits
-    assert fresh_db.conn.in_transaction
+    assert fresh_db.in_transaction
     fresh_db.rollback()
     assert [r["id"] for r in fresh_db["t"].rows] == [1]
     # And with a commit instead, the atomic block's writes persist
@@ -197,9 +197,9 @@ def test_begin_commit_rollback(tmpdir):
     db["t"].insert({"id": 1}, pk="id")
     db.begin()
     db["t"].insert({"id": 2}, pk="id")
-    assert db.conn.in_transaction
+    assert db.in_transaction
     db.rollback()
-    assert not db.conn.in_transaction
+    assert not db.in_transaction
     assert [r["id"] for r in db["t"].rows] == [1]
     db.begin()
     db["t"].insert({"id": 3}, pk="id")
@@ -220,7 +220,7 @@ def test_begin_inside_transaction_errors(fresh_db):
 def test_commit_and_rollback_without_transaction_are_noops(fresh_db):
     fresh_db.commit()
     fresh_db.rollback()
-    assert not fresh_db.conn.in_transaction
+    assert not fresh_db.in_transaction
 
 
 def test_execute_write_commits_immediately(tmpdir):
@@ -229,7 +229,7 @@ def test_execute_write_commits_immediately(tmpdir):
     db["t"].insert({"id": 1}, pk="id")
     db.execute("insert into t (id) values (2)")
     # No implicit transaction is left open
-    assert not db.conn.in_transaction
+    assert not db.in_transaction
     # A completely separate connection sees the row straight away
     other = sqlite3.connect(path)
     assert other.execute("select count(*) from t").fetchone()[0] == 2
@@ -242,7 +242,7 @@ def test_execute_write_respects_explicit_transaction(fresh_db):
     fresh_db.begin()
     fresh_db.execute("insert into t (id) values (2)")
     # Still inside the explicit transaction - not committed
-    assert fresh_db.conn.in_transaction
+    assert fresh_db.in_transaction
     fresh_db.rollback()
     assert [r["id"] for r in fresh_db["t"].rows] == [1]
 
@@ -252,7 +252,7 @@ def test_execute_comment_prefixed_begin_leaves_transaction_open(fresh_db):
     # out from under the caller
     fresh_db["t"].insert({"id": 1}, pk="id")
     fresh_db.execute("-- start a transaction\nbegin")
-    assert fresh_db.conn.in_transaction
+    assert fresh_db.in_transaction
     fresh_db.execute("insert into t (id) values (2)")
     fresh_db.rollback()
     assert [r["id"] for r in fresh_db["t"].rows] == [1]
@@ -275,7 +275,7 @@ def test_execute_prefixed_begin_leaves_transaction_open(fresh_db, begin_sql):
         pytest.skip("This SQLite version rejects a leading byte order mark")
     fresh_db["t"].insert({"id": 1}, pk="id")
     fresh_db.execute(begin_sql)
-    assert fresh_db.conn.in_transaction
+    assert fresh_db.in_transaction
     fresh_db.execute("insert into t (id) values (2)")
     fresh_db.rollback()
     assert [r["id"] for r in fresh_db["t"].rows] == [1]
@@ -289,7 +289,7 @@ def test_execute_failed_write_rolls_back_implicit_transaction(tmpdir):
     db["t"].insert({"id": 1}, pk="id")
     with pytest.raises(sqlite3.IntegrityError):
         db.execute("insert into t (id) values (1)")
-    assert not db.conn.in_transaction
+    assert not db.in_transaction
     # Subsequent writes commit as normal and survive closing the connection
     db["other"].insert({"id": 2})
     db.close()
@@ -306,7 +306,7 @@ def test_execute_failed_write_preserves_explicit_transaction(fresh_db):
     fresh_db.execute("insert into t (id) values (2)")
     with pytest.raises(sqlite3.IntegrityError):
         fresh_db.execute("insert into t (id) values (1)")
-    assert fresh_db.conn.in_transaction
+    assert fresh_db.in_transaction
     fresh_db.commit()
     assert [r["id"] for r in fresh_db["t"].rows] == [1, 2]
 
@@ -332,7 +332,7 @@ def test_query_returning_commits_after_iteration(tmpdir):
     db["t"].insert({"id": 1}, pk="id")
     rows = list(db.query("insert into t (id) values (2) returning id"))
     assert rows == [{"id": 2}]
-    assert not db.conn.in_transaction
+    assert not db.in_transaction
     other = sqlite3.connect(path)
     assert other.execute("select count(*) from t").fetchone()[0] == 2
     other.close()
@@ -357,7 +357,7 @@ def test_atomic_preserves_error_from_transaction_destroying_trigger(fresh_db):
     with pytest.raises(sqlite3.IntegrityError, match="trigger says no"):
         with fresh_db.atomic():
             fresh_db.execute("insert into t (v) values ('bad')")
-    assert not fresh_db.conn.in_transaction
+    assert not fresh_db.in_transaction
 
 
 def test_nested_atomic_preserves_error_from_transaction_destroying_trigger(
@@ -371,7 +371,7 @@ def test_nested_atomic_preserves_error_from_transaction_destroying_trigger(
         with fresh_db.atomic():
             with fresh_db.atomic():
                 fresh_db.execute("insert into t (v) values ('bad')")
-    assert not fresh_db.conn.in_transaction
+    assert not fresh_db.in_transaction
 
 
 def test_atomic_preserves_error_from_insert_or_rollback(fresh_db):
@@ -379,4 +379,4 @@ def test_atomic_preserves_error_from_insert_or_rollback(fresh_db):
     with pytest.raises(sqlite3.IntegrityError):
         with fresh_db.atomic():
             fresh_db.execute("insert or rollback into t (id) values (1)")
-    assert not fresh_db.conn.in_transaction
+    assert not fresh_db.in_transaction

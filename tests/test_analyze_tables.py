@@ -135,8 +135,13 @@ def test_analyze_column(db_to_analyze, column, extra_kwargs, expected):
 def db_to_analyze_path(db_to_analyze, tmpdir):
     path = str(tmpdir / "test.db")
     db = sqlite3.connect(path)
+    if getattr(db, "autocommit", None) is False:
+        # iterdump scripts contain BEGIN TRANSACTION, which the driver's
+        # always-open implicit transaction would reject
+        db.autocommit = True
     sql = "\n".join(db_to_analyze.iterdump())
     db.executescript(sql)
+    db.commit()
     db.close()
     return path
 

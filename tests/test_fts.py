@@ -360,7 +360,7 @@ def test_optimize_and_rebuild_fts_commit(tmpdir, method):
     getattr(table, method)()
     # The connection must not be left inside an open transaction,
     # otherwise this and all subsequent writes are lost on close
-    assert not db.conn.in_transaction
+    assert not db.in_transaction
     table.insert(search_records[1])
     db.close()
     db2 = Database(path)

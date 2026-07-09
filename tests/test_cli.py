@@ -2200,7 +2200,7 @@ def test_search_quote(tmpdir):
 def test_indexes(tmpdir):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db.conn.executescript("""
+    db.executescript("""
         create table Gosh (c1 text, c2 text, c3 text);
         create index Gosh_idx on Gosh(c2, c3 desc);
     """)
@@ -2294,7 +2294,7 @@ def test_triggers(tmpdir, extra_args, expected):
         pk="id",
     )
     db["counter"].insert({"count": 1})
-    db.conn.execute(textwrap.dedent("""
+    db.execute(textwrap.dedent("""
         CREATE TRIGGER blah AFTER INSERT ON articles
         BEGIN
             UPDATE counter SET count = count + 1;

@@ -42,7 +42,7 @@ def test_delete_where_commits(tmpdir):
     db["table"].delete_where("id > ?", [2])
     # The connection must not be left inside an open transaction,
     # otherwise subsequent atomic() blocks never commit either
-    assert not db.conn.in_transaction
+    assert not db.in_transaction
     db["table"].insert({"id": 100})
     db.close()
     db2 = sqlite_utils.Database(path)
