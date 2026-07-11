@@ -1,3 +1,5 @@
+import sqlite3
+
 from sqlite_utils.db import ForeignKey, TransformError
 from sqlite_utils.utils import OperationalError
 import pytest
@@ -566,13 +568,38 @@ def test_transform_preserves_rowids(fresh_db, table_type):
     assert previous_rows == next_rows
 
 
-@pytest.mark.parametrize("strict", (False, True))
-def test_transform_strict(fresh_db, strict):
-    dogs = fresh_db.table("dogs", strict=strict)
+@pytest.mark.parametrize(
+    "initial_strict,transform_strict,expected_strict",
+    (
+        (False, None, False),
+        (True, None, True),
+        (False, True, True),
+        (True, False, False),
+    ),
+)
+def test_transform_strict(fresh_db, initial_strict, transform_strict, expected_strict):
+    if not fresh_db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    dogs = fresh_db.table("dogs", strict=initial_strict)
     dogs.insert({"id": 1, "name": "Cleo"})
-    assert dogs.strict == strict or not fresh_db.supports_strict
-    dogs.transform(not_null={"name"})
-    assert dogs.strict == strict or not fresh_db.supports_strict
+    assert dogs.strict is initial_strict
+    dogs.transform(strict=transform_strict)
+    assert dogs.strict is expected_strict
+
+
+def test_transform_to_strict_with_invalid_data(fresh_db):
+    if not fresh_db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    dogs = fresh_db["dogs"]
+    dogs.create({"id": int})
+    dogs.insert({"id": "not-an-integer"})
+
+    with pytest.raises(sqlite3.IntegrityError):
+        dogs.transform(strict=True)
+
+    assert dogs.strict is False
+    assert list(dogs.rows) == [{"id": "not-an-integer"}]
+    assert fresh_db.table_names() == ["dogs"]
 
 
 @pytest.mark.parametrize(

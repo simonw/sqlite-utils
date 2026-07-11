@@ -2718,6 +2718,11 @@ def schema(
     multiple=True,
     help="Drop foreign key constraint for this column",
 )
+@click.option(
+    "--strict/--no-strict",
+    default=None,
+    help="Enable or disable STRICT mode (default: preserve current mode)",
+)
 @click.option("--sql", is_flag=True, help="Output SQL without executing it")
 @load_extension_option
 def transform(
@@ -2735,6 +2740,7 @@ def transform(
     default_none,
     add_foreign_keys,
     drop_foreign_keys,
+    strict,
     sql,
     load_extension,
 ):
@@ -2796,6 +2802,7 @@ def transform(
             defaults=default_dict,
             drop_foreign_keys=drop_foreign_keys_value,
             add_foreign_keys=add_foreign_keys_value,
+            strict=strict,
         ):
             click.echo(line)
     else:
@@ -2809,6 +2816,7 @@ def transform(
             defaults=default_dict,
             drop_foreign_keys=drop_foreign_keys_value,
             add_foreign_keys=add_foreign_keys_value,
+            strict=strict,
         )
 
 

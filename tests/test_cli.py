@@ -3,6 +3,7 @@ from sqlite_utils.db import Index, ForeignKey
 from click.testing import CliRunner
 from pathlib import Path
 import subprocess
+import sqlite3
 import sys
 import json
 import os
@@ -1937,6 +1938,64 @@ def test_transform_sql(db_path):
     assert 'DROP TABLE "dogs";' in result.output
     assert 'ALTER TABLE "dogs_new_' in result.output
     assert db["dogs"].schema == original_schema
+
+
+@pytest.mark.parametrize(
+    "initial_strict,args,expected_strict",
+    (
+        (False, [], False),
+        (True, [], True),
+        (False, ["--strict"], True),
+        (True, ["--no-strict"], False),
+    ),
+)
+def test_transform_strict_option(db_path, initial_strict, args, expected_strict):
+    db = Database(db_path)
+    if not db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    db["dogs"].create({"id": int}, strict=initial_strict)
+
+    result = CliRunner().invoke(cli.cli, ["transform", db_path, "dogs"] + args)
+
+    assert result.exit_code == 0, result.output
+    assert db["dogs"].strict is expected_strict
+
+
+@pytest.mark.parametrize(
+    "initial_strict,flag,sql_is_strict",
+    (
+        (False, "--strict", True),
+        (True, "--no-strict", False),
+    ),
+)
+def test_transform_strict_option_sql(db_path, initial_strict, flag, sql_is_strict):
+    db = Database(db_path)
+    if not db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    db["dogs"].create({"id": int}, strict=initial_strict)
+
+    result = CliRunner().invoke(cli.cli, ["transform", db_path, "dogs", flag, "--sql"])
+
+    assert result.exit_code == 0, result.output
+    assert (") STRICT;" in result.output) is sql_is_strict
+    assert db["dogs"].strict is initial_strict
+
+
+def test_transform_strict_option_with_invalid_data(db_path):
+    db = Database(db_path)
+    if not db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    dogs = db["dogs"]
+    dogs.create({"id": int})
+    dogs.insert({"id": "not-an-integer"})
+
+    result = CliRunner().invoke(cli.cli, ["transform", db_path, "dogs", "--strict"])
+
+    assert result.exit_code == 1
+    assert isinstance(result.exception, sqlite3.IntegrityError)
+    assert dogs.strict is False
+    assert list(dogs.rows) == [{"id": "not-an-integer"}]
+    assert not any(name.startswith("dogs_new_") for name in db.table_names())
 
 
 @pytest.mark.parametrize(

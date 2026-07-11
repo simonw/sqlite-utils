@@ -9,6 +9,8 @@
 Unreleased
 ----------
 
+- ``table.transform()`` now accepts ``strict=True`` or ``strict=False`` to change a table's SQLite strict mode. Omitting the option, or passing ``strict=None``, preserves the existing mode. (:issue:`787`)
+- The ``sqlite-utils transform`` command now accepts ``--strict`` and ``--no-strict`` to change a table's SQLite strict mode. Omitting both options preserves the existing mode. (:issue:`787`)
 - ``sqlite-utils query`` can now read the SQL query from standard input by passing ``-`` in place of the query, for example ``echo "select * from dogs" | sqlite-utils query dogs.db -``. (:issue:`765`)
 - ``sqlite-utils insert`` and ``sqlite-utils upsert`` now accept a ``--code`` option for :ref:`providing a block of Python code <cli_insert_code>` (or a path to a ``.py`` file) that defines a ``rows()`` function or ``rows`` iterable of rows to insert, as an alternative to importing from a file. (:issue:`684`)
 - ``sqlite-utils insert`` and ``sqlite-utils upsert`` now accept ``--type column-name type`` to :ref:`override the type automatically chosen when the table is created <cli_insert_csv_tsv_column_types>`. This is useful for CSV or TSV columns such as ZIP codes that look like integers but should be stored as ``TEXT`` to preserve leading zeros. (:issue:`131`)

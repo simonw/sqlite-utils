@@ -2514,6 +2514,7 @@ class Table(Queryable):
         foreign_keys: Optional[ForeignKeysType] = None,
         column_order: Optional[List[str]] = None,
         keep_table: Optional[str] = None,
+        strict: Optional[bool] = None,
     ) -> "Table":
         """
         Apply an advanced alter table, including operations that are not supported by
@@ -2536,6 +2537,8 @@ class Table(Queryable):
           to use when creating the table
         :param keep_table: If specified, the existing table will be renamed to this and will not be
           dropped
+        :param strict: Set to ``True`` to make the table strict or ``False`` to make it
+          non-strict. Defaults to ``None``, which preserves the existing strict mode.
         """
         if not self.exists():
             raise ValueError("Cannot transform a table that doesn't exist yet")
@@ -2551,6 +2554,7 @@ class Table(Queryable):
             foreign_keys=foreign_keys,
             column_order=column_order,
             keep_table=keep_table,
+            strict=strict,
         )
         pragma_foreign_keys_was_on = bool(
             self.db.execute("PRAGMA foreign_keys").fetchone()[0]
@@ -2604,6 +2608,7 @@ class Table(Queryable):
         column_order: Optional[List[str]] = None,
         tmp_suffix: Optional[str] = None,
         keep_table: Optional[str] = None,
+        strict: Optional[bool] = None,
     ) -> List[str]:
         """
         Return a list of SQL statements that should be executed in order to apply this transformation.
@@ -2624,6 +2629,8 @@ class Table(Queryable):
         :param tmp_suffix: Suffix to use for the temporary table name
         :param keep_table: If specified, the existing table will be renamed to this and will not be
           dropped
+        :param strict: Set to ``True`` to make the table strict or ``False`` to make it
+          non-strict. Defaults to ``None``, which preserves the existing strict mode.
         """
         types = types or {}
         rename = rename or {}
@@ -2806,7 +2813,7 @@ class Table(Queryable):
                 defaults=create_table_defaults,
                 foreign_keys=create_table_foreign_keys,
                 column_order=column_order,
-                strict=self.strict,
+                strict=self.strict if strict is None else strict,
             ).strip()
         )
 

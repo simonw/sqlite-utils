@@ -2182,7 +2182,7 @@ Use ``--ignore`` to ignore the error if the table does not exist.
 Transforming tables
 ===================
 
-The ``transform`` command allows you to apply complex transformations to a table that cannot be implemented using a regular SQLite ``ALTER TABLE`` command. See :ref:`python_api_transform` for details of how this works. The ``transform`` command preserves a table's ``STRICT`` mode.
+The ``transform`` command allows you to apply complex transformations to a table that cannot be implemented using a regular SQLite ``ALTER TABLE`` command. See :ref:`python_api_transform` for details of how this works. By default, the ``transform`` command preserves a table's ``STRICT`` mode.
 
 .. code-block:: bash
 
@@ -2227,6 +2227,12 @@ Every option for this table (with the exception of ``--pk-none``) can be specifi
 
 ``--add-foreign-key column other_table other_column``
     Add a foreign key constraint to ``column`` pointing to ``other_table.other_column``.
+
+``--strict``
+    Convert the table to a `SQLite STRICT table <https://www.sqlite.org/stricttables.html>`__. If existing rows contain values that are incompatible with their declared column types the transformation fails and the original table is left unchanged.
+
+``--no-strict``
+    Convert a strict table back to a regular non-strict table.
 
 If you want to see the SQL that will be executed to make the change without actually executing it, add the ``--sql`` flag. For example:
 
