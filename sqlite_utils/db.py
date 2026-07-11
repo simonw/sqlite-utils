@@ -1400,6 +1400,7 @@ class Database:
         extracts: Optional[Union[Dict[str, str], List[str]]] = None,
         if_not_exists: bool = False,
         strict: bool = False,
+        unique: Optional[Iterable[str]] = None,
     ) -> str:
         """
         Returns the SQL ``CREATE TABLE`` statement for creating the specified table.
@@ -1442,6 +1443,7 @@ class Database:
             )
         # Soundness check not_null, and defaults if provided
         not_null = {resolve_casing(n, columns) for n in not_null or set()}
+        unique = {resolve_casing(n, columns) for n in unique or set()}
         defaults = {resolve_casing(n, columns): v for n, v in (defaults or {}).items()}
         if column_order is not None:
             column_order = [resolve_casing(c, columns) for c in column_order]
@@ -1498,6 +1500,8 @@ class Database:
                 column_extras.append("PRIMARY KEY")
             if column_name in not_null:
                 column_extras.append("NOT NULL")
+            if column_name in unique and column_name != single_pk:
+                column_extras.append("UNIQUE")
             if column_name in defaults and defaults[column_name] is not None:
                 column_extras.append(
                     "DEFAULT {}".format(self.quote_default_value(defaults[column_name]))
@@ -2796,6 +2800,16 @@ class Table(Queryable):
         if column_order is not None:
             column_order = [rename.get(col) or col for col in column_order]
 
+        # Collect column-level UNIQUE constraints from auto-indices (origin="u").
+        # These have no CREATE INDEX SQL, so they must be reproduced as inline UNIQUE
+        # column attributes in the new CREATE TABLE statement.
+        create_table_unique = set()
+        for index in self.indexes:
+            if index.origin == "u":
+                for col in index.columns:
+                    if col not in drop:
+                        create_table_unique.add(rename.get(col, col))
+
         sqls = []
         sqls.append(
             self.db.create_table_sql(
@@ -2807,6 +2821,7 @@ class Table(Queryable):
                 foreign_keys=create_table_foreign_keys,
                 column_order=column_order,
                 strict=self.strict,
+                unique=create_table_unique,
             ).strip()
         )
 
@@ -2850,6 +2865,11 @@ class Table(Queryable):
                     {"index_name": index.name},
                 ).fetchall()[0][0]
                 if index_sql is None:
+                    if index.origin == "u":
+                        # Auto-index backing a column-level UNIQUE constraint: already
+                        # reproduced as an inline UNIQUE attribute in the new table's
+                        # CREATE TABLE statement (see create_table_sql call above).
+                        continue
                     raise TransformError(
                         f"Index '{index.name}' on table '{self.name}' does not have a "
                         "CREATE INDEX statement. You must manually drop this index prior to running this "
