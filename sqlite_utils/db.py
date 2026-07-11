@@ -2591,6 +2591,8 @@ class Table(Queryable):
                 self.db.execute("PRAGMA defer_foreign_keys=OFF;")
             if should_disable_foreign_keys:
                 self.db.execute("PRAGMA foreign_keys=1;")
+        if strict is not None:
+            self._defaults["strict"] = strict
         return self
 
     def transform_sql(

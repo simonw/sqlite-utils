@@ -602,6 +602,19 @@ def test_transform_to_strict_with_invalid_data(fresh_db):
     assert fresh_db.table_names() == ["dogs"]
 
 
+def test_transform_strict_updates_default(fresh_db):
+    if not fresh_db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    table = fresh_db.table("items", strict=True)
+    table.create({"id": int})
+
+    table.transform(strict=False)
+    assert table.strict is False
+
+    table.create({"id": int}, replace=True)
+    assert table.strict is False
+
+
 @pytest.mark.parametrize(
     "indexes, transform_params",
     [
