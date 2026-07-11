@@ -320,10 +320,14 @@ Every method in this library that writes to the database - ``insert()``, ``upser
 
 The same applies to raw SQL executed with :ref:`db.execute() <python_api_transactions_execute>` - a write statement is committed as soon as it has run.
 
+Another way to think about this is that each sqlite-utils method call is its own unit of work. If several method calls must either all succeed or all fail, use ``db.atomic()`` to turn them into a single unit of work.
+
 You never need to call ``commit()``, and you do not need to close the database to persist your changes. There are exactly two situations where you need to think about transactions:
 
 1. You want to group several write operations together, so they either all succeed or all fail - use :ref:`db.atomic() <python_api_atomic>`.
 2. You are :ref:`managing a transaction yourself <python_api_transactions_manual>` with ``db.begin()``, in which case nothing is committed until you commit - the library will never commit a transaction you opened.
+
+``with Database(...) as db:`` is not a transaction block. It manages the lifetime of the database connection and closes it on exit. Use ``with db.atomic():`` for a transaction.
 
 .. _python_api_atomic:
 
@@ -339,6 +343,27 @@ Use ``db.atomic()`` to group multiple operations in a single transaction:
         db.table("dogs").insert({"id": 2, "name": "Pancakes"})
 
 The transaction commits when the block exits. If an exception is raised, changes made inside the block will be rolled back.
+
+This matters when several operations represent a single logical change. Without ``db.atomic()``, an earlier method call remains committed if a later one fails:
+
+.. code-block:: python
+
+    # These are two separate transactions
+    db.table("accounts").update(1, {"balance": 90})
+    db.table("accounts").update(2, {"balance": 110})
+
+    # These updates either both succeed or both fail
+    with db.atomic():
+        db.table("accounts").update(1, {"balance": 90})
+        db.table("accounts").update(2, {"balance": 110})
+
+Transactions can also improve performance. Calling ``insert()`` repeatedly outside ``db.atomic()`` creates and commits a separate transaction for every call. For bulk inserts, prefer :ref:`insert_all() <python_api_bulk_inserts>`. If you need to call several different methods in a loop, wrap the loop in ``db.atomic()``:
+
+.. code-block:: python
+
+    with db.atomic():
+        for row in rows:
+            db.table("events").insert(row)
 
 ``db.atomic()`` can be nested. Nested blocks use SQLite savepoints, so an exception in an inner block can roll back to that savepoint without rolling back the entire outer transaction:
 
@@ -367,6 +392,8 @@ Write statements executed with :ref:`db.execute() <python_api_execute>` follow t
 
     db.execute("insert into news (headline) values (?)", ["Dog wins award"])
     # Already committed
+
+``db.execute()`` participates in sqlite-utils transaction handling. Calling ``db.conn.execute()`` directly bypasses that policy and leaves transaction handling to Python's underlying ``sqlite3.Connection``. Prefer ``db.execute()`` unless you deliberately need the lower-level API.
 
 If a transaction is open - because the call happens inside a ``db.atomic()`` block, or after ``db.begin()`` - the statement becomes part of that transaction instead, and commits when the transaction commits:
 
@@ -399,6 +426,8 @@ You can take full manual control using the ``db.begin()``, ``db.commit()`` and `
 
 The library will never commit a transaction you opened. If you call write methods such as ``insert()`` - or use ``db.atomic()`` - while your transaction is open, they participate in it using SQLite savepoints instead of committing: exiting an ``atomic()`` block releases its savepoint, but nothing is saved to disk until you commit the outer transaction yourself. If you roll back, their changes are rolled back too.
 
+Prefer ``db.atomic()`` or ``db.begin()``, ``db.commit()`` and ``db.rollback()`` over mixing sqlite-utils transaction methods with calls to ``db.conn.commit()``, ``db.conn.rollback()`` or raw transaction-control SQL. Mixing the two layers makes it much harder to tell which layer owns the current transaction.
+
 Two related safeguards to be aware of:
 
 - ``db.enable_wal()`` and ``db.disable_wal()`` raise a ``sqlite_utils.db.TransactionError`` if called while a transaction is open, because changing the journal mode would commit it as a side effect.
@@ -409,9 +438,11 @@ Two related safeguards to be aware of:
 Supported connection modes
 --------------------------
 
-``db.atomic()`` and the automatic per-method transactions require a connection in Python's default transaction handling mode. Passing a connection created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options to ``Database()`` raises a ``sqlite_utils.db.TransactionError``.
+``db.atomic()`` and the automatic per-method transactions currently require a connection using Python's legacy transaction control mode (``sqlite3.LEGACY_TRANSACTION_CONTROL`` on Python 3.12 and later). Passing a connection created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options to ``Database()`` raises a ``sqlite_utils.db.TransactionError``.
 
-This is because ``commit()`` and ``rollback()`` behave differently on those connections - under ``autocommit=True`` they are documented no-ops - which would cause every write made by this library to be silently discarded when the connection closed, rather than failing loudly.
+Connections using ``autocommit=False`` are not supported because Python keeps a transaction open continuously. sqlite-utils uses ``Connection.in_transaction`` to distinguish its own transactions from transactions opened by its caller, and that distinction is not available in this mode.
+
+Connections using ``autocommit=True`` are also currently rejected because sqlite-utils has not formally exposed that as a supported configuration.
 
 .. _python_api_table:
 
