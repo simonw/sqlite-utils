@@ -9,7 +9,7 @@
 Unreleased
 ----------
 
-- ``table.transform()`` now accepts ``strict=True`` or ``strict=False`` to change a table's SQLite strict mode. Omitting the option, or passing ``strict=None``, preserves the existing mode. Requesting strict mode raises ``TransformError`` if the available SQLite version does not support strict tables. (:issue:`787`)
+- ``table.transform()`` and ``table.transform_sql()`` now accept ``strict=True`` or ``strict=False`` to change a table's SQLite strict mode. Omitting the option, or passing ``strict=None``, preserves the existing mode. (:issue:`787`)
 - The ``sqlite-utils transform`` command now accepts ``--strict`` and ``--no-strict`` to change a table's SQLite strict mode. Omitting both options preserves the existing mode. (:issue:`787`)
 - ``sqlite-utils query`` can now read the SQL query from standard input by passing ``-`` in place of the query, for example ``echo "select * from dogs" | sqlite-utils query dogs.db -``. (:issue:`765`)
 - ``sqlite-utils insert`` and ``sqlite-utils upsert`` now accept a ``--code`` option for :ref:`providing a block of Python code <cli_insert_code>` (or a path to a ``.py`` file) that defines a ``rows()`` function or ``rows`` iterable of rows to insert, as an alternative to importing from a file. (:issue:`684`)
