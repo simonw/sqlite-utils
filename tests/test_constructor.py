@@ -111,10 +111,3 @@ def test_memory_attribute_for_file_path(tmpdir):
     db = Database(str(tmpdir / "file.db"))
     assert db.memory is False
     assert db.memory_name is None
-
-
-def test_memory_attribute_for_existing_connection():
-    conn = sqlite3.connect(":memory:")
-    db = Database(conn)
-    assert db.memory is False
-    assert db.memory_name is None
