@@ -1753,6 +1753,29 @@ To alter the type of a column, use the ``types=`` argument:
 
 See :ref:`python_api_add_column` for a list of available types.
 
+.. _python_api_transform_strict:
+
+Changing strict mode
+--------------------
+
+The optional ``strict=`` parameter can change whether a table uses `SQLite STRICT mode <https://www.sqlite.org/stricttables.html>`__. Pass ``strict=True`` to convert a regular table to a strict table:
+
+.. code-block:: python
+
+    table.transform(strict=True)
+
+Pass ``strict=False`` to convert a strict table back to a regular non-strict table:
+
+.. code-block:: python
+
+    table.transform(strict=False)
+
+The default is ``strict=None``, which preserves the table's existing strict mode.
+
+Passing ``strict=True`` raises ``sqlite_utils.db.TransformError`` if the available SQLite version does not support strict tables.
+
+Converting to a strict table validates all existing rows as they are copied into the replacement table. If a value is incompatible with its declared column type, SQLite raises ``sqlite3.IntegrityError`` and the transformation is rolled back, leaving the original table and its data unchanged.
+
 .. _python_api_transform_rename_columns:
 
 Renaming columns

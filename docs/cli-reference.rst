@@ -508,6 +508,8 @@ See :ref:`cli_transform_table`.
                                       Add a foreign key constraint from a column to
                                       another table with another column
       --drop-foreign-key TEXT         Drop foreign key constraint for this column
+      --strict / --no-strict          Enable or disable STRICT mode (default:
+                                      preserve current mode)
       --sql                           Output SQL without executing it
       --load-extension TEXT           Path to SQLite extension, with optional
                                       :entrypoint
