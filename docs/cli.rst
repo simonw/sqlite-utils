@@ -2229,7 +2229,7 @@ Every option for this table (with the exception of ``--pk-none``) can be specifi
     Add a foreign key constraint to ``column`` pointing to ``other_table.other_column``.
 
 ``--strict``
-    Convert the table to a `SQLite STRICT table <https://www.sqlite.org/stricttables.html>`__. If existing rows contain values that are incompatible with their declared column types the transformation fails and the original table is left unchanged.
+    Convert the table to a `SQLite STRICT table <https://www.sqlite.org/stricttables.html>`__. The command fails if the available SQLite version does not support strict tables. If existing rows contain values that are incompatible with their declared column types the transformation fails and the original table is left unchanged.
 
 ``--no-strict``
     Convert a strict table back to a regular non-strict table.

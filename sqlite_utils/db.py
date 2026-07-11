@@ -2634,6 +2634,8 @@ class Table(Queryable):
         :param strict: Set to ``True`` to make the table strict or ``False`` to make it
           non-strict. Defaults to ``None``, which preserves the existing strict mode.
         """
+        if strict is True and not self.db.supports_strict:
+            raise TransformError("SQLite does not support STRICT tables")
         types = types or {}
         rename = rename or {}
         drop = drop or set()

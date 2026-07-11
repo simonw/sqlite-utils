@@ -615,6 +615,18 @@ def test_transform_strict_updates_default(fresh_db):
     assert table.strict is False
 
 
+@pytest.mark.parametrize("method_name", ("transform", "transform_sql"))
+def test_transform_to_strict_not_supported(fresh_db, method_name):
+    table = fresh_db["items"]
+    table.create({"id": int})
+    fresh_db._supports_strict = False
+
+    with pytest.raises(TransformError, match="SQLite does not support STRICT tables"):
+        getattr(table, method_name)(strict=True)
+
+    assert table.strict is False
+
+
 @pytest.mark.parametrize(
     "indexes, transform_params",
     [
