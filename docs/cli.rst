@@ -424,6 +424,9 @@ The ``--functions`` option can be used multiple times to load functions from mul
         from urllib.parse import urlparse
         return urlparse(url).path'
 
+.. note::
+    In Python: :ref:`db.register_function() <python_api_register_function>`
+
 .. _cli_query_extensions:
 
 SQLite extensions
@@ -1024,6 +1027,9 @@ To show more than 10 common values, use ``--common-limit 20``.  To skip the most
 
     sqlite-utils analyze-tables github.db tags --common-limit 20 --no-least
 
+.. note::
+    In Python: :ref:`table.analyze_column() <python_api_analyze_column>`  CLI reference: :ref:`sqlite-utils analyze-tables <cli_ref_analyze_tables>`
+
 .. _cli_analyze_tables_save:
 
 Saving the analyzed table details
@@ -1190,6 +1196,9 @@ You can delete all the existing rows in the table before inserting the new recor
     sqlite-utils insert dogs.db dogs dogs.json --truncate
 
 You can add the ``--analyze`` option to run ``ANALYZE`` against the table after the rows have been inserted.
+
+.. note::
+    In Python: :ref:`table.insert_all() <python_api_bulk_inserts>`  CLI reference: :ref:`sqlite-utils insert <cli_ref_insert>`
 
 .. _cli_inserting_data_binary:
 
@@ -1615,6 +1624,9 @@ To replace a dog with in ID of 2 with a new record, run the following:
     echo '{"id": 2, "name": "Pancakes", "age": 3}' | \
         sqlite-utils insert dogs.db dogs - --pk=id --replace
 
+.. note::
+    In Python: :ref:`table.insert(..., replace=True) <python_api_insert_replace>`  CLI reference: :ref:`sqlite-utils insert <cli_ref_insert>`
+
 .. _cli_upsert:
 
 Upserting data
@@ -1640,6 +1652,9 @@ The command will fail if you reference columns that do not exist on the table. T
 .. note::
     ``upsert`` in sqlite-utils 1.x worked like ``insert ... --replace`` does in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
 
+
+.. note::
+    In Python: :ref:`table.upsert() <python_api_upsert>`  CLI reference: :ref:`sqlite-utils upsert <cli_ref_upsert>`
 
 .. _cli_bulk:
 
@@ -1841,6 +1856,9 @@ You can include named parameters in your where clause and populate them using on
         --param query '%cat%'
 
 The ``--dry-run`` option will output a preview of the conversion against the first ten rows, without modifying the database.
+
+.. note::
+    In Python: :ref:`table.convert() <python_api_convert>`  CLI reference: :ref:`sqlite-utils convert <cli_ref_convert>`
 
 .. _cli_convert_import:
 
@@ -2140,6 +2158,9 @@ If a table with the same name already exists, you will get an error. You can cho
 
 You can also pass ``--transform`` to transform the existing table to match the new schema. See :ref:`python_api_explicit_create` in the Python library documentation for details of how this option works.
 
+.. note::
+    In Python: :ref:`table.create() <python_api_explicit_create>`  CLI reference: :ref:`sqlite-utils create-table <cli_ref_create_table>`
+
 .. _cli_renaming_tables:
 
 Renaming a table
@@ -2153,6 +2174,9 @@ Yo ucan rename a table using the ``rename-table`` command:
 
 Pass ``--ignore`` to ignore any errors caused by the table not existing, or the new name already being in use.
 
+.. note::
+    In Python: :ref:`db.rename_table() <python_api_rename_table>`  CLI reference: :ref:`sqlite-utils rename-table <cli_ref_rename_table>`
+
 .. _cli_duplicate_table:
 
 Duplicating tables
@@ -2163,6 +2187,9 @@ The ``duplicate`` command duplicates a table - creating a new table with the sam
 .. code-block:: bash
 
     sqlite-utils duplicate books.db authors authors_copy
+
+.. note::
+    In Python: :ref:`table.duplicate() <python_api_duplicate>`  CLI reference: :ref:`sqlite-utils duplicate <cli_ref_duplicate>`
 
 .. _cli_drop_table:
 
@@ -2176,6 +2203,9 @@ You can drop a table using the ``drop-table`` command:
     sqlite-utils drop-table mydb.db mytable
 
 Use ``--ignore`` to ignore the error if the table does not exist.
+
+.. note::
+    In Python: :ref:`table.drop() <python_api_drop>`  CLI reference: :ref:`sqlite-utils drop-table <cli_ref_drop_table>`
 
 .. _cli_transform_table:
 
@@ -2259,6 +2289,9 @@ If you want to see the SQL that will be executed to make the change without actu
        SELECT "longitude", "latitude", "pk", "name" FROM "roadside_attractions";
     DROP TABLE "roadside_attractions";
     ALTER TABLE "roadside_attractions_new_4033a60276b9" RENAME TO "roadside_attractions";
+
+.. note::
+    In Python: :ref:`table.transform() <python_api_transform>`  CLI reference: :ref:`sqlite-utils transform <cli_ref_transform>`
 
 .. _cli_transform_table_add_primary_key_to_rowid:
 
@@ -2437,6 +2470,9 @@ After running the above, the command ``sqlite-utils schema global.db`` reveals t
     CREATE UNIQUE INDEX "idx_countries_country_name"
         ON "countries" ("country", "name");
 
+.. note::
+    In Python: :ref:`table.extract() <python_api_extract>`  CLI reference: :ref:`sqlite-utils extract <cli_ref_extract>`
+
 .. _cli_create_view:
 
 Creating views
@@ -2458,6 +2494,9 @@ You can create a view using the ``create-view`` command:
 
 Use ``--replace`` to replace an existing view of the same name, and ``--ignore`` to do nothing if a view already exists.
 
+.. note::
+    In Python: :ref:`db.create_view() <python_api_create_view>`  CLI reference: :ref:`sqlite-utils create-view <cli_ref_create_view>`
+
 .. _cli_drop_view:
 
 Dropping views
@@ -2470,6 +2509,9 @@ You can drop a view using the ``drop-view`` command:
     sqlite-utils drop-view myview
 
 Use ``--ignore`` to ignore the error if the view does not exist.
+
+.. note::
+    In Python: :ref:`view.drop() <python_api_drop>`  CLI reference: :ref:`sqlite-utils drop-view <cli_ref_drop_view>`
 
 .. _cli_add_column:
 
@@ -2511,6 +2553,9 @@ You can set a ``NOT NULL DEFAULT 'x'`` constraint on the new column using ``--no
 
     sqlite-utils add-column mydb.db dogs friends_count integer --not-null-default 0
 
+.. note::
+    In Python: :ref:`table.add_column() <python_api_add_column>`  CLI reference: :ref:`sqlite-utils add-column <cli_ref_add_column>`
+
 .. _cli_add_column_alter:
 
 Adding columns automatically on insert/update
@@ -2521,6 +2566,9 @@ You can use the ``--alter`` option to automatically add new columns if the data 
 .. code-block:: bash
 
     sqlite-utils insert dogs.db dogs new-dogs.json --pk=id --alter
+
+.. note::
+    In Python: :ref:`table.insert(..., alter=True) <python_api_add_column_alter>`
 
 .. _cli_add_foreign_key:
 
@@ -2549,6 +2597,9 @@ Add ``--ignore`` to ignore an existing foreign key (as opposed to returning an e
 
 See :ref:`python_api_add_foreign_key` in the Python API documentation for further details, including how the automatic table guessing mechanism works.
 
+.. note::
+    In Python: :ref:`table.add_foreign_key() <python_api_add_foreign_key>`  CLI reference: :ref:`sqlite-utils add-foreign-key <cli_ref_add_foreign_key>`
+
 .. _cli_add_foreign_keys:
 
 Adding multiple foreign keys at once
@@ -2564,6 +2615,9 @@ Adding a foreign key requires a ``VACUUM``. On large databases this can be an ex
 
 When you are using this command each foreign key needs to be defined in full, as four arguments - the table, column, other table and other column.
 
+.. note::
+    In Python: :ref:`db.add_foreign_keys() <python_api_add_foreign_keys>`  CLI reference: :ref:`sqlite-utils add-foreign-keys <cli_ref_add_foreign_keys>`
+
 .. _cli_index_foreign_keys:
 
 Adding indexes for all foreign keys
@@ -2574,6 +2628,9 @@ If you want to ensure that every foreign key column in your database has a corre
 .. code-block:: bash
 
     sqlite-utils index-foreign-keys books.db
+
+.. note::
+    In Python: :ref:`db.index_foreign_keys() <python_api_index_foreign_keys>`  CLI reference: :ref:`sqlite-utils index-foreign-keys <cli_ref_index_foreign_keys>`
 
 .. _cli_defaults_not_null:
 
@@ -2589,6 +2646,9 @@ You can use the ``--not-null`` and ``--default`` options (to both ``insert`` and
         --not-null=name \
         --default age 2 \
         --default score 5
+
+.. note::
+    In Python: :ref:`not_null= and defaults= arguments <python_api_defaults_not_null>`
 
 .. _cli_create_index:
 
@@ -2621,6 +2681,9 @@ If your column names are already prefixed with a hyphen you'll need to manually 
 
 Add the ``--analyze`` option to run ``ANALYZE`` against the index after it has been created.
 
+.. note::
+    In Python: :ref:`table.create_index() <python_api_create_index>`  CLI reference: :ref:`sqlite-utils create-index <cli_ref_create_index>`
+
 .. _cli_drop_index:
 
 Dropping indexes
@@ -2633,6 +2696,9 @@ You can drop an index from an existing table using the ``drop-index`` command:
     sqlite-utils drop-index mydb.db mytable idx_mytable_col1
 
 Use ``--ignore`` to ignore the error if the index does not exist on that table.
+
+.. note::
+    In Python: :ref:`table.drop_index() <python_api_create_index>`  CLI reference: :ref:`sqlite-utils drop-index <cli_ref_drop_index>`
 
 .. _cli_fts:
 
@@ -2686,6 +2752,9 @@ You can rebuild every FTS table by running ``rebuild-fts`` without passing any t
 .. code-block:: bash
 
     sqlite-utils rebuild-fts mydb.db
+
+.. note::
+    In Python: :ref:`table.enable_fts() <python_api_fts_enable>`  CLI reference: :ref:`sqlite-utils enable-fts <cli_ref_enable_fts>`
 
 .. _cli_search:
 
@@ -2743,6 +2812,9 @@ Use the ``--sql`` option to output the SQL that would be executed, rather than r
     order by
         "documents_fts".rank
 
+.. note::
+    In Python: :ref:`table.search() <python_api_fts_search>`  CLI reference: :ref:`sqlite-utils search <cli_ref_search>`
+
 .. _cli_enable_counts:
 
 Enabling cached counts
@@ -2765,6 +2837,9 @@ If the ``_counts`` table ever becomes out-of-sync with the actual table counts y
 .. code-block:: bash
 
     sqlite-utils reset-counts mydb.db
+
+.. note::
+    In Python: :ref:`table.enable_counts() <python_api_cached_table_counts>`  CLI reference: :ref:`sqlite-utils enable-counts <cli_ref_enable_counts>`
 
 .. _cli_analyze:
 
@@ -2789,6 +2864,9 @@ You can run it against specific tables, or against specific named indexes, by pa
 
 You can also run ``ANALYZE`` as part of another command using the ``--analyze`` option. This is supported by the ``create-index``, ``insert`` and ``upsert`` commands.
 
+.. note::
+    In Python: :ref:`db.analyze() <python_api_analyze>`  CLI reference: :ref:`sqlite-utils analyze <cli_ref_analyze>`
+
 .. _cli_vacuum:
 
 Vacuum
@@ -2799,6 +2877,9 @@ You can run VACUUM to optimize your database like so:
 .. code-block:: bash
 
     sqlite-utils vacuum mydb.db
+
+.. note::
+    In Python: :ref:`db.vacuum() <python_api_vacuum>`  CLI reference: :ref:`sqlite-utils vacuum <cli_ref_vacuum>`
 
 .. _cli_optimize:
 
@@ -2823,6 +2904,9 @@ To optimize specific tables rather than every FTS table, pass those tables as ex
 
     sqlite-utils optimize mydb.db table_1 table_2
 
+.. note::
+    In Python: :ref:`table.optimize() <python_api_fts_optimize>`  CLI reference: :ref:`sqlite-utils optimize <cli_ref_optimize>`
+
 .. _cli_wal:
 
 WAL mode
@@ -2842,6 +2926,9 @@ You can disable WAL mode using ``disable-wal``:
 
 Both of these commands accept one or more database files as arguments.
 
+.. note::
+    In Python: :ref:`db.enable_wal() and db.disable_wal() <python_api_wal>`  CLI reference: :ref:`sqlite-utils enable-wal <cli_ref_enable_wal>`
+
 .. _cli_dump:
 
 Dumping the database to SQL
@@ -2856,6 +2943,9 @@ The ``dump`` command outputs a SQL dump of the schema and full contents of the s
     CREATE TABLE ...
     ...
     COMMIT;
+
+.. note::
+    In Python: :ref:`db.iterdump() <python_api_itedump>`  CLI reference: :ref:`sqlite-utils dump <cli_ref_dump>`
 
 .. _cli_load_extension:
 
@@ -2904,6 +2994,9 @@ Eight (case-insensitive) types are allowed:
 * GEOMETRYCOLLECTION
 * GEOMETRY
 
+.. note::
+    In Python: :ref:`table.add_geometry_column() <python_api_gis_add_geometry_column>`  CLI reference: :ref:`sqlite-utils add-geometry-column <cli_ref_add_geometry_column>`
+
 .. _cli_spatialite_indexes:
 
 Adding spatial indexes
@@ -2916,6 +3009,9 @@ Once you have a geometry column, you can speed up bounding box queries by adding
     sqlite-utils create-spatial-index spatial.db locations geometry
 
 See this `SpatiaLite Cookbook recipe <http://www.gaia-gis.it/gaia-sins/spatialite-cookbook-5/cookbook_topics.03.html#topic_Wonderful_RTree_Spatial_Index>`__ for examples of how to use a spatial index.
+
+.. note::
+    In Python: :ref:`table.create_spatial_index() <python_api_gis_create_spatial_index>`  CLI reference: :ref:`sqlite-utils create-spatial-index <cli_ref_create_spatial_index>`
 
 .. _cli_install:
 

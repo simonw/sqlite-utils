@@ -184,6 +184,9 @@ You can attach an additional database using the ``.attach()`` method, providing 
 
 You can reference tables in the attached database using the alias value you passed to ``db.attach(alias, filepath)`` as a prefix, for example the ``second.table_in_second`` reference in the SQL query above.
 
+.. note::
+    In the CLI: :ref:`sqlite-utils --attach <cli_query_attach>`
+
 .. _python_api_tracing:
 
 Tracing queries
@@ -253,6 +256,9 @@ If a query returns more than one column with the same name - a join between two 
     # {'id': 1, 'id_2': 2, 'id_3': 3}
 
 A suffix that would collide with another column in the query is skipped - ``select 1 as id, 2 as id, 3 as id_2`` returns ``{'id': 1, 'id_3': 2, 'id_2': 3}``. The same renaming is applied by ``table.rows_where()`` and ``table.search()``.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils query <cli_query>`
 
 .. _python_api_execute:
 
@@ -497,6 +503,9 @@ You can also iterate through the table objects themselves using the ``.tables`` 
     >>> db.tables
     [<Table dogs>]
 
+.. note::
+    In the CLI: :ref:`sqlite-utils tables <cli_tables>`
+
 .. _python_api_views:
 
 Listing views
@@ -521,6 +530,9 @@ View objects are similar to Table objects, except that any attempts to insert or
 * ``rows``
 * ``rows_where(where, where_args, order_by, select)``
 * ``drop()``
+
+.. note::
+    In the CLI: :ref:`sqlite-utils views <cli_views>`
 
 .. _python_api_rows:
 
@@ -576,6 +588,9 @@ This method also accepts ``offset=`` and ``limit=`` arguments, for specifying an
     >>> for row in db.table("dogs").rows_where(order_by="age desc", limit=1):
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
+
+.. note::
+    In the CLI: :ref:`sqlite-utils rows <cli_rows>`
 
 .. _python_api_rows_count_where:
 
@@ -660,6 +675,9 @@ The ``db.schema`` property returns the full SQL schema for the database as a str
         "id" INTEGER PRIMARY KEY,
         "name" TEXT
     );
+
+.. note::
+    In the CLI: :ref:`sqlite-utils schema <cli_schema>`
 
 .. _python_api_creating_tables:
 
@@ -808,6 +826,9 @@ You can pass ``strict=True`` to create a table in ``STRICT`` mode:
         "id": int,
         "name": str,
     }, strict=True)
+
+.. note::
+    In the CLI: :ref:`sqlite-utils create-table <cli_create_table>`
 
 .. _python_api_compound_primary_keys:
 
@@ -989,6 +1010,9 @@ Here's an example that uses these features:
     # )
 
 
+.. note::
+    In the CLI: :ref:`sqlite-utils insert --not-null and --default <cli_defaults_not_null>`
+
 .. _python_api_rename_table:
 
 Renaming a table
@@ -1006,6 +1030,9 @@ This executes the following SQL:
 
     ALTER TABLE [my_table] RENAME TO [new_name_for_my_table]
 
+.. note::
+    In the CLI: :ref:`sqlite-utils rename-table <cli_renaming_tables>`
+
 .. _python_api_duplicate:
 
 Duplicating tables
@@ -1020,6 +1047,9 @@ The ``table.duplicate()`` method creates a copy of the table, copying both the t
 The new ``authors_copy`` table will now contain a duplicate copy of the data from ``authors``.
 
 This method raises ``sqlite_utils.db.NoTable`` if the table does not exist.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils duplicate <cli_duplicate_table>`
 
 .. _python_api_bulk_inserts:
 
@@ -1062,6 +1092,9 @@ You can skip inserting any records that have a primary key that already exists u
 You can delete all the existing rows in the table before inserting the new records using ``truncate=True``. This is useful if you want to replace the data in the table.
 
 Pass ``analyze=True`` to run ``ANALYZE`` against the table after inserting the new records.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils insert <cli_inserting_data>`
 
 .. _python_api_insert_lists:
 
@@ -1139,6 +1172,9 @@ To replace any existing records that have a matching primary key, use the ``repl
 
 .. note::
     Prior to sqlite-utils 2.0 the ``.upsert()`` and ``.upsert_all()`` methods worked the same way as ``.insert(replace=True)`` does today. See :ref:`python_api_upsert` for the new behaviour of those methods introduced in 2.0.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils insert --replace <cli_insert_replace>`
 
 .. _python_api_update:
 
@@ -1224,6 +1260,9 @@ Every record passed to ``upsert()`` or ``upsert_all()`` must include a value for
 
 .. note::
     ``.upsert()`` and ``.upsert_all()`` in sqlite-utils 1.x worked like ``.insert(..., replace=True)`` and ``.insert_all(..., replace=True)`` do in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils upsert <cli_upsert>`
 
 .. _python_api_old_upsert:
 
@@ -1576,6 +1615,9 @@ You can set a ``NOT NULL DEFAULT 'x'`` constraint on the new column using ``not_
 
     db.table("dogs").add_column("friends_count", int, not_null_default=0)
 
+.. note::
+    In the CLI: :ref:`sqlite-utils add-column <cli_add_column>`
+
 .. _python_api_add_column_alter:
 
 Adding columns automatically on insert/update
@@ -1598,6 +1640,9 @@ You can insert or update data that includes new columns and have the table autom
     # This works too:
     new_table = db.table("new_table", alter=True)
     new_table.insert({"name": "Gareth", "age": 32, "shoe_size": 11})
+
+.. note::
+    In the CLI: :ref:`sqlite-utils insert --alter <cli_add_column_alter>`
 
 .. _python_api_add_foreign_key:
 
@@ -1657,6 +1702,9 @@ Use ``on_delete=`` and ``on_update=`` to specify ``ON DELETE`` and ``ON UPDATE``
 
 This creates a foreign key with an ``ON DELETE CASCADE`` clause, so deleting an author will also delete their books (provided foreign key enforcement is enabled with ``PRAGMA foreign_keys = ON``). Valid actions are ``"SET NULL"``, ``"SET DEFAULT"``, ``"CASCADE"``, ``"RESTRICT"`` and the default ``"NO ACTION"``.
 
+.. note::
+    In the CLI: :ref:`sqlite-utils add-foreign-key <cli_add_foreign_key>`
+
 .. _python_api_add_foreign_keys:
 
 Adding multiple foreign key constraints at once
@@ -1677,6 +1725,9 @@ This method runs the same checks as ``.add_foreign_keys()`` and will raise ``sql
 
 Foreign keys that already exist are silently skipped, so repeated calls are idempotent - but only if they match exactly. Requesting a foreign key that exists with different ``ON DELETE``/``ON UPDATE`` actions raises ``AlterError``: use ``table.transform()`` to change the actions of an existing foreign key.
 
+.. note::
+    In the CLI: :ref:`sqlite-utils add-foreign-keys <cli_add_foreign_keys>`
+
 .. _python_api_index_foreign_keys:
 
 Adding indexes for all foreign keys
@@ -1689,6 +1740,9 @@ If you want to ensure that every foreign key column in your database has a corre
     db.index_foreign_keys()
 
 Compound foreign keys get a single composite index across their columns.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils index-foreign-keys <cli_index_foreign_keys>`
 
 .. _python_api_drop:
 
@@ -1710,6 +1764,9 @@ Pass ``ignore=True`` if you want to ignore the error caused by the table or view
 .. code-block:: python
 
     db.table("my_table").drop(ignore=True)
+
+.. note::
+    In the CLI: :ref:`sqlite-utils drop-table <cli_drop_table>` and :ref:`sqlite-utils drop-view <cli_drop_view>`
 
 .. _python_api_transform:
 
@@ -1738,6 +1795,9 @@ To keep the original table around instead of dropping it, pass the ``keep_table=
     table.transform(types={"age": int}, keep_table="original_table")
 
 This method raises a ``sqlite_utils.db.TransformError`` exception if the table cannot be transformed, usually because there are existing constraints or indexes that are incompatible with modifications to the columns.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils transform <cli_transform_table>`
 
 .. _python_api_transform_alter_column_types:
 
@@ -2094,6 +2154,9 @@ This produces a lookup table like so:
 
 Rows where every extracted column is ``null`` are not extracted: no record is created for them in the lookup table and their foreign key column is left as ``null``. When extracting multiple columns, rows where at least one of the extracted columns has a value will be extracted as usual.
 
+.. note::
+    In the CLI: :ref:`sqlite-utils extract <cli_extract>`
+
 .. _python_api_hash:
 
 Setting an ID based on the hash of the row contents
@@ -2154,6 +2217,9 @@ You can pass ``ignore=True`` to silently ignore an existing view and do nothing,
     db.create_view("good_dogs", """
         select * from dogs where is_good_dog = 1
     """, replace=True)
+
+.. note::
+    In the CLI: :ref:`sqlite-utils create-view <cli_create_view>`
 
 Storing JSON
 ============
@@ -2272,6 +2338,9 @@ If you are using ``pysqlite3`` the underlying method may be missing. If you inst
 .. code-block:: bash
 
     pip install sqlite-dump
+
+.. note::
+    In the CLI: :ref:`sqlite-utils dump <cli_dump>`
 
 .. _python_api_introspection:
 
@@ -2472,6 +2541,9 @@ The ``.indexes`` property returns all indexes created for a table, as a list of 
      Index(seq=4, name='"Street_Tree_List_qCaretaker"', unique=0, origin='c', partial=0, columns=['qCaretaker']),
      Index(seq=5, name='"Street_Tree_List_PlantType"', unique=0, origin='c', partial=0, columns=['PlantType'])]
 
+.. note::
+    In the CLI: :ref:`sqlite-utils indexes <cli_indexes>`
+
 .. _python_api_introspection_xindexes:
 
 .xindexes
@@ -2514,6 +2586,9 @@ The ``.triggers`` property lists database triggers. It can be used on both datab
      Trigger(name='authors_au', table='authors', sql="CREATE TRIGGER [authors_au] AFTER UPDATE")]
     >>> db.triggers
     ... similar output to db.table("authors").triggers
+
+.. note::
+    In the CLI: :ref:`sqlite-utils triggers <cli_triggers>`
 
 .. _python_api_introspection_triggers_dict:
 
@@ -2663,6 +2738,9 @@ To remove the FTS tables and triggers you created, use the ``disable_fts()`` tab
 
     db.table("dogs").disable_fts()
 
+.. note::
+    In the CLI: :ref:`sqlite-utils enable-fts <cli_fts>`
+
 .. _python_api_quote_fts:
 
 Quoting characters for use in search
@@ -2726,6 +2804,9 @@ To return just the title and published columns for three matches for ``"dog"`` w
         columns=["title", "published"]
     ):
         print(article)
+
+.. note::
+    In the CLI: :ref:`sqlite-utils search <cli_search>`
 
 .. _python_api_fts_search_sql:
 
@@ -2811,6 +2892,9 @@ This runs the following SQL::
 
     INSERT INTO dogs_fts (dogs_fts) VALUES ("rebuild");
 
+.. note::
+    In the CLI: :ref:`sqlite-utils rebuild-fts <cli_fts>`
+
 .. _python_api_fts_optimize:
 
 Optimizing a full-text search table
@@ -2825,6 +2909,9 @@ Once you have populated a FTS table you can optimize it to dramatically reduce i
 This runs the following SQL::
 
     INSERT INTO dogs_fts (dogs_fts) VALUES ("optimize");
+
+.. note::
+    In the CLI: :ref:`sqlite-utils optimize <cli_optimize>`
 
 .. _python_api_cached_table_counts:
 
@@ -2888,6 +2975,9 @@ If the ``_counts`` table ever becomes out-of-sync with the actual table counts y
 
     db.reset_counts()
 
+.. note::
+    In the CLI: :ref:`sqlite-utils enable-counts <cli_enable_counts>`
+
 .. _python_api_create_index:
 
 Creating indexes
@@ -2939,6 +3029,9 @@ You can drop an index from a table using ``.drop_index(index_name)``:
 
 Use ``ignore=True`` to ignore the error if the index does not exist.
 
+.. note::
+    In the CLI: :ref:`sqlite-utils create-index <cli_create_index>` and :ref:`sqlite-utils drop-index <cli_drop_index>`
+
 .. _python_api_analyze:
 
 Optimizing index usage with ANALYZE
@@ -2966,6 +3059,9 @@ To run against all indexes attached to a specific table, you can either pass the
 
     db.table("dogs").analyze()
 
+.. note::
+    In the CLI: :ref:`sqlite-utils analyze <cli_analyze>`
+
 .. _python_api_vacuum:
 
 Vacuum
@@ -2976,6 +3072,9 @@ You can optimize your database by running VACUUM against it like so:
 .. code-block:: python
 
     Database("my_database.db").vacuum()
+
+.. note::
+    In the CLI: :ref:`sqlite-utils vacuum <cli_vacuum>`
 
 .. _python_api_wal:
 
@@ -3003,6 +3102,9 @@ You can check the current journal mode for a database using the ``journal_mode``
     journal_mode = Database("my_database.db").journal_mode
 
 This will usually be ``wal`` or ``delete`` (meaning WAL is disabled), but can have other values - see the `PRAGMA journal_mode <https://www.sqlite.org/pragma.html#pragma_journal_mode>`__ documentation.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils enable-wal and disable-wal <cli_wal>`
 
 .. _python_api_suggest_column_types:
 
@@ -3144,6 +3246,9 @@ You can cause ``sqlite3`` to return more useful errors, including the traceback 
 
     sqlite3.enable_callback_tracebacks(True)
 
+.. note::
+    In the CLI: :ref:`sqlite-utils query --functions <cli_query_functions>`
+
 .. _python_api_quote:
 
 Quoting strings for use in SQL
@@ -3276,6 +3381,9 @@ Initialize SpatiaLite
 .. automethod:: sqlite_utils.db.Database.init_spatialite
    :noindex:
 
+.. note::
+    In the CLI: :ref:`sqlite-utils create-database --init-spatialite <cli_create_database>`
+
 .. _python_api_gis_find_spatialite:
 
 Finding SpatiaLite
@@ -3291,6 +3399,9 @@ Adding geometry columns
 .. automethod:: sqlite_utils.db.Table.add_geometry_column
    :noindex:
 
+.. note::
+    In the CLI: :ref:`sqlite-utils add-geometry-column <cli_spatialite>`
+
 .. _python_api_gis_create_spatial_index:
 
 Creating a spatial index
@@ -3298,3 +3409,6 @@ Creating a spatial index
 
 .. automethod:: sqlite_utils.db.Table.create_spatial_index
    :noindex:
+
+.. note::
+    In the CLI: :ref:`sqlite-utils create-spatial-index <cli_spatialite_indexes>`
