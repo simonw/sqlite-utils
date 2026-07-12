@@ -432,6 +432,45 @@ def test_transform_verify_foreign_keys(fresh_db):
     assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
 
 
+@pytest.mark.parametrize("use_pragma_foreign_keys", [False, True])
+def test_transform_on_delete_cascade_does_not_delete_records(
+    fresh_db, use_pragma_foreign_keys
+):
+    # Transforming a table drops and recreates it - if another table references
+    # it with ON DELETE CASCADE and PRAGMA foreign_keys is on, that drop must
+    # not cascade and delete the referencing records
+    if use_pragma_foreign_keys:
+        fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    fresh_db.executescript(
+        """
+        CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT);
+        CREATE TABLE books (
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            author_id INTEGER REFERENCES authors(id) ON DELETE CASCADE
+        );
+        """
+    )
+    fresh_db["authors"].insert({"id": 1, "name": "Ursula K. Le Guin"})
+    fresh_db["books"].insert({"id": 1, "title": "The Dispossessed", "author_id": 1})
+    # Transform the table on the other end of the cascading foreign key
+    fresh_db["authors"].transform(rename={"name": "author_name"})
+    assert list(fresh_db["authors"].rows) == [
+        {"id": 1, "author_name": "Ursula K. Le Guin"}
+    ]
+    assert list(fresh_db["books"].rows) == [
+        {"id": 1, "title": "The Dispossessed", "author_id": 1}
+    ]
+    # Transforming the table with the cascading foreign key should not
+    # delete its records either
+    fresh_db["books"].transform(rename={"title": "book_title"})
+    assert list(fresh_db["books"].rows) == [
+        {"id": 1, "book_title": "The Dispossessed", "author_id": 1}
+    ]
+    if use_pragma_foreign_keys:
+        assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
+
+
 def test_transform_add_foreign_keys_from_scratch(fresh_db):
     _add_country_city_continent(fresh_db)
     fresh_db["places"].insert(_CAVEAU)
