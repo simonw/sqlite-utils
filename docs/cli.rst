@@ -361,7 +361,7 @@ To return the first column of each result as raw data, separated by newlines, us
 Using named parameters
 ----------------------
 
-You can pass named parameters to the query using ``-p``:
+You can pass named parameters to the query using ``-p name value``:
 
 .. code-block:: bash
 
