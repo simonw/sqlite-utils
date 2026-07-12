@@ -4,6 +4,15 @@
  Changelog
 ===========
 
+.. _v4_1_1:
+
+4.1.1 (2026-07-12)
+------------------
+
+- ``table.transform()`` now raises a ``TransactionError`` if called while a transaction is open with ``PRAGMA foreign_keys`` enabled and the table is referenced by foreign keys with destructive ``ON DELETE`` actions - ``CASCADE``, ``SET NULL`` or ``SET DEFAULT``. The pragma cannot be changed inside a transaction, so previously dropping the old table as part of the transform could fire those actions and silently delete or modify referencing rows. See :ref:`python_api_transform_foreign_keys_transactions` for details and workarounds. (:issue:`794`)
+- The CLI and Python API documentation now cross-reference each other: CLI sections link to the equivalent Python API functionality and Python API sections link back to the corresponding CLI command. (:issue:`791`)
+- Clarified that :ref:`named parameters <cli_query_parameters>` are passed to ``sqlite-utils query`` using ``-p name value``.
+
 .. _v4_1:
 
 4.1 (2026-07-11)
