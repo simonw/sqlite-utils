@@ -1,6 +1,6 @@
 import sqlite3
 
-from sqlite_utils.db import ForeignKey, TransformError
+from sqlite_utils.db import ForeignKey, TransactionError, TransformError
 from sqlite_utils.utils import OperationalError
 import pytest
 
@@ -467,6 +467,128 @@ def test_transform_on_delete_cascade_does_not_delete_records(
     ]
     if use_pragma_foreign_keys:
         assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
+
+
+@pytest.mark.parametrize("on_delete", ["CASCADE", "SET NULL", "SET DEFAULT", "cascade"])
+def test_transform_in_transaction_refuses_destructive_on_delete(fresh_db, on_delete):
+    # PRAGMA foreign_keys is a no-op inside a transaction, so transforming a
+    # table referenced by ON DELETE CASCADE / SET NULL / SET DEFAULT foreign
+    # keys inside an open transaction would fire those actions when the old
+    # table is dropped - transform() should refuse instead
+    fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    fresh_db.executescript("""
+        CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT);
+        CREATE TABLE books (
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            author_id INTEGER REFERENCES authors(id) ON DELETE {}
+        );
+        """.format(on_delete))
+    fresh_db["authors"].insert({"id": 1, "name": "Ursula K. Le Guin"})
+    fresh_db["books"].insert({"id": 1, "title": "The Dispossessed", "author_id": 1})
+    previous_schema = fresh_db["authors"].schema
+    with fresh_db.atomic():
+        with pytest.raises(TransactionError) as excinfo:
+            fresh_db["authors"].transform(rename={"name": "author_name"})
+    message = str(excinfo.value)
+    assert "books" in message
+    assert "ON DELETE {}".format(on_delete.upper()) in message
+    # Nothing should have changed
+    assert fresh_db["authors"].schema == previous_schema
+    assert list(fresh_db["books"].rows) == [
+        {"id": 1, "title": "The Dispossessed", "author_id": 1}
+    ]
+    assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
+
+
+def test_transform_in_transaction_refuses_self_referential_cascade(fresh_db):
+    # The copied table carries a foreign key referencing the original table
+    # name, so a self-referential cascade would wipe the copy too
+    fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    fresh_db.executescript("""
+        CREATE TABLE categories (
+            id INTEGER PRIMARY KEY,
+            name TEXT,
+            parent_id INTEGER REFERENCES categories(id) ON DELETE CASCADE
+        );
+        """)
+    fresh_db["categories"].insert_all(
+        [
+            {"id": 1, "name": "Fiction", "parent_id": None},
+            {"id": 2, "name": "Science Fiction", "parent_id": 1},
+        ]
+    )
+    with fresh_db.atomic():
+        with pytest.raises(TransactionError) as excinfo:
+            fresh_db["categories"].transform(rename={"name": "title"})
+    assert "categories" in str(excinfo.value)
+    assert fresh_db["categories"].count == 2
+
+
+def test_transform_in_transaction_allowed_with_no_action_foreign_key(fresh_db):
+    # An inbound foreign key without a destructive ON DELETE action is safe
+    # inside a transaction thanks to PRAGMA defer_foreign_keys
+    fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    fresh_db.executescript("""
+        CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT);
+        CREATE TABLE books (
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            author_id INTEGER REFERENCES authors(id)
+        );
+        """)
+    fresh_db["authors"].insert({"id": 1, "name": "Ursula K. Le Guin"})
+    fresh_db["books"].insert({"id": 1, "title": "The Dispossessed", "author_id": 1})
+    with fresh_db.atomic():
+        fresh_db["authors"].transform(rename={"name": "author_name"})
+    assert list(fresh_db["authors"].rows) == [
+        {"id": 1, "author_name": "Ursula K. Le Guin"}
+    ]
+    assert list(fresh_db["books"].rows) == [
+        {"id": 1, "title": "The Dispossessed", "author_id": 1}
+    ]
+    assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
+
+
+def test_transform_in_transaction_allowed_for_child_table(fresh_db):
+    # The table being transformed only has an outbound foreign key - dropping
+    # it fires no ON DELETE actions, so this is allowed inside a transaction
+    fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    fresh_db.executescript("""
+        CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT);
+        CREATE TABLE books (
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            author_id INTEGER REFERENCES authors(id) ON DELETE CASCADE
+        );
+        """)
+    fresh_db["authors"].insert({"id": 1, "name": "Ursula K. Le Guin"})
+    fresh_db["books"].insert({"id": 1, "title": "The Dispossessed", "author_id": 1})
+    with fresh_db.atomic():
+        fresh_db["books"].transform(rename={"title": "book_title"})
+    assert list(fresh_db["books"].rows) == [
+        {"id": 1, "book_title": "The Dispossessed", "author_id": 1}
+    ]
+
+
+def test_transform_in_transaction_allowed_with_foreign_keys_off(fresh_db):
+    # With PRAGMA foreign_keys off (the default) no cascades can fire, so
+    # transform inside a transaction is safe even with a CASCADE schema
+    fresh_db.executescript("""
+        CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT);
+        CREATE TABLE books (
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            author_id INTEGER REFERENCES authors(id) ON DELETE CASCADE
+        );
+        """)
+    fresh_db["authors"].insert({"id": 1, "name": "Ursula K. Le Guin"})
+    fresh_db["books"].insert({"id": 1, "title": "The Dispossessed", "author_id": 1})
+    with fresh_db.atomic():
+        fresh_db["authors"].transform(rename={"name": "author_name"})
+    assert list(fresh_db["books"].rows) == [
+        {"id": 1, "title": "The Dispossessed", "author_id": 1}
+    ]
 
 
 def test_transform_add_foreign_keys_from_scratch(fresh_db):

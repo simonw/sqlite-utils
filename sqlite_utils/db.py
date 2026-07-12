@@ -2522,6 +2522,11 @@ class Table(Queryable):
 
         See :ref:`python_api_transform` for full details.
 
+        Raises :py:class:`sqlite_utils.db.TransactionError` if called while a
+        transaction is open with ``PRAGMA foreign_keys`` enabled and the table
+        is referenced by foreign keys with destructive ``ON DELETE`` actions -
+        see :ref:`python_api_transform_foreign_keys_transactions`.
+
         :param types: Columns that should have their type changed, for example ``{"weight": float}``
         :param rename: Columns to rename, for example ``{"headline": "title"}``
         :param drop: Columns to drop
@@ -2566,6 +2571,36 @@ class Table(Queryable):
         should_defer_foreign_keys = (
             pragma_foreign_keys_was_on and already_in_transaction
         )
+        if should_defer_foreign_keys:
+            # PRAGMA foreign_keys is a no-op inside a transaction, and
+            # defer_foreign_keys only defers violation checks, not ON DELETE
+            # actions - so dropping the old table would still fire destructive
+            # actions on any tables that reference it. Refuse rather than
+            # silently modify or delete those rows.
+            destructive_fks = [
+                (table.name, fk)
+                for table in self.db.tables
+                for fk in table.foreign_keys
+                if fk.other_table == self.name
+                and fk.on_delete in ("CASCADE", "SET NULL", "SET DEFAULT")
+            ]
+            if destructive_fks:
+                raise TransactionError(
+                    "Cannot transform table {table} while a transaction is open: "
+                    "PRAGMA foreign_keys cannot be changed inside a transaction, "
+                    "and the table is referenced by foreign keys with ON DELETE "
+                    "actions that would fire when the old table is dropped: "
+                    "{fks}. Call transform() outside of the transaction, or "
+                    'execute "PRAGMA foreign_keys = off" before opening it.'.format(
+                        table=self.name,
+                        fks=", ".join(
+                            "{}.{} (ON DELETE {})".format(
+                                table_name, ", ".join(fk.columns), fk.on_delete
+                            )
+                            for table_name, fk in destructive_fks
+                        ),
+                    )
+                )
         defer_foreign_keys_was_on = False
         try:
             if should_disable_foreign_keys:

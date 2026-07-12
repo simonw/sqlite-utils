@@ -434,9 +434,10 @@ The library will never commit a transaction you opened. If you call write method
 
 Prefer ``db.atomic()`` or ``db.begin()``, ``db.commit()`` and ``db.rollback()`` over mixing sqlite-utils transaction methods with calls to ``db.conn.commit()``, ``db.conn.rollback()`` or raw transaction-control SQL. Mixing the two layers makes it much harder to tell which layer owns the current transaction.
 
-Two related safeguards to be aware of:
+Some related safeguards to be aware of:
 
 - ``db.enable_wal()`` and ``db.disable_wal()`` raise a ``sqlite_utils.db.TransactionError`` if called while a transaction is open, because changing the journal mode would commit it as a side effect.
+- ``table.transform()`` raises a ``sqlite_utils.db.TransactionError`` if called while a transaction is open with ``PRAGMA foreign_keys`` enabled and the table is referenced by foreign keys with destructive ``ON DELETE`` actions, because the pragma cannot be turned off mid-transaction to protect those referencing rows - see :ref:`python_api_transform_foreign_keys_transactions`.
 - Closing the database - explicitly with ``db.close()``, or by exiting a ``with Database(...) as db:`` block - rolls back any transaction that is still open, see :ref:`python_api_close`.
 
 .. _python_api_transactions_modes:
@@ -1798,6 +1799,36 @@ This method raises a ``sqlite_utils.db.TransformError`` exception if the table c
 
 .. note::
     In the CLI: :ref:`sqlite-utils transform <cli_transform_table>`
+
+.. _python_api_transform_foreign_keys_transactions:
+
+Foreign keys and transactions
+-----------------------------
+
+Because ``.transform()`` drops the old table, running it with ``PRAGMA foreign_keys`` enabled could fire ``ON DELETE`` actions on any tables that reference it - an inbound ``ON DELETE CASCADE`` foreign key would silently delete those referencing rows. To prevent this, ``.transform()`` turns ``PRAGMA foreign_keys`` off for the duration of the operation and restores it afterwards, running ``PRAGMA foreign_key_check`` before committing.
+
+``PRAGMA foreign_keys`` cannot be changed inside a transaction, so this protection is impossible if you call ``.transform()`` while a transaction is already open - for example inside a ``with db.atomic():`` block or after ``db.begin()``. If ``PRAGMA foreign_keys`` is on and another table references the table being transformed with a destructive ``ON DELETE`` action - ``CASCADE``, ``SET NULL`` or ``SET DEFAULT`` - the method will refuse to run and raise a ``sqlite_utils.db.TransactionError``:
+
+.. code-block:: python
+
+    from sqlite_utils.db import TransactionError
+
+    try:
+        with db.atomic():
+            db["authors"].transform(types={"id": str})
+    except TransactionError as ex:
+        print("Could not transform in transaction:", ex)
+
+To transform such a table either call ``.transform()`` outside of the transaction, or execute ``PRAGMA foreign_keys = off`` before opening it:
+
+.. code-block:: python
+
+    db.execute("PRAGMA foreign_keys = off")
+    with db.atomic():
+        db["authors"].transform(types={"id": str})
+    db.execute("PRAGMA foreign_keys = on")
+
+Tables referenced by foreign keys without a destructive action (the default ``NO ACTION``, or ``RESTRICT``) can still be transformed inside a transaction - sqlite-utils uses ``PRAGMA defer_foreign_keys`` to postpone the foreign key checks until the transaction commits.
 
 .. _python_api_transform_alter_column_types:
 
