@@ -441,16 +441,14 @@ def test_transform_on_delete_cascade_does_not_delete_records(
     # not cascade and delete the referencing records
     if use_pragma_foreign_keys:
         fresh_db.conn.execute("PRAGMA foreign_keys=ON")
-    fresh_db.executescript(
-        """
+    fresh_db.executescript("""
         CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT);
         CREATE TABLE books (
             id INTEGER PRIMARY KEY,
             title TEXT,
             author_id INTEGER REFERENCES authors(id) ON DELETE CASCADE
         );
-        """
-    )
+        """)
     fresh_db["authors"].insert({"id": 1, "name": "Ursula K. Le Guin"})
     fresh_db["books"].insert({"id": 1, "title": "The Dispossessed", "author_id": 1})
     # Transform the table on the other end of the cascading foreign key
