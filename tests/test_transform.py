@@ -758,6 +758,25 @@ def test_transform_with_indexes_errors(fresh_db, transform_params):
     )
 
 
+def test_transform_preserves_autoincrement(fresh_db):
+    fresh_db.execute(
+        "CREATE TABLE t (id INTEGER PRIMARY KEY AUTOINCREMENT, val TEXT)"
+    )
+    fresh_db["t"].insert({"val": "one"})
+    fresh_db["t"].insert({"val": "two"})
+    fresh_db["t"].transform(rename={"val": "value"})
+    assert "AUTOINCREMENT" in fresh_db["t"].schema
+    # Confirm the column is still the primary key
+    assert fresh_db["t"].pks == ["id"]
+
+
+def test_transform_without_autoincrement_not_affected(fresh_db):
+    fresh_db.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)")
+    fresh_db["t"].insert({"val": "one"})
+    fresh_db["t"].transform(rename={"val": "value"})
+    assert "AUTOINCREMENT" not in fresh_db["t"].schema
+
+
 def test_transform_with_unique_constraint_implicit_index(fresh_db):
     dogs = fresh_db["dogs"]
     # Create a table with a UNIQUE constraint on 'name', which creates an implicit index
