@@ -179,6 +179,25 @@ def test_convert_dryrun(test_db_and_path):
     assert result.output.strip().split("\n")[-1] == "Would affect 1 row"
 
 
+def test_convert_dryrun_identifier_with_closing_bracket(tmpdir):
+    db_path = str(pathlib.Path(tmpdir) / "data.db")
+    db = sqlite_utils.Database(db_path)
+    db["example]table"].insert({"value]x": "alpha"})
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "convert",
+            db_path,
+            "example]table",
+            "value]x",
+            "value.upper()",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert result.output.strip() == "alpha\n --- becomes:\nALPHA\n\nWould affect 1 row"
+
+
 def test_convert_multi_dryrun(test_db_and_path):
     db_path = test_db_and_path[1]
     result = CliRunner().invoke(
