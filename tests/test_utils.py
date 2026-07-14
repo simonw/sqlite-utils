@@ -100,3 +100,96 @@ def test_flatten(input, expected):
 )
 def test_dedupe_keys(input, expected):
     assert utils.dedupe_keys(input) == expected
+
+
+# Regression tests for #439: progress bar against multi-byte encodings
+
+
+def _collect_updates(rows):
+    """Iterate the wrapper, capturing every update() value."""
+    return list(rows)
+
+
+def _make_temp(content_bytes, tmp_path, name):
+    path = tmp_path / name
+    path.write_bytes(content_bytes)
+    return path
+
+
+def test_updatewrapper_utf8_reports_byte_lengths(tmp_path):
+    # Sanity: ASCII / UTF-8 still hits 100% (this was already correct,
+    # but we want a baseline to protect.)
+    raw = b"a,b\n1,2\n3,4\n"
+    path = _make_temp(raw, tmp_path, "in.csv")
+    updates = []
+    with open(path, "rb") as fp:
+        wrapper = utils.UpdateWrapper(io.TextIOWrapper(fp, encoding="utf-8"), updates.append)
+        _collect_updates(wrapper)
+    assert sum(updates) == len(raw)
+
+
+def test_updatewrapper_utf16le_reports_byte_lengths(tmp_path):
+    # Without the fix this test fails: the bar only reaches len(decoded)
+    # which is half the raw byte length for UTF-16-LE.
+    raw = "a,b\n1,2\n3,4\n".encode("utf-16-le")
+    path = _make_temp(raw, tmp_path, "in.csv")
+    updates = []
+    with open(path, "rb") as fp:
+        wrapper = utils.UpdateWrapper(io.TextIOWrapper(fp, encoding="utf-16-le"), updates.append)
+        _collect_updates(wrapper)
+    assert sum(updates) == len(raw)
+
+
+def test_updatewrapper_utf16le_with_bom_reaches_total_bytes(tmp_path):
+    # BOM-prefixed UTF-16. The BOM byte is consumed by the TextIOWrapper
+    # before iteration starts; we should still account for the full file
+    # size so the bar reaches 100%.
+    raw = "﻿" + "a,b\n1,2\n3,4\n"
+    raw_bytes = raw.encode("utf-16-le")
+    path = _make_temp(raw_bytes, tmp_path, "in.csv")
+    updates = []
+    with open(path, "rb") as fp:
+        wrapper = utils.UpdateWrapper(io.TextIOWrapper(fp, encoding="utf-16"), updates.append)
+        _collect_updates(wrapper)
+    assert sum(updates) == len(raw_bytes)
+
+
+def test_updatewrapper_through_buffered_reader(tmp_path):
+    # The --sniff path wraps the raw file in io.BufferedReader before the
+    # TextIOWrapper. Progress reporting must still resolve to the binary
+    # file's byte count.
+    raw = "a,b\n1,2\n3,4\n".encode("utf-16-le")
+    path = _make_temp(raw, tmp_path, "in.csv")
+    updates = []
+    with open(path, "rb") as fp:
+        buffered = io.BufferedReader(fp, buffer_size=4096)
+        wrapper = utils.UpdateWrapper(
+            io.TextIOWrapper(buffered, encoding="utf-16-le"), updates.append
+        )
+        _collect_updates(wrapper)
+    assert sum(updates) == len(raw)
+
+
+def test_updatewrapper_binary_file_unchanged(tmp_path):
+    # If the wrapped object is itself a raw binary file (no .buffer attr),
+    # we should keep the old behaviour: iterate yields bytes and len() is
+    # already the byte count.
+    raw = b"a,b\n1,2\n3,4\n"
+    path = _make_temp(raw, tmp_path, "in.csv")
+    updates = []
+    with open(path, "rb") as fp:
+        wrapper = utils.UpdateWrapper(fp, updates.append)
+        _collect_updates(wrapper)
+    assert sum(updates) == len(raw)
+
+
+def test_updatewrapper_read_path_utf16le(tmp_path):
+    # The .read() path is used by the JSON loader (not the CSV iterator),
+    # but must agree with the iterator path on byte accounting.
+    raw = '{"a": 1}'.encode("utf-16-le")
+    path = _make_temp(raw, tmp_path, "in.json")
+    updates = []
+    with open(path, "rb") as fp:
+        wrapper = utils.UpdateWrapper(io.TextIOWrapper(fp, encoding="utf-16-le"), updates.append)
+        wrapper.read()
+    assert sum(updates) == len(raw)
