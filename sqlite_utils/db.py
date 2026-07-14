@@ -504,6 +504,9 @@ class Database:
     :param use_old_upsert: set to ``True`` to force the older upsert implementation. See
       :ref:`python_api_old_upsert`
     :param strict: Apply STRICT mode to all created tables (unless overridden)
+    :param sqlite_max_vars: Maximum number of SQL variables to use in a single query. Defaults
+      to ``sqlite_utils.db.SQLITE_MAX_VARS`` (999). Increase this if your SQLite was compiled
+      with a higher ``SQLITE_MAX_VARIABLE_NUMBER`` to allow larger insert batches
     """
 
     _counts_table_name = "_counts"
@@ -522,10 +525,12 @@ class Database:
         execute_plugins: bool = True,
         use_old_upsert: bool = False,
         strict: bool = False,
+        sqlite_max_vars: Optional[int] = None,
     ):
         self.memory_name = None
         self.memory = False
         self.use_old_upsert = use_old_upsert
+        self._sqlite_max_vars = sqlite_max_vars
         if not (
             (filename_or_conn is not None and (not memory and not memory_name))
             or (filename_or_conn is None and (memory or memory_name))
@@ -578,6 +583,17 @@ class Database:
             ensure_plugins_loaded()
             pm.hook.prepare_connection(conn=self.conn)
         self.strict = strict
+
+    @property
+    def sqlite_max_vars(self) -> int:
+        """
+        The maximum number of SQL variables to use in a single query. This is the value
+        passed as ``sqlite_max_vars=`` to the constructor, or the
+        ``sqlite_utils.db.SQLITE_MAX_VARS`` default of 999 if that was not set.
+        """
+        if self._sqlite_max_vars is not None:
+            return self._sqlite_max_vars
+        return SQLITE_MAX_VARS
 
     def __enter__(self) -> "Database":
         return self
@@ -4482,14 +4498,11 @@ class Table(Queryable):
             first_record = cast(Dict[str, Any], first_record)
             num_columns = len(first_record.keys())
 
-        if num_columns > SQLITE_MAX_VARS:
-            raise ValueError(
-                "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
-            )
+        max_vars = self.db.sqlite_max_vars
+        if num_columns > max_vars:
+            raise ValueError("Rows can have a maximum of {} columns".format(max_vars))
         batch_size = (
-            1
-            if num_columns == 0
-            else max(1, min(batch_size, SQLITE_MAX_VARS // num_columns))
+            1 if num_columns == 0 else max(1, min(batch_size, max_vars // num_columns))
         )
         self.last_rowid = None
         self.last_pk = None

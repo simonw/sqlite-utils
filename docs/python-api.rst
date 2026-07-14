@@ -1088,6 +1088,12 @@ The function can accept an iterator or generator of rows and will commit them ac
         "name": "Name {}".format(i),
     } for i in range(10000)), batch_size=1000)
 
+The largest batch that will actually be sent to SQLite is limited by the maximum number of SQL variables allowed in a single query, which defaults to 999. If your copy of SQLite was compiled with a higher ``SQLITE_MAX_VARIABLE_NUMBER`` you can tell ``sqlite-utils`` to use larger batches - and hence run faster - by passing ``sqlite_max_vars=`` to the ``Database()`` constructor:
+
+.. code-block:: python
+
+    db = Database("big.db", sqlite_max_vars=100_000)
+
 You can skip inserting any records that have a primary key that already exists using ``ignore=True``. This works with both ``.insert({...}, ignore=True)`` and ``.insert_all([...], ignore=True)``.
 
 You can delete all the existing rows in the table before inserting the new records using ``truncate=True``. This is useful if you want to replace the data in the table.

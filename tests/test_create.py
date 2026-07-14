@@ -695,6 +695,39 @@ def test_bulk_insert_more_than_999_values(fresh_db):
     assert fresh_db["big"].count == 100
 
 
+def test_sqlite_max_vars_defaults_to_999():
+    # https://github.com/simonw/sqlite-utils/issues/147
+    assert Database(memory=True).sqlite_max_vars == 999
+
+
+def test_sqlite_max_vars_can_be_customized():
+    # https://github.com/simonw/sqlite-utils/issues/147
+    assert Database(memory=True, sqlite_max_vars=100000).sqlite_max_vars == 100000
+    # A raised limit should allow a bigger batch, so the same records are
+    # written using fewer INSERT statements
+    records = [{"c{}".format(i): i for i in range(5)} for _ in range(500)]
+
+    def count_inserts(sqlite_max_vars):
+        seen = []
+        db = Database(
+            memory=True,
+            sqlite_max_vars=sqlite_max_vars,
+            tracer=lambda sql, params: seen.append(sql),
+        )
+        db["t"].insert_all(records, batch_size=100000)
+        return len([sql for sql in seen if sql.strip().upper().startswith("INSERT")])
+
+    assert count_inserts(100000) == 1
+    assert count_inserts(None) > 1
+
+
+def test_error_message_uses_custom_sqlite_max_vars():
+    # https://github.com/simonw/sqlite-utils/issues/147
+    db = Database(memory=True, sqlite_max_vars=10)
+    with pytest.raises(ValueError, match="maximum of 10 columns"):
+        db["big"].insert({"c{}".format(i): i for i in range(11)})
+
+
 @pytest.mark.parametrize(
     "num_columns,should_error", ((900, False), (999, False), (1000, True))
 )
