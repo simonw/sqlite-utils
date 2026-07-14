@@ -5214,7 +5214,7 @@ def _decode_default_value(value: str) -> object:
     if value.startswith("'") and value.endswith("'"):
         # It's a string
         return value[1:-1]
-    if value.isdigit():
+    if re.fullmatch(r"-?\d+", value):
         # It's an integer
         return int(value)
     if value.startswith("X'") and value.endswith("'"):

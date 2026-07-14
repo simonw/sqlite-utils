@@ -309,6 +309,7 @@ def test_table_strict(fresh_db, create_table, expected_strict):
     "value",
     (
         1,
+        -5,
         1.3,
         "foo",
         True,
