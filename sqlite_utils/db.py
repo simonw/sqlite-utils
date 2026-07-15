@@ -2783,14 +2783,23 @@ class Table(Queryable):
         current_column_pairs = list(self.columns_dict.items())
         new_column_pairs = []
         copy_from_to = {column: column for column, _ in current_column_pairs}
-        for name, type_ in current_column_pairs:
-            type_ = types.get(name) or type_
+        # Columns whose type is being changed from text to integer/float; their
+        # empty-string values should be copied as NULL (issue #488).
+        nullif_empty_columns = set()
+        for name, old_type in current_column_pairs:
+            type_ = types.get(name) or old_type
             if name in drop:
                 del [copy_from_to[name]]
                 continue
             new_name = rename.get(name) or name
             new_column_pairs.append((new_name, type_))
             copy_from_to[name] = new_name
+            if (
+                name in types
+                and COLUMN_TYPE_MAPPING.get(old_type) == "TEXT"
+                and COLUMN_TYPE_MAPPING.get(type_) in ("INTEGER", "REAL", "FLOAT")
+            ):
+                nullif_empty_columns.add(name)
 
         if pk is DEFAULT:
             pks_renamed = tuple(
@@ -2866,10 +2875,16 @@ class Table(Queryable):
         if "rowid" not in new_cols:
             new_cols.insert(0, "rowid")
             old_cols.insert(0, "rowid")
+        select_exprs = []
+        for col in old_cols:
+            if col in nullif_empty_columns:
+                select_exprs.append("NULLIF({}, '')".format(quote_identifier(col)))
+            else:
+                select_exprs.append(quote_identifier(col))
         copy_sql = "INSERT INTO {} ({new_cols})\n   SELECT {old_cols} FROM {};".format(
             quote_identifier(new_table_name),
             quote_identifier(self.name),
-            old_cols=", ".join(quote_identifier(col) for col in old_cols),
+            old_cols=", ".join(select_exprs),
             new_cols=", ".join(quote_identifier(col) for col in new_cols),
         )
         sqls.append(copy_sql)
