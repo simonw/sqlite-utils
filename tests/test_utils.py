@@ -100,3 +100,36 @@ def test_flatten(input, expected):
 )
 def test_dedupe_keys(input, expected):
     assert utils.dedupe_keys(input) == expected
+
+
+def test_update_wrapper_byte_progress_for_multibyte_encoding():
+    """UpdateWrapper should track bytes consumed, not characters (issue #439)."""
+    content = "hello\nworld\n"
+    # Build a UTF-16-LE encoded binary stream
+    encoded = content.encode("utf-16-le")
+    binary_stream = io.BytesIO(encoded)
+    text_stream = io.TextIOWrapper(binary_stream, encoding="utf-16-le")
+
+    updates = []
+    wrapper = utils.UpdateWrapper(text_stream, updates.append)
+
+    lines = list(wrapper)
+    assert lines == ["hello\n", "world\n"]
+
+    # Each character is 2 bytes in UTF-16-LE, so total bytes == 2 * len(content)
+    assert sum(updates) == len(encoded)
+
+
+def test_update_wrapper_byte_progress_for_utf8():
+    """UpdateWrapper byte tracking should also be correct for UTF-8."""
+    content = "hello\nworld\n"
+    encoded = content.encode("utf-8")
+    binary_stream = io.BytesIO(encoded)
+    text_stream = io.TextIOWrapper(binary_stream, encoding="utf-8")
+
+    updates = []
+    wrapper = utils.UpdateWrapper(text_stream, updates.append)
+
+    lines = list(wrapper)
+    assert lines == ["hello\n", "world\n"]
+    assert sum(updates) == len(encoded)

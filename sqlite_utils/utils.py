@@ -210,15 +210,23 @@ class UpdateWrapper:
     def __init__(self, wrapped: io.IOBase, update: Callable[[int], None]) -> None:
         self._wrapped = wrapped
         self._update = update
+        # If this wraps a text stream, encode lines back to bytes for accurate
+        # byte-level progress tracking (fixes #439 for multi-byte encodings).
+        self._encoding: Optional[str] = getattr(wrapped, "encoding", None)
 
-    def __iter__(self) -> Iterator[bytes]:
+    def _byte_len(self, s: Any) -> int:
+        if self._encoding and isinstance(s, str):
+            return len(s.encode(self._encoding, errors="replace"))
+        return len(s)
+
+    def __iter__(self) -> Iterator[Any]:
         for line in self._wrapped:
-            self._update(len(line))
+            self._update(self._byte_len(line))
             yield line
 
-    def read(self, size: int = -1) -> bytes:
+    def read(self, size: int = -1) -> Any:
         data = self._wrapped.read(size)
-        self._update(len(data))
+        self._update(self._byte_len(data))
         return data
 
 
