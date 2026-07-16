@@ -3800,7 +3800,7 @@ def _rows_from_code(code):
     namespace = {}
     try:
         exec(code, namespace)
-    except SyntaxError as ex:
+    except Exception as ex:
         raise click.ClickException("Error in --code: {}".format(ex))
     rows = namespace.get("rows")
     if callable(rows):

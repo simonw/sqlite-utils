@@ -880,6 +880,17 @@ def test_insert_code_syntax_error(tmpdir):
     assert "Error in --code" in result.output
 
 
+def test_insert_code_runtime_error(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "creatures", "--code", 'raise ValueError("bad data")'],
+    )
+    assert result.exit_code == 1
+    assert "Error in --code" in result.output
+    assert "bad data" in result.output
+
+
 def test_insert_code_file_not_found(tmpdir):
     db_path = str(tmpdir / "dogs.db")
     result = CliRunner().invoke(
