@@ -146,6 +146,11 @@ pygments_style = "sphinx"
 # Only syntax highlight of code-block is used:
 highlight_language = "none"
 
+# Disable smartquotes to prevent -- from being transformed to en-dash.
+# This is important for CLI documentation where --options must display
+# as literal double dashes. See #493.
+smartquotes = False
+
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
