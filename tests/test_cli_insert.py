@@ -252,6 +252,23 @@ def test_insert_csv_empty_null(db_path, empty_null):
     ]
 
 
+def test_insert_csv_nul_bytes(db_path, tmpdir):
+    # Regression test for https://github.com/simonw/sqlite-utils/issues/582
+    # CSV files containing NUL bytes should be imported without crashing.
+    file_path = str(tmpdir / "nul.csv")
+    with open(file_path, "wb") as fp:
+        fp.write(b"id,name\n1,Al\x00ice\n2,Bob\n")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "data", file_path, "--csv", "--no-detect-types"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    rows = list(db["data"].rows)
+    assert rows == [{"id": "1", "name": "Alice"}, {"id": "2", "name": "Bob"}]
+
+
 @pytest.mark.parametrize(
     "input,args",
     (
