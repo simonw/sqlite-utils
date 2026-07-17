@@ -1237,7 +1237,10 @@ def insert_upsert_implementation(
                 csv_reader_args["delimiter"] = delimiter
             if quotechar:
                 csv_reader_args["quotechar"] = quotechar
-            reader = csv_std.reader(decoded, **csv_reader_args)  # type: ignore
+            reader = csv_std.reader(  # type: ignore
+                (line.replace("\x00", "") for line in decoded),
+                **csv_reader_args,
+            )
             first_row = next(reader)
             if no_headers:
                 headers = ["untitled_{}".format(i + 1) for i in range(len(first_row))]
