@@ -101,6 +101,7 @@ def test_jsonsplit(fresh_db, delimiter):
         [
             {"id": 1, "tags": (delimiter or ",").join(["foo", "bar"])},
             {"id": 2, "tags": (delimiter or ",").join(["bar", "baz"])},
+            {"id": 3, "tags": None},
         ],
         pk="id",
     )
@@ -116,6 +117,7 @@ def test_jsonsplit(fresh_db, delimiter):
     assert list(fresh_db["example"].rows) == [
         {"id": 1, "tags": '["foo", "bar"]'},
         {"id": 2, "tags": '["bar", "baz"]'},
+        {"id": 3, "tags": None},
     ]
 
 
