@@ -23,7 +23,7 @@ import pytest
             {"types": {"age": int}},
             [
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "age" INTEGER\n);',
-                'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
+                'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", NULLIF("age", \'\') FROM "dogs";',
                 'DROP TABLE "dogs";',
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
             ],
@@ -53,7 +53,7 @@ import pytest
             {"types": {"age": int}, "rename": {"age": "dog_age"}},
             [
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "dog_age" INTEGER\n);',
-                'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "dog_age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
+                'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "dog_age")\n   SELECT "rowid", "id", "name", NULLIF("age", \'\') FROM "dogs";',
                 'DROP TABLE "dogs";',
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
             ],
@@ -146,7 +146,7 @@ def test_transform_sql_table_with_primary_key(
             {"types": {"age": int}},
             [
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "age" INTEGER\n);',
-                'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
+                'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", NULLIF("age", \'\') FROM "dogs";',
                 'DROP TABLE "dogs";',
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
             ],
@@ -904,3 +904,20 @@ def test_transform_with_unique_constraint_implicit_index(fresh_db):
         "You must manually drop this index prior to running this transformation and manually recreate the new index after running this transformation."
         in str(excinfo.value)
     )
+
+
+@pytest.mark.parametrize("new_type", [int, float, "integer", "float", "REAL"])
+def test_transform_empty_string_to_null_for_numeric_types(fresh_db, new_type):
+    # Empty strings in TEXT columns should become NULL when transforming to numeric types
+    fresh_db["test"].insert_all(
+        [
+            {"id": 1, "value": "42"},
+            {"id": 2, "value": ""},
+            {"id": 3, "value": None},
+        ]
+    )
+    fresh_db["test"].transform(types={"value": new_type})
+    rows = {r["id"]: r["value"] for r in fresh_db["test"].rows}
+    assert rows[1] in (42, 42.0)
+    assert rows[2] is None
+    assert rows[3] is None

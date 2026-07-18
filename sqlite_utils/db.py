@@ -2856,6 +2856,19 @@ class Table(Queryable):
             ).strip()
         )
 
+        # Columns being changed from TEXT to a numeric type: coerce empty strings to NULL
+        _numeric_sql_types = {"INTEGER", "REAL", "FLOAT", "NUMERIC"}
+        text_to_numeric_cols = {
+            col_name
+            for col_name, new_type in types.items()
+            if existing_columns.get(col_name) == str
+            and COLUMN_TYPE_MAPPING.get(
+                new_type,
+                new_type.upper() if isinstance(new_type, str) else "",
+            )
+            in _numeric_sql_types
+        }
+
         # Copy across data, respecting any renamed columns
         new_cols = []
         old_cols = []
@@ -2866,10 +2879,16 @@ class Table(Queryable):
         if "rowid" not in new_cols:
             new_cols.insert(0, "rowid")
             old_cols.insert(0, "rowid")
+
+        def _copy_expr(col):
+            if col in text_to_numeric_cols:
+                return "NULLIF({}, '')".format(quote_identifier(col))
+            return quote_identifier(col)
+
         copy_sql = "INSERT INTO {} ({new_cols})\n   SELECT {old_cols} FROM {};".format(
             quote_identifier(new_table_name),
             quote_identifier(self.name),
-            old_cols=", ".join(quote_identifier(col) for col in old_cols),
+            old_cols=", ".join(_copy_expr(col) for col in old_cols),
             new_cols=", ".join(quote_identifier(col) for col in new_cols),
         )
         sqls.append(copy_sql)
