@@ -1,4 +1,5 @@
 from sqlite_utils import utils
+from sqlite_utils.utils import TypeTracker
 import csv
 import io
 import pytest
@@ -71,6 +72,23 @@ def test_maximize_csv_field_size_limit():
     assert len(rows_list2) == 1
     assert rows_list2[0]["id"] == "1"
     assert rows_list2[0]["text"] == long_value
+
+
+@pytest.mark.parametrize(
+    "rows,expected_types",
+    [
+        ([{"a": ""}], {"a": "text"}),
+        ([{"a": ""}, {"a": ""}], {"a": "text"}),
+        ([{"a": "1"}, {"a": ""}], {"a": "text"}),
+        ([{"a": "0"}], {"a": "integer"}),
+        ([{"a": "1"}], {"a": "integer"}),
+        ([{"a": None}], {"a": "integer"}),
+    ],
+)
+def test_type_tracker_empty_strings(rows, expected_types):
+    tracker = TypeTracker()
+    list(tracker.wrap(iter(rows)))
+    assert tracker.types == expected_types
 
 
 @pytest.mark.parametrize(
