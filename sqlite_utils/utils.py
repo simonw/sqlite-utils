@@ -490,7 +490,7 @@ class ValueTracker:
         return "text"
 
     def evaluate(self, value: object) -> None:
-        if not value or not self.couldbe:
+        if value is None or not self.couldbe:
             return
         not_these: List[str] = []
         for name, test in self.couldbe.items():
