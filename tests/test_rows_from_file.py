@@ -52,3 +52,10 @@ def test_rows_from_file_error_on_string_io():
     assert ex.value.args == (
         "rows_from_file() requires a file-like object that supports peek(), such as io.BytesIO",
     )
+
+
+@pytest.mark.parametrize("content", [b"", b"   \n\n  "])
+def test_rows_from_file_empty_file(content):
+    rows, fmt = rows_from_file(BytesIO(content))
+    assert list(rows) == []
+    assert fmt == Format.CSV
