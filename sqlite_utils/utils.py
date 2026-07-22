@@ -212,13 +212,15 @@ class UpdateWrapper:
         self._update = update
 
     def __iter__(self) -> Iterator[bytes]:
+        encoding = getattr(self._wrapped, "encoding", None) or "utf-8"
         for line in self._wrapped:
-            self._update(len(line))
+            self._update(len(line.encode(encoding, errors="replace")))
             yield line
 
     def read(self, size: int = -1) -> bytes:
         data = self._wrapped.read(size)
-        self._update(len(data))
+        encoding = getattr(self._wrapped, "encoding", None) or "utf-8"
+        self._update(len(data.encode(encoding, errors="replace")))
         return data
 
 

@@ -100,3 +100,36 @@ def test_flatten(input, expected):
 )
 def test_dedupe_keys(input, expected):
     assert utils.dedupe_keys(input) == expected
+
+
+def test_update_wrapper_counts_bytes_not_chars():
+    # For utf-16-le each ASCII character is 2 bytes, so character count != byte count.
+    # UpdateWrapper must report byte counts to match the os.path.getsize() total used by
+    # the progress bar; otherwise the bar stops at ~50% for utf-16-le files.
+    lines = ["hello\n", "world\n"]
+
+    class FakeTextFile:
+        encoding = "utf-16-le"
+
+        def __iter__(self):
+            return iter(lines)
+
+        def read(self, size=-1):
+            return "".join(lines)
+
+    byte_counts = []
+    wrapper = utils.UpdateWrapper(FakeTextFile(), byte_counts.append)
+
+    # Test __iter__
+    assert list(wrapper) == lines
+    expected_iter_counts = [len(line.encode("utf-16-le")) for line in lines]
+    assert byte_counts == expected_iter_counts
+    # Sanity check: byte counts must differ from character counts for utf-16-le
+    assert byte_counts[0] == len("hello\n") * 2
+
+    # Test read()
+    byte_counts.clear()
+    wrapper2 = utils.UpdateWrapper(FakeTextFile(), byte_counts.append)
+    data = wrapper2.read()
+    assert data == "hello\nworld\n"
+    assert byte_counts == [len("hello\nworld\n".encode("utf-16-le"))]
