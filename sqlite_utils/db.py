@@ -5212,8 +5212,8 @@ def resolve_extracts(
 
 def _decode_default_value(value: str) -> object:
     if value.startswith("'") and value.endswith("'"):
-        # It's a string
-        return value[1:-1]
+        # It's a string; unescape doubled single quotes
+        return value[1:-1].replace("''", "'")
     if value.isdigit():
         # It's an integer
         return int(value)
