@@ -6,6 +6,9 @@
 
 ``sqlite-utils`` supports plugins, which can be used to add extra features to the software.
 
+The :ref:`plugin directory <plugin_directory>` lists plugins that are
+available to install.
+
 Plugins can add new commands, for example ``sqlite-utils some-command ...``
 
 Plugins can be installed using the ``sqlite-utils install`` command:
