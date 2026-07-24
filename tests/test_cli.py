@@ -2205,6 +2205,42 @@ def test_insert_encoding(tmpdir):
     ]
 
 
+def test_insert_utf16le_encoding(tmpdir):
+    """Progress bar stays accurate and data inserts correctly for UTF-16-LE CSV files.
+
+    The progress bar was initialized with the file's byte length but UpdateWrapper
+    used len(decoded_line) (character count) for updates.  For utf-16-le each
+    character is 2 bytes, so the bar stalled at ~50% instead of reaching 100%.
+    """
+    db_path = str(tmpdir / "test.db")
+    csv_content = "id,name\n1,Alice\n2,Bob\n"
+    utf16le_bytes = csv_content.encode("utf-16-le")
+    csv_path = str(tmpdir / "test.csv")
+    with open(csv_path, "wb") as fp:
+        fp.write(utf16le_bytes)
+
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            db_path,
+            "names",
+            csv_path,
+            "--csv",
+            "--encoding",
+            "utf-16-le",
+            "--no-detect-types",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    assert list(db["names"].rows) == [
+        {"id": "1", "name": "Alice"},
+        {"id": "2", "name": "Bob"},
+    ]
+
+
 @pytest.mark.parametrize("fts", ["FTS4", "FTS5"])
 @pytest.mark.parametrize(
     "extra_arg,expected",

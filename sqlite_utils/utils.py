@@ -212,8 +212,28 @@ class UpdateWrapper:
         self._update = update
 
     def __iter__(self) -> Iterator[bytes]:
+        # For TextIOWrapper objects, use the underlying binary buffer position
+        # to track bytes consumed rather than character count.  This matters for
+        # multi-byte encodings (e.g. utf-16-le) where len(line) is roughly half
+        # the actual byte count, causing the progress bar to stall at ~50%.
+        binary = getattr(self._wrapped, "buffer", None)
+        last_pos: Optional[int] = None
+        if binary is not None:
+            try:
+                last_pos = binary.tell()
+            except OSError:
+                binary = None
         for line in self._wrapped:
-            self._update(len(line))
+            if binary is not None:
+                try:
+                    pos = binary.tell()
+                    self._update(pos - last_pos)
+                    last_pos = pos
+                except OSError:
+                    self._update(len(line))
+                    binary = None
+            else:
+                self._update(len(line))
             yield line
 
     def read(self, size: int = -1) -> bytes:
