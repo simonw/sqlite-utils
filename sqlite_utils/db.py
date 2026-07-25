@@ -2954,7 +2954,10 @@ class Table(Queryable):
                     quote_identifier(magic_lookup_column),
                     quote_identifier(table),
                     where=" AND ".join(
-                        f"{quote_identifier(self.name)}.{quote_identifier(column)} IS {quote_identifier(table)}.{quote_identifier(rename.get(column) or column)}"
+                        f"{quote_identifier(self.name)}."
+                        f"{quote_identifier(column)} IS "
+                        f"{quote_identifier(table)}."
+                        f"{quote_identifier(rename.get(column) or column)}"
                         for column in columns
                     ),
                     all_null=all_columns_are_null,
@@ -4939,7 +4942,10 @@ class Table(Queryable):
                     most_common_results = [
                         (truncate(r[0]), r[1])
                         for r in db.execute(
-                            f"select {column_quoted}, count(*) from {table_quoted} group by {column_quoted} order by count(*) desc, {column_quoted} limit {common_limit}"
+                            f"select {column_quoted}, count(*) "
+                            f"from {table_quoted} group by {column_quoted} "
+                            f"order by count(*) desc, {column_quoted} "
+                            f"limit {common_limit}"
                         ).fetchall()
                     ]
                     most_common_results.sort(key=lambda p: (p[1], p[0]), reverse=True)
@@ -4951,7 +4957,10 @@ class Table(Queryable):
                     least_common_results = [
                         (truncate(r[0]), r[1])
                         for r in db.execute(
-                            f"select {column_quoted}, count(*) from {table_quoted} group by {column_quoted} order by count(*), {column_quoted} desc limit {common_limit}"
+                            f"select {column_quoted}, count(*) "
+                            f"from {table_quoted} group by {column_quoted} "
+                            f"order by count(*), {column_quoted} desc "
+                            f"limit {common_limit}"
                         ).fetchall()
                     ]
                     least_common_results.sort(key=lambda p: (p[1], p[0]))
