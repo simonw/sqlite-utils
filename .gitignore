@@ -15,6 +15,7 @@ venv
 .schema
 .vscode
 .hypothesis
+.claude/
 Pipfile
 Pipfile.lock
 uv.lock
