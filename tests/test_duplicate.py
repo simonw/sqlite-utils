@@ -14,7 +14,7 @@ def test_duplicate(fresh_db):
     "bool_col" INTEGER,
     "datetime_col" TEXT)""")
     # Insert one row of mock data:
-    dt = datetime.datetime.now()
+    dt = datetime.datetime.now(datetime.timezone.utc)
     data = {
         "text_col": "Cleo",
         "real_col": 3.14,

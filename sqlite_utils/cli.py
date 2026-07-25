@@ -8,7 +8,7 @@ import itertools
 import json
 import os
 import pathlib
-import pdb
+import pdb  # noqa: T100
 import sys
 import textwrap
 from datetime import datetime, timezone
@@ -72,7 +72,7 @@ def _close_databases(ctx):
     for db in ctx.meta.get("_databases_to_close", []):
         try:
             db.close()
-        except Exception:
+        except sqlite3.Error:
             pass
 
 
@@ -1840,9 +1840,7 @@ def rename_table(path, table, new_name, ignore, load_extension):
         db.rename_table(table, new_name)
     except sqlite3.OperationalError as ex:
         if not ignore:
-            raise click.ClickException(
-                f'Table "{table}" could not be renamed. {ex!s}'
-            )
+            raise click.ClickException(f'Table "{table}" could not be renamed. {ex!s}')
 
 
 @cli.command(name="drop-table")
@@ -2378,9 +2376,7 @@ def search(
         table_columns = table_obj.columns_dict
         for c in column:
             if c not in table_columns:
-                raise click.ClickException(
-                    f"Table '{dbtable}' has no column '{c}"
-                )
+                raise click.ClickException(f"Table '{dbtable}' has no column '{c}")
     sql = table_obj.search_sql(columns=column, order_by=order, limit=limit)
     if show_sql:
         click.echo(sql)
@@ -2953,7 +2949,7 @@ def insert_files(
     with progressbar(paths_and_relative_paths, silent=silent) as bar:
 
         def to_insert():
-            for path, relative_path in bar:
+            for file_path, relative_path in bar:
                 row = {}
                 # content_text is special case as it considers 'encoding'
 
@@ -2965,19 +2961,21 @@ def insert_files(
                         raise UnicodeDecodeErrorForPath(e, resolved)
 
                 lookups = dict(FILE_COLUMNS, content_text=_content_text)
-                if path == "-":
+                if file_path == "-":
                     stdin_data = sys.stdin.buffer.read()
                     # We only support a subset of columns for this case
                     lookups = {
                         "name": lambda p: name or "-",
                         "path": lambda p: name or "-",
-                        "content": lambda p: stdin_data,
-                        "content_text": lambda p: stdin_data.decode(
+                        "content": lambda p, data=stdin_data: data,
+                        "content_text": lambda p, data=stdin_data: data.decode(
                             encoding or "utf-8"
                         ),
-                        "sha256": lambda p: hashlib.sha256(stdin_data).hexdigest(),
-                        "md5": lambda p: hashlib.md5(stdin_data).hexdigest(),
-                        "size": lambda p: len(stdin_data),
+                        "sha256": lambda p, data=stdin_data: hashlib.sha256(
+                            data
+                        ).hexdigest(),
+                        "md5": lambda p, data=stdin_data: hashlib.md5(data).hexdigest(),
+                        "size": lambda p, data=stdin_data: len(data),
                     }
                 for coldef in column:
                     if ":" in coldef:
@@ -2985,7 +2983,7 @@ def insert_files(
                     else:
                         colname, coltype = coldef, coldef
                     try:
-                        value = lookups[coltype](path)
+                        value = lookups[coltype](file_path)
                         row[colname] = value
                     except KeyError:
                         raise click.ClickException(
@@ -3314,7 +3312,7 @@ def convert(
             def wrapped_fn(value):
                 try:
                     return fn_(value)
-                except Exception as ex:
+                except Exception as ex:  # noqa: BLE001
                     print("\nException raised, dropping into pdb...:", ex)
                     pdb.post_mortem(ex.__traceback__)
                     sys.exit(1)
@@ -3477,7 +3475,7 @@ def _load_migration_sets(files):
             "__file__": str(filepath),
             "__name__": "__sqlite_utils_migration__",
         }
-        exec(code, namespace)
+        exec(code, namespace)  # noqa: S102
         migration_sets.extend(
             obj for obj in namespace.values() if _compatible_migration_set(obj)
         )
@@ -3587,9 +3585,7 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
             names = {m.name for m in migration_set.pending(db)}
             names.update(m.name for m in migration_set.applied(db))
             known_names.update(names)
-            known_names.update(
-                f"{migration_set.name}:{name}" for name in names
-            )
+            known_names.update(f"{migration_set.name}:{name}" for name in names)
         unknown = [value for value in stop_before if value not in known_names]
         if unknown:
             raise click.ClickException(
@@ -3766,7 +3762,7 @@ def _register_functions(db, functions):
     sqlite3.enable_callback_tracebacks(True)
     globals = {}
     try:
-        exec(functions, globals)
+        exec(functions, globals)  # noqa: S102
     except SyntaxError as ex:
         raise click.ClickException(f"Error in functions definition: {ex}")
     # Register all callables in the locals dict:
@@ -3792,7 +3788,7 @@ def _rows_from_code(code):
             raise click.ClickException(f"File not found: {code}")
     namespace = {}
     try:
-        exec(code, namespace)
+        exec(code, namespace)  # noqa: S102
     except SyntaxError as ex:
         raise click.ClickException(f"Error in --code: {ex}")
     rows = namespace.get("rows")

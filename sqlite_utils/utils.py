@@ -52,7 +52,7 @@ SPATIALITE_PATHS = (
 ORIGINAL_CSV_FIELD_SIZE_LIMIT = csv.field_size_limit()
 
 # Type alias for row dictionaries - values can be various SQLite-compatible types
-RowValue = Union[None, int, float, str, bytes, bool, list[str]]
+RowValue = None | int | float | str | bytes | bool | list[str]
 Row = dict[str, RowValue]
 
 T = TypeVar("T")
@@ -270,9 +270,7 @@ def _extra_key_strategy(
             yield cast(Row, row)
         elif not extras_key:
             extras = row.pop(None)
-            raise RowError(
-                f"Row {row} contained these extra values: {extras}"
-            )
+            raise RowError(f"Row {row} contained these extra values: {extras}")
         else:
             extras_value = row.pop(None)
             row_out = cast(Row, row)
@@ -449,9 +447,7 @@ class ValueTracker:
     @classmethod
     def get_tests(cls) -> list[str]:
         return [
-            key.split("test_")[-1]
-            for key in cls.__dict__
-            if key.startswith("test_")
+            key.split("test_")[-1] for key in cls.__dict__ if key.startswith("test_")
         ]
 
     def test_integer(self, value: object) -> bool:
@@ -522,7 +518,7 @@ def _compile_code(
 
     # If user defined a convert() function, return that
     try:
-        exec(code, globals_dict)
+        exec(code, globals_dict)  # noqa: S102
         return cast(Callable[..., object], globals_dict["convert"])
     except (AttributeError, SyntaxError, NameError, KeyError, TypeError):
         pass
@@ -533,7 +529,7 @@ def _compile_code(
         fn = eval(code, globals_dict)
         if callable(fn):
             return cast(Callable[..., object], fn)
-    except Exception:
+    except Exception:  # noqa: BLE001, S110
         pass
 
     # Try compiling their code as a function instead
@@ -557,7 +553,7 @@ def _compile_code(
     if code_o is None:
         raise SyntaxError("Could not compile code")
 
-    exec(code_o, globals_dict)
+    exec(code_o, globals_dict)  # noqa: S102
     return cast(Callable[..., object], globals_dict["fn"])
 
 

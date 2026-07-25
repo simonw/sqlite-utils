@@ -15,6 +15,7 @@ import uuid
 from collections import namedtuple
 from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from types import TracebackType
 from typing import (
     Any,
     Union,
@@ -272,20 +273,20 @@ class TransformError(Exception):
 
 
 # A single column name, or a tuple of columns for a compound foreign key
-ForeignKeyColumns = Union[str, tuple[str, ...], list[str]]
+ForeignKeyColumns = str | tuple[str, ...] | list[str]
 
 # (table, column(s), other_table, other_column(s))
 ForeignKeyTuple = tuple[str, ForeignKeyColumns, str, ForeignKeyColumns]
 
-ForeignKeyIndicator = Union[
-    str,
-    ForeignKey,
-    tuple[ForeignKeyColumns, str],
-    tuple[ForeignKeyColumns, str, ForeignKeyColumns],
-    ForeignKeyTuple,
-]
+ForeignKeyIndicator = (
+    str
+    | ForeignKey
+    | tuple[ForeignKeyColumns, str]
+    | tuple[ForeignKeyColumns, str, ForeignKeyColumns]
+    | ForeignKeyTuple
+)
 
-ForeignKeysType = Union[Iterable[ForeignKeyIndicator], list[ForeignKeyIndicator]]
+ForeignKeysType = Iterable[ForeignKeyIndicator] | list[ForeignKeyIndicator]
 
 
 class Default:
@@ -580,7 +581,7 @@ class Database:
         self,
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: object | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         self.close()
 
@@ -689,9 +690,7 @@ class Database:
             self.conn.isolation_level = old_isolation_level
 
     @contextlib.contextmanager
-    def tracer(
-        self, tracer: Tracer | None = None
-    ) -> Generator["Database", None, None]:
+    def tracer(self, tracer: Tracer | None = None) -> Generator["Database", None, None]:
         """
         Context manager to temporarily set a tracer function - all executed SQL queries will
         be passed to this.
@@ -1003,9 +1002,7 @@ class Database:
             query += '"'
         bits = _quote_fts_re.split(query)
         bits = [b for b in bits if b and b != '""']
-        return " ".join(
-            f'"{bit}"' if not bit.startswith('"') else bit for bit in bits
-        )
+        return " ".join(f'"{bit}"' if not bit.startswith('"') else bit for bit in bits)
 
     def quote_default_value(self, value: str) -> str:
         if any(
@@ -1099,12 +1096,10 @@ class Database:
             try:
                 table_name = f"t{secrets.token_hex(16)}"
                 with self.atomic():
-                    self.conn.execute(
-                        f"create table {table_name} (name text) strict"
-                    )
+                    self.conn.execute(f"create table {table_name} (name text) strict")
                     self.conn.execute(f"drop table {table_name}")
                 self._supports_strict = True
-            except Exception:
+            except sqlite3.OperationalError:
                 self._supports_strict = False
         return self._supports_strict
 
@@ -1122,13 +1117,11 @@ class Database:
                         f"insert into {table_name} (id, name) values (1, 'one')"
                     )
                     self.conn.execute(
-                        
-                            f"insert into {table_name} (id, name) values (1, 'two') "
-                            "on conflict do update set name = 'two'"
-                        
+                        f"insert into {table_name} (id, name) values (1, 'two') "
+                        "on conflict do update set name = 'two'"
                     )
                     self._supports_on_conflict = True
-            except Exception:
+            except sqlite3.OperationalError:
                 self._supports_on_conflict = False
             finally:
                 self.conn.execute(f"drop table if exists {table_name}")
@@ -1262,7 +1255,7 @@ class Database:
                 fks.append(ForeignKey(name, fk, other_table, other_column))
                 continue
             if not isinstance(fk, (tuple, list)):
-                raise ValueError(
+                raise ValueError(  # noqa: TRY004
                     "foreign_keys= should be a list of tuples, "
                     "ForeignKey objects or column name strings"
                 )
@@ -1459,9 +1452,7 @@ class Database:
                 if other_column != "rowid" and not any(
                     c for c in self[fk.other_table].columns if c.name == other_column
                 ):
-                    raise AlterError(
-                        f"No such column: {fk.other_table}.{other_column}"
-                    )
+                    raise AlterError(f"No such column: {fk.other_table}.{other_column}")
 
         column_defs = []
         # ensure pk is a tuple
@@ -1704,16 +1695,15 @@ class Database:
         if ignore and replace:
             raise ValueError("Use one or the other of ignore/replace, not both")
         create_sql = f"CREATE VIEW {quote_identifier(name)} AS {sql}"
-        if ignore or replace:
-            # Does view exist already?
-            if name in self.view_names():
-                if ignore:
+        if (ignore or replace) and name in self.view_names():
+            # View exists already
+            if ignore:
+                return self
+            elif replace:
+                # If SQL is the same, do nothing
+                if create_sql == self[name].schema:
                     return self
-                elif replace:
-                    # If SQL is the same, do nothing
-                    if create_sql == self[name].schema:
-                        return self
-                    self[name].drop()
+                self[name].drop()
         self.execute(create_sql)
         return self
 
@@ -2231,7 +2221,7 @@ class Table(Queryable):
             row = next(iter(rows))
             self.last_pk = last_pk
             return row
-        except IndexError:
+        except StopIteration:
             raise NotFoundError
 
     @property
@@ -2298,9 +2288,7 @@ class Table(Queryable):
         for row in self.db.execute_returning_dicts(sql):
             index_name = row["name"]
             index_name_quoted = (
-                f'"{index_name}"'
-                if not index_name.startswith('"')
-                else index_name
+                f'"{index_name}"' if not index_name.startswith('"') else index_name
             )
             column_sql = f"PRAGMA index_info({index_name_quoted})"
             columns = []
@@ -2322,9 +2310,7 @@ class Table(Queryable):
         for row in self.db.execute_returning_dicts(sql):
             index_name = row["name"]
             index_name_quoted = (
-                f'"{index_name}"'
-                if not index_name.startswith('"')
-                else index_name
+                f'"{index_name}"' if not index_name.startswith('"') else index_name
             )
             column_sql = f"PRAGMA index_xinfo({index_name_quoted})"
             index_columns = []
@@ -2923,9 +2909,7 @@ class Table(Queryable):
             else:
                 lookup_table.create(
                     {
-                        
-                            "id": int
-                        ,
+                        "id": int,
                         **lookup_columns_definition,
                     },
                     pk="id",
@@ -3034,9 +3018,7 @@ class Table(Queryable):
         suffix = None
         created_index_name = None
         while True:
-            created_index_name = (
-                f"{index_name}_{suffix}" if suffix else index_name
-            )
+            created_index_name = f"{index_name}_{suffix}" if suffix else index_name
             sql = (
                 textwrap.dedent("""
                 CREATE {unique}INDEX {if_not_exists}{index_name}
@@ -3083,9 +3065,7 @@ class Table(Queryable):
         if index_name not in {index.name for index in self.indexes}:
             if ignore:
                 return self
-            raise OperationalError(
-                f"No index named {index_name} on table {self.name}"
-            )
+            raise OperationalError(f"No index named {index_name} on table {self.name}")
         self.db.execute(f"DROP INDEX {quote_identifier(index_name)}")
         return self
 
@@ -3132,7 +3112,9 @@ class Table(Queryable):
             col_type = str
         not_null_sql = None
         if not_null_default is not None:
-            not_null_sql = f"NOT NULL DEFAULT {self.db.quote_default_value(not_null_default)}"
+            not_null_sql = (
+                f"NOT NULL DEFAULT {self.db.quote_default_value(not_null_default)}"
+            )
         sql = "ALTER TABLE {} ADD COLUMN {} {col_type}{not_null_default};".format(
             quote_identifier(self.name),
             quote_identifier(col_name),
@@ -3893,9 +3875,12 @@ class Table(Queryable):
                 self.add_column(column_name, column_type)
 
         # Run the updates
-        with progressbar(
-            length=self.count, silent=not show_progress, label="2: Updating"
-        ) as bar, self.db.atomic():
+        with (
+            progressbar(
+                length=self.count, silent=not show_progress, label="2: Updating"
+            ) as bar,
+            self.db.atomic(),
+        ):
             for pk, updates in pk_to_values.items():
                 self.update(pk, updates)
                 bar.update(1)
@@ -4100,9 +4085,7 @@ class Table(Queryable):
                         )
                         for col in set_cols
                     ),
-                    wheres=" AND ".join(
-                        f"{quote_identifier(pk)} = ?" for pk in pks
-                    ),
+                    wheres=" AND ".join(f"{quote_identifier(pk)} = ?" for pk in pks),
                 )
                 queries_and_params.append(
                     (
@@ -4400,7 +4383,7 @@ class Table(Queryable):
             except StopIteration:
                 return self  # Only headers, no data
             if not isinstance(first_record, (list, tuple)):
-                raise ValueError(
+                raise ValueError(  # noqa: TRY004
                     "After column names list, all subsequent records must also be lists"
                 )
         else:
@@ -4414,9 +4397,7 @@ class Table(Queryable):
             num_columns = len(first_record.keys())
 
         if num_columns > SQLITE_MAX_VARS:
-            raise ValueError(
-                f"Rows can have a maximum of {SQLITE_MAX_VARS} columns"
-            )
+            raise ValueError(f"Rows can have a maximum of {SQLITE_MAX_VARS} columns")
         batch_size = (
             1
             if num_columns == 0
@@ -4579,7 +4560,9 @@ class Table(Queryable):
                     rowid_pk = isinstance(pk, str) and pk.lower() in ROWID_ALIASES
                     if (hash_id or (pk and not rowid_pk)) and self.last_rowid:
                         # Set self.last_pk to the pk(s) for that rowid
-                        row = next(iter(self.rows_where("rowid = ?", [self.last_rowid])))
+                        row = next(
+                            iter(self.rows_where("rowid = ?", [self.last_rowid]))
+                        )
                         if hash_id:
                             self.last_pk = row[hash_id]
                         elif isinstance(pk, str):
@@ -4751,7 +4734,7 @@ class Table(Queryable):
         :param strict: Boolean, apply STRICT mode if creating the table.
         """
         if not isinstance(lookup_values, dict):
-            raise ValueError("lookup_values must be a dictionary")
+            raise ValueError("lookup_values must be a dictionary")  # noqa: TRY004
         if pk is None:
             raise ValueError("pk cannot be None")
         if extra_values is not None and not isinstance(extra_values, dict):
@@ -4769,9 +4752,7 @@ class Table(Queryable):
             } not in unique_column_sets:
                 self.create_index(lookup_values.keys(), unique=True)
             # IS rather than = so that null values are matched correctly
-            wheres = [
-                f"{quote_identifier(column)} IS ?" for column in lookup_values
-            ]
+            wheres = [f"{quote_identifier(column)} IS ?" for column in lookup_values]
             rows = list(
                 self.rows_where(
                     " and ".join(wheres), [value for _, value in lookup_values.items()]

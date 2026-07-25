@@ -53,16 +53,18 @@ def test_with_tracer():
     assert len(collected) == 4
     assert collected == [
         (
-            ("SELECT name FROM sqlite_master\n"
-            "    WHERE rootpage = 0\n"
-            "    AND (\n"
-            "        sql LIKE :like\n"
-            "        OR sql LIKE :like2\n"
-            "        OR (\n"
-            "            tbl_name = :table\n"
-            "            AND sql LIKE '%VIRTUAL TABLE%USING FTS%'\n"
-            "        )\n"
-            "    )"),
+            (
+                "SELECT name FROM sqlite_master\n"
+                "    WHERE rootpage = 0\n"
+                "    AND (\n"
+                "        sql LIKE :like\n"
+                "        OR sql LIKE :like2\n"
+                "        OR (\n"
+                "            tbl_name = :table\n"
+                "            AND sql LIKE '%VIRTUAL TABLE%USING FTS%'\n"
+                "        )\n"
+                "    )"
+            ),
             {
                 "like": "%VIRTUAL TABLE%USING FTS%content=[dogs]%",
                 "like2": '%VIRTUAL TABLE%USING FTS%content="dogs"%',
@@ -72,21 +74,23 @@ def test_with_tracer():
         ("select name from sqlite_master where type = 'view'", None),
         ("select sql from sqlite_master where name = ?", ("dogs_fts",)),
         (
-            ('with "original" as (\n'
-            "    select\n"
-            "        rowid,\n"
-            "        *\n"
-            '    from "dogs"\n'
-            ")\n"
-            "select\n"
-            '    "original".*\n'
-            "from\n"
-            '    "original"\n'
-            '    join "dogs_fts" on "original".rowid = "dogs_fts".rowid\n'
-            "where\n"
-            '    "dogs_fts" match :query\n'
-            "order by\n"
-            '    "dogs_fts".rank'),
+            (
+                'with "original" as (\n'
+                "    select\n"
+                "        rowid,\n"
+                "        *\n"
+                '    from "dogs"\n'
+                ")\n"
+                "select\n"
+                '    "original".*\n'
+                "from\n"
+                '    "original"\n'
+                '    join "dogs_fts" on "original".rowid = "dogs_fts".rowid\n'
+                "where\n"
+                '    "dogs_fts" match :query\n'
+                "order by\n"
+                '    "dogs_fts".rank'
+            ),
             {"query": "Cleopaws"},
         ),
     ]

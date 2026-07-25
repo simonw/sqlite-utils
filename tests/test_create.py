@@ -720,17 +720,9 @@ def test_columns_not_in_first_record_should_not_cause_batch_to_be_too_large(fres
     records = [
         {"c0": "first record"},  # one column in first record -> batch size = 999
         # fill out the batch with 99 records with enough columns to exceed THRESHOLD
-        *[
-            {f"c{i}": j for i in range(extra_columns)}
-            for j in range(batch_size - 1)
-        ],
+        *[{f"c{i}": j for i in range(extra_columns)} for j in range(batch_size - 1)],
     ]
-    try:
-        fresh_db["too_many_columns"].insert_all(
-            records, alter=True, batch_size=batch_size
-        )
-    except sqlite3.OperationalError:
-        raise
+    fresh_db["too_many_columns"].insert_all(records, alter=True, batch_size=batch_size)
 
 
 @pytest.mark.parametrize(
@@ -927,9 +919,7 @@ def test_insert_memoryview(fresh_db):
 
 
 def test_insert_thousands_using_generator(fresh_db):
-    fresh_db["test"].insert_all(
-        {"i": i, "word": f"word_{i}"} for i in range(10000)
-    )
+    fresh_db["test"].insert_all({"i": i, "word": f"word_{i}"} for i in range(10000))
     assert [{"name": "i", "type": "INTEGER"}, {"name": "word", "type": "TEXT"}] == [
         {"name": col.name, "type": col.type} for col in fresh_db["test"].columns
     ]

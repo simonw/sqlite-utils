@@ -28,11 +28,13 @@ from sqlite_utils.utils import sqlite3
             END;
             """,
             [
-                ("CREATE TRIGGER t_ai AFTER INSERT ON t\n"
-                "            BEGIN\n"
-                "                UPDATE t SET value = 'a;b' WHERE id = new.id;\n"
-                "                INSERT INTO log VALUES ('x;y');\n"
-                "            END;")
+                (
+                    "CREATE TRIGGER t_ai AFTER INSERT ON t\n"
+                    "            BEGIN\n"
+                    "                UPDATE t SET value = 'a;b' WHERE id = new.id;\n"
+                    "                INSERT INTO log VALUES ('x;y');\n"
+                    "            END;"
+                )
             ],
         ),
     ),
@@ -83,9 +85,8 @@ def test_outer_atomic_rolls_back_released_savepoint(fresh_db):
 
 
 def test_executescript_does_not_commit_open_atomic_block(fresh_db):
-    with pytest.raises(RuntimeError):
-        with fresh_db.atomic():
-            fresh_db.executescript("""
+    with pytest.raises(RuntimeError), fresh_db.atomic():
+        fresh_db.executescript("""
                 CREATE TABLE dogs(id INTEGER PRIMARY KEY, name TEXT);
                 CREATE TRIGGER dogs_ai AFTER INSERT ON dogs
                 BEGIN
@@ -94,7 +95,7 @@ def test_executescript_does_not_commit_open_atomic_block(fresh_db):
                 -- This comment has a semicolon;
                 INSERT INTO dogs VALUES (1, 'Cleo; the first');
             """)
-            raise RuntimeError("boom")
+        raise RuntimeError("boom")
 
     assert not fresh_db["dogs"].exists()
 
@@ -349,9 +350,11 @@ def test_atomic_preserves_error_from_transaction_destroying_trigger(fresh_db):
     # with "cannot rollback - no transaction is active"
     fresh_db.execute("create table t (id integer primary key, v text)")
     fresh_db.execute(TRIGGER_SQL)
-    with pytest.raises(sqlite3.IntegrityError, match="trigger says no"):
-        with fresh_db.atomic():
-            fresh_db.execute("insert into t (v) values ('bad')")
+    with (
+        pytest.raises(sqlite3.IntegrityError, match="trigger says no"),
+        fresh_db.atomic(),
+    ):
+        fresh_db.execute("insert into t (v) values ('bad')")
     assert not fresh_db.conn.in_transaction
 
 
@@ -362,10 +365,12 @@ def test_nested_atomic_preserves_error_from_transaction_destroying_trigger(
     # "no such savepoint" from ROLLBACK TO SAVEPOINT
     fresh_db.execute("create table t (id integer primary key, v text)")
     fresh_db.execute(TRIGGER_SQL)
-    with pytest.raises(sqlite3.IntegrityError, match="trigger says no"):
-        with fresh_db.atomic():
-            with fresh_db.atomic():
-                fresh_db.execute("insert into t (v) values ('bad')")
+    with (
+        pytest.raises(sqlite3.IntegrityError, match="trigger says no"),
+        fresh_db.atomic(),
+        fresh_db.atomic(),
+    ):
+        fresh_db.execute("insert into t (v) values ('bad')")
     assert not fresh_db.conn.in_transaction
 
 

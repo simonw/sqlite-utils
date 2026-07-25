@@ -107,7 +107,8 @@ def test_search_limit_offset(fresh_db):
     assert len(list(table.search("are", limit=1))) == 1
     assert next(iter(table.search("are", limit=1, order_by="rowid")))["rowid"] == 1
     assert (
-        next(iter(table.search("are", limit=1, offset=1, order_by="rowid")))["rowid"] == 2
+        next(iter(table.search("are", limit=1, offset=1, order_by="rowid")))["rowid"]
+        == 2
     )
 
 

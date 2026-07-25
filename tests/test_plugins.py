@@ -1,4 +1,5 @@
 import importlib
+import sqlite3
 import sys
 
 import click
@@ -13,7 +14,7 @@ def _supports_pragma_function_list():
     try:
         db.execute("select * from pragma_function_list()")
         return True
-    except Exception:
+    except sqlite3.DatabaseError:
         return False
     finally:
         db.close()

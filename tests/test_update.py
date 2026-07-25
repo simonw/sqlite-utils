@@ -43,7 +43,7 @@ def test_update_compound_pk_table(fresh_db):
 )
 def test_update_invalid_pk(fresh_db, pk, update_pk):
     table = fresh_db["table"]
-    table.insert({"id1": 5, "id2": 3, "v": 1}, pk=pk).last_pk
+    table.insert({"id1": 5, "id2": 3, "v": 1}, pk=pk)
     with pytest.raises(NotFoundError):
         table.update(update_pk, {"v": 2})
 

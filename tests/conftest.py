@@ -56,7 +56,7 @@ def close_all_databases():
     for db in databases:
         try:
             db.close()
-        except Exception:
+        except sqlite3.Error:
             pass
 
 

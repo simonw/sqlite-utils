@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
-
 import inspect
 import sys
 from pathlib import Path
-from subprocess import PIPE, Popen, check_output
+from subprocess import PIPE, CalledProcessError, Popen, check_output
 
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -49,7 +47,7 @@ extlinks = {
 def _linkcode_git_ref():
     try:
         return check_output(["git", "rev-parse", "HEAD"]).decode("utf8").strip()
-    except Exception:
+    except (CalledProcessError, OSError):
         return "main"
 
 
@@ -78,7 +76,7 @@ def linkcode_resolve(domain, info):
         obj = inspect.unwrap(obj)
         source_file = inspect.getsourcefile(obj)
         _, line_number = inspect.getsourcelines(obj)
-    except Exception:
+    except (OSError, TypeError, ValueError):
         return None
 
     if source_file is None:

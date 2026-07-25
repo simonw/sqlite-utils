@@ -23,7 +23,7 @@ def _supports_pragma_function_list():
     try:
         db.execute("select * from pragma_function_list()")
         return True
-    except Exception:
+    except sqlite3.DatabaseError:
         return False
     finally:
         db.close()
@@ -1021,16 +1021,14 @@ def test_query_json_binary(db_path):
             "data": {
                 "$base64": True,
                 "encoded": (
-                    
-                        "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH"
-                        "8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+"
-                        "DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I"
-                        "/K+5Au3S/9lNQRh0k4Gq/RUz8GiKfsQm+7JLsJ6fTo5JhVG00ZU76kZZkxePx49uI"
-                        "jnpNoJyYlWUsoaSl/CcVATje/Kxu13RANnrHweaH3V5Jh4jvGyKCnxJLiXPKhmW3f"
-                        "iCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8"
-                        "IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984A"
-                        "Mf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9"
-                    
+                    "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH"
+                    "8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+"
+                    "DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I"
+                    "/K+5Au3S/9lNQRh0k4Gq/RUz8GiKfsQm+7JLsJ6fTo5JhVG00ZU76kZZkxePx49uI"
+                    "jnpNoJyYlWUsoaSl/CcVATje/Kxu13RANnrHweaH3V5Jh4jvGyKCnxJLiXPKhmW3f"
+                    "iCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8"
+                    "IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984A"
+                    "Mf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9"
                 ),
             },
         }
@@ -2116,11 +2114,13 @@ _common_other_schema = (
         ),
         (
             ["--rename", "name", "name2"],
-            ('CREATE TABLE "trees" (\n'
-            '   "id" INTEGER PRIMARY KEY,\n'
-            '   "address" TEXT,\n'
-            '   "species_id" INTEGER REFERENCES "species"("id")\n'
-            ")"),
+            (
+                'CREATE TABLE "trees" (\n'
+                '   "id" INTEGER PRIMARY KEY,\n'
+                '   "address" TEXT,\n'
+                '   "species_id" INTEGER REFERENCES "species"("id")\n'
+                ")"
+            ),
             'CREATE TABLE "species" (\n   "id" INTEGER PRIMARY KEY,\n   "species" TEXT\n)',
         ),
     ],
@@ -2139,7 +2139,9 @@ def test_extract(db_path, args, expected_table_schema, expected_other_schema):
     assert result.exit_code == 0
     schema = db["trees"].schema
     assert schema == expected_table_schema
-    other_schema = next(t for t in db.tables if t.name not in ("trees", "Gosh", "Gosh2")).schema
+    other_schema = next(
+        t for t in db.tables if t.name not in ("trees", "Gosh", "Gosh2")
+    ).schema
     assert other_schema == expected_other_schema
 
 
@@ -2690,7 +2692,9 @@ def test_integer_overflow_error(tmpdir):
 def test_python_dash_m():
     "Tool can be run using python -m sqlite_utils"
     result = subprocess.run(
-        [sys.executable, "-m", "sqlite_utils", "--help"], stdout=subprocess.PIPE
+        [sys.executable, "-m", "sqlite_utils", "--help"],
+        stdout=subprocess.PIPE,
+        check=False,
     )
     assert result.returncode == 0
     assert b"Commands for interacting with a SQLite database" in result.stdout
