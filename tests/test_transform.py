@@ -1,8 +1,9 @@
 import sqlite3
 
+import pytest
+
 from sqlite_utils.db import ForeignKey, TransactionError, TransformError
 from sqlite_utils.utils import OperationalError
-import pytest
 
 
 @pytest.mark.parametrize(
@@ -113,7 +114,7 @@ def test_transform_sql_table_with_primary_key(
     if use_pragma_foreign_keys:
         fresh_db.conn.execute("PRAGMA foreign_keys=ON")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
-    sql = dogs.transform_sql(**{**params, **{"tmp_suffix": "suffix"}})
+    sql = dogs.transform_sql(**{**params, "tmp_suffix": "suffix"})
     assert sql == expected_sql
     # Check that .transform() runs without exceptions:
     with fresh_db.tracer(tracer):
@@ -186,7 +187,7 @@ def test_transform_sql_table_with_no_primary_key(
     if use_pragma_foreign_keys:
         fresh_db.conn.execute("PRAGMA foreign_keys=ON")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"})
-    sql = dogs.transform_sql(**{**params, **{"tmp_suffix": "suffix"}})
+    sql = dogs.transform_sql(**{**params, "tmp_suffix": "suffix"})
     assert sql == expected_sql
     # Check that .transform() runs without exceptions:
     with fresh_db.tracer(tracer):
@@ -476,23 +477,22 @@ def test_transform_in_transaction_refuses_destructive_on_delete(fresh_db, on_del
     # keys inside an open transaction would fire those actions when the old
     # table is dropped - transform() should refuse instead
     fresh_db.conn.execute("PRAGMA foreign_keys=ON")
-    fresh_db.executescript("""
+    fresh_db.executescript(f"""
         CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT);
         CREATE TABLE books (
             id INTEGER PRIMARY KEY,
             title TEXT,
-            author_id INTEGER REFERENCES authors(id) ON DELETE {}
+            author_id INTEGER REFERENCES authors(id) ON DELETE {on_delete}
         );
-        """.format(on_delete))
+        """)
     fresh_db["authors"].insert({"id": 1, "name": "Ursula K. Le Guin"})
     fresh_db["books"].insert({"id": 1, "title": "The Dispossessed", "author_id": 1})
     previous_schema = fresh_db["authors"].schema
-    with fresh_db.atomic():
-        with pytest.raises(TransactionError) as excinfo:
-            fresh_db["authors"].transform(rename={"name": "author_name"})
+    with fresh_db.atomic(), pytest.raises(TransactionError) as excinfo:
+        fresh_db["authors"].transform(rename={"name": "author_name"})
     message = str(excinfo.value)
     assert "books" in message
-    assert "ON DELETE {}".format(on_delete.upper()) in message
+    assert f"ON DELETE {on_delete.upper()}" in message
     # Nothing should have changed
     assert fresh_db["authors"].schema == previous_schema
     assert list(fresh_db["books"].rows) == [
@@ -518,9 +518,8 @@ def test_transform_in_transaction_refuses_self_referential_cascade(fresh_db):
             {"id": 2, "name": "Science Fiction", "parent_id": 1},
         ]
     )
-    with fresh_db.atomic():
-        with pytest.raises(TransactionError) as excinfo:
-            fresh_db["categories"].transform(rename={"name": "title"})
+    with fresh_db.atomic(), pytest.raises(TransactionError) as excinfo:
+        fresh_db["categories"].transform(rename={"name": "title"})
     assert "categories" in str(excinfo.value)
     assert fresh_db["categories"].count == 2
 
@@ -715,15 +714,15 @@ def test_transform_preserves_rowids(fresh_db, table_type):
     # Now delete and insert a row to mix up the `rowid` sequence
     fresh_db["places"].delete_where("id = ?", ["2"])
     fresh_db["places"].insert({"id": "4", "name": "London", "country": "UK"})
-    previous_rows = list(
+    previous_rows = [
         tuple(row) for row in fresh_db.execute("select rowid, id, name from places")
-    )
+    ]
     # Transform it
     fresh_db["places"].transform(column_order=("country", "name"))
     # Should be the same
-    next_rows = list(
+    next_rows = [
         tuple(row) for row in fresh_db.execute("select rowid, id, name from places")
-    )
+    ]
     assert previous_rows == next_rows
 
 

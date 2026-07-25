@@ -9,20 +9,11 @@ import itertools
 import json
 import os
 import sys
+from collections.abc import Callable, Generator, Iterable, Iterator
 from typing import (
+    TYPE_CHECKING,
     Any,
     BinaryIO,
-    Callable,
-    Dict,
-    Generator,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    TYPE_CHECKING,
     TypeVar,
     Union,
     cast,
@@ -33,8 +24,8 @@ import click
 from . import recipes
 
 if TYPE_CHECKING:
-    import sqlite3  # noqa: F401
-    from sqlite3 import dbapi2  # noqa: F401
+    import sqlite3
+    from sqlite3 import dbapi2
 
     OperationalError = dbapi2.OperationalError
 else:
@@ -44,7 +35,7 @@ else:
         OperationalError = dbapi2.OperationalError
     except ImportError:
         import sqlite3  # noqa: F401
-        from sqlite3 import dbapi2  # noqa: F401
+        from sqlite3 import dbapi2
 
         OperationalError = dbapi2.OperationalError
 
@@ -61,8 +52,8 @@ SPATIALITE_PATHS = (
 ORIGINAL_CSV_FIELD_SIZE_LIMIT = csv.field_size_limit()
 
 # Type alias for row dictionaries - values can be various SQLite-compatible types
-RowValue = Union[None, int, float, str, bytes, bool, List[str]]
-Row = Dict[str, RowValue]
+RowValue = Union[None, int, float, str, bytes, bool, list[str]]
+Row = dict[str, RowValue]
 
 T = TypeVar("T")
 
@@ -103,7 +94,7 @@ def maximize_csv_field_size_limit() -> None:
             field_size_limit = int(field_size_limit / 10)
 
 
-def find_spatialite() -> Optional[str]:
+def find_spatialite() -> str | None:
     """
     The ``find_spatialite()`` function searches for the `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__
     SQLite extension in some common places. It returns a string path to the location, or ``None`` if SpatiaLite was not found.
@@ -132,9 +123,9 @@ def find_spatialite() -> Optional[str]:
 
 
 def suggest_column_types(
-    records: Iterable[Dict[str, Any]],
-) -> Dict[str, type]:
-    all_column_types: Dict[str, Set[type]] = {}
+    records: Iterable[dict[str, Any]],
+) -> dict[str, type]:
+    all_column_types: dict[str, set[type]] = {}
     for record in records:
         for key, value in record.items():
             all_column_types.setdefault(key, set()).add(type(value))
@@ -142,9 +133,9 @@ def suggest_column_types(
 
 
 def types_for_column_types(
-    all_column_types: Dict[str, Set[type]],
-) -> Dict[str, type]:
-    column_types: Dict[str, type] = {}
+    all_column_types: dict[str, set[type]],
+) -> dict[str, type]:
+    column_types: dict[str, type] = {}
     for key, types in all_column_types.items():
         # Ignore null values if at least one other type present:
         if len(types) > 1:
@@ -153,7 +144,7 @@ def types_for_column_types(
         if {None.__class__} == types:
             t = str
         elif len(types) == 1:
-            t = list(types)[0]
+            t = next(iter(types))
             # But if it's a subclass of list / tuple / dict, use str
             # instead as we will be storing it as JSON in the table
             for superclass in (list, tuple, dict):
@@ -190,7 +181,7 @@ def column_affinity(column_type: str) -> type:
     return float
 
 
-def decode_base64_values(doc: Dict[str, Any]) -> Dict[str, Any]:
+def decode_base64_values(doc: dict[str, Any]) -> dict[str, Any]:
     # Looks for '{"$base64": true..., "encoded": ...}' values and decodes them
     to_fix = [
         k
@@ -263,9 +254,9 @@ class RowError(Exception):
 
 
 def _extra_key_strategy(
-    reader: Iterable[Dict[Optional[str], object]],
-    ignore_extras: Optional[bool] = False,
-    extras_key: Optional[str] = None,
+    reader: Iterable[dict[str | None, object]],
+    ignore_extras: bool | None = False,
+    extras_key: str | None = None,
 ) -> Iterable[Row]:
     # Logic for handling CSV rows with more values than there are headings
     for row in reader:
@@ -280,7 +271,7 @@ def _extra_key_strategy(
         elif not extras_key:
             extras = row.pop(None)
             raise RowError(
-                "Row {} contained these extra values: {}".format(row, extras)
+                f"Row {row} contained these extra values: {extras}"
             )
         else:
             extras_value = row.pop(None)
@@ -291,12 +282,12 @@ def _extra_key_strategy(
 
 def rows_from_file(
     fp: BinaryIO,
-    format: Optional[Format] = None,
-    dialect: Optional[Type[csv.Dialect]] = None,
-    encoding: Optional[str] = None,
-    ignore_extras: Optional[bool] = False,
-    extras_key: Optional[str] = None,
-) -> Tuple[Iterable[Row], Format]:
+    format: Format | None = None,
+    dialect: type[csv.Dialect] | None = None,
+    encoding: str | None = None,
+    ignore_extras: bool | None = False,
+    extras_key: str | None = None,
+) -> tuple[Iterable[Row], Format]:
     """
     Load a sequence of dictionaries from a file-like object containing one of four different formats.
 
@@ -363,7 +354,7 @@ def rows_from_file(
         )
         return (
             _extra_key_strategy(
-                cast(Iterable[Dict[Optional[str], object]], rows),
+                cast(Iterable[dict[str | None, object]], rows),
                 ignore_extras,
                 extras_key,
             ),
@@ -379,7 +370,7 @@ def rows_from_file(
             raise TypeError(
                 "rows_from_file() requires a file-like object that supports peek(), such as io.BytesIO"
             )
-        if first_bytes.startswith(b"[") or first_bytes.startswith(b"{"):
+        if first_bytes.startswith((b"[", b"{")):
             # TODO: Detect newline-JSON
             return rows_from_file(buffered, format=Format.JSON)
         else:
@@ -393,7 +384,7 @@ def rows_from_file(
             detected_format = Format.TSV if dialect.delimiter == "\t" else Format.CSV
             return (
                 _extra_key_strategy(
-                    cast(Iterable[Dict[Optional[str], object]], rows),
+                    cast(Iterable[dict[str | None, object]], rows),
                     ignore_extras,
                     extras_key,
                 ),
@@ -425,9 +416,9 @@ class TypeTracker:
     """
 
     def __init__(self) -> None:
-        self.trackers: Dict[str, "ValueTracker"] = {}
+        self.trackers: dict[str, ValueTracker] = {}
 
-    def wrap(self, iterator: Iterable[Dict[str, Any]]) -> Iterable[Dict[str, Any]]:
+    def wrap(self, iterator: Iterable[dict[str, Any]]) -> Iterable[dict[str, Any]]:
         """
         Use this to loop through an existing iterator, tracking the column types
         as part of the iteration.
@@ -441,7 +432,7 @@ class TypeTracker:
             yield row
 
     @property
-    def types(self) -> Dict[str, str]:
+    def types(self) -> dict[str, str]:
         """
         A dictionary mapping column names to their detected types. This can be passed
         to the ``db[table_name].transform(types=tracker.types)`` method.
@@ -450,16 +441,16 @@ class TypeTracker:
 
 
 class ValueTracker:
-    couldbe: Dict[str, Callable[[object], bool]]
+    couldbe: dict[str, Callable[[object], bool]]
 
     def __init__(self) -> None:
         self.couldbe = {key: getattr(self, "test_" + key) for key in self.get_tests()}
 
     @classmethod
-    def get_tests(cls) -> List[str]:
+    def get_tests(cls) -> list[str]:
         return [
             key.split("test_")[-1]
-            for key in cls.__dict__.keys()
+            for key in cls.__dict__
             if key.startswith("test_")
         ]
 
@@ -492,7 +483,7 @@ class ValueTracker:
     def evaluate(self, value: object) -> None:
         if not value or not self.couldbe:
             return
-        not_these: List[str] = []
+        not_these: list[str] = []
         for name, test in self.couldbe.items():
             if not test(value):
                 not_these.append(name)
@@ -524,7 +515,7 @@ def progressbar(*args: Iterable[T], **kwargs: Any) -> Generator[Any, None, None]
 def _compile_code(
     code: str, imports: Iterable[str], variable: str = "value"
 ) -> Callable[..., Any]:
-    globals_dict: Dict[str, Any] = {"r": recipes, "recipes": recipes}
+    globals_dict: dict[str, Any] = {"r": recipes, "recipes": recipes}
     # Handle imports first so they're available for all approaches
     for import_ in imports:
         globals_dict[import_.split(".")[0]] = __import__(import_)
@@ -549,13 +540,13 @@ def _compile_code(
     body_variants = [code]
     # If single line and no 'return', try adding the return
     if "\n" not in code and not code.strip().startswith("return "):
-        body_variants.insert(0, "return {}".format(code))
+        body_variants.insert(0, f"return {code}")
 
     code_o = None
     for variant in body_variants:
-        new_code = ["def fn({}):".format(variable)]
+        new_code = [f"def fn({variable}):"]
         for line in variant.split("\n"):
-            new_code.append("    {}".format(line))
+            new_code.append(f"    {line}")
         try:
             code_o = compile("\n".join(new_code), "<string>", "exec")
             break
@@ -582,7 +573,7 @@ def chunks(sequence: Iterable[T], size: int) -> Iterable[Iterable[T]]:
         yield itertools.chain([item], itertools.islice(iterator, size - 1))
 
 
-def hash_record(record: Dict[str, Any], keys: Optional[Iterable[str]] = None) -> str:
+def hash_record(record: dict[str, Any], keys: Iterable[str] | None = None) -> str:
     """
     ``record`` should be a Python dictionary. Returns a sha1 hash of the
     keys and values in that record.
@@ -603,7 +594,7 @@ def hash_record(record: Dict[str, Any], keys: Optional[Iterable[str]] = None) ->
     :param record: Record to generate a hash for
     :param keys: Subset of keys to use for that hash
     """
-    to_hash: Dict[str, Any] = record
+    to_hash: dict[str, Any] = record
     if keys is not None:
         to_hash = {key: record[key] for key in keys}
     return hashlib.sha1(
@@ -613,7 +604,7 @@ def hash_record(record: Dict[str, Any], keys: Optional[Iterable[str]] = None) ->
     ).hexdigest()
 
 
-def dedupe_keys(keys: Iterable[str]) -> List[str]:
+def dedupe_keys(keys: Iterable[str]) -> list[str]:
     """
     Rename duplicates in a list of column names so every name is unique,
     by appending ``_2``, ``_3``... to later occurrences - skipping any
@@ -636,7 +627,7 @@ def dedupe_keys(keys: Iterable[str]) -> List[str]:
             new_key = key
             suffix = 2
             while new_key in seen or new_key in taken:
-                new_key = "{}_{}".format(key, suffix)
+                new_key = f"{key}_{suffix}"
                 suffix += 1
             key = new_key
         seen.add(key)
@@ -644,7 +635,7 @@ def dedupe_keys(keys: Iterable[str]) -> List[str]:
     return result
 
 
-def _flatten(d: Dict[str, Any]) -> Generator[Tuple[str, Any], None, None]:
+def _flatten(d: dict[str, Any]) -> Generator[tuple[str, Any], None, None]:
     for key, value in d.items():
         if isinstance(value, dict):
             for key2, value2 in _flatten(value):
@@ -653,7 +644,7 @@ def _flatten(d: Dict[str, Any]) -> Generator[Tuple[str, Any], None, None]:
             yield key, value
 
 
-def flatten(row: Dict[str, Any]) -> Dict[str, Any]:
+def flatten(row: dict[str, Any]) -> dict[str, Any]:
     """
     Turn a nested dict e.g. ``{"a": {"b": 1}}`` into a flat dict: ``{"a_b": 1}``
 

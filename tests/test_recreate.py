@@ -1,7 +1,9 @@
-from sqlite_utils import Database
-import sqlite3
 import pathlib
+import sqlite3
+
 import pytest
+
+from sqlite_utils import Database
 
 
 def test_recreate_ignored_for_in_memory():

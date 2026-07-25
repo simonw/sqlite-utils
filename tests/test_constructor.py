@@ -1,8 +1,10 @@
+import sys
+
+import pytest
+
 from sqlite_utils import Database
 from sqlite_utils.db import TransactionError
 from sqlite_utils.utils import sqlite3
-import pytest
-import sys
 
 
 def test_recursive_triggers():

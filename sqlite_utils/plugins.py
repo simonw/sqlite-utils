@@ -1,7 +1,7 @@
-from typing import Dict, List, Union
+import sys
 
 import pluggy
-import sys
+
 from . import hookspecs
 
 pm: pluggy.PluginManager = pluggy.PluginManager("sqlite_utils")
@@ -17,13 +17,13 @@ def ensure_plugins_loaded() -> None:
     _plugins_loaded = True
 
 
-def get_plugins() -> List[Dict[str, Union[str, List[str]]]]:
+def get_plugins() -> list[dict[str, str | list[str]]]:
     ensure_plugins_loaded()
-    plugins: List[Dict[str, Union[str, List[str]]]] = []
+    plugins: list[dict[str, str | list[str]]] = []
     plugin_to_distinfo = dict(pm.list_plugin_distinfo())
     for plugin in pm.get_plugins():
         hookcallers = pm.get_hookcallers(plugin) or []
-        plugin_info: Dict[str, Union[str, List[str]]] = {
+        plugin_info: dict[str, str | list[str]] = {
             "name": plugin.__name__,
             "hooks": [h.name for h in hookcallers],
         }

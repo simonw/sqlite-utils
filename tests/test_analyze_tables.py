@@ -1,8 +1,10 @@
-from sqlite_utils.db import Database, ColumnDetails
-from sqlite_utils import cli
-from click.testing import CliRunner
-import pytest
 import sqlite3
+
+import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import cli
+from sqlite_utils.db import ColumnDetails, Database
 
 
 @pytest.fixture

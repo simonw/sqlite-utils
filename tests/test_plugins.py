@@ -1,9 +1,11 @@
-from click.testing import CliRunner
-import click
 import importlib
-import pytest
 import sys
-from sqlite_utils import cli, Database, hookimpl, plugins
+
+import click
+import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import Database, cli, hookimpl, plugins
 
 
 def _supports_pragma_function_list():

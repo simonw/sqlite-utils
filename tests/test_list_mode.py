@@ -3,6 +3,7 @@ Tests for list-based iteration in insert_all and upsert_all
 """
 
 import pytest
+
 from sqlite_utils import Database
 
 

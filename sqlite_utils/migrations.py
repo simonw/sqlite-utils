@@ -1,7 +1,7 @@
-from collections.abc import Iterable
-from dataclasses import dataclass
 import datetime
-from typing import Callable, cast, TYPE_CHECKING
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from sqlite_utils.db import Database, Table
@@ -44,12 +44,10 @@ class Migrations:
         """
 
         def inner(func: Callable) -> Callable:
-            migration_name = name or getattr(func, "__name__")
+            migration_name = name or func.__name__
             if any(m.name == migration_name for m in self._migrations):
                 raise ValueError(
-                    "Migration '{}' is already registered in set '{}'".format(
-                        migration_name, self.name
-                    )
+                    f"Migration '{migration_name}' is already registered in set '{self.name}'"
                 )
             self._migrations.append(
                 self._Migration(migration_name, func, transactional)

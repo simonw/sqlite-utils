@@ -1,13 +1,14 @@
-from sqlite_utils.db import Index
 import pytest
+
+from sqlite_utils.db import Index
 
 
 @pytest.mark.parametrize(
     "kwargs,expected_table",
     [
-        (dict(extracts={"species_id": "Species"}), "Species"),
-        (dict(extracts=["species_id"]), "species_id"),
-        (dict(extracts=("species_id",)), "species_id"),
+        ({"extracts": {"species_id": "Species"}}, "Species"),
+        ({"extracts": ["species_id"]}, "species_id"),
+        ({"extracts": ("species_id",)}, "species_id"),
     ],
 )
 @pytest.mark.parametrize("use_table_factory", [True, False])
@@ -30,15 +31,11 @@ def test_extracts(fresh_db, kwargs, expected_table, use_table_factory):
     # Should now have two tables: Trees and Species
     assert {expected_table, "Trees"} == set(fresh_db.table_names())
     assert (
-        'CREATE TABLE "{}" (\n   "id" INTEGER PRIMARY KEY,\n   "value" TEXT\n)'.format(
-            expected_table
-        )
+        f'CREATE TABLE "{expected_table}" (\n   "id" INTEGER PRIMARY KEY,\n   "value" TEXT\n)'
         == fresh_db[expected_table].schema
     )
     assert (
-        'CREATE TABLE "Trees" (\n   "id" INTEGER,\n   "species_id" INTEGER REFERENCES "{}"("id")\n)'.format(
-            expected_table
-        )
+        f'CREATE TABLE "Trees" (\n   "id" INTEGER,\n   "species_id" INTEGER REFERENCES "{expected_table}"("id")\n)'
         == fresh_db["Trees"].schema
     )
     # Should have a foreign key reference
@@ -51,7 +48,7 @@ def test_extracts(fresh_db, kwargs, expected_table, use_table_factory):
     assert [
         Index(
             seq=0,
-            name="idx_{}_value".format(expected_table),
+            name=f"idx_{expected_table}_value",
             unique=1,
             origin="c",
             partial=0,

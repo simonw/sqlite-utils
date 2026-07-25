@@ -1,6 +1,8 @@
-from sqlite_utils.db import NoTable
 import datetime
+
 import pytest
+
+from sqlite_utils.db import NoTable
 
 
 def test_duplicate(fresh_db):

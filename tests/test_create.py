@@ -1,25 +1,27 @@
-from sqlite_utils.db import (
-    Index,
-    Database,
-    DescIndex,
-    AlterError,
-    InvalidColumns,
-    NoObviousTable,
-    OperationalError,
-    ForeignKey,
-    Table,
-    View,
-    NoTable,
-    NoView,
-)
-from sqlite_utils.utils import hash_record, sqlite3
 import collections
 import datetime
 import decimal
 import json
 import pathlib
-import pytest
 import uuid
+
+import pytest
+
+from sqlite_utils.db import (
+    AlterError,
+    Database,
+    DescIndex,
+    ForeignKey,
+    Index,
+    InvalidColumns,
+    NoObviousTable,
+    NoTable,
+    NoView,
+    OperationalError,
+    Table,
+    View,
+)
+from sqlite_utils.utils import hash_record, sqlite3
 
 try:
     import pandas as pd  # type: ignore
@@ -699,7 +701,7 @@ def test_bulk_insert_more_than_999_values(fresh_db):
     "num_columns,should_error", ((900, False), (999, False), (1000, True))
 )
 def test_error_if_more_than_999_columns(fresh_db, num_columns, should_error):
-    record = dict([("c{}".format(i), i) for i in range(num_columns)])
+    record = {f"c{i}": i for i in range(num_columns)}
     if should_error:
         with pytest.raises(ValueError):
             fresh_db["big"].insert(record)
@@ -719,7 +721,7 @@ def test_columns_not_in_first_record_should_not_cause_batch_to_be_too_large(fres
         {"c0": "first record"},  # one column in first record -> batch size = 999
         # fill out the batch with 99 records with enough columns to exceed THRESHOLD
         *[
-            dict([("c{}".format(i), j) for i in range(extra_columns)])
+            {f"c{i}": j for i in range(extra_columns)}
             for j in range(batch_size - 1)
         ],
     ]
@@ -910,7 +912,7 @@ def test_insert_list_nested_unicode(fresh_db):
 def test_insert_uuid(fresh_db):
     uuid4 = uuid.uuid4()
     fresh_db["test"].insert({"uuid": uuid4})
-    row = list(fresh_db["test"].rows)[0]
+    row = next(iter(fresh_db["test"].rows))
     assert {"uuid"} == row.keys()
     assert isinstance(row["uuid"], str)
     assert row["uuid"] == str(uuid4)
@@ -918,7 +920,7 @@ def test_insert_uuid(fresh_db):
 
 def test_insert_memoryview(fresh_db):
     fresh_db["test"].insert({"data": memoryview(b"hello")})
-    row = list(fresh_db["test"].rows)[0]
+    row = next(iter(fresh_db["test"].rows))
     assert {"data"} == row.keys()
     assert isinstance(row["data"], bytes)
     assert row["data"] == b"hello"
@@ -926,7 +928,7 @@ def test_insert_memoryview(fresh_db):
 
 def test_insert_thousands_using_generator(fresh_db):
     fresh_db["test"].insert_all(
-        {"i": i, "word": "word_{}".format(i)} for i in range(10000)
+        {"i": i, "word": f"word_{i}"} for i in range(10000)
     )
     assert [{"name": "i", "type": "INTEGER"}, {"name": "word", "type": "TEXT"}] == [
         {"name": col.name, "type": col.type} for col in fresh_db["test"].columns
@@ -938,7 +940,7 @@ def test_insert_thousands_raises_exception_with_extra_columns_after_first_100(fr
     # https://github.com/simonw/sqlite-utils/issues/139
     with pytest.raises(Exception, match="table test has no column named extra"):
         fresh_db["test"].insert_all(
-            [{"i": i, "word": "word_{}".format(i)} for i in range(100)]
+            [{"i": i, "word": f"word_{i}"} for i in range(100)]
             + [{"i": 101, "extra": "This extra column should cause an exception"}],
         )
 
@@ -946,7 +948,7 @@ def test_insert_thousands_raises_exception_with_extra_columns_after_first_100(fr
 def test_insert_thousands_adds_extra_columns_after_first_100_with_alter(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/139
     fresh_db["test"].insert_all(
-        [{"i": i, "word": "word_{}".format(i)} for i in range(100)]
+        [{"i": i, "word": f"word_{i}"} for i in range(100)]
         + [{"i": 101, "extra": "Should trigger ALTER"}],
         alter=True,
     )
@@ -958,7 +960,7 @@ def test_insert_thousands_adds_extra_columns_after_first_100_with_alter(fresh_db
 def test_insert_all_pk_not_in_records_raises(fresh_db, num_rows):
     # https://github.com/simonw/sqlite-utils/issues/732
     fresh_db.conn.execute("CREATE TABLE t (a TEXT, b INT, PRIMARY KEY (a, b))")
-    rows = [{"a": "x{}".format(i), "b": i} for i in range(num_rows)]
+    rows = [{"a": f"x{i}", "b": i} for i in range(num_rows)]
 
     with pytest.raises(InvalidColumns) as ex:
         fresh_db["t"].insert_all(rows, pk="not_a_column")
@@ -975,7 +977,7 @@ def test_insert_all_pk_not_in_records_alter_raises(fresh_db, num_rows):
     # known - a pk column that is in neither the table nor the records
     # still raises
     fresh_db.conn.execute("CREATE TABLE t (a TEXT, b INT, PRIMARY KEY (a, b))")
-    rows = [{"a": "x{}".format(i), "b": i} for i in range(num_rows)]
+    rows = [{"a": f"x{i}", "b": i} for i in range(num_rows)]
 
     with pytest.raises(InvalidColumns) as ex:
         fresh_db["t"].insert_all(rows, pk="not_a_column", alter=True)
@@ -1146,7 +1148,7 @@ def test_insert_hash_id_columns(fresh_db, use_table_factory):
         insert_kwargs = {}
     else:
         dogs = fresh_db["dogs"]
-        insert_kwargs = dict(hash_id_columns=("name", "twitter"))
+        insert_kwargs = {"hash_id_columns": ("name", "twitter")}
 
     id = dogs.insert(
         {"name": "Cleo", "twitter": "cleopaws", "age": 5},
@@ -1654,7 +1656,7 @@ def test_upsert_uses_pk_from_prior_insert_655(fresh_db):
     # Upsert should work without specifying pk again
     table.upsert({"id": 1, "name": "Alice Updated"})
     assert table.count == 1
-    assert list(table.rows)[0]["name"] == "Alice Updated"
+    assert next(iter(table.rows))["name"] == "Alice Updated"
 
 
 def test_upsert_all_uses_pk_from_prior_insert_655(fresh_db):

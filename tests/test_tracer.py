@@ -53,7 +53,7 @@ def test_with_tracer():
     assert len(collected) == 4
     assert collected == [
         (
-            "SELECT name FROM sqlite_master\n"
+            ("SELECT name FROM sqlite_master\n"
             "    WHERE rootpage = 0\n"
             "    AND (\n"
             "        sql LIKE :like\n"
@@ -62,7 +62,7 @@ def test_with_tracer():
             "            tbl_name = :table\n"
             "            AND sql LIKE '%VIRTUAL TABLE%USING FTS%'\n"
             "        )\n"
-            "    )",
+            "    )"),
             {
                 "like": "%VIRTUAL TABLE%USING FTS%content=[dogs]%",
                 "like2": '%VIRTUAL TABLE%USING FTS%content="dogs"%',
@@ -72,7 +72,7 @@ def test_with_tracer():
         ("select name from sqlite_master where type = 'view'", None),
         ("select sql from sqlite_master where name = ?", ("dogs_fts",)),
         (
-            'with "original" as (\n'
+            ('with "original" as (\n'
             "    select\n"
             "        rowid,\n"
             "        *\n"
@@ -86,7 +86,7 @@ def test_with_tracer():
             "where\n"
             '    "dogs_fts" match :query\n'
             "order by\n"
-            '    "dogs_fts".rank',
+            '    "dogs_fts".rank'),
             {"query": "Cleopaws"},
         ),
     ]

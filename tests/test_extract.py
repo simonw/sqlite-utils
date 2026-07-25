@@ -1,19 +1,21 @@
-from sqlite_utils.db import InvalidColumns
 import itertools
+
 import pytest
+
+from sqlite_utils.db import InvalidColumns
 
 
 @pytest.mark.parametrize("table", [None, "Species"])
 @pytest.mark.parametrize("fk_column", [None, "species"])
 def test_extract_single_column(fresh_db, table, fk_column):
     expected_table = table or "species"
-    expected_fk = fk_column or "{}_id".format(expected_table)
+    expected_fk = fk_column or f"{expected_table}_id"
     iter_species = itertools.cycle(["Palm", "Spruce", "Mangrove", "Oak"])
     fresh_db["tree"].insert_all(
         (
             {
                 "id": i,
-                "name": "Tree {}".format(i),
+                "name": f"Tree {i}",
                 "species": next(iter_species),
                 "end": 1,
             }
@@ -26,12 +28,12 @@ def test_extract_single_column(fresh_db, table, fk_column):
         'CREATE TABLE "tree" (\n'
         '   "id" INTEGER PRIMARY KEY,\n'
         '   "name" TEXT,\n'
-        '   "{}" INTEGER REFERENCES "{}"("id"),\n'.format(expected_fk, expected_table)
+        f'   "{expected_fk}" INTEGER REFERENCES "{expected_table}"("id"),\n'
         + '   "end" INTEGER\n'
         + ")"
     )
     assert fresh_db[expected_table].schema == (
-        'CREATE TABLE "{}" (\n'.format(expected_table)
+        f'CREATE TABLE "{expected_table}" (\n'
         + '   "id" INTEGER PRIMARY KEY,\n'
         '   "species" TEXT\n'
         ")"
@@ -57,7 +59,7 @@ def test_extract_multiple_columns_with_rename(fresh_db):
         (
             {
                 "id": i,
-                "name": "Tree {}".format(i),
+                "name": f"Tree {i}",
                 "common_name": next(iter_common),
                 "latin_name": next(iter_latin),
             }

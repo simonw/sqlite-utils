@@ -1,6 +1,7 @@
+import pytest
+
 from sqlite_utils import Database
 from sqlite_utils.utils import sqlite3
-import pytest
 
 CREATE_TABLES = """
 create table Gosh (c1 text, c2 text, c3 text);

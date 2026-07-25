@@ -1,10 +1,12 @@
-from click.testing import CliRunner
-from sqlite_utils import cli
-import sqlite_utils
 import json
-import textwrap
 import pathlib
+import textwrap
+
 import pytest
+from click.testing import CliRunner
+
+import sqlite_utils
+from sqlite_utils import cli
 
 
 @pytest.fixture
@@ -50,7 +52,7 @@ def test_convert_code(fresh_db_and_path, code):
         cli.cli, ["convert", db_path, "t", "text", code], catch_exceptions=False
     )
     assert result.exit_code == 0, result.output
-    value = list(db["t"].rows)[0]["text"]
+    value = next(iter(db["t"].rows))["text"]
     assert value == "Spooktober"
 
 
@@ -442,7 +444,7 @@ def test_recipe_jsonsplit(tmpdir, delimiter):
     )
     code = "r.jsonsplit(value)"
     if delimiter:
-        code = 'recipes.jsonsplit(value, delimiter="{}")'.format(delimiter)
+        code = f'recipes.jsonsplit(value, delimiter="{delimiter}")'
     args = ["convert", db_path, "example", "tags", code]
     result = CliRunner().invoke(cli.cli, args)
     assert result.exit_code == 0, result.output
@@ -470,7 +472,7 @@ def test_recipe_jsonsplit_type(fresh_db_and_path, type, expected_array):
     )
     code = "r.jsonsplit(value)"
     if type:
-        code = "recipes.jsonsplit(value, type={})".format(type)
+        code = f"recipes.jsonsplit(value, type={type})"
     args = ["convert", db_path, "example", "records", code]
     result = CliRunner().invoke(cli.cli, args)
     assert result.exit_code == 0, result.output

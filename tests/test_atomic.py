@@ -28,11 +28,11 @@ from sqlite_utils.utils import sqlite3
             END;
             """,
             [
-                "CREATE TRIGGER t_ai AFTER INSERT ON t\n"
+                ("CREATE TRIGGER t_ai AFTER INSERT ON t\n"
                 "            BEGIN\n"
                 "                UPDATE t SET value = 'a;b' WHERE id = new.id;\n"
                 "                INSERT INTO log VALUES ('x;y');\n"
-                "            END;"
+                "            END;")
             ],
         ),
     ),
@@ -49,10 +49,9 @@ def test_atomic_commits(fresh_db):
 
 
 def test_atomic_rolls_back(fresh_db):
-    with pytest.raises(RuntimeError):
-        with fresh_db.atomic():
-            fresh_db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
-            raise RuntimeError("boom")
+    with pytest.raises(RuntimeError), fresh_db.atomic():
+        fresh_db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
+        raise RuntimeError("boom")
 
     assert not fresh_db["dogs"].exists()
 
@@ -62,10 +61,9 @@ def test_nested_atomic_rolls_back_to_savepoint(fresh_db):
 
     with fresh_db.atomic():
         fresh_db["dogs"].insert({"id": 1, "name": "Cleo"})
-        with pytest.raises(RuntimeError):
-            with fresh_db.atomic():
-                fresh_db["dogs"].insert({"id": 2, "name": "Pancakes"})
-                raise RuntimeError("boom")
+        with pytest.raises(RuntimeError), fresh_db.atomic():
+            fresh_db["dogs"].insert({"id": 2, "name": "Pancakes"})
+            raise RuntimeError("boom")
         fresh_db["dogs"].insert({"id": 3, "name": "Marnie"})
 
     assert list(fresh_db["dogs"].rows) == [
@@ -75,12 +73,11 @@ def test_nested_atomic_rolls_back_to_savepoint(fresh_db):
 
 
 def test_outer_atomic_rolls_back_released_savepoint(fresh_db):
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError), fresh_db.atomic():
+        fresh_db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
         with fresh_db.atomic():
-            fresh_db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
-            with fresh_db.atomic():
-                fresh_db["dogs"].insert({"id": 2, "name": "Pancakes"})
-            raise RuntimeError("boom")
+            fresh_db["dogs"].insert({"id": 2, "name": "Pancakes"})
+        raise RuntimeError("boom")
 
     assert not fresh_db["dogs"].exists()
 
@@ -105,11 +102,10 @@ def test_executescript_does_not_commit_open_atomic_block(fresh_db):
 def test_transform_does_not_commit_open_atomic_block(fresh_db):
     fresh_db["dogs"].insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
 
-    with pytest.raises(RuntimeError):
-        with fresh_db.atomic():
-            fresh_db["dogs"].insert({"id": 2, "name": "Pancakes", "age": "6"})
-            fresh_db["dogs"].transform(rename={"age": "dog_age"})
-            raise RuntimeError("boom")
+    with pytest.raises(RuntimeError), fresh_db.atomic():
+        fresh_db["dogs"].insert({"id": 2, "name": "Pancakes", "age": "6"})
+        fresh_db["dogs"].transform(rename={"age": "dog_age"})
+        raise RuntimeError("boom")
 
     assert (
         fresh_db["dogs"].schema
@@ -149,10 +145,9 @@ def test_transform_parent_table_with_foreign_keys_rolls_back(fresh_db):
         foreign_keys={"author_id"},
     )
 
-    with pytest.raises(RuntimeError):
-        with fresh_db.atomic():
-            fresh_db["authors"].transform(rename={"name": "full_name"})
-            raise RuntimeError("boom")
+    with pytest.raises(RuntimeError), fresh_db.atomic():
+        fresh_db["authors"].transform(rename={"name": "full_name"})
+        raise RuntimeError("boom")
 
     assert (
         fresh_db["authors"].schema
@@ -376,7 +371,6 @@ def test_nested_atomic_preserves_error_from_transaction_destroying_trigger(
 
 def test_atomic_preserves_error_from_insert_or_rollback(fresh_db):
     fresh_db["t"].insert({"id": 1}, pk="id")
-    with pytest.raises(sqlite3.IntegrityError):
-        with fresh_db.atomic():
-            fresh_db.execute("insert or rollback into t (id) values (1)")
+    with pytest.raises(sqlite3.IntegrityError), fresh_db.atomic():
+        fresh_db.execute("insert or rollback into t (id) values (1)")
     assert not fresh_db.conn.in_transaction

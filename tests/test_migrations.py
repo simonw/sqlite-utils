@@ -1,4 +1,5 @@
 import pytest
+
 import sqlite_utils
 from sqlite_utils import Migrations
 
@@ -154,10 +155,9 @@ def test_non_transactional_migration_allows_vacuum(tmpdir):
 
 def test_apply_composes_inside_outer_transaction(migrations):
     db = sqlite_utils.Database(memory=True)
-    with pytest.raises(ZeroDivisionError):
-        with db.atomic():
-            migrations.apply(db)
-            raise ZeroDivisionError
+    with pytest.raises(ZeroDivisionError), db.atomic():
+        migrations.apply(db)
+        raise ZeroDivisionError
     # The outer transaction rolled back, taking the migrations with it
     assert db.table_names() == []
 

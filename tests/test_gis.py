@@ -1,7 +1,8 @@
 import json
-import pytest
 
+import pytest
 from click.testing import CliRunner
+
 from sqlite_utils.cli import cli
 from sqlite_utils.db import Database
 from sqlite_utils.utils import find_spatialite, sqlite3
@@ -104,7 +105,7 @@ def test_query_load_extension(use_spatialite_shortcut):
         [
             ":memory:",
             "select spatialite_version()",
-            "--load-extension={}".format(load_extension),
+            f"--load-extension={load_extension}",
         ],
     )
     assert result.exit_code == 0, result.stdout

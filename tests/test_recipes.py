@@ -1,7 +1,9 @@
+import json
+
+import pytest
+
 from sqlite_utils import recipes
 from sqlite_utils.utils import sqlite3
-import json
-import pytest
 
 
 @pytest.fixture

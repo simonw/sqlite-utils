@@ -1,4 +1,5 @@
 import pytest
+
 from sqlite_utils.db import NotFoundError
 
 

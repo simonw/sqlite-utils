@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Callable, Optional
+import json
+from collections.abc import Callable
 
 from dateutil import parser
-import json
 
 IGNORE: object = object()
 SET_NULL: object = object()
@@ -13,8 +13,8 @@ def parsedate(
     value: str,
     dayfirst: bool = False,
     yearfirst: bool = False,
-    errors: Optional[object] = None,
-) -> Optional[str]:
+    errors: object | None = None,
+) -> str | None:
     """
     Parse a date and convert it to ISO date format: yyyy-mm-dd
     \b
@@ -44,8 +44,8 @@ def parsedatetime(
     value: str,
     dayfirst: bool = False,
     yearfirst: bool = False,
-    errors: Optional[object] = None,
-) -> Optional[str]:
+    errors: object | None = None,
+) -> str | None:
     """
     Parse a datetime and convert it to ISO datetime format: yyyy-mm-ddTHH:MM:SS
     \b
