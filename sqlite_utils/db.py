@@ -1,19 +1,4 @@
-from .utils import (
-    chunks,
-    dedupe_keys,
-    hash_record,
-    sqlite3,
-    OperationalError,
-    suggest_column_types,
-    types_for_column_types,
-    column_affinity,
-    progressbar,
-    find_spatialite,
-)
 import binascii
-from collections import namedtuple
-from dataclasses import dataclass, field
-from collections.abc import Mapping
 import contextlib
 import datetime
 import decimal
@@ -25,25 +10,35 @@ import os
 import pathlib
 import re
 import secrets
-from sqlite_fts4 import rank_bm25
 import textwrap
-from typing import (
-    cast,
-    Any,
-    Callable,
-    Dict,
-    Generator,
-    Iterable,
-    Sequence,
-    Set,
-    Type,
-    Union,
-    Optional,
-    List,
-    Tuple,
-)
 import uuid
+from collections import namedtuple
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
+from types import TracebackType
+from typing import (
+    Any,
+    Union,
+    cast,
+)
+
+from sqlite_fts4 import rank_bm25
+from typing_extensions import Self
+
 from sqlite_utils.plugins import ensure_plugins_loaded, pm
+
+from .utils import (
+    OperationalError,
+    chunks,
+    column_affinity,
+    dedupe_keys,
+    find_spatialite,
+    hash_record,
+    progressbar,
+    sqlite3,
+    suggest_column_types,
+    types_for_column_types,
+)
 
 try:
     iterdump = importlib.import_module("sqlite_dump").iterdump
@@ -226,11 +221,11 @@ class ForeignKey:
     table: str
     # column/other_column are None for compound keys, which would break
     # ordering against str values - comparison uses columns/other_columns
-    column: Optional[str] = field(compare=False)
+    column: str | None = field(compare=False)
     other_table: str
-    other_column: Optional[str] = field(compare=False)
-    columns: Tuple[str, ...] = ()
-    other_columns: Tuple[str, ...] = ()
+    other_column: str | None = field(compare=False)
+    columns: tuple[str, ...] = ()
+    other_columns: tuple[str, ...] = ()
     is_compound: bool = False
     on_delete: str = "NO ACTION"
     on_update: str = "NO ACTION"
@@ -259,9 +254,9 @@ def _fk_actions_sql(fk: ForeignKey) -> str:
     "ON UPDATE/ON DELETE clauses for a foreign key, or an empty string."
     actions = ""
     if fk.on_update and fk.on_update != "NO ACTION":
-        actions += " ON UPDATE {}".format(fk.on_update)
+        actions += f" ON UPDATE {fk.on_update}"
     if fk.on_delete and fk.on_delete != "NO ACTION":
-        actions += " ON DELETE {}".format(fk.on_delete)
+        actions += f" ON DELETE {fk.on_delete}"
     return actions
 
 
@@ -278,20 +273,20 @@ class TransformError(Exception):
 
 
 # A single column name, or a tuple of columns for a compound foreign key
-ForeignKeyColumns = Union[str, Tuple[str, ...], List[str]]
+ForeignKeyColumns = str | tuple[str, ...] | list[str]
 
 # (table, column(s), other_table, other_column(s))
-ForeignKeyTuple = Tuple[str, ForeignKeyColumns, str, ForeignKeyColumns]
+ForeignKeyTuple = tuple[str, ForeignKeyColumns, str, ForeignKeyColumns]
 
-ForeignKeyIndicator = Union[
-    str,
-    ForeignKey,
-    Tuple[ForeignKeyColumns, str],
-    Tuple[ForeignKeyColumns, str, ForeignKeyColumns],
-    ForeignKeyTuple,
-]
+ForeignKeyIndicator = (
+    str
+    | ForeignKey
+    | tuple[ForeignKeyColumns, str]
+    | tuple[ForeignKeyColumns, str, ForeignKeyColumns]
+    | ForeignKeyTuple
+)
 
-ForeignKeysType = Union[Iterable[ForeignKeyIndicator], List[ForeignKeyIndicator]]
+ForeignKeysType = Iterable[ForeignKeyIndicator] | list[ForeignKeyIndicator]
 
 
 class Default:
@@ -300,7 +295,7 @@ class Default:
 
 DEFAULT = Default()
 
-Tracer = Callable[[str, Optional[Union[Sequence[Any], Dict[str, Any]]]], None]
+Tracer = Callable[[str, Sequence[Any] | dict[str, Any] | None], None]
 
 
 def _iter_complete_sql_statements(sql: str) -> Generator[str, None, None]:
@@ -316,7 +311,7 @@ def _iter_complete_sql_statements(sql: str) -> Generator[str, None, None]:
         yield statement_sql
 
 
-COLUMN_TYPE_MAPPING: Dict[Any, str] = {
+COLUMN_TYPE_MAPPING: dict[Any, str] = {
     float: "REAL",
     int: "INTEGER",
     bool: "INTEGER",
@@ -512,12 +507,12 @@ class Database:
 
     def __init__(
         self,
-        filename_or_conn: Optional[Union[str, pathlib.Path, sqlite3.Connection]] = None,
+        filename_or_conn: str | pathlib.Path | sqlite3.Connection | None = None,
         memory: bool = False,
-        memory_name: Optional[str] = None,
+        memory_name: str | None = None,
         recreate: bool = False,
         recursive_triggers: bool = True,
-        tracer: Optional[Tracer] = None,
+        tracer: Tracer | None = None,
         use_counts_table: bool = False,
         execute_plugins: bool = True,
         use_old_upsert: bool = False,
@@ -532,7 +527,7 @@ class Database:
         ):
             raise ValueError("Either specify a filename_or_conn or pass memory=True")
         if memory_name:
-            uri = "file:{}?mode=memory&cache=shared".format(memory_name)
+            uri = f"file:{memory_name}?mode=memory&cache=shared"
             self.conn = sqlite3.connect(
                 uri,
                 uri=True,
@@ -569,7 +564,7 @@ class Database:
                     "transaction handling - connections created with "
                     "autocommit=True or autocommit=False are not supported"
                 )
-        self._tracer: Optional[Tracer] = tracer
+        self._tracer: Tracer | None = tracer
         if recursive_triggers:
             self.execute("PRAGMA recursive_triggers=on;")
         self._registered_functions: set = set()
@@ -579,14 +574,14 @@ class Database:
             pm.hook.prepare_connection(conn=self.conn)
         self.strict = strict
 
-    def __enter__(self) -> "Database":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[object],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         self.close()
 
@@ -602,8 +597,8 @@ class Database:
         Nested blocks use SQLite savepoints.
         """
         if self.conn.in_transaction:
-            savepoint = "sqlite_utils_{}".format(secrets.token_hex(16))
-            self.conn.execute("SAVEPOINT {};".format(savepoint))
+            savepoint = f"sqlite_utils_{secrets.token_hex(16)}"
+            self.conn.execute(f"SAVEPOINT {savepoint};")
             try:
                 yield self
             except BaseException:
@@ -612,11 +607,11 @@ class Database:
                 # anyway would mask the original exception with
                 # "no such savepoint"
                 if self.conn.in_transaction:
-                    self.conn.execute("ROLLBACK TO SAVEPOINT {};".format(savepoint))
-                    self.conn.execute("RELEASE SAVEPOINT {};".format(savepoint))
+                    self.conn.execute(f"ROLLBACK TO SAVEPOINT {savepoint};")
+                    self.conn.execute(f"RELEASE SAVEPOINT {savepoint};")
                 raise
             else:
-                self.conn.execute("RELEASE SAVEPOINT {};".format(savepoint))
+                self.conn.execute(f"RELEASE SAVEPOINT {savepoint};")
         else:
             self.conn.execute("BEGIN")
             try:
@@ -695,9 +690,7 @@ class Database:
             self.conn.isolation_level = old_isolation_level
 
     @contextlib.contextmanager
-    def tracer(
-        self, tracer: Optional[Tracer] = None
-    ) -> Generator["Database", None, None]:
+    def tracer(self, tracer: Tracer | None = None) -> Generator["Database", None, None]:
         """
         Context manager to temporarily set a tracer function - all executed SQL queries will
         be passed to this.
@@ -734,15 +727,15 @@ class Database:
         return self.table(table_name)
 
     def __repr__(self) -> str:
-        return "<Database {}>".format(self.conn)
+        return f"<Database {self.conn}>"
 
     def register_function(
         self,
-        fn: Optional[Callable] = None,
+        fn: Callable | None = None,
         deterministic: bool = False,
         replace: bool = False,
-        name: Optional[str] = None,
-    ) -> Optional[Callable[[Callable], Callable]]:
+        name: str | None = None,
+    ) -> Callable[[Callable], Callable] | None:
         """
         ``fn`` will be made available as a function within SQL, with the same name and number
         of arguments. Can be used as a decorator::
@@ -770,7 +763,7 @@ class Database:
             arity = len(inspect.signature(fn).parameters)
             if not replace and (fn_name, arity) in self._registered_functions:
                 return fn
-            kwargs: Dict[str, bool] = {}
+            kwargs: dict[str, bool] = {}
             registered = False
             if deterministic:
                 # Try this, but fall back if sqlite3.NotSupportedError
@@ -796,7 +789,7 @@ class Database:
         "Register the ``rank_bm25(match_info)`` function used for calculating relevance with SQLite FTS4."
         self.register_function(rank_bm25, deterministic=True, replace=True)
 
-    def attach(self, alias: str, filepath: Union[str, pathlib.Path]) -> None:
+    def attach(self, alias: str, filepath: str | pathlib.Path) -> None:
         """
         Attach another SQLite database file to this connection with the specified alias, equivalent to::
 
@@ -805,15 +798,13 @@ class Database:
         :param alias: Alias name to use
         :param filepath: Path to SQLite database file on disk
         """
-        attach_sql = """
-            ATTACH DATABASE '{}' AS {};
-        """.format(
-            str(pathlib.Path(filepath).resolve()), quote_identifier(alias)
-        ).strip()
+        attach_sql = f"""
+            ATTACH DATABASE '{pathlib.Path(filepath).resolve()!s}' AS {quote_identifier(alias)};
+        """.strip()
         self.execute(attach_sql)
 
     def query(
-        self, sql: str, params: Optional[Union[Sequence, Dict[str, Any]]] = None
+        self, sql: str, params: Sequence | dict[str, Any] | None = None
     ) -> Generator[dict, None, None]:
         """
         Execute ``sql`` and return an iterable of dictionaries representing each row.
@@ -891,7 +882,7 @@ class Database:
                 self.conn.execute('RELEASE "sqlite_utils_query"')
 
     def execute(
-        self, sql: str, parameters: Optional[Union[Sequence, Dict[str, Any]]] = None
+        self, sql: str, parameters: Sequence | dict[str, Any] | None = None
     ) -> sqlite3.Cursor:
         """
         Execute SQL query and return a ``sqlite3.Cursor``.
@@ -960,7 +951,7 @@ class Database:
         :param table_name: Name of the table
         """
         if table_name in self.view_names():
-            raise NoTable("Table {} is actually a view".format(table_name))
+            raise NoTable(f"Table {table_name} is actually a view")
         kwargs.setdefault("strict", self.strict)
         return Table(self, table_name, **kwargs)
 
@@ -973,11 +964,9 @@ class Database:
         if view_name not in self.view_names():
             if view_name in self.table_names():
                 raise NoView(
-                    "View {name} does not exist - {name} is a table".format(
-                        name=view_name
-                    )
+                    f"View {view_name} does not exist - {view_name} is a table"
                 )
-            raise NoView("View {} does not exist".format(view_name))
+            raise NoView(f"View {view_name} does not exist")
         return View(self, view_name)
 
     def quote(self, value: str) -> str:
@@ -1013,9 +1002,7 @@ class Database:
             query += '"'
         bits = _quote_fts_re.split(query)
         bits = [b for b in bits if b and b != '""']
-        return " ".join(
-            '"{}"'.format(bit) if not bit.startswith('"') else bit for bit in bits
-        )
+        return " ".join(f'"{bit}"' if not bit.startswith('"') else bit for bit in bits)
 
     def quote_default_value(self, value: str) -> str:
         if any(
@@ -1036,11 +1023,11 @@ class Database:
 
         if str(value).endswith(")"):
             # Expr
-            return "({})".format(value)
+            return f"({value})"
 
         return self.quote(value)
 
-    def table_names(self, fts4: bool = False, fts5: bool = False) -> List[str]:
+    def table_names(self, fts4: bool = False, fts5: bool = False) -> list[str]:
         """
         List of string table names in this database.
 
@@ -1055,7 +1042,7 @@ class Database:
         sql = "select name from sqlite_master where {}".format(" AND ".join(where))
         return [r[0] for r in self.execute(sql).fetchall()]
 
-    def view_names(self) -> List[str]:
+    def view_names(self) -> list[str]:
         "List of string view names in this database."
         return [
             r[0]
@@ -1065,17 +1052,17 @@ class Database:
         ]
 
     @property
-    def tables(self) -> List["Table"]:
+    def tables(self) -> list["Table"]:
         "List of Table objects in this database."
         return [self.table(name) for name in self.table_names()]
 
     @property
-    def views(self) -> List["View"]:
+    def views(self) -> list["View"]:
         "List of View objects in this database."
         return [self.view(name) for name in self.view_names()]
 
     @property
-    def triggers(self) -> List[Trigger]:
+    def triggers(self) -> list[Trigger]:
         "List of ``(name, table_name, sql)`` tuples representing triggers in this database."
         return [
             Trigger(*r)
@@ -1085,7 +1072,7 @@ class Database:
         ]
 
     @property
-    def triggers_dict(self) -> Dict[str, str]:
+    def triggers_dict(self) -> dict[str, str]:
         "A ``{trigger_name: sql}`` dictionary of triggers in this database."
         return {trigger.name: trigger.sql for trigger in self.triggers}
 
@@ -1107,14 +1094,12 @@ class Database:
         "Does this database support STRICT mode?"
         if not hasattr(self, "_supports_strict"):
             try:
-                table_name = "t{}".format(secrets.token_hex(16))
+                table_name = f"t{secrets.token_hex(16)}"
                 with self.atomic():
-                    self.conn.execute(
-                        "create table {} (name text) strict".format(table_name)
-                    )
-                    self.conn.execute("drop table {}".format(table_name))
+                    self.conn.execute(f"create table {table_name} (name text) strict")
+                    self.conn.execute(f"drop table {table_name}")
                 self._supports_strict = True
-            except Exception:
+            except sqlite3.OperationalError:
                 self._supports_strict = False
         return self._supports_strict
 
@@ -1122,32 +1107,28 @@ class Database:
     def supports_on_conflict(self) -> bool:
         # SQLite's upsert is implemented as INSERT INTO ... ON CONFLICT DO ...
         if not hasattr(self, "_supports_on_conflict"):
-            table_name = "t{}".format(secrets.token_hex(16))
+            table_name = f"t{secrets.token_hex(16)}"
             try:
                 with self.atomic():
                     self.conn.execute(
-                        "create table {} (id integer primary key, name text)".format(
-                            table_name
-                        )
+                        f"create table {table_name} (id integer primary key, name text)"
                     )
                     self.conn.execute(
-                        "insert into {} (id, name) values (1, 'one')".format(table_name)
+                        f"insert into {table_name} (id, name) values (1, 'one')"
                     )
                     self.conn.execute(
-                        (
-                            "insert into {} (id, name) values (1, 'two') "
-                            "on conflict do update set name = 'two'"
-                        ).format(table_name)
+                        f"insert into {table_name} (id, name) values (1, 'two') "
+                        "on conflict do update set name = 'two'"
                     )
                     self._supports_on_conflict = True
-            except Exception:
+            except sqlite3.OperationalError:
                 self._supports_on_conflict = False
             finally:
-                self.conn.execute("drop table if exists {}".format(table_name))
+                self.conn.execute(f"drop table if exists {table_name}")
         return self._supports_on_conflict
 
     @property
-    def sqlite_version(self) -> Tuple[int, ...]:
+    def sqlite_version(self) -> tuple[int, ...]:
         "Version of SQLite, as a tuple of integers for example ``(3, 36, 0)``."
         row = self.execute("select sqlite_version()").fetchall()[0]
         return tuple(map(int, row[0].split(".")))
@@ -1191,7 +1172,7 @@ class Database:
         # guarantee of atomic() and of user-managed transactions
         if self.conn.in_transaction:
             raise TransactionError(
-                "{} cannot be used while a transaction is open".format(operation)
+                f"{operation} cannot be used while a transaction is open"
             )
 
     def _ensure_counts_table(self) -> None:
@@ -1212,14 +1193,14 @@ class Database:
                 table.enable_counts()
         self.use_counts_table = True
 
-    def cached_counts(self, tables: Optional[Iterable[str]] = None) -> Dict[str, int]:
+    def cached_counts(self, tables: Iterable[str] | None = None) -> dict[str, int]:
         """
         Return ``{table_name: count}`` dictionary of cached counts for specified tables, or
         all tables if ``tables`` not provided.
 
         :param tables: Subset list of tables to return counts for.
         """
-        sql = 'select "table", count from {}'.format(self._counts_table_name)
+        sql = f'select "table", count from {self._counts_table_name}'
         tables_list = list(tables) if tables else None
         if tables_list:
             sql += ' where "table" in ({})'.format(", ".join("?" for _ in tables_list))
@@ -1241,13 +1222,13 @@ class Database:
             )
 
     def execute_returning_dicts(
-        self, sql: str, params: Optional[Union[Sequence, Dict[str, Any]]] = None
-    ) -> List[dict]:
+        self, sql: str, params: Sequence | dict[str, Any] | None = None
+    ) -> list[dict]:
         return list(self.query(sql, params))
 
     def resolve_foreign_keys(
         self, name: str, foreign_keys: ForeignKeysType
-    ) -> List[ForeignKey]:
+    ) -> list[ForeignKey]:
         """
         Given a list of differing foreign_keys definitions, return a list of
         fully resolved ForeignKey() named tuples.
@@ -1274,7 +1255,7 @@ class Database:
                 fks.append(ForeignKey(name, fk, other_table, other_column))
                 continue
             if not isinstance(fk, (tuple, list)):
-                raise ValueError(
+                raise ValueError(  # noqa: TRY004
                     "foreign_keys= should be a list of tuples, "
                     "ForeignKey objects or column name strings"
                 )
@@ -1282,9 +1263,7 @@ class Database:
             if len(tuple_or_list) == 4:
                 if tuple_or_list[0] != name:
                     raise ValueError(
-                        "First item in {} should have been {}".format(
-                            tuple_or_list, name
-                        )
+                        f"First item in {tuple_or_list} should have been {name}"
                     )
                 tuple_or_list = tuple_or_list[1:]
             if len(tuple_or_list) not in (2, 3):
@@ -1299,8 +1278,8 @@ class Database:
                 if len(tuple_or_list) == 3:
                     if not isinstance(tuple_or_list[2], (list, tuple)):
                         raise ValueError(
-                            "Compound foreign key {} should reference a tuple "
-                            "of other columns".format(tuple(tuple_or_list))
+                            f"Compound foreign key {tuple(tuple_or_list)} should reference a tuple "
+                            "of other columns"
                         )
                     other_columns = tuple(tuple_or_list[2])
                 else:
@@ -1308,8 +1287,8 @@ class Database:
                     other_columns = tuple(self.table(other_table).pks)
                 if len(columns) != len(other_columns):
                     raise ValueError(
-                        "Compound foreign key {} should have the same number "
-                        "of columns on both sides".format(tuple(tuple_or_list))
+                        f"Compound foreign key {tuple(tuple_or_list)} should have the same number "
+                        "of columns on both sides"
                     )
                 if len(columns) == 1:
                     # Single-column key passed as a one-item list
@@ -1389,15 +1368,15 @@ class Database:
     def create_table_sql(
         self,
         name: str,
-        columns: Dict[str, Any],
-        pk: Optional[Any] = None,
-        foreign_keys: Optional[ForeignKeysType] = None,
-        column_order: Optional[List[str]] = None,
-        not_null: Optional[Iterable[str]] = None,
-        defaults: Optional[Dict[str, Any]] = None,
-        hash_id: Optional[str] = None,
-        hash_id_columns: Optional[Iterable[str]] = None,
-        extracts: Optional[Union[Dict[str, str], List[str]]] = None,
+        columns: dict[str, Any],
+        pk: Any | None = None,
+        foreign_keys: ForeignKeysType | None = None,
+        column_order: list[str] | None = None,
+        not_null: Iterable[str] | None = None,
+        defaults: dict[str, Any] | None = None,
+        hash_id: str | None = None,
+        hash_id_columns: Iterable[str] | None = None,
+        extracts: dict[str, str] | list[str] | None = None,
         if_not_exists: bool = False,
         strict: bool = False,
     ) -> str:
@@ -1419,7 +1398,7 @@ class Database:
         """
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
-        resolved_fks: List[ForeignKey] = [
+        resolved_fks: list[ForeignKey] = [
             self._resolve_foreign_key_casing(fk, columns)
             for fk in self.resolve_foreign_keys(name, foreign_keys or [])
         ]
@@ -1449,15 +1428,11 @@ class Database:
             raise ValueError("Tables must have at least one column")
         if not all(n in columns for n in not_null):
             raise ValueError(
-                "not_null set {} includes items not in columns {}".format(
-                    repr(not_null), repr(set(columns.keys()))
-                )
+                f"not_null set {not_null!r} includes items not in columns {set(columns.keys())!r}"
             )
         if not all(n in columns for n in defaults):
             raise ValueError(
-                "defaults set {} includes items not in columns {}".format(
-                    repr(set(defaults)), repr(set(columns.keys()))
-                )
+                f"defaults set {set(defaults)!r} includes items not in columns {set(columns.keys())!r}"
             )
         column_items = list(columns.items())
         if column_order is not None:
@@ -1477,9 +1452,7 @@ class Database:
                 if other_column != "rowid" and not any(
                     c for c in self[fk.other_table].columns if c.name == other_column
                 ):
-                    raise AlterError(
-                        "No such column: {}.{}".format(fk.other_table, other_column)
-                    )
+                    raise AlterError(f"No such column: {fk.other_table}.{other_column}")
 
         column_defs = []
         # ensure pk is a tuple
@@ -1500,16 +1473,12 @@ class Database:
                 column_extras.append("NOT NULL")
             if column_name in defaults and defaults[column_name] is not None:
                 column_extras.append(
-                    "DEFAULT {}".format(self.quote_default_value(defaults[column_name]))
+                    f"DEFAULT {self.quote_default_value(defaults[column_name])}"
                 )
             if column_name in foreign_keys_by_column:
                 fk = foreign_keys_by_column[column_name]
                 column_extras.append(
-                    "REFERENCES {}({}){}".format(
-                        quote_identifier(fk.other_table),
-                        quote_identifier(cast(str, fk.other_column)),
-                        _fk_actions_sql(fk),
-                    )
+                    f"REFERENCES {quote_identifier(fk.other_table)}({quote_identifier(cast(str, fk.other_column))}){_fk_actions_sql(fk)}"
                 )
             column_type_str = COLUMN_TYPE_MAPPING[column_type]
             # Special case for strict tables to map FLOAT to REAL
@@ -1566,15 +1535,15 @@ class Database:
     def create_table(
         self,
         name: str,
-        columns: Dict[str, Any],
-        pk: Optional[Any] = None,
-        foreign_keys: Optional[ForeignKeysType] = None,
-        column_order: Optional[List[str]] = None,
-        not_null: Optional[Iterable[str]] = None,
-        defaults: Optional[Dict[str, Any]] = None,
-        hash_id: Optional[str] = None,
-        hash_id_columns: Optional[Iterable[str]] = None,
-        extracts: Optional[Union[Dict[str, str], List[str]]] = None,
+        columns: dict[str, Any],
+        pk: Any | None = None,
+        foreign_keys: ForeignKeysType | None = None,
+        column_order: list[str] | None = None,
+        not_null: Iterable[str] | None = None,
+        defaults: dict[str, Any] | None = None,
+        hash_id: str | None = None,
+        hash_id_columns: Iterable[str] | None = None,
+        extracts: dict[str, str] | list[str] | None = None,
         if_not_exists: bool = False,
         replace: bool = False,
         ignore: bool = False,
@@ -1618,11 +1587,11 @@ class Database:
                 resolve_casing(col_name, existing_columns): col_type
                 for col_name, col_type in columns.items()
             }
-            missing_columns = dict(
-                (col_name, col_type)
+            missing_columns = {
+                col_name: col_type
                 for col_name, col_type in columns.items()
                 if col_name not in existing_columns
-            )
+            }
             columns_to_drop = [
                 column for column in existing_columns if column not in columns
             ]
@@ -1709,9 +1678,7 @@ class Database:
         :param new_name: Name to rename it to
         """
         self.execute(
-            "ALTER TABLE {} RENAME TO {}".format(
-                quote_identifier(name), quote_identifier(new_name)
-            )
+            f"ALTER TABLE {quote_identifier(name)} RENAME TO {quote_identifier(new_name)}"
         )
 
     def create_view(
@@ -1727,23 +1694,20 @@ class Database:
         """
         if ignore and replace:
             raise ValueError("Use one or the other of ignore/replace, not both")
-        create_sql = "CREATE VIEW {name} AS {sql}".format(
-            name=quote_identifier(name), sql=sql
-        )
-        if ignore or replace:
-            # Does view exist already?
-            if name in self.view_names():
-                if ignore:
+        create_sql = f"CREATE VIEW {quote_identifier(name)} AS {sql}"
+        if (ignore or replace) and name in self.view_names():
+            # View exists already
+            if ignore:
+                return self
+            elif replace:
+                # If SQL is the same, do nothing
+                if create_sql == self[name].schema:
                     return self
-                elif replace:
-                    # If SQL is the same, do nothing
-                    if create_sql == self[name].schema:
-                        return self
-                    self[name].drop()
+                self[name].drop()
         self.execute(create_sql)
         return self
 
-    def m2m_table_candidates(self, table: str, other_table: str) -> List[str]:
+    def m2m_table_candidates(self, table: str, other_table: str) -> list[str]:
         """
         Given two table names returns the name of tables that could define a
         many-to-many relationship between those two tables, based on having
@@ -1762,7 +1726,7 @@ class Database:
         return candidates
 
     def add_foreign_keys(
-        self, foreign_keys: Iterable[Union[ForeignKey, ForeignKeyTuple]]
+        self, foreign_keys: Iterable[ForeignKey | ForeignKeyTuple]
     ) -> None:
         """
         See :ref:`python_api_add_foreign_keys`.
@@ -1782,7 +1746,7 @@ class Database:
                 "(table, column, other_table, other_column)"
             )
 
-        foreign_keys_to_create: List[ForeignKey] = []
+        foreign_keys_to_create: list[ForeignKey] = []
 
         # Verify that all tables and columns exist
         for fk in foreign_keys:
@@ -1823,7 +1787,7 @@ class Database:
             table = fk_object.table
             other_table = fk_object.other_table
             if not self.table(table).exists():
-                raise AlterError("No such table: {}".format(table))
+                raise AlterError(f"No such table: {table}")
             table_obj = self.table(table)
             fk_object = self._resolve_foreign_key_casing(
                 fk_object, table_obj.columns_dict
@@ -1832,18 +1796,16 @@ class Database:
             other_columns = fk_object.other_columns
             for column in columns:
                 if column not in table_obj.columns_dict:
-                    raise AlterError("No such column: {} in {}".format(column, table))
+                    raise AlterError(f"No such column: {column} in {table}")
             if not self[other_table].exists():
-                raise AlterError("No such other_table: {}".format(other_table))
+                raise AlterError(f"No such other_table: {other_table}")
             for other_column in other_columns:
                 if (
                     other_column != "rowid"
                     and other_column not in self[other_table].columns_dict
                 ):
                     raise AlterError(
-                        "No such other_column: {} in {}".format(
-                            other_column, other_table
-                        )
+                        f"No such other_column: {other_column} in {other_table}"
                     )
             # Silently skip foreign keys that exist already - but only if
             # they match exactly, including ON DELETE/ON UPDATE actions
@@ -1874,7 +1836,7 @@ class Database:
                 )
 
         # Group them by table
-        by_table: Dict[str, List[ForeignKey]] = {}
+        by_table: dict[str, list[ForeignKey]] = {}
         for fk_object in foreign_keys_to_create:
             by_table.setdefault(fk_object.table, []).append(fk_object)
 
@@ -1899,7 +1861,7 @@ class Database:
         "Run a SQLite ``VACUUM`` against the database."
         self.execute("VACUUM;")
 
-    def analyze(self, name: Optional[str] = None) -> None:
+    def analyze(self, name: str | None = None) -> None:
         """
         Run ``ANALYZE`` against the entire database or a named table or index.
 
@@ -1907,7 +1869,7 @@ class Database:
         """
         sql = "ANALYZE"
         if name is not None:
-            sql += " {}".format(quote_identifier(name))
+            sql += f" {quote_identifier(name)}"
         self.execute(sql)
 
     def iterdump(self) -> Generator[str, None, None]:
@@ -1922,7 +1884,7 @@ class Database:
                     "conn.iterdump() not found - try pip install sqlite-dump"
                 )
 
-    def init_spatialite(self, path: Optional[str] = None) -> bool:
+    def init_spatialite(self, path: str | None = None) -> bool:
         """
         The ``init_spatialite`` method will load and initialize the SpatiaLite extension.
         The ``path`` argument should be an absolute path to the compiled extension, which
@@ -1980,8 +1942,8 @@ class Queryable:
 
     def count_where(
         self,
-        where: Optional[str] = None,
-        where_args: Optional[Union[Sequence, Dict[str, Any]]] = None,
+        where: str | None = None,
+        where_args: Sequence | dict[str, Any] | None = None,
     ) -> int:
         """
         Executes ``SELECT count(*) FROM table WHERE ...`` and returns a count.
@@ -1990,7 +1952,7 @@ class Queryable:
         :param where_args: Parameters to use with that fragment - an iterable for ``id > ?``
           parameters, or a dictionary for ``id > :id``
         """
-        sql = "select count(*) from {}".format(quote_identifier(self.name))
+        sql = f"select count(*) from {quote_identifier(self.name)}"
         if where is not None:
             sql += " where " + where
         return self.db.execute(sql, where_args or []).fetchone()[0]
@@ -2005,19 +1967,19 @@ class Queryable:
         return self.count_where()
 
     @property
-    def rows(self) -> Generator[Dict[str, Any], None, None]:
+    def rows(self) -> Generator[dict[str, Any], None, None]:
         "Iterate over every dictionaries for each row in this table or view."
         return self.rows_where()
 
     def rows_where(
         self,
-        where: Optional[str] = None,
-        where_args: Optional[Union[Sequence, Dict[str, Any]]] = None,
-        order_by: Optional[str] = None,
+        where: str | None = None,
+        where_args: Sequence | dict[str, Any] | None = None,
+        order_by: str | None = None,
         select: str = "*",
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> Generator[Dict[str, Any], None, None]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> Generator[dict[str, Any], None, None]:
         """
         Iterate over every row in this table or view that matches the specified where clause.
 
@@ -2033,15 +1995,15 @@ class Queryable:
         """
         if not self.exists():
             return
-        sql = "select {} from {}".format(select, quote_identifier(self.name))
+        sql = f"select {select} from {quote_identifier(self.name)}"
         if where is not None:
             sql += " where " + where
         if order_by is not None:
             sql += " order by " + order_by
         if limit is not None:
-            sql += " limit {}".format(limit)
+            sql += f" limit {limit}"
         if offset is not None:
-            sql += " offset {}".format(offset)
+            sql += f" offset {offset}"
         cursor = self.db.execute(sql, where_args or [])
         columns = dedupe_keys(c[0] for c in cursor.description)
         for row in cursor:
@@ -2049,12 +2011,12 @@ class Queryable:
 
     def pks_and_rows_where(
         self,
-        where: Optional[str] = None,
-        where_args: Optional[Union[Sequence, Dict[str, Any]]] = None,
-        order_by: Optional[str] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> Generator[Tuple[Any, Dict[str, Any]], None, None]:
+        where: str | None = None,
+        where_args: Sequence | dict[str, Any] | None = None,
+        order_by: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> Generator[tuple[Any, dict[str, Any]], None, None]:
         """
         Like ``.rows_where()`` but returns ``(pk, row)`` pairs - ``pk`` can be a single value or tuple.
 
@@ -2096,17 +2058,17 @@ class Queryable:
             yield row_pk, row
 
     @property
-    def columns(self) -> List["Column"]:
+    def columns(self) -> list["Column"]:
         "List of :ref:`Columns <reference_db_other_column>` representing the columns in this table or view."
         if not self.exists():
             return []
         rows = self.db.execute(
-            "PRAGMA table_info({})".format(quote_identifier(self.name))
+            f"PRAGMA table_info({quote_identifier(self.name)})"
         ).fetchall()
         return [Column(*row) for row in rows]
 
     @property
-    def columns_dict(self) -> Dict[str, Any]:
+    def columns_dict(self) -> dict[str, Any]:
         "``{column_name: python-type}`` dictionary representing columns in this table or view."
         return {column.name: column_affinity(column.type) for column in self.columns}
 
@@ -2146,48 +2108,48 @@ class Table(Queryable):
     """
 
     #: The ``rowid`` of the last inserted, updated or selected row.
-    last_rowid: Optional[int] = None
+    last_rowid: int | None = None
     #: The primary key of the last inserted, updated or selected row.
-    last_pk: Optional[Any] = None
+    last_pk: Any | None = None
 
     def __init__(
         self,
         db: Database,
         name: str,
-        pk: Optional[Any] = None,
-        foreign_keys: Optional[ForeignKeysType] = None,
-        column_order: Optional[List[str]] = None,
-        not_null: Optional[Iterable[str]] = None,
-        defaults: Optional[Dict[str, Any]] = None,
+        pk: Any | None = None,
+        foreign_keys: ForeignKeysType | None = None,
+        column_order: list[str] | None = None,
+        not_null: Iterable[str] | None = None,
+        defaults: dict[str, Any] | None = None,
         batch_size: int = 100,
-        hash_id: Optional[str] = None,
-        hash_id_columns: Optional[Iterable[str]] = None,
+        hash_id: str | None = None,
+        hash_id_columns: Iterable[str] | None = None,
         alter: bool = False,
         ignore: bool = False,
         replace: bool = False,
-        extracts: Optional[Union[Dict[str, str], List[str]]] = None,
-        conversions: Optional[dict] = None,
-        columns: Optional[Dict[str, Any]] = None,
+        extracts: dict[str, str] | list[str] | None = None,
+        conversions: dict | None = None,
+        columns: dict[str, Any] | None = None,
         strict: bool = False,
     ):
         super().__init__(db, name)
-        self._defaults = dict(
-            pk=pk,
-            foreign_keys=foreign_keys,
-            column_order=column_order,
-            not_null=not_null,
-            defaults=defaults,
-            batch_size=batch_size,
-            hash_id=hash_id,
-            hash_id_columns=hash_id_columns,
-            alter=alter,
-            ignore=ignore,
-            replace=replace,
-            extracts=extracts,
-            conversions=conversions or {},
-            columns=columns,
-            strict=strict,
-        )
+        self._defaults = {
+            "pk": pk,
+            "foreign_keys": foreign_keys,
+            "column_order": column_order,
+            "not_null": not_null,
+            "defaults": defaults,
+            "batch_size": batch_size,
+            "hash_id": hash_id,
+            "hash_id_columns": hash_id_columns,
+            "alter": alter,
+            "ignore": ignore,
+            "replace": replace,
+            "extracts": extracts,
+            "conversions": conversions or {},
+            "columns": columns,
+            "strict": strict,
+        }
 
     def __repr__(self) -> str:
         return "<Table {}{}>".format(
@@ -2212,7 +2174,7 @@ class Table(Queryable):
         return self.name in self.db.table_names()
 
     @property
-    def pks(self) -> List[str]:
+    def pks(self) -> list[str]:
         """
         Primary key columns for this table, in PRIMARY KEY declaration order -
         ``PRAGMA table_info`` sets ``is_pk`` to the 1-based position of each
@@ -2234,7 +2196,7 @@ class Table(Queryable):
         "Does this table use ``rowid`` for its primary key (no other primary keys are specified)?"
         return not any(column for column in self.columns if column.is_pk)
 
-    def get(self, pk_values: Union[list, tuple, str, int]) -> dict:
+    def get(self, pk_values: list | tuple | str | int) -> dict:
         """
         Return row (as dictionary) for the specified primary key.
 
@@ -2253,17 +2215,17 @@ class Table(Queryable):
                 )
             )
 
-        wheres = ["{} = ?".format(quote_identifier(pk_name)) for pk_name in pks]
+        wheres = [f"{quote_identifier(pk_name)} = ?" for pk_name in pks]
         rows = self.rows_where(" and ".join(wheres), pk_values)
         try:
-            row = list(rows)[0]
+            row = next(iter(rows))
             self.last_pk = last_pk
             return row
-        except IndexError:
+        except StopIteration:
             raise NotFoundError
 
     @property
-    def foreign_keys(self) -> List["ForeignKey"]:
+    def foreign_keys(self) -> list["ForeignKey"]:
         """
         List of foreign keys defined on this table.
 
@@ -2273,12 +2235,12 @@ class Table(Queryable):
         """
         # PRAGMA foreign_key_list returns one row per column, grouped by "id"
         # with "seq" giving the column order within a compound foreign key.
-        by_id: Dict[int, list] = {}
+        by_id: dict[int, list] = {}
         for row in self.db.execute(
-            "PRAGMA foreign_key_list({})".format(quote_identifier(self.name))
+            f"PRAGMA foreign_key_list({quote_identifier(self.name)})"
         ).fetchall():
             if row is not None:
-                id, seq, table_name, from_, to_, on_update, on_delete, match = row
+                id, seq, table_name, from_, to_, on_update, on_delete, _match = row
                 by_id.setdefault(id, []).append(
                     (seq, table_name, from_, to_, on_update, on_delete)
                 )
@@ -2311,7 +2273,7 @@ class Table(Queryable):
         return fks
 
     @property
-    def virtual_table_using(self) -> Optional[str]:
+    def virtual_table_using(self) -> str | None:
         "Type of virtual table, or ``None`` if this is not a virtual table."
         match = _virtual_table_using_re.match(self.schema)
         if match is None:
@@ -2319,18 +2281,16 @@ class Table(Queryable):
         return match.groupdict()["using"].upper()
 
     @property
-    def indexes(self) -> List[Index]:
+    def indexes(self) -> list[Index]:
         "List of indexes defined on this table."
-        sql = 'PRAGMA index_list("{}")'.format(self.name)
+        sql = f'PRAGMA index_list("{self.name}")'
         indexes = []
         for row in self.db.execute_returning_dicts(sql):
             index_name = row["name"]
             index_name_quoted = (
-                '"{}"'.format(index_name)
-                if not index_name.startswith('"')
-                else index_name
+                f'"{index_name}"' if not index_name.startswith('"') else index_name
             )
-            column_sql = "PRAGMA index_info({})".format(index_name_quoted)
+            column_sql = f"PRAGMA index_info({index_name_quoted})"
             columns = []
             for seqno, cid, name in self.db.execute(column_sql).fetchall():
                 columns.append(name)
@@ -2343,18 +2303,16 @@ class Table(Queryable):
         return indexes
 
     @property
-    def xindexes(self) -> List[XIndex]:
+    def xindexes(self) -> list[XIndex]:
         "List of indexes defined on this table using the more detailed ``XIndex`` format."
-        sql = 'PRAGMA index_list("{}")'.format(self.name)
+        sql = f'PRAGMA index_list("{self.name}")'
         indexes = []
         for row in self.db.execute_returning_dicts(sql):
             index_name = row["name"]
             index_name_quoted = (
-                '"{}"'.format(index_name)
-                if not index_name.startswith('"')
-                else index_name
+                f'"{index_name}"' if not index_name.startswith('"') else index_name
             )
-            column_sql = "PRAGMA index_xinfo({})".format(index_name_quoted)
+            column_sql = f"PRAGMA index_xinfo({index_name_quoted})"
             index_columns = []
             for info in self.db.execute(column_sql).fetchall():
                 index_columns.append(XIndexColumn(*info))
@@ -2362,7 +2320,7 @@ class Table(Queryable):
         return indexes
 
     @property
-    def triggers(self) -> List[Trigger]:
+    def triggers(self) -> list[Trigger]:
         "List of triggers defined on this table."
         return [
             Trigger(*r)
@@ -2374,12 +2332,12 @@ class Table(Queryable):
         ]
 
     @property
-    def triggers_dict(self) -> Dict[str, str]:
+    def triggers_dict(self) -> dict[str, str]:
         "``{trigger_name: sql}`` dictionary of triggers defined on this table."
         return {trigger.name: trigger.sql for trigger in self.triggers}
 
     @property
-    def default_values(self) -> Dict[str, Any]:
+    def default_values(self) -> dict[str, Any]:
         "``{column_name: default_value}`` dictionary of default values for columns in this table."
         return {
             column.name: _decode_default_value(column.default_value)
@@ -2396,20 +2354,20 @@ class Table(Queryable):
 
     def create(
         self,
-        columns: Dict[str, Any],
-        pk: Optional[Any] = DEFAULT,
-        foreign_keys: Union[Optional[ForeignKeysType], Default] = DEFAULT,
-        column_order: Union[Optional[List[str]], Default] = DEFAULT,
-        not_null: Union[Optional[Iterable[str]], Default] = DEFAULT,
-        defaults: Union[Optional[Dict[str, Any]], Default] = DEFAULT,
-        hash_id: Union[Optional[str], Default] = DEFAULT,
-        hash_id_columns: Union[Optional[Iterable[str]], Default] = DEFAULT,
-        extracts: Union[Optional[Union[Dict[str, str], List[str]]], Default] = DEFAULT,
+        columns: dict[str, Any],
+        pk: Any | None = DEFAULT,
+        foreign_keys: ForeignKeysType | None | Default = DEFAULT,
+        column_order: list[str] | None | Default = DEFAULT,
+        not_null: Iterable[str] | None | Default = DEFAULT,
+        defaults: dict[str, Any] | None | Default = DEFAULT,
+        hash_id: str | None | Default = DEFAULT,
+        hash_id_columns: Iterable[str] | None | Default = DEFAULT,
+        extracts: dict[str, str] | list[str] | None | Default = DEFAULT,
         if_not_exists: bool = False,
         replace: bool = False,
         ignore: bool = False,
         transform: bool = False,
-        strict: Union[bool, Default] = DEFAULT,
+        strict: bool | Default = DEFAULT,
     ) -> "Table":
         """
         Create a table with the specified columns.
@@ -2493,28 +2451,25 @@ class Table(Queryable):
         if not self.exists():
             raise NoTable(f"Table {self.name} does not exist")
         with self.db.atomic():
-            sql = "CREATE TABLE {} AS SELECT * FROM {};".format(
-                quote_identifier(new_name),
-                quote_identifier(self.name),
-            )
+            sql = f"CREATE TABLE {quote_identifier(new_name)} AS SELECT * FROM {quote_identifier(self.name)};"
             self.db.execute(sql)
         return self.db.table(new_name)
 
     def transform(
         self,
         *,
-        types: Optional[dict] = None,
-        rename: Optional[dict] = None,
-        drop: Optional[Iterable] = None,
-        pk: Optional[Any] = DEFAULT,
-        not_null: Optional[Iterable[str]] = None,
-        defaults: Optional[Dict[str, Any]] = None,
-        drop_foreign_keys: Optional[Iterable[str]] = None,
-        add_foreign_keys: Optional[ForeignKeysType] = None,
-        foreign_keys: Optional[ForeignKeysType] = None,
-        column_order: Optional[List[str]] = None,
-        keep_table: Optional[str] = None,
-        strict: Optional[bool] = None,
+        types: dict | None = None,
+        rename: dict | None = None,
+        drop: Iterable | None = None,
+        pk: Any | None = DEFAULT,
+        not_null: Iterable[str] | None = None,
+        defaults: dict[str, Any] | None = None,
+        drop_foreign_keys: Iterable[str] | None = None,
+        add_foreign_keys: ForeignKeysType | None = None,
+        foreign_keys: ForeignKeysType | None = None,
+        column_order: list[str] | None = None,
+        keep_table: str | None = None,
+        strict: bool | None = None,
     ) -> "Table":
         """
         Apply an advanced alter table, including operations that are not supported by
@@ -2633,20 +2588,20 @@ class Table(Queryable):
     def transform_sql(
         self,
         *,
-        types: Optional[dict] = None,
-        rename: Optional[dict] = None,
-        drop: Optional[Iterable] = None,
-        pk: Optional[Any] = DEFAULT,
-        not_null: Optional[Iterable[str]] = None,
-        defaults: Optional[Dict[str, Any]] = None,
-        drop_foreign_keys: Optional[Iterable] = None,
-        add_foreign_keys: Optional[ForeignKeysType] = None,
-        foreign_keys: Optional[ForeignKeysType] = None,
-        column_order: Optional[List[str]] = None,
-        tmp_suffix: Optional[str] = None,
-        keep_table: Optional[str] = None,
-        strict: Optional[bool] = None,
-    ) -> List[str]:
+        types: dict | None = None,
+        rename: dict | None = None,
+        drop: Iterable | None = None,
+        pk: Any | None = DEFAULT,
+        not_null: Iterable[str] | None = None,
+        defaults: dict[str, Any] | None = None,
+        drop_foreign_keys: Iterable | None = None,
+        add_foreign_keys: ForeignKeysType | None = None,
+        foreign_keys: ForeignKeysType | None = None,
+        column_order: list[str] | None = None,
+        tmp_suffix: str | None = None,
+        keep_table: str | None = None,
+        strict: bool | None = None,
+    ) -> list[str]:
         """
         Return a list of SQL statements that should be executed in order to apply this transformation.
 
@@ -2689,7 +2644,7 @@ class Table(Queryable):
         if isinstance(not_null, dict):
             not_null = {
                 resolve_casing(c, existing_columns): v
-                for c, v in cast(Dict[str, Any], not_null).items()
+                for c, v in cast(dict[str, Any], not_null).items()
             }
         elif isinstance(not_null, set):
             not_null = {resolve_casing(c, existing_columns) for c in not_null}
@@ -2700,7 +2655,7 @@ class Table(Queryable):
         if column_order is not None:
             column_order = [resolve_casing(c, existing_columns) for c in column_order]
 
-        create_table_foreign_keys: List[ForeignKeyIndicator] = []
+        create_table_foreign_keys: list[ForeignKeyIndicator] = []
 
         if foreign_keys is not None:
             if add_foreign_keys is not None:
@@ -2777,9 +2732,7 @@ class Table(Queryable):
                 for fk in self.db.resolve_foreign_keys(self.name, add_foreign_keys):
                     create_table_foreign_keys.append(fk_with_renamed_columns(fk))
 
-        new_table_name = "{}_new_{}".format(
-            self.name, tmp_suffix or os.urandom(6).hex()
-        )
+        new_table_name = f"{self.name}_new_{tmp_suffix or os.urandom(6).hex()}"
         current_column_pairs = list(self.columns_dict.items())
         new_column_pairs = []
         copy_from_to = {column: column for column, _ in current_column_pairs}
@@ -2824,9 +2777,7 @@ class Table(Queryable):
             pass
         else:
             raise ValueError(
-                "not_null must be a dict or a set or None, it was {}".format(
-                    repr(not_null)
-                )
+                f"not_null must be a dict or a set or None, it was {not_null!r}"
             )
         # defaults=
         create_table_defaults = {
@@ -2876,17 +2827,13 @@ class Table(Queryable):
         # Drop (or keep) the old table
         if keep_table:
             sqls.append(
-                "ALTER TABLE {} RENAME TO {};".format(
-                    quote_identifier(self.name), quote_identifier(keep_table)
-                )
+                f"ALTER TABLE {quote_identifier(self.name)} RENAME TO {quote_identifier(keep_table)};"
             )
         else:
-            sqls.append("DROP TABLE {};".format(quote_identifier(self.name)))
+            sqls.append(f"DROP TABLE {quote_identifier(self.name)};")
         # Rename the new one
         sqls.append(
-            "ALTER TABLE {} RENAME TO {};".format(
-                quote_identifier(new_table_name), quote_identifier(self.name)
-            )
+            f"ALTER TABLE {quote_identifier(new_table_name)} RENAME TO {quote_identifier(self.name)};"
         )
         # Re-add existing indexes
         for index in self.indexes:
@@ -2904,7 +2851,7 @@ class Table(Queryable):
                 if keep_table:
                     sqls.append(f"DROP INDEX IF EXISTS {quote_identifier(index.name)};")
                 for col in index.columns:
-                    if col in rename.keys() or col in drop:
+                    if col in rename or col in drop:
                         raise TransformError(
                             f"Index '{index.name}' column '{col}' is not in updated table '{self.name}'. "
                             f"You must manually drop this index prior to running this transformation "
@@ -2916,10 +2863,10 @@ class Table(Queryable):
 
     def extract(
         self,
-        columns: Union[str, Iterable[str]],
-        table: Optional[str] = None,
-        fk_column: Optional[str] = None,
-        rename: Optional[Dict[str, str]] = None,
+        columns: str | Iterable[str],
+        table: str | None = None,
+        fk_column: str | None = None,
+        rename: dict[str, str] | None = None,
     ) -> "Table":
         """
         Extract specified columns into a separate table.
@@ -2938,15 +2885,13 @@ class Table(Queryable):
         rename = {resolve_casing(k, self.columns_dict): v for k, v in rename.items()}
         if not set(columns).issubset(self.columns_dict.keys()):
             raise InvalidColumns(
-                "Invalid columns {} for table with columns {}".format(
-                    columns, list(self.columns_dict.keys())
-                )
+                f"Invalid columns {columns} for table with columns {list(self.columns_dict.keys())}"
             )
         with self.db.atomic():
             table = table or "_".join(columns)
             lookup_table = self.db.table(table)
-            fk_column = fk_column or "{}_id".format(table)
-            magic_lookup_column = "{}_{}".format(fk_column, os.urandom(6).hex())
+            fk_column = fk_column or f"{table}_id"
+            magic_lookup_column = f"{fk_column}_{os.urandom(6).hex()}"
 
             # Populate the lookup table with all of the extracted unique values
             lookup_columns_definition = {
@@ -2959,16 +2904,12 @@ class Table(Queryable):
                     lookup_table.columns_dict.items()
                 ):
                     raise InvalidColumns(
-                        "Lookup table {} already exists but does not have columns {}".format(
-                            table, lookup_columns_definition
-                        )
+                        f"Lookup table {table} already exists but does not have columns {lookup_columns_definition}"
                     )
             else:
                 lookup_table.create(
                     {
-                        **{
-                            "id": int,
-                        },
+                        "id": int,
                         **lookup_columns_definition,
                     },
                     pk="id",
@@ -2978,19 +2919,14 @@ class Table(Queryable):
             # Rows where every extracted column is null are left alone - they
             # get a null foreign key and no lookup table record, see #186
             all_columns_are_null = " AND ".join(
-                "{} IS NULL".format(quote_identifier(c)) for c in columns
+                f"{quote_identifier(c)} IS NULL" for c in columns
             )
             # INSERT OR IGNORE dedupes against the unique index, but unique
             # indexes treat NULLs as distinct - the NOT EXISTS guard uses IS
             # comparison so NULL-containing rows match existing lookup rows
             # instead of being inserted again
             already_in_lookup = " AND ".join(
-                "{lookup}.{lookup_col} IS {source}.{source_col}".format(
-                    lookup=quote_identifier(table),
-                    lookup_col=quote_identifier(rename.get(column) or column),
-                    source=quote_identifier(self.name),
-                    source_col=quote_identifier(column),
-                )
+                f"{quote_identifier(table)}.{quote_identifier(rename.get(column) or column)} IS {quote_identifier(self.name)}.{quote_identifier(column)}"
                 for column in columns
             )
             self.db.execute(
@@ -3018,12 +2954,10 @@ class Table(Queryable):
                     quote_identifier(magic_lookup_column),
                     quote_identifier(table),
                     where=" AND ".join(
-                        "{}.{} IS {}.{}".format(
-                            quote_identifier(self.name),
-                            quote_identifier(column),
-                            quote_identifier(table),
-                            quote_identifier(rename.get(column) or column),
-                        )
+                        f"{quote_identifier(self.name)}."
+                        f"{quote_identifier(column)} IS "
+                        f"{quote_identifier(table)}."
+                        f"{quote_identifier(rename.get(column) or column)}"
                         for column in columns
                     ),
                     all_null=all_columns_are_null,
@@ -3052,8 +2986,8 @@ class Table(Queryable):
 
     def create_index(
         self,
-        columns: Iterable[Union[str, DescIndex]],
-        index_name: Optional[str] = None,
+        columns: Iterable[str | DescIndex],
+        index_name: str | None = None,
         unique: bool = False,
         if_not_exists: bool = False,
         find_unique_name: bool = False,
@@ -3080,16 +3014,14 @@ class Table(Queryable):
         columns_sql = []
         for column in columns:
             if isinstance(column, DescIndex):
-                columns_sql.append("{} desc".format(quote_identifier(column)))
+                columns_sql.append(f"{quote_identifier(column)} desc")
             else:
                 columns_sql.append(quote_identifier(column))
 
         suffix = None
         created_index_name = None
         while True:
-            created_index_name = (
-                "{}_{}".format(index_name, suffix) if suffix else index_name
-            )
+            created_index_name = f"{index_name}_{suffix}" if suffix else index_name
             sql = (
                 textwrap.dedent("""
                 CREATE {unique}INDEX {if_not_exists}{index_name}
@@ -3121,7 +3053,7 @@ class Table(Queryable):
                         suffix += 1
                     continue
                 else:
-                    raise e
+                    raise
         if analyze:
             self.db.analyze(created_index_name)
         return self
@@ -3136,19 +3068,17 @@ class Table(Queryable):
         if index_name not in {index.name for index in self.indexes}:
             if ignore:
                 return self
-            raise OperationalError(
-                "No index named {} on table {}".format(index_name, self.name)
-            )
-        self.db.execute("DROP INDEX {}".format(quote_identifier(index_name)))
+            raise OperationalError(f"No index named {index_name} on table {self.name}")
+        self.db.execute(f"DROP INDEX {quote_identifier(index_name)}")
         return self
 
     def add_column(
         self,
         col_name: str,
-        col_type: Optional[Any] = None,
-        fk: Optional[str] = None,
-        fk_col: Optional[str] = None,
-        not_null_default: Optional[Any] = None,
+        col_type: Any | None = None,
+        fk: str | None = None,
+        fk_col: str | None = None,
+        not_null_default: Any | None = None,
     ):
         """
         Add a column to this table. See :ref:`python_api_add_column`.
@@ -3163,12 +3093,12 @@ class Table(Queryable):
         if fk is not None:
             # fk must be a valid table
             if fk not in self.db.table_names():
-                raise AlterError("table '{}' does not exist".format(fk))
+                raise AlterError(f"table '{fk}' does not exist")
             # if fk_col specified, must be a valid column
             if fk_col is not None:
                 fk_col = resolve_casing(fk_col, self.db[fk].columns_dict)
                 if fk_col not in self.db[fk].columns_dict:
-                    raise AlterError("table '{}' has no column {}".format(fk, fk_col))
+                    raise AlterError(f"table '{fk}' has no column {fk_col}")
             else:
                 # automatically set fk_col to first primary_key of fk table
                 pks = sorted(
@@ -3185,8 +3115,8 @@ class Table(Queryable):
             col_type = str
         not_null_sql = None
         if not_null_default is not None:
-            not_null_sql = "NOT NULL DEFAULT {}".format(
-                self.db.quote_default_value(not_null_default)
+            not_null_sql = (
+                f"NOT NULL DEFAULT {self.db.quote_default_value(not_null_default)}"
             )
         sql = "ALTER TABLE {} ADD COLUMN {} {col_type}{not_null_default};".format(
             quote_identifier(self.name),
@@ -3206,7 +3136,7 @@ class Table(Queryable):
         :param ignore: Set to ``True`` to ignore the error if the table does not exist
         """
         try:
-            self.db.execute("DROP TABLE {}".format(quote_identifier(self.name)))
+            self.db.execute(f"DROP TABLE {quote_identifier(self.name)}")
         except sqlite3.OperationalError:
             if not ignore:
                 raise
@@ -3238,16 +3168,14 @@ class Table(Queryable):
                 return existing_tables[table]
         # If we get here there's no obvious candidate - raise an error
         raise NoObviousTable(
-            "No obvious foreign key table for column '{}' - tried {}".format(
-                column, repr(possibilities)
-            )
+            f"No obvious foreign key table for column '{column}' - tried {possibilities!r}"
         )
 
     def guess_foreign_column(self, other_table: str) -> str:
         pks = [c for c in self.db[other_table].columns if c.is_pk]
         if len(pks) != 1:
             raise BadPrimaryKey(
-                "Could not detect single primary key for table '{}'".format(other_table)
+                f"Could not detect single primary key for table '{other_table}'"
             )
         else:
             return pks[0].name
@@ -3255,8 +3183,8 @@ class Table(Queryable):
     def add_foreign_key(
         self,
         column: ForeignKeyColumns,
-        other_table: Optional[str] = None,
-        other_column: Optional[ForeignKeyColumns] = None,
+        other_table: str | None = None,
+        other_column: ForeignKeyColumns | None = None,
         ignore: bool = False,
         on_delete: str = "NO ACTION",
         on_update: str = "NO ACTION",
@@ -3279,7 +3207,7 @@ class Table(Queryable):
         # Ensure columns exist
         for col in columns:
             if col not in self.columns_dict:
-                raise AlterError("No such column: {}".format(col))
+                raise AlterError(f"No such column: {col}")
         # If other_table is not specified, attempt to guess it from the column
         if other_table is None:
             if len(columns) > 1:
@@ -3312,7 +3240,7 @@ class Table(Queryable):
                 not [c for c in self.db[other_table].columns if c.name == other_col]
                 and other_col != "rowid"
             ):
-                raise AlterError("No such column: {}.{}".format(other_table, other_col))
+                raise AlterError(f"No such column: {other_table}.{other_col}")
         # Check we do not already have an existing foreign key
         if any(
             fk
@@ -3413,9 +3341,7 @@ class Table(Queryable):
     def has_counts_triggers(self) -> bool:
         "Does this table have triggers setup to update cached counts?"
         trigger_names = {
-            "{table}{counts_table}_{suffix}".format(
-                counts_table=self.db._counts_table_name, table=self.name, suffix=suffix
-            )
+            f"{self.name}{self.db._counts_table_name}_{suffix}"
             for suffix in ["insert", "delete"]
         }
         return trigger_names.issubset(self.triggers_dict.keys())
@@ -3425,7 +3351,7 @@ class Table(Queryable):
         columns: Iterable[str],
         fts_version: str = "FTS5",
         create_triggers: bool = False,
-        tokenize: Optional[str] = None,
+        tokenize: str | None = None,
         replace: bool = False,
     ):
         """
@@ -3452,13 +3378,13 @@ class Table(Queryable):
                 table_fts=quote_identifier(self.name + "_fts"),
                 columns=", ".join(quote_identifier(c) for c in columns),
                 fts_version=fts_version,
-                tokenize="\n    tokenize='{}',".format(tokenize) if tokenize else "",
+                tokenize=f"\n    tokenize='{tokenize}'," if tokenize else "",
             )
         )
         should_recreate = False
-        if replace and self.db["{}_fts".format(self.name)].exists():
+        if replace and self.db[f"{self.name}_fts"].exists():
             # Does the table need to be recreated?
-            fts_schema = self.db["{}_fts".format(self.name)].schema
+            fts_schema = self.db[f"{self.name}_fts"].schema
             if fts_schema != create_fts_sql:
                 should_recreate = True
             expected_triggers = {self.name + suffix for suffix in ("_ai", "_ad", "_au")}
@@ -3477,8 +3403,8 @@ class Table(Queryable):
         self.populate_fts(columns)
 
         if create_triggers:
-            old_cols = ", ".join("old.{}".format(quote_identifier(c)) for c in columns)
-            new_cols = ", ".join("new.{}".format(quote_identifier(c)) for c in columns)
+            old_cols = ", ".join(f"old.{quote_identifier(c)}" for c in columns)
+            new_cols = ", ".join(f"new.{quote_identifier(c)}" for c in columns)
             columns_quoted = ", ".join(quote_identifier(c) for c in columns)
             table = quote_identifier(self.name)
             table_fts = quote_identifier(self.name + "_fts")
@@ -3550,7 +3476,7 @@ class Table(Queryable):
         with self.db.atomic():
             for trigger_name in trigger_names:
                 self.db.execute(
-                    "DROP TRIGGER IF EXISTS {}".format(quote_identifier(trigger_name))
+                    f"DROP TRIGGER IF EXISTS {quote_identifier(trigger_name)}"
                 )
         return self
 
@@ -3568,7 +3494,7 @@ class Table(Queryable):
             )
         return self
 
-    def detect_fts(self) -> Optional[str]:
+    def detect_fts(self) -> str | None:
         "Detect if table has a corresponding FTS virtual table and return it"
         sql = textwrap.dedent("""
             SELECT name FROM sqlite_master
@@ -3583,8 +3509,8 @@ class Table(Queryable):
                 )
         """).strip()
         args = {
-            "like": "%VIRTUAL TABLE%USING FTS%content=[{}]%".format(self.name),
-            "like2": '%VIRTUAL TABLE%USING FTS%content="{}"%'.format(self.name),
+            "like": f"%VIRTUAL TABLE%USING FTS%content=[{self.name}]%",
+            "like2": f'%VIRTUAL TABLE%USING FTS%content="{self.name}"%',
             "table": self.name,
         }
         rows = self.db.execute(sql, args).fetchall()
@@ -3605,11 +3531,11 @@ class Table(Queryable):
 
     def search_sql(
         self,
-        columns: Optional[Iterable[str]] = None,
-        order_by: Optional[str] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        where: Optional[str] = None,
+        columns: Iterable[str] | None = None,
+        order_by: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        where: str | None = None,
         include_rank: bool = False,
     ) -> str:
         """ "
@@ -3626,16 +3552,16 @@ class Table(Queryable):
         original = "original_" if self.name == "original" else "original"
         original_quoted = quote_identifier(original)
         columns_sql = "*"
-        columns_with_prefix_sql = "{}.*".format(original_quoted)
+        columns_with_prefix_sql = f"{original_quoted}.*"
         if columns:
             columns_sql = ",\n        ".join(quote_identifier(c) for c in columns)
             columns_with_prefix_sql = ",\n    ".join(
-                "{}.{}".format(original_quoted, quote_identifier(c)) for c in columns
+                f"{original_quoted}.{quote_identifier(c)}" for c in columns
             )
         fts_table = self.detect_fts()
         if not fts_table:
             raise ValueError(
-                "Full-text search is not configured for table '{}'".format(self.name)
+                f"Full-text search is not configured for table '{self.name}'"
             )
         fts_table_quoted = quote_identifier(fts_table)
         virtual_table_using = self.db.table(fts_table).virtual_table_using
@@ -3658,22 +3584,20 @@ class Table(Queryable):
         {limit_offset}
         """).strip()
         if virtual_table_using == "FTS5":
-            rank_implementation = "{}.rank".format(fts_table_quoted)
+            rank_implementation = f"{fts_table_quoted}.rank"
         else:
             self.db.register_fts4_bm25()
-            rank_implementation = "rank_bm25(matchinfo({}, 'pcnalx'))".format(
-                fts_table_quoted
-            )
+            rank_implementation = f"rank_bm25(matchinfo({fts_table_quoted}, 'pcnalx'))"
         if include_rank:
             columns_with_prefix_sql += ",\n    " + rank_implementation + " rank"
         limit_offset = ""
         if limit is not None:
-            limit_offset += " limit {}".format(limit)
+            limit_offset += f" limit {limit}"
         if offset is not None:
-            limit_offset += " offset {}".format(offset)
+            limit_offset += f" offset {offset}"
         return sql.format(
             dbtable=quote_identifier(self.name),
-            where_clause="\n    where {}".format(where) if where else "",
+            where_clause=f"\n    where {where}" if where else "",
             original=original_quoted,
             columns=columns_sql,
             columns_with_prefix=columns_with_prefix_sql,
@@ -3685,12 +3609,12 @@ class Table(Queryable):
     def search(
         self,
         q: str,
-        order_by: Optional[str] = None,
-        columns: Optional[Iterable[str]] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        where: Optional[str] = None,
-        where_args: Optional[Union[Iterable, dict]] = None,
+        order_by: str | None = None,
+        columns: Iterable[str] | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        where: str | None = None,
+        where_args: Iterable | dict | None = None,
         include_rank: bool = False,
         quote: bool = False,
     ) -> Generator[dict, None, None]:
@@ -3736,7 +3660,7 @@ class Table(Queryable):
     def value_or_default(self, key: str, value: Any) -> Any:
         return self._defaults[key] if value is DEFAULT else value
 
-    def delete(self, pk_values: Union[list, tuple, str, int, float]) -> "Table":
+    def delete(self, pk_values: list | tuple | str | float) -> "Table":
         """
         Delete row matching the specified primary key.
 
@@ -3745,7 +3669,7 @@ class Table(Queryable):
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
         self.get(pk_values)
-        wheres = ["{} = ?".format(quote_identifier(pk_name)) for pk_name in self.pks]
+        wheres = [f"{quote_identifier(pk_name)} = ?" for pk_name in self.pks]
         sql = "delete from {} where {wheres}".format(
             quote_identifier(self.name), wheres=" and ".join(wheres)
         )
@@ -3755,8 +3679,8 @@ class Table(Queryable):
 
     def delete_where(
         self,
-        where: Optional[str] = None,
-        where_args: Optional[Union[Sequence, Dict[str, Any]]] = None,
+        where: str | None = None,
+        where_args: Sequence | dict[str, Any] | None = None,
         analyze: bool = False,
     ) -> "Table":
         """
@@ -3771,7 +3695,7 @@ class Table(Queryable):
         """
         if not self.exists():
             return self
-        sql = "delete from {}".format(quote_identifier(self.name))
+        sql = f"delete from {quote_identifier(self.name)}"
         if where is not None:
             sql += " where " + where
         with self.db.atomic():
@@ -3782,10 +3706,10 @@ class Table(Queryable):
 
     def update(
         self,
-        pk_values: Union[list, tuple, str, int, float],
-        updates: Optional[dict] = None,
+        pk_values: list | tuple | str | float,
+        updates: dict | None = None,
         alter: bool = False,
-        conversions: Optional[dict] = None,
+        conversions: dict | None = None,
     ) -> "Table":
         """
         Execute a SQL ``UPDATE`` against the specified row.
@@ -3816,7 +3740,7 @@ class Table(Queryable):
                 "{} = {}".format(quote_identifier(key), conversions.get(key, "?"))
             )
             args.append(jsonify_if_needed(value))
-        wheres = ["{} = ?".format(quote_identifier(pk_name)) for pk_name in pks]
+        wheres = [f"{quote_identifier(pk_name)} = ?" for pk_name in pks]
         args.extend(pk_values)
         sql = "update {} set {sets} where {wheres}".format(
             quote_identifier(self.name),
@@ -3841,14 +3765,14 @@ class Table(Queryable):
 
     def convert(
         self,
-        columns: Union[str, List[str]],
+        columns: str | list[str],
         fn: Callable,
-        output: Optional[str] = None,
-        output_type: Optional[Any] = None,
+        output: str | None = None,
+        output_type: Any | None = None,
         drop: bool = False,
         multi: bool = False,
-        where: Optional[str] = None,
-        where_args: Optional[Union[Sequence, Dict[str, Any]]] = None,
+        where: str | None = None,
+        where_args: Sequence | dict[str, Any] | None = None,
         show_progress: bool = False,
     ) -> "Table":
         """
@@ -3905,15 +3829,11 @@ class Table(Queryable):
                 quote_identifier(self.name),
                 sets=", ".join(
                     [
-                        "{} = {}({})".format(
-                            quote_identifier(output or column),
-                            fn_name,
-                            quote_identifier(column),
-                        )
+                        f"{quote_identifier(output or column)} = {fn_name}({quote_identifier(column)})"
                         for column in columns
                     ]
                 ),
-                where=" where {}".format(where) if where is not None else "",
+                where=f" where {where}" if where is not None else "",
             )
             with self.db.atomic():
                 self.db.execute(sql, where_args or [])
@@ -3926,7 +3846,7 @@ class Table(Queryable):
     ):
         # First we execute the function
         pk_to_values = {}
-        new_column_types: Dict[str, Set[type]] = {}
+        new_column_types: dict[str, set[type]] = {}
         pks = self.pks
 
         with progressbar(
@@ -3958,15 +3878,17 @@ class Table(Queryable):
                 self.add_column(column_name, column_type)
 
         # Run the updates
-        with progressbar(
-            length=self.count, silent=not show_progress, label="2: Updating"
-        ) as bar:
-            with self.db.atomic():
-                for pk, updates in pk_to_values.items():
-                    self.update(pk, updates)
-                    bar.update(1)
-                if drop:
-                    self.transform(drop=(column,))
+        with (
+            progressbar(
+                length=self.count, silent=not show_progress, label="2: Updating"
+            ) as bar,
+            self.db.atomic(),
+        ):
+            for pk, updates in pk_to_values.items():
+                self.update(pk, updates)
+                bar.update(1)
+            if drop:
+                self.transform(drop=(column,))
 
     def build_insert_queries_and_params(
         self,
@@ -4166,9 +4088,7 @@ class Table(Queryable):
                         )
                         for col in set_cols
                     ),
-                    wheres=" AND ".join(
-                        "{} = ?".format(quote_identifier(pk)) for pk in pks
-                    ),
+                    wheres=" AND ".join(f"{quote_identifier(pk)} = ?" for pk in pks),
                 )
                 queries_and_params.append(
                     (
@@ -4201,7 +4121,7 @@ class Table(Queryable):
         replace,
         ignore,
         list_mode=False,
-    ) -> Optional[sqlite3.Cursor]:
+    ) -> sqlite3.Cursor | None:
         queries_and_params = self.build_insert_queries_and_params(
             extracts,
             chunk,
@@ -4271,21 +4191,21 @@ class Table(Queryable):
 
     def insert(
         self,
-        record: Dict[str, Any],
+        record: dict[str, Any],
         pk=DEFAULT,
         foreign_keys=DEFAULT,
-        column_order: Optional[Union[List[str], Default]] = DEFAULT,
-        not_null: Optional[Union[Iterable[str], Default]] = DEFAULT,
-        defaults: Optional[Union[Dict[str, Any], Default]] = DEFAULT,
-        hash_id: Optional[Union[str, Default]] = DEFAULT,
-        hash_id_columns: Optional[Union[Iterable[str], Default]] = DEFAULT,
-        alter: Optional[Union[bool, Default]] = DEFAULT,
-        ignore: Optional[Union[bool, Default]] = DEFAULT,
-        replace: Optional[Union[bool, Default]] = DEFAULT,
-        extracts: Optional[Union[Dict[str, str], List[str], Default]] = DEFAULT,
-        conversions: Optional[Union[Dict[str, str], Default]] = DEFAULT,
-        columns: Optional[Union[Dict[str, Any], Default]] = DEFAULT,
-        strict: Optional[Union[bool, Default]] = DEFAULT,
+        column_order: list[str] | Default | None = DEFAULT,
+        not_null: Iterable[str] | Default | None = DEFAULT,
+        defaults: dict[str, Any] | Default | None = DEFAULT,
+        hash_id: str | Default | None = DEFAULT,
+        hash_id_columns: Iterable[str] | Default | None = DEFAULT,
+        alter: bool | Default | None = DEFAULT,
+        ignore: bool | Default | None = DEFAULT,
+        replace: bool | Default | None = DEFAULT,
+        extracts: dict[str, str] | list[str] | Default | None = DEFAULT,
+        conversions: dict[str, str] | Default | None = DEFAULT,
+        columns: dict[str, Any] | Default | None = DEFAULT,
+        strict: bool | Default | None = DEFAULT,
     ) -> "Table":
         """
         Insert a single record into the table. The table will be created with a schema that matches
@@ -4340,10 +4260,7 @@ class Table(Queryable):
 
     def insert_all(
         self,
-        records: Union[
-            Iterable[Dict[str, Any]],
-            Iterable[Sequence[Any]],
-        ],
+        records: Iterable[dict[str, Any]] | Iterable[Sequence[Any]],
         pk=DEFAULT,
         foreign_keys=DEFAULT,
         column_order=DEFAULT,
@@ -4440,7 +4357,7 @@ class Table(Queryable):
 
         # Detect if we're using list-based iteration or dict-based iteration
         list_mode = False
-        column_names: List[str] = []
+        column_names: list[str] = []
 
         # Fix up any records with square braces in the column names (only for dict mode)
         # We'll handle this differently for list mode
@@ -4460,7 +4377,7 @@ class Table(Queryable):
                 raise ValueError(
                     "When using list-based iteration, the first yielded value must be a list of column name strings"
                 )
-            column_names = cast(List[str], list(first_record))
+            column_names = cast(list[str], list(first_record))
             all_columns = column_names
             num_columns = len(column_names)
             # Get the actual first data record
@@ -4469,7 +4386,7 @@ class Table(Queryable):
             except StopIteration:
                 return self  # Only headers, no data
             if not isinstance(first_record, (list, tuple)):
-                raise ValueError(
+                raise ValueError(  # noqa: TRY004
                     "After column names list, all subsequent records must also be lists"
                 )
         else:
@@ -4479,13 +4396,11 @@ class Table(Queryable):
                 first_record = next(records_iter)
             except StopIteration:
                 return self
-            first_record = cast(Dict[str, Any], first_record)
+            first_record = cast(dict[str, Any], first_record)
             num_columns = len(first_record.keys())
 
         if num_columns > SQLITE_MAX_VARS:
-            raise ValueError(
-                "Rows can have a maximum of {} columns".format(SQLITE_MAX_VARS)
-            )
+            raise ValueError(f"Rows can have a maximum of {SQLITE_MAX_VARS} columns")
         batch_size = (
             1
             if num_columns == 0
@@ -4495,7 +4410,7 @@ class Table(Queryable):
         self.last_pk = None
         if truncate and self.exists():
             with self.db.atomic():
-                self.db.execute("DELETE FROM {};".format(quote_identifier(self.name)))
+                self.db.execute(f"DELETE FROM {quote_identifier(self.name)};")
         result = None
         for chunk in chunks(itertools.chain([first_record], records_iter), batch_size):
             chunk = list(chunk)
@@ -4508,7 +4423,7 @@ class Table(Queryable):
                         chunk_as_dicts = [dict(zip(column_names, row)) for row in chunk]
                         column_types = suggest_column_types(chunk_as_dicts)
                     else:
-                        dict_chunk = cast(List[Dict[str, Any]], chunk)
+                        dict_chunk = cast(list[dict[str, Any]], chunk)
                         column_types = suggest_column_types(dict_chunk)
                     if extracts:
                         for col in extracts:
@@ -4535,10 +4450,10 @@ class Table(Queryable):
                     if hash_id:
                         all_columns.insert(0, hash_id)
                 else:
-                    all_columns_set: Set[str] = set()
-                    for record in cast(List[Dict[str, Any]], chunk):
+                    all_columns_set: set[str] = set()
+                    for record in cast(list[dict[str, Any]], chunk):
                         all_columns_set.update(record.keys())
-                    all_columns = list(sorted(all_columns_set))
+                    all_columns = sorted(all_columns_set)
                     if hash_id:
                         all_columns.insert(0, hash_id)
                 if deferred_invalid_pk_check is not None:
@@ -4553,7 +4468,7 @@ class Table(Queryable):
                         raise invalid_pk_error
             else:
                 if not list_mode:
-                    for record in cast(List[Dict[str, Any]], chunk):
+                    for record in cast(list[dict[str, Any]], chunk):
                         all_columns += [
                             column for column in record if column not in all_columns
                         ]
@@ -4592,7 +4507,7 @@ class Table(Queryable):
                             zip(column_names, cast(Sequence[Any], first_record))
                         )
                     else:
-                        first_record_dict = cast(Dict[str, Any], first_record)
+                        first_record_dict = cast(dict[str, Any], first_record)
                     if hash_id:
                         self.last_pk = hash_record(first_record_dict, hash_id_columns)
                     elif isinstance(pk, str):
@@ -4608,7 +4523,7 @@ class Table(Queryable):
                     # columns so we can report its rowid (and pk if not already
                     # known). Falls back to leaving them unset if the conflict
                     # cannot be resolved to a pk lookup (e.g. a UNIQUE column).
-                    key_cols: Optional[List[str]] = None
+                    key_cols: list[str] | None = None
                     if isinstance(pk, str):
                         key_cols = [pk]
                     elif pk:
@@ -4625,12 +4540,10 @@ class Table(Queryable):
                             key_values = None
                         if key_values is not None:
                             where = " and ".join(
-                                "{} = ?".format(quote_identifier(c)) for c in key_cols
+                                f"{quote_identifier(c)} = ?" for c in key_cols
                             )
                             existing = self.db.execute(
-                                "select rowid from {} where {} limit 1".format(
-                                    quote_identifier(self.name), where
-                                ),
+                                f"select rowid from {quote_identifier(self.name)} where {where} limit 1",
                                 key_values,
                             ).fetchone()
                             if existing is not None:
@@ -4650,7 +4563,9 @@ class Table(Queryable):
                     rowid_pk = isinstance(pk, str) and pk.lower() in ROWID_ALIASES
                     if (hash_id or (pk and not rowid_pk)) and self.last_rowid:
                         # Set self.last_pk to the pk(s) for that rowid
-                        row = list(self.rows_where("rowid = ?", [self.last_rowid]))[0]
+                        row = next(
+                            iter(self.rows_where("rowid = ?", [self.last_rowid]))
+                        )
                         if hash_id:
                             self.last_pk = row[hash_id]
                         elif isinstance(pk, str):
@@ -4680,7 +4595,7 @@ class Table(Queryable):
                             for p in pk
                         )
                 else:
-                    first_record_dict = cast(Dict[str, Any], first_record)
+                    first_record_dict = cast(dict[str, Any], first_record)
                     if hash_id:
                         self.last_pk = hash_record(first_record_dict, hash_id_columns)
                     else:
@@ -4738,10 +4653,7 @@ class Table(Queryable):
 
     def upsert_all(
         self,
-        records: Union[
-            Iterable[Dict[str, Any]],
-            Iterable[Sequence[Any]],
-        ],
+        records: Iterable[dict[str, Any]] | Iterable[Sequence[Any]],
         pk=DEFAULT,
         foreign_keys=DEFAULT,
         column_order=DEFAULT,
@@ -4779,7 +4691,7 @@ class Table(Queryable):
             strict=strict,
         )
 
-    def add_missing_columns(self, records: Iterable[Dict[str, Any]]) -> "Table":
+    def add_missing_columns(self, records: Iterable[dict[str, Any]]) -> "Table":
         needed_columns = suggest_column_types(records)
         current_columns = {c.lower() for c in self.columns_dict}
         for col_name, col_type in needed_columns.items():
@@ -4789,17 +4701,17 @@ class Table(Queryable):
 
     def lookup(
         self,
-        lookup_values: Dict[str, Any],
-        extra_values: Optional[Dict[str, Any]] = None,
-        pk: Optional[str] = "id",
-        foreign_keys: Optional[ForeignKeysType] = None,
-        column_order: Optional[List[str]] = None,
-        not_null: Optional[Iterable[str]] = None,
-        defaults: Optional[Dict[str, Any]] = None,
-        extracts: Optional[Union[Dict[str, str], List[str]]] = None,
-        conversions: Optional[Dict[str, str]] = None,
-        columns: Optional[Dict[str, Any]] = None,
-        strict: Optional[bool] = False,
+        lookup_values: dict[str, Any],
+        extra_values: dict[str, Any] | None = None,
+        pk: str | None = "id",
+        foreign_keys: ForeignKeysType | None = None,
+        column_order: list[str] | None = None,
+        not_null: Iterable[str] | None = None,
+        defaults: dict[str, Any] | None = None,
+        extracts: dict[str, str] | list[str] | None = None,
+        conversions: dict[str, str] | None = None,
+        columns: dict[str, Any] | None = None,
+        strict: bool | None = False,
     ):
         """
         Create or populate a lookup table with the specified values.
@@ -4825,7 +4737,7 @@ class Table(Queryable):
         :param strict: Boolean, apply STRICT mode if creating the table.
         """
         if not isinstance(lookup_values, dict):
-            raise ValueError("lookup_values must be a dictionary")
+            raise ValueError("lookup_values must be a dictionary")  # noqa: TRY004
         if pk is None:
             raise ValueError("pk cannot be None")
         if extra_values is not None and not isinstance(extra_values, dict):
@@ -4843,9 +4755,7 @@ class Table(Queryable):
             } not in unique_column_sets:
                 self.create_index(lookup_values.keys(), unique=True)
             # IS rather than = so that null values are matched correctly
-            wheres = [
-                "{} IS ?".format(quote_identifier(column)) for column in lookup_values
-            ]
+            wheres = [f"{quote_identifier(column)} IS ?" for column in lookup_values]
             rows = list(
                 self.rows_where(
                     " and ".join(wheres), [value for _, value in lookup_values.items()]
@@ -4885,12 +4795,10 @@ class Table(Queryable):
     def m2m(
         self,
         other_table: Union[str, "Table"],
-        record_or_iterable: Optional[
-            Union[Iterable[Dict[str, Any]], Dict[str, Any]]
-        ] = None,
-        pk: Optional[Union[Any, Default]] = DEFAULT,
-        lookup: Optional[Dict[str, Any]] = None,
-        m2m_table: Optional[str] = None,
+        record_or_iterable: Iterable[dict[str, Any]] | dict[str, Any] | None = None,
+        pk: Any | Default | None = DEFAULT,
+        lookup: dict[str, Any] | None = None,
+        m2m_table: str | None = None,
         alter: bool = False,
     ):
         """
@@ -4923,8 +4831,8 @@ class Table(Queryable):
                 raise ValueError("Provide lookup= or record, not both")
         elif record_or_iterable is None:
             raise ValueError("Provide lookup= or record, not both")
-        tables = list(sorted([self.name, other_table.name]))
-        columns = ["{}_id".format(t) for t in tables]
+        tables = sorted([self.name, other_table.name])
+        columns = [f"{t}_id" for t in tables]
         if m2m_table is not None:
             m2m_table_name = m2m_table
         else:
@@ -4934,9 +4842,7 @@ class Table(Queryable):
                 m2m_table_name = candidates[0]
             elif len(candidates) > 1:
                 raise NoObviousTable(
-                    "No single obvious m2m table for {}, {} - use m2m_table= parameter".format(
-                        self.name, other_table.name
-                    )
+                    f"No single obvious m2m table for {self.name}, {other_table.name} - use m2m_table= parameter"
                 )
             else:
                 # If not, create a new table
@@ -4947,7 +4853,7 @@ class Table(Queryable):
             if isinstance(record_or_iterable, Mapping):
                 records = [record_or_iterable]
             else:
-                records = cast(List, record_or_iterable)
+                records = cast(list, record_or_iterable)
             # Ensure each record exists in other table
             for record in records:
                 id = other_table.insert(
@@ -4955,8 +4861,8 @@ class Table(Queryable):
                 ).last_pk
                 m2m_table_obj.insert(
                     {
-                        "{}_id".format(other_table.name): id,
-                        "{}_id".format(self.name): our_id,
+                        f"{other_table.name}_id": id,
+                        f"{self.name}_id": our_id,
                     },
                     replace=True,
                 )
@@ -4964,8 +4870,8 @@ class Table(Queryable):
             id = other_table.lookup(lookup)
             m2m_table_obj.insert(
                 {
-                    "{}_id".format(other_table.name): id,
-                    "{}_id".format(self.name): our_id,
+                    f"{other_table.name}_id": id,
+                    f"{self.name}_id": our_id,
                 },
                 replace=True,
             )
@@ -5012,21 +4918,19 @@ class Table(Queryable):
         table_quoted = quote_identifier(table)
         column_quoted = quote_identifier(column)
         num_null = db.execute(
-            "select count(*) from {} where {} is null".format(
-                table_quoted, column_quoted
-            )
+            f"select count(*) from {table_quoted} where {column_quoted} is null"
         ).fetchone()[0]
         num_blank = db.execute(
-            "select count(*) from {} where {} = ''".format(table_quoted, column_quoted)
+            f"select count(*) from {table_quoted} where {column_quoted} = ''"
         ).fetchone()[0]
         num_distinct = db.execute(
-            "select count(distinct {}) from {}".format(column_quoted, table_quoted)
+            f"select count(distinct {column_quoted}) from {table_quoted}"
         ).fetchone()[0]
         most_common_results = None
         least_common_results = None
         if num_distinct == 1:
             value = db.execute(
-                "select {} from {} limit 1".format(column_quoted, table_quoted)
+                f"select {column_quoted} from {table_quoted} limit 1"
             ).fetchone()[0]
             most_common_results = [(truncate(value), total_rows)]
         elif num_distinct != total_rows:
@@ -5038,13 +4942,10 @@ class Table(Queryable):
                     most_common_results = [
                         (truncate(r[0]), r[1])
                         for r in db.execute(
-                            "select {}, count(*) from {} group by {} order by count(*) desc, {} limit {}".format(
-                                column_quoted,
-                                table_quoted,
-                                column_quoted,
-                                column_quoted,
-                                common_limit,
-                            )
+                            f"select {column_quoted}, count(*) "
+                            f"from {table_quoted} group by {column_quoted} "
+                            f"order by count(*) desc, {column_quoted} "
+                            f"limit {common_limit}"
                         ).fetchall()
                     ]
                     most_common_results.sort(key=lambda p: (p[1], p[0]), reverse=True)
@@ -5056,13 +4957,10 @@ class Table(Queryable):
                     least_common_results = [
                         (truncate(r[0]), r[1])
                         for r in db.execute(
-                            "select {}, count(*) from {} group by {} order by count(*), {} desc limit {}".format(
-                                column_quoted,
-                                table_quoted,
-                                column_quoted,
-                                column_quoted,
-                                common_limit,
-                            )
+                            f"select {column_quoted}, count(*) "
+                            f"from {table_quoted} group by {column_quoted} "
+                            f"order by count(*), {column_quoted} desc "
+                            f"limit {common_limit}"
                         ).fetchall()
                     ]
                     least_common_results.sort(key=lambda p: (p[1], p[0]))
@@ -5179,7 +5077,7 @@ class View(Queryable):
         """
 
         try:
-            self.db.execute("DROP VIEW {}".format(quote_identifier(self.name)))
+            self.db.execute(f"DROP VIEW {quote_identifier(self.name)}")
         except sqlite3.OperationalError:
             if not ignore:
                 raise
@@ -5192,16 +5090,14 @@ def jsonify_if_needed(value: object) -> object:
         return json.dumps(value, default=repr, ensure_ascii=False)
     elif isinstance(value, (datetime.time, datetime.date, datetime.datetime)):
         return value.isoformat()
-    elif isinstance(value, datetime.timedelta):
-        return str(value)
-    elif isinstance(value, uuid.UUID):
+    elif isinstance(value, (datetime.timedelta, uuid.UUID)):
         return str(value)
     else:
         return value
 
 
 def resolve_extracts(
-    extracts: Optional[Union[Dict[str, str], List[str], Tuple[str]]],
+    extracts: dict[str, str] | list[str] | tuple[str] | None,
 ) -> dict:
     if extracts is None:
         extracts = {}

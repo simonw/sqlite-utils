@@ -1,6 +1,7 @@
 """Tests for compound (multi-column) foreign keys - issue #594."""
 
 import pytest
+
 from sqlite_utils import Database
 from sqlite_utils.db import AlterError, ForeignKey
 from sqlite_utils.utils import sqlite3
@@ -64,7 +65,7 @@ def test_foreign_key_no_longer_unpacks_as_tuple(fresh_db):
     fresh_db["books"].add_foreign_key("author_id", "authors", "id")
     fk = fresh_db["books"].foreign_keys[0]
     with pytest.raises(TypeError):
-        table, column, other_table, other_column = fk
+        _table, _column, _other_table, _other_column = fk
     with pytest.raises(TypeError):
         fk[0]
 

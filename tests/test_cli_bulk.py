@@ -1,10 +1,12 @@
-from click.testing import CliRunner
-from sqlite_utils import cli, Database
 import pathlib
-import pytest
 import subprocess
 import sys
 import time
+
+import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import Database, cli
 
 
 @pytest.fixture

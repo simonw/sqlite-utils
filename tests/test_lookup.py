@@ -1,5 +1,6 @@
-from sqlite_utils.db import Index
 import pytest
+
+from sqlite_utils.db import Index
 
 
 def test_lookup_new_table(fresh_db):

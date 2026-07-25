@@ -1,7 +1,9 @@
-from sqlite_utils import cli, Database
-from click.testing import CliRunner
 import pathlib
+
 import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import Database, cli
 
 sniff_dir = pathlib.Path(__file__).parent / "sniff"
 

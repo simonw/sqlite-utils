@@ -1,7 +1,8 @@
 import pathlib
 
-from click.testing import CliRunner
 import pytest
+from click.testing import CliRunner
+
 import sqlite_utils
 import sqlite_utils.cli
 

@@ -1,5 +1,6 @@
-from hypothesis import given
 import hypothesis.strategies as st
+from hypothesis import given
+
 import sqlite_utils
 
 

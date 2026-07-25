@@ -1,9 +1,12 @@
-from click.testing import CliRunner
-import click
 import importlib
-import pytest
+import sqlite3
 import sys
-from sqlite_utils import cli, Database, hookimpl, plugins
+
+import click
+import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import Database, cli, hookimpl, plugins
 
 
 def _supports_pragma_function_list():
@@ -11,7 +14,7 @@ def _supports_pragma_function_list():
     try:
         db.execute("select * from pragma_function_list()")
         return True
-    except Exception:
+    except sqlite3.DatabaseError:
         return False
     finally:
         db.close()

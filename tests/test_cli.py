@@ -1,14 +1,16 @@
-from sqlite_utils import cli, Database
-from sqlite_utils.db import Index, ForeignKey
-from click.testing import CliRunner
-from pathlib import Path
-import subprocess
-import sqlite3
-import sys
 import json
 import os
-import pytest
+import sqlite3
+import subprocess
+import sys
 import textwrap
+from pathlib import Path
+
+import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import Database, cli
+from sqlite_utils.db import ForeignKey, Index
 
 
 def write_json(file_path, data):
@@ -21,7 +23,7 @@ def _supports_pragma_function_list():
     try:
         db.execute("select * from pragma_function_list()")
         return True
-    except Exception:
+    except sqlite3.DatabaseError:
         return False
     finally:
         db.close()
@@ -184,9 +186,9 @@ def test_output_table(db_path, options, expected):
         db["rows"].insert_all(
             [
                 {
-                    "c1": "verb{}".format(i),
-                    "c2": "noun{}".format(i),
-                    "c3": "adjective{}".format(i),
+                    "c1": f"verb{i}",
+                    "c2": f"noun{i}",
+                    "c3": f"adjective{i}",
                 }
                 for i in range(4)
             ]
@@ -678,9 +680,9 @@ def test_optimize(db_path, tables):
             db[table].insert_all(
                 [
                     {
-                        "c1": "verb{}".format(i),
-                        "c2": "noun{}".format(i),
-                        "c3": "adjective{}".format(i),
+                        "c1": f"verb{i}",
+                        "c2": f"noun{i}",
+                        "c3": f"adjective{i}",
                     }
                     for i in range(10000)
                 ]
@@ -704,9 +706,9 @@ def test_rebuild_fts_fixes_docsize_error(db_path):
     db = Database(db_path, recursive_triggers=False)
     records = [
         {
-            "c1": "verb{}".format(i),
-            "c2": "noun{}".format(i),
-            "c3": "adjective{}".format(i),
+            "c1": f"verb{i}",
+            "c2": f"noun{i}",
+            "c3": f"adjective{i}",
         }
         for i in range(10000)
     ]
@@ -1019,16 +1021,14 @@ def test_query_json_binary(db_path):
             "data": {
                 "$base64": True,
                 "encoded": (
-                    (
-                        "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH"
-                        "8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+"
-                        "DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I"
-                        "/K+5Au3S/9lNQRh0k4Gq/RUz8GiKfsQm+7JLsJ6fTo5JhVG00ZU76kZZkxePx49uI"
-                        "jnpNoJyYlWUsoaSl/CcVATje/Kxu13RANnrHweaH3V5Jh4jvGyKCnxJLiXPKhmW3f"
-                        "iCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8"
-                        "IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984A"
-                        "Mf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9"
-                    )
+                    "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH"
+                    "8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+"
+                    "DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I"
+                    "/K+5Au3S/9lNQRh0k4Gq/RUz8GiKfsQm+7JLsJ6fTo5JhVG00ZU76kZZkxePx49uI"
+                    "jnpNoJyYlWUsoaSl/CcVATje/Kxu13RANnrHweaH3V5Jh4jvGyKCnxJLiXPKhmW3f"
+                    "iCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8"
+                    "IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984A"
+                    "Mf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9"
                 ),
             },
         }
@@ -2114,11 +2114,13 @@ _common_other_schema = (
         ),
         (
             ["--rename", "name", "name2"],
-            'CREATE TABLE "trees" (\n'
-            '   "id" INTEGER PRIMARY KEY,\n'
-            '   "address" TEXT,\n'
-            '   "species_id" INTEGER REFERENCES "species"("id")\n'
-            ")",
+            (
+                'CREATE TABLE "trees" (\n'
+                '   "id" INTEGER PRIMARY KEY,\n'
+                '   "address" TEXT,\n'
+                '   "species_id" INTEGER REFERENCES "species"("id")\n'
+                ")"
+            ),
             'CREATE TABLE "species" (\n   "id" INTEGER PRIMARY KEY,\n   "species" TEXT\n)',
         ),
     ],
@@ -2137,9 +2139,9 @@ def test_extract(db_path, args, expected_table_schema, expected_other_schema):
     assert result.exit_code == 0
     schema = db["trees"].schema
     assert schema == expected_table_schema
-    other_schema = [t for t in db.tables if t.name not in ("trees", "Gosh", "Gosh2")][
-        0
-    ].schema
+    other_schema = next(
+        t for t in db.tables if t.name not in ("trees", "Gosh", "Gosh2")
+    ).schema
     assert other_schema == expected_other_schema
 
 
@@ -2431,7 +2433,7 @@ def test_long_csv_column_value(tmpdir):
     with open(csv_path, "w") as csv_file:
         long_string = "a" * 131073
         csv_file.write("id,text\n")
-        csv_file.write("1,{}\n".format(long_string))
+        csv_file.write(f"1,{long_string}\n")
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "bigtable", csv_path, "--csv"],
@@ -2457,8 +2459,8 @@ def test_import_no_headers(tmpdir, args, tsv):
     csv_path = str(tmpdir / "test.csv")
     with open(csv_path, "w") as csv_file:
         sep = "\t" if tsv else ","
-        csv_file.write("Cleo{sep}Dog{sep}5\n".format(sep=sep))
-        csv_file.write("Tracy{sep}Spider{sep}7\n".format(sep=sep))
+        csv_file.write(f"Cleo{sep}Dog{sep}5\n")
+        csv_file.write(f"Tracy{sep}Spider{sep}7\n")
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "creatures", csv_path] + args + ["--no-detect-types"],
@@ -2690,7 +2692,9 @@ def test_integer_overflow_error(tmpdir):
 def test_python_dash_m():
     "Tool can be run using python -m sqlite_utils"
     result = subprocess.run(
-        [sys.executable, "-m", "sqlite_utils", "--help"], stdout=subprocess.PIPE
+        [sys.executable, "-m", "sqlite_utils", "--help"],
+        stdout=subprocess.PIPE,
+        check=False,
     )
     assert result.returncode == 0
     assert b"Commands for interacting with a SQLite database" in result.stdout
@@ -2830,14 +2834,14 @@ def test_load_extension(entrypoint, should_pass, should_fail):
     for func in should_pass:
         result = CliRunner().invoke(
             cli.cli,
-            ["memory", "select {}()".format(func), "--load-extension", ext],
+            ["memory", f"select {func}()", "--load-extension", ext],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
     for func in should_fail:
         result = CliRunner().invoke(
             cli.cli,
-            ["memory", "select {}()".format(func), "--load-extension", ext],
+            ["memory", f"select {func}()", "--load-extension", ext],
             catch_exceptions=False,
         )
         assert result.exit_code == 1

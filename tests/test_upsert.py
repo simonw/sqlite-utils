@@ -1,6 +1,7 @@
-from sqlite_utils.db import PrimaryKeyRequired
-from sqlite_utils import Database
 import pytest
+
+from sqlite_utils import Database
+from sqlite_utils.db import PrimaryKeyRequired
 
 
 @pytest.mark.parametrize("use_old_upsert", (False, True))

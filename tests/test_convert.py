@@ -1,5 +1,6 @@
-from sqlite_utils.db import BadMultiValues
 import pytest
+
+from sqlite_utils.db import BadMultiValues
 
 
 @pytest.mark.parametrize(
