@@ -16,6 +16,7 @@
   uv run ty check sqlite_utils
   uv run cog --check README.md docs/*.rst
   uv run --group docs codespell docs/*.rst --ignore-words docs/codespell-ignore-words.txt
+  uv run --group docs codespell sqlite_utils --ignore-words docs/codespell-ignore-words.txt
 
 # Rebuild docs with cog
 @cog:
