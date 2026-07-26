@@ -312,6 +312,7 @@ def test_table_strict(fresh_db, create_table, expected_strict):
         1,
         1.3,
         "foo",
+        "O'Brien",
         True,
         b"binary",
     ),
@@ -322,6 +323,16 @@ def test_table_default_values(fresh_db, value):
     )
     default_values = fresh_db["default_values"].default_values
     assert default_values == {"value": value}
+
+
+def test_table_default_values_escaped_quotes(fresh_db):
+    # SQLite stores string defaults with single quotes doubled, so
+    # introspection needs to unescape them again
+    fresh_db.execute(
+        "create table t (id integer primary key, name text default 'O''Brien')"
+    )
+    assert "default 'O''Brien'" in fresh_db["t"].schema
+    assert fresh_db["t"].default_values == {"name": "O'Brien"}
 
 
 def test_pks_use_primary_key_declaration_order(fresh_db):
