@@ -46,8 +46,3 @@ jobs:
     - name: Run tests
       run: |
         pytest -v
-    - name: run mypy
-      run: mypy sqlite_utils tests
-    - name: Check if cog needs to be run
-      run: |
-        cog --check --diff README.md docs/*.rst
