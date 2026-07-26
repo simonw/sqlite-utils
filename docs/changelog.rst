@@ -4,6 +4,13 @@
  Changelog
 ===========
 
+.. _v3_39_1:
+
+3.39.1 (2026-07-25)
+-------------------
+
+- Fixed a bug where ``table.delete_where()`` left the connection in an open transaction, causing deleted rows to be silently restored when the connection was closed. (:issue:`815`)
+
 .. _v3_39:
 
 3.39 (2025-11-24)
