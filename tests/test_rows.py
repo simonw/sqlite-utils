@@ -70,6 +70,13 @@ def test_rows_where_offset_limit(fresh_db, offset, limit, expected):
     ]
 
 
+def test_rows_where_offset_without_limit(fresh_db):
+    table = fresh_db["rows"]
+    table.insert_all([{"id": id} for id in range(1, 6)], pk="id")
+    ids = [r["id"] for r in table.rows_where(offset=2, order_by="id")]
+    assert ids == [3, 4, 5]
+
+
 def test_pks_and_rows_where_rowid(fresh_db):
     table = fresh_db["rowid_table"]
     table.insert_all({"number": i + 10} for i in range(3))
