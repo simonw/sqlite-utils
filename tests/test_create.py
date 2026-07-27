@@ -110,6 +110,13 @@ def test_create_table_with_defaults(fresh_db):
     ) == table.schema
 
 
+def test_create_table_with_unknown_string_type(fresh_db):
+    table = fresh_db.create_table("t", {"id": int, "value": "NUMERIC"}, pk="id")
+    assert table.schema == 'CREATE TABLE "t" (\n   "id" INTEGER PRIMARY KEY,\n   "value" NUMERIC\n)'
+    table2 = fresh_db.create_table("t2", {"id": int, "misc": "ANY"}, pk="id")
+    assert table2.schema == 'CREATE TABLE "t2" (\n   "id" INTEGER PRIMARY KEY,\n   "misc" ANY\n)'
+
+
 def test_create_table_with_bad_not_null(fresh_db):
     with pytest.raises(ValueError):
         fresh_db.create_table(
@@ -375,6 +382,18 @@ def test_create_error_if_invalid_self_referential_foreign_keys(fresh_db):
             'CREATE TABLE "dogs" (\n   "name" TEXT\n, "float" FLOAT)',
         ),
         ("blob", "blob", None, 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
+        (
+            "score",
+            "NUMERIC",
+            None,
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "score" NUMERIC)',
+        ),
+        (
+            "misc",
+            "ANY",
+            None,
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "misc" ANY)',
+        ),
         (
             "default_str",
             None,
