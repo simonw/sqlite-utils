@@ -3107,6 +3107,16 @@ You can optimize your database by running VACUUM against it like so:
 .. note::
     In the CLI: :ref:`sqlite-utils vacuum <cli_vacuum>`
 
+Running VACUUM (or other operations that rebuild the database, such as :ref:`table.extract() <python_api_extract>`) against a very large database may fail with ``OperationalError: database or disk is full`` when ``/tmp`` does not have enough space for the temporary rebuild. SQLite uses a temporary file by default; you can ask it to use memory instead by setting `PRAGMA temp_store <https://www.sqlite.org/pragma.html#pragma_temp_store>`__ to ``MEMORY`` on the connection:
+
+.. code-block:: python
+
+    db = Database("my_database.db")
+    db.execute("PRAGMA temp_store = MEMORY")
+    db.vacuum()
+
+This makes SQLite hold the temporary state in RAM, which avoids the ``/tmp`` size limit at the cost of additional memory usage.
+
 .. _python_api_wal:
 
 WAL mode
