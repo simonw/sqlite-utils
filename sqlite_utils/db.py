@@ -1480,7 +1480,9 @@ class Database:
                 column_extras.append(
                     f"REFERENCES {quote_identifier(fk.other_table)}({quote_identifier(cast(str, fk.other_column))}){_fk_actions_sql(fk)}"
                 )
-            column_type_str = COLUMN_TYPE_MAPPING[column_type]
+            column_type_str = COLUMN_TYPE_MAPPING.get(column_type) or (
+                column_type if isinstance(column_type, str) else COLUMN_TYPE_MAPPING[column_type]
+            )
             # Special case for strict tables to map FLOAT to REAL
             # Refs https://github.com/simonw/sqlite-utils/issues/644
             if strict and column_type_str == "FLOAT":
@@ -3121,7 +3123,9 @@ class Table(Queryable):
         sql = "ALTER TABLE {} ADD COLUMN {} {col_type}{not_null_default};".format(
             quote_identifier(self.name),
             quote_identifier(col_name),
-            col_type=fk_col_type or COLUMN_TYPE_MAPPING[col_type],
+            col_type=fk_col_type or COLUMN_TYPE_MAPPING.get(col_type) or (
+                col_type if isinstance(col_type, str) else COLUMN_TYPE_MAPPING[col_type]
+            ),
             not_null_default=(" " + not_null_sql) if not_null_sql else "",
         )
         self.db.execute(sql)
