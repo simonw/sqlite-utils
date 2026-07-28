@@ -38,6 +38,7 @@ Contents
    python-api
    migrations
    plugins
+   plugin-directory
    reference
    cli-reference
    upgrading
