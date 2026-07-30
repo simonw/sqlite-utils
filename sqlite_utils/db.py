@@ -2003,6 +2003,9 @@ class Queryable:
         if limit is not None:
             sql += f" limit {limit}"
         if offset is not None:
+            # SQLite requires LIMIT when OFFSET is used (issue #816).
+            if limit is None:
+                sql += " limit -1"
             sql += f" offset {offset}"
         cursor = self.db.execute(sql, where_args or [])
         columns = dedupe_keys(c[0] for c in cursor.description)
@@ -3594,6 +3597,9 @@ class Table(Queryable):
         if limit is not None:
             limit_offset += f" limit {limit}"
         if offset is not None:
+            # SQLite requires LIMIT when OFFSET is used (issue #816).
+            if limit is None and " limit " not in limit_offset:
+                limit_offset += " limit -1"
             limit_offset += f" offset {offset}"
         return sql.format(
             dbtable=quote_identifier(self.name),
