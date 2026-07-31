@@ -785,6 +785,28 @@ def test_transform_to_strict_not_supported(fresh_db, method_name):
     assert table.strict is False
 
 
+def test_transform_preserves_any_column_in_strict_table(fresh_db):
+    if not fresh_db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    fresh_db.conn.execute(
+        "create table things (id integer primary key, data any) strict"
+    )
+    fresh_db.conn.execute("insert into things values (1, 42)")
+    fresh_db.conn.execute("insert into things values (2, 'text')")
+    fresh_db.conn.execute("insert into things values (3, 3.14)")
+    table = fresh_db["things"]
+
+    # transform() must preserve ANY columns without crashing or changing the type
+    table.transform()
+    assert table.strict is True
+    assert table.columns_dict == {"id": int, "data": "ANY"}
+    assert list(table.rows) == [
+        {"id": 1, "data": 42},
+        {"id": 2, "data": "text"},
+        {"id": 3, "data": 3.14},
+    ]
+
+
 @pytest.mark.parametrize(
     "indexes, transform_params",
     [

@@ -177,6 +177,8 @@ def column_affinity(column_type: str) -> type:
         return bytes
     if "REAL" in column_type or "FLOA" in column_type or "DOUB" in column_type:
         return float
+    if column_type == "ANY":
+        return "ANY"  # type: ignore[return-value]
     # Default is 'NUMERIC', which we currently also treat as float
     return float
 
