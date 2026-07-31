@@ -343,6 +343,8 @@ COLUMN_TYPE_MAPPING: dict[Any, str] = {
     "real": "REAL",
     "blob": "BLOB",
     "bytes": "BLOB",
+    "ANY": "ANY",
+    "any": "ANY",
 }
 # If numpy is available, add more types
 if np:
