@@ -1379,6 +1379,7 @@ class Database:
         extracts: dict[str, str] | list[str] | None = None,
         if_not_exists: bool = False,
         strict: bool = False,
+        autoincrement: bool = False,
     ) -> str:
         """
         Returns the SQL ``CREATE TABLE`` statement for creating the specified table.
@@ -1469,6 +1470,8 @@ class Database:
             column_extras = []
             if column_name == single_pk:
                 column_extras.append("PRIMARY KEY")
+                if autoincrement:
+                    column_extras.append("AUTOINCREMENT")
             if column_name in not_null:
                 column_extras.append("NOT NULL")
             if column_name in defaults and defaults[column_name] is not None:
@@ -2793,6 +2796,8 @@ class Table(Queryable):
         if column_order is not None:
             column_order = [rename.get(col) or col for col in column_order]
 
+        has_autoincrement = "autoincrement" in self.schema.lower()
+
         sqls = []
         sqls.append(
             self.db.create_table_sql(
@@ -2804,6 +2809,7 @@ class Table(Queryable):
                 foreign_keys=create_table_foreign_keys,
                 column_order=column_order,
                 strict=self.strict if strict is None else strict,
+                autoincrement=has_autoincrement,
             ).strip()
         )
 
