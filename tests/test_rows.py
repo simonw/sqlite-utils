@@ -59,6 +59,9 @@ def test_rows_where_order_by(where, order_by, expected_ids, fresh_db):
         (None, 3, [1, 2, 3]),
         (0, 3, [1, 2, 3]),
         (3, 3, [4, 5, 6]),
+        # offset without limit should return every remaining row
+        (97, None, [98, 99, 100]),
+        (0, None, list(range(1, 101))),
     ],
 )
 def test_rows_where_offset_limit(fresh_db, offset, limit, expected):
@@ -68,6 +71,12 @@ def test_rows_where_offset_limit(fresh_db, offset, limit, expected):
     assert expected == [
         r["id"] for r in table.rows_where(offset=offset, limit=limit, order_by="id")
     ]
+
+
+def test_pks_and_rows_where_offset_without_limit(fresh_db):
+    table = fresh_db["rows"]
+    table.insert_all([{"id": id} for id in range(1, 6)], pk="id")
+    assert [pk for pk, _ in table.pks_and_rows_where(offset=3, order_by="id")] == [4, 5]
 
 
 def test_pks_and_rows_where_rowid(fresh_db):
