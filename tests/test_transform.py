@@ -827,6 +827,19 @@ def test_transform_indexes(fresh_db, indexes, transform_params):
         )
 
 
+def test_transform_rename_column_with_index(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/822
+    table = fresh_db["t"]
+    table.insert({"id": 1, "name": "Alice"}, pk="id")
+    table.create_index(["name"])
+    # Renaming an indexed column should not raise TransformError
+    table.transform(rename={"name": "full_name"})
+    assert [col.name for col in table.columns] == ["id", "full_name"]
+    # The index should be recreated on the new column name
+    assert len(table.indexes) == 1
+    assert table.indexes[0].columns == ["full_name"]
+
+
 def test_transform_retains_indexes_with_foreign_keys(fresh_db):
     dogs = fresh_db["dogs"]
     owners = fresh_db["owners"]
@@ -855,28 +868,33 @@ def test_transform_retains_indexes_with_foreign_keys(fresh_db):
     ), f"Indexes before transform: {indexes_before_transform}\nIndexes after transform: {dogs.indexes}"
 
 
-@pytest.mark.parametrize(
-    "transform_params",
-    [
-        {"rename": {"age": "dog_age"}},
-        {"drop": ["age"]},
-    ],
-)
-def test_transform_with_indexes_errors(fresh_db, transform_params):
-    # Should error with a compound (name, age) index if age is renamed or dropped
+def test_transform_with_indexes_errors(fresh_db):
+    # Should error with a compound (name, age) index if age is dropped
     dogs = fresh_db["dogs"]
     dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
 
     dogs.create_index(["name", "age"])
 
     with pytest.raises(TransformError) as excinfo:
-        dogs.transform(**transform_params)
+        dogs.transform(drop=["age"])
 
     assert (
         "Index 'idx_dogs_name_age' column 'age' is not in updated table 'dogs'. "
         "You must manually drop this index prior to running this transformation"
         in str(excinfo.value)
     )
+
+
+def test_transform_rename_column_in_compound_index(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/822
+    # Renaming a column in a compound index should update the index, not error
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
+    dogs.create_index(["name", "age"])
+    dogs.transform(rename={"age": "dog_age"})
+    assert [col.name for col in dogs.columns] == ["id", "name", "dog_age"]
+    assert len(dogs.indexes) == 1
+    assert dogs.indexes[0].columns == ["name", "dog_age"]
 
 
 def test_transform_with_unique_constraint_implicit_index(fresh_db):
