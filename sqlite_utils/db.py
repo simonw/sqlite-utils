@@ -2851,12 +2851,16 @@ class Table(Queryable):
                 if keep_table:
                     sqls.append(f"DROP INDEX IF EXISTS {quote_identifier(index.name)};")
                 for col in index.columns:
-                    if col in rename or col in drop:
+                    if col in drop:
                         raise TransformError(
                             f"Index '{index.name}' column '{col}' is not in updated table '{self.name}'. "
                             f"You must manually drop this index prior to running this transformation "
                             f"and manually recreate the new index after running this transformation. "
                             f"The original index sql statement is: `{index_sql}`. No changes have been applied to this table."
+                        )
+                    elif col in rename:
+                        index_sql = index_sql.replace(
+                            quote_identifier(col), quote_identifier(rename[col])
                         )
                 sqls.append(index_sql)
         return sqls
