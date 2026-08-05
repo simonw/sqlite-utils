@@ -184,6 +184,21 @@ You can attach an additional database using the ``.attach()`` method, providing 
 
 You can reference tables in the attached database using the alias value you passed to ``db.attach(alias, filepath)`` as a prefix, for example the ``second.table_in_second`` reference in the SQL query above.
 
+The same ``alias.table`` syntax works with ``db[...]`` to get back a :class:`.Table` object for a table in the attached database, with ``.alias`` set to the attached database's alias:
+
+.. code-block:: python
+
+    table = db["second.table_in_second"]
+    table.alias  # "second"
+    table.exists()  # True, if it exists in second.db
+    list(table.rows_where("id > ?", [10]))
+    table.insert({"id": 20, "name": "example"})
+    table.delete_where("id = ?", [20])
+
+Core operations - ``exists()``, ``columns``, ``schema``, ``rows_where()``, ``get()``, ``insert()``/``insert_all()``, ``update()``, ``delete()``/``delete_where()``, ``add_column()`` and ``drop()`` - all work against attached tables this way, as does the ``temp`` schema for tables created with ``CREATE TEMPORARY TABLE``, for example ``db["temp.scratch"]``.
+
+Schema-mutating methods that are not yet supported for attached or temp tables - such as ``.create()``, ``.transform()``, ``.create_index()`` and ``.enable_fts()`` - raise ``NotImplementedError`` rather than silently operating on a same-named table in the main schema.
+
 .. note::
     In the CLI: :ref:`sqlite-utils --attach <cli_query_attach>`
 

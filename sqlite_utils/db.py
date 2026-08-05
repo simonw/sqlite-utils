@@ -720,11 +720,30 @@ class Database:
         If neither exists yet, a table is assumed - it will be created the first
         time data is inserted into it.
 
-        :param table_name: The name of the table or view
+        A name of the form ``"alias.table"``, where ``alias`` is the ``temp``
+        schema or a database attached with :meth:`.attach`, returns the table
+        or view from that schema instead of the main one - see :ref:`python_api_attach`.
+
+        :param table_name: The name of the table or view, optionally prefixed with ``alias.``
         """
-        if table_name in self.view_names():
-            return self.view(table_name)
-        return self.table(table_name)
+        alias, table_name = self._resolve_alias(table_name)
+        if table_name in self.view_names(alias=alias):
+            return self.view(table_name, alias=alias)
+        return self.table(table_name, alias=alias)
+
+    def _resolve_alias(self, table_name: str) -> tuple[str | None, str]:
+        """
+        Split ``"alias.table"`` into ``(alias, table)`` when ``alias`` names the
+        ``temp`` schema or a database attached with :meth:`.attach`. Otherwise
+        returns ``(None, table_name)`` unchanged, so a plain name - or one that
+        happens to contain a "." but does not match a known schema - is treated
+        as a literal main-schema table name exactly as before.
+        """
+        if "." in table_name:
+            alias, _, rest = table_name.partition(".")
+            if alias in self.schema_names:
+                return alias, rest
+        return None, table_name
 
     def __repr__(self) -> str:
         return f"<Database {self.conn}>"
@@ -942,32 +961,36 @@ class Database:
             return cursor
         return self.conn.executescript(sql)
 
-    def table(self, table_name: str, **kwargs: Any) -> "Table":
+    def table(self, table_name: str, alias: str | None = None, **kwargs: Any) -> "Table":
         """
         Return a table object, optionally configured with default options.
 
         See :ref:`reference_db_table` for option details.
 
         :param table_name: Name of the table
+        :param alias: Look for the table in this attached or ``temp`` schema
+          instead of the main schema, see :ref:`python_api_attach`
         """
-        if table_name in self.view_names():
+        if table_name in self.view_names(alias=alias):
             raise NoTable(f"Table {table_name} is actually a view")
         kwargs.setdefault("strict", self.strict)
-        return Table(self, table_name, **kwargs)
+        return Table(self, table_name, alias=alias, **kwargs)
 
-    def view(self, view_name: str) -> "View":
+    def view(self, view_name: str, alias: str | None = None) -> "View":
         """
         Return a view object.
 
         :param view_name: Name of the view
+        :param alias: Look for the view in this attached or ``temp`` schema
+          instead of the main schema, see :ref:`python_api_attach`
         """
-        if view_name not in self.view_names():
-            if view_name in self.table_names():
+        if view_name not in self.view_names(alias=alias):
+            if view_name in self.table_names(alias=alias):
                 raise NoView(
                     f"View {view_name} does not exist - {view_name} is a table"
                 )
             raise NoView(f"View {view_name} does not exist")
-        return View(self, view_name)
+        return View(self, view_name, alias=alias)
 
     def quote(self, value: str) -> str:
         """
@@ -1027,28 +1050,54 @@ class Database:
 
         return self.quote(value)
 
-    def table_names(self, fts4: bool = False, fts5: bool = False) -> list[str]:
+    def table_names(
+        self, fts4: bool = False, fts5: bool = False, alias: str | None = None
+    ) -> list[str]:
         """
         List of string table names in this database.
 
         :param fts4: Only return tables that are part of FTS4 indexes
         :param fts5: Only return tables that are part of FTS5 indexes
+        :param alias: Look in this attached or temp schema instead of the main schema
         """
         where = ["type = 'table'"]
         if fts4:
             where.append("sql like '%USING FTS4%'")
         if fts5:
             where.append("sql like '%USING FTS5%'")
-        sql = "select name from sqlite_master where {}".format(" AND ".join(where))
+        sql = "select name from {} where {}".format(
+            self._sqlite_master(alias), " AND ".join(where)
+        )
         return [r[0] for r in self.execute(sql).fetchall()]
 
-    def view_names(self) -> list[str]:
-        "List of string view names in this database."
+    def view_names(self, alias: str | None = None) -> list[str]:
+        """
+        List of string view names in this database.
+
+        :param alias: Look in this attached or temp schema instead of the main schema
+        """
         return [
             r[0]
             for r in self.execute(
-                "select name from sqlite_master where type = 'view'"
+                f"select name from {self._sqlite_master(alias)} where type = 'view'"
             ).fetchall()
+        ]
+
+    def _sqlite_master(self, alias: str | None = None) -> str:
+        "``sqlite_master``, optionally qualified with an attached/temp schema alias."
+        return f"{quote_identifier(alias)}.sqlite_master" if alias else "sqlite_master"
+
+    @property
+    def schema_names(self) -> list[str]:
+        """
+        Names of the ``temp`` schema and any databases attached with :meth:`.attach`,
+        excluding ``main`` - the schema aliases that can be used to look up a
+        :class:`.Table` or :class:`.View` in a schema other than the main one.
+        """
+        return [
+            row[1]
+            for row in self.execute("PRAGMA database_list").fetchall()
+            if row[1] != "main"
         ]
 
     @property
@@ -1571,6 +1620,14 @@ class Database:
         :param transform: If table already exists transform it to fit the specified schema
         :param strict: Apply STRICT mode to table
         """
+        if self._resolve_alias(name)[0]:
+            # name looks like "alias.table" for a real attached/temp schema -
+            # refuse rather than silently creating a same-named literal
+            # table in the main schema instead, see Table.create()
+            raise NotImplementedError(
+                f"create_table() is not currently supported for a table in "
+                f"an attached or temp schema ({name!r})"
+            )
         # Transform table to match the new definition if table already exists:
         if self[name].exists():
             if ignore:
@@ -1931,14 +1988,34 @@ class Database:
 class Queryable:
     db: "Database"
     name: str
+    alias: str | None
 
     def exists(self) -> bool:
         "Does this table or view exist yet?"
         return False
 
-    def __init__(self, db: "Database", name: str) -> None:
+    def __init__(self, db: "Database", name: str, alias: str | None = None) -> None:
         self.db = db
         self.name = name
+        #: The attached or ``temp`` schema this table/view lives in, or ``None`` for the main schema
+        self.alias = alias
+
+    @property
+    def quoted_name(self) -> str:
+        "This table or view's name, quoted, and schema-qualified if it has an alias."
+        name = quote_identifier(self.name)
+        return f"{quote_identifier(self.alias)}.{name}" if self.alias else name
+
+    @property
+    def schema_prefix(self) -> str:
+        """
+        ``""``, or the quoted alias followed by a ``.`` - for prefixing a PRAGMA
+        name (``PRAGMA {schema_prefix}table_info(...)``) or ``sqlite_master``
+        (``select ... from {schema_prefix}sqlite_master``), the two places
+        SQLite puts the schema name somewhere other than in front of the table
+        name itself.
+        """
+        return f"{quote_identifier(self.alias)}." if self.alias else ""
 
     def count_where(
         self,
@@ -1952,7 +2029,7 @@ class Queryable:
         :param where_args: Parameters to use with that fragment - an iterable for ``id > ?``
           parameters, or a dictionary for ``id > :id``
         """
-        sql = f"select count(*) from {quote_identifier(self.name)}"
+        sql = f"select count(*) from {self.quoted_name}"
         if where is not None:
             sql += " where " + where
         return self.db.execute(sql, where_args or []).fetchone()[0]
@@ -1995,7 +2072,7 @@ class Queryable:
         """
         if not self.exists():
             return
-        sql = f"select {select} from {quote_identifier(self.name)}"
+        sql = f"select {select} from {self.quoted_name}"
         if where is not None:
             sql += " where " + where
         if order_by is not None:
@@ -2063,7 +2140,7 @@ class Queryable:
         if not self.exists():
             return []
         rows = self.db.execute(
-            f"PRAGMA table_info({quote_identifier(self.name)})"
+            f"PRAGMA {self.schema_prefix}table_info({quote_identifier(self.name)})"
         ).fetchall()
         return [Column(*row) for row in rows]
 
@@ -2076,7 +2153,8 @@ class Queryable:
     def schema(self) -> str:
         "SQL schema for this table or view."
         return self.db.execute(
-            "select sql from sqlite_master where name = ?", (self.name,)
+            f"select sql from {self.schema_prefix}sqlite_master where name = ?",
+            (self.name,),
         ).fetchone()[0]
 
 
@@ -2105,6 +2183,7 @@ class Table(Queryable):
     :param conversions: Dictionary of column names and conversion functions
     :param columns: Dictionary of column names to column types
     :param strict: If True, apply STRICT mode to table
+    :param alias: Attached or ``temp`` schema this table lives in, see :ref:`python_api_attach`
     """
 
     #: The ``rowid`` of the last inserted, updated or selected row.
@@ -2131,8 +2210,9 @@ class Table(Queryable):
         conversions: dict | None = None,
         columns: dict[str, Any] | None = None,
         strict: bool = False,
+        alias: str | None = None,
     ):
-        super().__init__(db, name)
+        super().__init__(db, name, alias=alias)
         self._defaults = {
             "pk": pk,
             "foreign_keys": foreign_keys,
@@ -2171,7 +2251,16 @@ class Table(Queryable):
         return self.count_where()
 
     def exists(self) -> bool:
-        return self.name in self.db.table_names()
+        return self.name in self.db.table_names(alias=self.alias)
+
+    def _check_no_alias(self, feature: str) -> None:
+        "Raise a clear error instead of silently touching the wrong schema."
+        if self.alias:
+            raise NotImplementedError(
+                f"{feature} is not currently supported for a table in an "
+                f"attached or temp schema (table {self.name!r} has alias "
+                f"{self.alias!r})"
+            )
 
     @property
     def pks(self) -> list[str]:
@@ -2237,7 +2326,7 @@ class Table(Queryable):
         # with "seq" giving the column order within a compound foreign key.
         by_id: dict[int, list] = {}
         for row in self.db.execute(
-            f"PRAGMA foreign_key_list({quote_identifier(self.name)})"
+            f"PRAGMA {self.schema_prefix}foreign_key_list({quote_identifier(self.name)})"
         ).fetchall():
             if row is not None:
                 id, seq, table_name, from_, to_, on_update, on_delete, _match = row
@@ -2283,14 +2372,14 @@ class Table(Queryable):
     @property
     def indexes(self) -> list[Index]:
         "List of indexes defined on this table."
-        sql = f'PRAGMA index_list("{self.name}")'
+        sql = f'PRAGMA {self.schema_prefix}index_list("{self.name}")'
         indexes = []
         for row in self.db.execute_returning_dicts(sql):
             index_name = row["name"]
             index_name_quoted = (
                 f'"{index_name}"' if not index_name.startswith('"') else index_name
             )
-            column_sql = f"PRAGMA index_info({index_name_quoted})"
+            column_sql = f"PRAGMA {self.schema_prefix}index_info({index_name_quoted})"
             columns = []
             for seqno, cid, name in self.db.execute(column_sql).fetchall():
                 columns.append(name)
@@ -2305,14 +2394,14 @@ class Table(Queryable):
     @property
     def xindexes(self) -> list[XIndex]:
         "List of indexes defined on this table using the more detailed ``XIndex`` format."
-        sql = f'PRAGMA index_list("{self.name}")'
+        sql = f'PRAGMA {self.schema_prefix}index_list("{self.name}")'
         indexes = []
         for row in self.db.execute_returning_dicts(sql):
             index_name = row["name"]
             index_name_quoted = (
                 f'"{index_name}"' if not index_name.startswith('"') else index_name
             )
-            column_sql = f"PRAGMA index_xinfo({index_name_quoted})"
+            column_sql = f"PRAGMA {self.schema_prefix}index_xinfo({index_name_quoted})"
             index_columns = []
             for info in self.db.execute(column_sql).fetchall():
                 index_columns.append(XIndexColumn(*info))
@@ -2325,8 +2414,8 @@ class Table(Queryable):
         return [
             Trigger(*r)
             for r in self.db.execute(
-                "select name, tbl_name, sql from sqlite_master where type = 'trigger'"
-                " and tbl_name = ?",
+                f"select name, tbl_name, sql from {self.schema_prefix}sqlite_master"
+                " where type = 'trigger' and tbl_name = ?",
                 (self.name,),
             ).fetchall()
         ]
@@ -2389,6 +2478,7 @@ class Table(Queryable):
         :param transform: If table already exists transform it to fit the specified schema
         :param strict: Apply STRICT mode to table
         """
+        self._check_no_alias("create()")
         # Resolve defaults from _defaults (issue #655)
         pk = self.value_or_default("pk", pk)
         foreign_keys = self.value_or_default("foreign_keys", foreign_keys)
@@ -2448,6 +2538,7 @@ class Table(Queryable):
 
         :param new_name: Name of the new table
         """
+        self._check_no_alias("duplicate()")
         if not self.exists():
             raise NoTable(f"Table {self.name} does not exist")
         with self.db.atomic():
@@ -2500,6 +2591,7 @@ class Table(Queryable):
         :param strict: Set to ``True`` to make the table strict or ``False`` to make it
           non-strict. Defaults to ``None``, which preserves the existing strict mode.
         """
+        self._check_no_alias("transform()")
         if not self.exists():
             raise ValueError("Cannot transform a table that doesn't exist yet")
         sqls = self.transform_sql(
@@ -2624,6 +2716,7 @@ class Table(Queryable):
         :param strict: Set to ``True`` to make the table strict or ``False`` to make it
           non-strict. Defaults to ``None``, which preserves the existing strict mode.
         """
+        self._check_no_alias("transform_sql()")
         if strict is True and not self.db.supports_strict:
             raise TransformError("SQLite does not support STRICT tables")
         types = types or {}
@@ -2878,6 +2971,7 @@ class Table(Queryable):
         :param fk_column: Name of the foreign key column to populate in the original table
         :param rename: Dictionary of columns that should be renamed when populating the new table
         """
+        self._check_no_alias("extract()")
         rename = rename or {}
         if isinstance(columns, str):
             columns = [columns]
@@ -3007,6 +3101,7 @@ class Table(Queryable):
 
         See :ref:`python_api_create_index`.
         """
+        self._check_no_alias("create_index()")
         if index_name is None:
             index_name = "idx_{}_{}".format(
                 self.name.replace(" ", "_"), "_".join(columns)
@@ -3065,6 +3160,7 @@ class Table(Queryable):
         :param index_name: Name of the index to drop
         :param ignore: Set to ``True`` to ignore the error if the index does not exist
         """
+        self._check_no_alias("drop_index()")
         if index_name not in {index.name for index in self.indexes}:
             if ignore:
                 return self
@@ -3119,7 +3215,7 @@ class Table(Queryable):
                 f"NOT NULL DEFAULT {self.db.quote_default_value(not_null_default)}"
             )
         sql = "ALTER TABLE {} ADD COLUMN {} {col_type}{not_null_default};".format(
-            quote_identifier(self.name),
+            self.quoted_name,
             quote_identifier(col_name),
             col_type=fk_col_type or COLUMN_TYPE_MAPPING[col_type],
             not_null_default=(" " + not_null_sql) if not_null_sql else "",
@@ -3136,7 +3232,7 @@ class Table(Queryable):
         :param ignore: Set to ``True`` to ignore the error if the table does not exist
         """
         try:
-            self.db.execute(f"DROP TABLE {quote_identifier(self.name)}")
+            self.db.execute(f"DROP TABLE {self.quoted_name}")
         except sqlite3.OperationalError:
             if not ignore:
                 raise
@@ -3202,6 +3298,7 @@ class Table(Queryable):
           or ``"SET NULL"``.
         :param on_update: ``ON UPDATE`` action for the foreign key.
         """
+        self._check_no_alias("add_foreign_key()")
         columns = (column,) if isinstance(column, str) else tuple(column)
         columns = tuple(resolve_casing(c, self.columns_dict) for c in columns)
         # Ensure columns exist
@@ -3290,6 +3387,7 @@ class Table(Queryable):
 
         See :ref:`python_api_cached_table_counts` for details.
         """
+        self._check_no_alias("enable_counts()")
         sql = (
             textwrap.dedent("""
         {create_counts_table}
@@ -3365,6 +3463,7 @@ class Table(Queryable):
         :param tokenize: Custom SQLite tokenizer to use, for example ``"porter"`` to enable Porter stemming.
         :param replace: Should any existing FTS index for this table be replaced by the new one?
         """
+        self._check_no_alias("enable_fts()")
         create_fts_sql = (
             textwrap.dedent("""
             CREATE VIRTUAL TABLE {table_fts} USING {fts_version} (
@@ -3443,6 +3542,7 @@ class Table(Queryable):
 
         :param columns: Columns to populate the data for
         """
+        self._check_no_alias("populate_fts()")
         columns_quoted = ", ".join(quote_identifier(c) for c in columns)
         sql = (
             textwrap.dedent("""
@@ -3461,6 +3561,7 @@ class Table(Queryable):
 
     def disable_fts(self) -> "Table":
         "Remove any full-text search index and related triggers configured for this table."
+        self._check_no_alias("disable_fts()")
         fts_table = self.detect_fts()
         if fts_table:
             self.db[fts_table].drop()
@@ -3482,6 +3583,7 @@ class Table(Queryable):
 
     def rebuild_fts(self) -> "Table":
         "Run the ``rebuild`` operation against the associated full-text search index table."
+        self._check_no_alias("rebuild_fts()")
         fts_table = self.detect_fts()
         if fts_table is None:
             # Assume this is itself an FTS table
@@ -3496,6 +3598,7 @@ class Table(Queryable):
 
     def detect_fts(self) -> str | None:
         "Detect if table has a corresponding FTS virtual table and return it"
+        self._check_no_alias("detect_fts()")
         sql = textwrap.dedent("""
             SELECT name FROM sqlite_master
                 WHERE rootpage = 0
@@ -3521,6 +3624,7 @@ class Table(Queryable):
 
     def optimize(self) -> "Table":
         "Run the ``optimize`` operation against the associated full-text search index table."
+        self._check_no_alias("optimize()")
         fts_table = self.detect_fts()
         if fts_table is not None:
             with self.db.atomic():
@@ -3671,7 +3775,7 @@ class Table(Queryable):
         self.get(pk_values)
         wheres = [f"{quote_identifier(pk_name)} = ?" for pk_name in self.pks]
         sql = "delete from {} where {wheres}".format(
-            quote_identifier(self.name), wheres=" and ".join(wheres)
+            self.quoted_name, wheres=" and ".join(wheres)
         )
         with self.db.atomic():
             self.db.execute(sql, pk_values)
@@ -3695,7 +3799,7 @@ class Table(Queryable):
         """
         if not self.exists():
             return self
-        sql = f"delete from {quote_identifier(self.name)}"
+        sql = f"delete from {self.quoted_name}"
         if where is not None:
             sql += " where " + where
         with self.db.atomic():
@@ -3743,7 +3847,7 @@ class Table(Queryable):
         wheres = [f"{quote_identifier(pk_name)} = ?" for pk_name in pks]
         args.extend(pk_values)
         sql = "update {} set {sets} where {wheres}".format(
-            quote_identifier(self.name),
+            self.quoted_name,
             sets=", ".join(sets),
             wheres=" and ".join(wheres),
         )
@@ -3826,7 +3930,7 @@ class Table(Queryable):
                 fn_name = f"lambda_{abs(hash(fn))}"
             self.db.register_function(convert_value, name=fn_name)
             sql = "update {} set {sets}{where};".format(
-                quote_identifier(self.name),
+                self.quoted_name,
                 sets=", ".join(
                     [
                         f"{quote_identifier(output or column)} = {fn_name}({quote_identifier(column)})"
@@ -3924,10 +4028,7 @@ class Table(Queryable):
                 or_clause = " OR REPLACE"
             elif ignore:
                 or_clause = " OR IGNORE"
-            sql = (
-                f"INSERT{or_clause} INTO {quote_identifier(self.name)} "
-                "DEFAULT VALUES"
-            )
+            sql = f"INSERT{or_clause} INTO {self.quoted_name} DEFAULT VALUES"
             return [(sql, []) for _ in chunk]
 
         if hash_id_columns and hash_id is None:
@@ -3988,7 +4089,7 @@ class Table(Queryable):
         # replace=True mean INSERT OR REPLACE INTO
         if replace:
             sql = (
-                f"INSERT OR REPLACE INTO {quote_identifier(self.name)} "
+                f"INSERT OR REPLACE INTO {self.quoted_name} "
                 f"({columns_sql}) VALUES {row_placeholders_sql}"
             )
             return [(sql, flat_params)]
@@ -3999,7 +4100,7 @@ class Table(Queryable):
             if ignore:
                 or_ignore = " OR IGNORE"
             sql = (
-                f"INSERT{or_ignore} INTO {quote_identifier(self.name)} "
+                f"INSERT{or_ignore} INTO {self.quoted_name} "
                 f"({columns_sql}) VALUES {row_placeholders_sql}"
             )
             return [(sql, flat_params)]
@@ -4049,7 +4150,7 @@ class Table(Queryable):
                 do_clause = "DO NOTHING"
 
             sql = (
-                f"INSERT INTO {quote_identifier(self.name)} ({columns_sql}) "
+                f"INSERT INTO {self.quoted_name} ({columns_sql}) "
                 f"VALUES {row_placeholders_sql} "
                 f"ON CONFLICT({conflict_sql}) {do_clause}"
             )
@@ -4069,7 +4170,7 @@ class Table(Queryable):
                 placeholders.extend(not_null)
             sql = (
                 "INSERT OR IGNORE INTO {table}({cols}) VALUES({placeholders});".format(
-                    table=quote_identifier(self.name),
+                    table=self.quoted_name,
                     cols=", ".join([quote_identifier(p) for p in placeholders]),
                     placeholders=", ".join(["?" for p in placeholders]),
                 )
@@ -4081,7 +4182,7 @@ class Table(Queryable):
             set_cols = [col for col in all_columns if col not in pks]
             if set_cols:
                 sql2 = "UPDATE {} SET {pairs} WHERE {wheres}".format(
-                    quote_identifier(self.name),
+                    self.quoted_name,
                     pairs=", ".join(
                         "{} = {}".format(
                             quote_identifier(col), conversions.get(col, "?")
@@ -4410,7 +4511,7 @@ class Table(Queryable):
         self.last_pk = None
         if truncate and self.exists():
             with self.db.atomic():
-                self.db.execute(f"DELETE FROM {quote_identifier(self.name)};")
+                self.db.execute(f"DELETE FROM {self.quoted_name};")
         result = None
         for chunk in chunks(itertools.chain([first_record], records_iter), batch_size):
             chunk = list(chunk)
@@ -4543,7 +4644,7 @@ class Table(Queryable):
                                 f"{quote_identifier(c)} = ?" for c in key_cols
                             )
                             existing = self.db.execute(
-                                f"select rowid from {quote_identifier(self.name)} where {where} limit 1",
+                                f"select rowid from {self.quoted_name} where {where} limit 1",
                                 key_values,
                             ).fetchone()
                             if existing is not None:
@@ -4879,7 +4980,7 @@ class Table(Queryable):
 
     def analyze(self) -> None:
         "Run ANALYZE against this table"
-        self.db.analyze(self.name)
+        self.db.execute(f"ANALYZE {self.quoted_name}")
 
     def analyze_column(
         self,
@@ -5011,6 +5112,7 @@ class Table(Queryable):
         :param coord_dimension: Dimensions to use, defaults to ``"XY"`` - set to ``"XYZ"`` to work in three dimensions
         :param not_null: Should the column be ``NOT NULL``
         """
+        self._check_no_alias("add_geometry_column()")
         cursor = self.db.execute(
             "SELECT AddGeometryColumn(?, ?, ?, ?, ?, ?);",
             [
@@ -5050,6 +5152,7 @@ class Table(Queryable):
 
         :param column_name: Geometry column to create the spatial index against
         """
+        self._check_no_alias("create_spatial_index()")
         if f"idx_{self.name}_{column_name}" in self.db.table_names():
             return False
 
@@ -5077,7 +5180,7 @@ class View(Queryable):
         """
 
         try:
-            self.db.execute(f"DROP VIEW {quote_identifier(self.name)}")
+            self.db.execute(f"DROP VIEW {self.quoted_name}")
         except sqlite3.OperationalError:
             if not ignore:
                 raise
