@@ -1748,6 +1748,16 @@ Pass ``--sqlar`` to store the content zlib-compressed instead, using the same ``
 
 Content is only stored compressed if doing so makes it smaller - otherwise the original bytes are stored as-is, matching the behaviour of SQLite's ``sqlar_compress()`` function.
 
+You can use ``--convert`` to transform each row before it is inserted, so imports that need custom logic - like compressing content into an archive format - don't need a separate :ref:`sqlite-utils convert <cli_convert>` command run against the table afterwards. It works the same way as the ``--convert`` option on :ref:`insert and upsert <cli_insert_convert>`, with a ``row`` variable available to modify in place:
+
+.. code-block:: bash
+
+    sqlite-utils insert-files archive.db sqlar *.gif \
+        -c name:name -c mode:mode -c mtime:mtime_int -c sz:size -c data:content \
+        --convert 'row["data"] = zlib.compress(row["data"])' --import zlib
+
+As with ``sqlite-utils convert`` you can use ``--import`` to import additional Python modules, and the same :ref:`recipe functions <cli_convert_recipes>` are available via ``r.``.
+
 You can customize the schema using one or more ``-c`` options. For a table schema that includes just the path, MD5 hash and last modification time of the file, you would use this:
 
 .. code-block:: bash

@@ -207,6 +207,60 @@ def test_insert_files_sqlar():
         assert two["data"] == incompressible
 
 
+def test_insert_files_convert():
+    # Same effect as --sqlar, but implemented using --convert against
+    # plain content/size columns - no separate `convert` command needed.
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        tmpdir = pathlib.Path(".")
+        db_path = str(tmpdir / "files.db")
+        compressible = b"abcdefgh" * 1000
+        (tmpdir / "one.txt").write_bytes(compressible)
+        result = runner.invoke(
+            cli.cli,
+            [
+                "insert-files",
+                db_path,
+                "files",
+                str(tmpdir / "one.txt"),
+                "-c",
+                "name:name",
+                "-c",
+                "data:content",
+                "--convert",
+                'row["data"] = zlib.compress(row["data"])',
+                "--import",
+                "zlib",
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        db = Database(db_path)
+        row = list(db["files"].rows)[0]
+        assert zlib.decompress(row["data"]) == compressible
+
+
+def test_insert_files_convert_syntax_error():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        tmpdir = pathlib.Path(".")
+        db_path = str(tmpdir / "files.db")
+        (tmpdir / "one.txt").write_text("hello", "utf-8")
+        result = runner.invoke(
+            cli.cli,
+            [
+                "insert-files",
+                db_path,
+                "files",
+                str(tmpdir),
+                "--convert",
+                "def broken(:",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "Could not compile code" in result.output
+
+
 def test_insert_files_sqlar_and_text_conflict():
     runner = CliRunner()
     with runner.isolated_filesystem():

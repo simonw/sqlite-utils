@@ -2923,6 +2923,14 @@ def extract(
     "--encoding",
     help="Character encoding for input, defaults to utf-8",
 )
+@click.option("--convert", help="Python code to convert each row before insertion")
+@click.option(
+    "--import",
+    "imports",
+    type=str,
+    multiple=True,
+    help="Python modules to import",
+)
 @click.option("-s", "--silent", is_flag=True, help="Don't show a progress bar")
 @load_extension_option
 def insert_files(
@@ -2938,6 +2946,8 @@ def insert_files(
     text,
     sqlar,
     encoding,
+    convert,
+    imports,
     silent,
     load_extension,
 ):
@@ -2955,9 +2965,22 @@ def insert_files(
             -c modified:mtime_iso \\
             -c size:size \\
             --pk name
+
+    Use --convert to transform each row before it is inserted, the same way
+    as sqlite-utils convert:
+
+    \b
+        sqlite-utils insert-files archive.db sqlar *.gif --sqlar \\
+            --convert 'row["data"] = zlib.compress(row["data"])' --import zlib
     """
     if text and sqlar:
         raise click.ClickException("Cannot use --text and --sqlar together")
+    convert_fn = None
+    if convert:
+        try:
+            convert_fn = _compile_code(convert, imports, variable="row")
+        except SyntaxError as e:
+            raise click.ClickException(str(e))
     if not column:
         if text:
             column = ["path:path", "content_text:content_text", "size:size"]
@@ -3051,6 +3074,8 @@ def insert_files(
                     # Special case for --name
                     if coltype == "name" and name:
                         row[colname] = name
+                if convert_fn is not None:
+                    row = convert_fn(row) or row
                 yield row
 
         db = sqlite_utils.Database(path)
