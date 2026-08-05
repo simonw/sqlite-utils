@@ -79,6 +79,55 @@ def test_insert_json_flatten_nl(tmpdir):
     ]
 
 
+def test_insert_json_key(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "dogs", "-", "--key", "List"],
+        input=json.dumps(
+            {"List": [{"id": 1, "name": "Cleo"}, {"id": 2, "name": "Suna"}]}
+        ),
+    )
+    assert result.exit_code == 0
+    assert list(Database(db_path).query("select * from dogs")) == [
+        {"id": 1, "name": "Cleo"},
+        {"id": 2, "name": "Suna"},
+    ]
+
+
+def test_insert_json_key_missing_errors(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "dogs", "-", "--key", "Missing"],
+        input=json.dumps({"List": [{"id": 1}]}),
+    )
+    assert result.exit_code == 1
+    assert "JSON key 'Missing' not found in input" in result.output
+
+
+def test_insert_json_key_not_a_list_errors(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "dogs", "-", "--key", "List"],
+        input=json.dumps({"List": {"id": 1}}),
+    )
+    assert result.exit_code == 1
+    assert "JSON key 'List' is not a list" in result.output
+
+
+def test_insert_json_key_rejects_nl(tmpdir):
+    db_path = str(tmpdir / "dogs.db")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "dogs", "-", "--key", "List", "--nl"],
+        input=json.dumps({"id": 1}),
+    )
+    assert result.exit_code == 1
+    assert "--key cannot be used with" in result.output
+
+
 @pytest.mark.parametrize(
     "args,expected_pks",
     (

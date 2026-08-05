@@ -928,6 +928,10 @@ _import_options = (
         help='Flatten nested JSON objects, so {"a": {"b": 1}} becomes {"a_b": 1}',
     ),
     click.option("--nl", is_flag=True, help="Expect newline-delimited JSON"),
+    click.option(
+        "--key",
+        help='If input is a JSON object, import the array of records under this key, e.g. --key results for {"results": [...]}',
+    ),
     click.option("-c", "--csv", is_flag=True, help="Expect CSV input"),
     click.option("--tsv", is_flag=True, help="Expect TSV input"),
     click.option("--empty-null", is_flag=True, help="Treat empty strings as NULL"),
@@ -1071,6 +1075,7 @@ def insert_upsert_implementation(
     stop_after,
     alter,
     upsert,
+    key=None,
     ignore=False,
     replace=False,
     truncate=False,
@@ -1186,6 +1191,7 @@ def insert_upsert_implementation(
                 delimiter,
                 quotechar,
                 encoding,
+                key,
             ]
         ):
             raise click.ClickException(
@@ -1203,6 +1209,10 @@ def insert_upsert_implementation(
         csv = True
     if (nl + csv + tsv) >= 2:
         raise click.ClickException("Use just one of --nl, --csv or --tsv")
+    if key and (nl or csv or tsv or lines or text):
+        raise click.ClickException(
+            "--key cannot be used with --nl, --csv, --tsv, --lines or --text"
+        )
     if (csv or tsv) and flatten:
         raise click.ClickException("--flatten cannot be used with --csv or --tsv")
     if empty_null and not (csv or tsv):
@@ -1267,7 +1277,17 @@ def insert_upsert_implementation(
                     docs = (json.loads(line) for line in decoded if line.strip())
                 else:
                     docs = json.load(decoded)
-                    if isinstance(docs, dict):
+                    if key:
+                        if not isinstance(docs, dict) or key not in docs:
+                            raise click.ClickException(
+                                f"JSON key '{key}' not found in input"
+                            )
+                        docs = docs[key]
+                        if not isinstance(docs, list):
+                            raise click.ClickException(
+                                f"JSON key '{key}' is not a list"
+                            )
+                    elif isinstance(docs, dict):
                         docs = [docs]
             except json.decoder.JSONDecodeError as ex:
                 raise click.ClickException(
@@ -1350,6 +1370,7 @@ def insert(
     code,
     flatten,
     nl,
+    key,
     csv,
     tsv,
     empty_null,
@@ -1459,6 +1480,7 @@ def insert(
             stop_after,
             alter=alter,
             upsert=False,
+            key=key,
             ignore=ignore,
             replace=replace,
             truncate=truncate,
@@ -1486,6 +1508,7 @@ def upsert(
     code,
     flatten,
     nl,
+    key,
     csv,
     tsv,
     empty_null,
@@ -1552,6 +1575,7 @@ def upsert(
             stop_after,
             alter=alter,
             upsert=True,
+            key=key,
             not_null=not_null,
             default=default,
             types=types,
@@ -1586,6 +1610,7 @@ def bulk(
     functions,
     flatten,
     nl,
+    key,
     csv,
     tsv,
     empty_null,
@@ -1621,6 +1646,7 @@ def bulk(
             pk=None,
             flatten=flatten,
             nl=nl,
+            key=key,
             csv=csv,
             tsv=tsv,
             empty_null=empty_null,

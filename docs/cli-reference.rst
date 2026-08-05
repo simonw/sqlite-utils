@@ -293,6 +293,9 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --flatten                 Flatten nested JSON objects, so {"a": {"b": 1}}
                                 becomes {"a_b": 1}
       --nl                      Expect newline-delimited JSON
+      --key TEXT                If input is a JSON object, import the array of
+                                records under this key, e.g. --key results for
+                                {"results": [...]}
       -c, --csv                 Expect CSV input
       --tsv                     Expect TSV input
       --empty-null              Treat empty strings as NULL
@@ -357,6 +360,9 @@ See :ref:`cli_upsert`.
       --flatten                 Flatten nested JSON objects, so {"a": {"b": 1}}
                                 becomes {"a_b": 1}
       --nl                      Expect newline-delimited JSON
+      --key TEXT                If input is a JSON object, import the array of
+                                records under this key, e.g. --key results for
+                                {"results": [...]}
       -c, --csv                 Expect CSV input
       --tsv                     Expect TSV input
       --empty-null              Treat empty strings as NULL
@@ -412,6 +418,9 @@ See :ref:`cli_bulk`.
       --flatten              Flatten nested JSON objects, so {"a": {"b": 1}} becomes
                              {"a_b": 1}
       --nl                   Expect newline-delimited JSON
+      --key TEXT             If input is a JSON object, import the array of records
+                             under this key, e.g. --key results for {"results":
+                             [...]}
       -c, --csv              Expect CSV input
       --tsv                  Expect TSV input
       --empty-null           Treat empty strings as NULL

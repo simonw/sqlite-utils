@@ -1200,6 +1200,24 @@ You can add the ``--analyze`` option to run ``ANALYZE`` against the table after 
 .. note::
     In Python: :ref:`table.insert_all() <python_api_bulk_inserts>`  CLI reference: :ref:`sqlite-utils insert <cli_ref_insert>`
 
+If your JSON is a single object with the list of records nested under a key, use ``--key`` to select it.
+For example, if ``dogs.json`` looks like this:
+
+.. code-block:: json
+
+    {
+        "List": [
+            {"id": 1, "name": "Cleo"},
+            {"id": 2, "name": "Pancakes"}
+        ]
+    }
+
+You can import the records under the ``List`` key like so:
+
+.. code-block:: bash
+
+    sqlite-utils insert dogs.db dogs dogs.json --key List
+
 .. _cli_inserting_data_binary:
 
 Inserting binary data
