@@ -2302,6 +2302,56 @@ any string value that looks like a JSON object or array back into a ``dict`` or 
 This defaults to ``False``, so existing code that expects raw strings continues to work
 unchanged.
 
+.. _python_api_custom_json:
+
+Custom JSON encoding and decoding
+----------------------------------
+
+By default, values that are not natively JSON-serializable - such as
+``set``, ``enum.Enum`` members or custom classes - are converted using
+``repr()`` when they are written to a JSON column, since ``dict``, ``list``
+and ``tuple`` values are always serialized with ``json.dumps()``. To take
+full control of that conversion, pass a ``json_default`` function to the
+``Database()`` constructor - it is used as the ``default=`` callback to
+``json.dumps()``:
+
+.. code-block:: python
+
+    import enum
+
+    class Color(enum.Enum):
+        RED = "red"
+        BLUE = "blue"
+
+    def encode(value):
+        if isinstance(value, set):
+            return list(value)
+        if isinstance(value, enum.Enum):
+            return value.value
+        raise TypeError(f"Cannot serialize {value!r}")
+
+    db = sqlite_utils.Database("data.db", json_default=encode)
+    db["examples"].insert({"id": 1, "tags": {"a", "b"}, "color": Color.RED})
+
+To reconstruct custom types when reading rows back with
+``deserialize_json=True``, pass a ``json_object_hook`` function - it is
+used as the ``object_hook=`` callback to ``json.loads()`` and is called
+with every JSON object (``dict``) encountered while parsing:
+
+.. code-block:: python
+
+    def decode(obj):
+        if "__color__" in obj:
+            return Color(obj["__color__"])
+        return obj
+
+    db = sqlite_utils.Database(
+        "data.db", deserialize_json=True, json_object_hook=decode
+    )
+
+Both options apply to every table on that ``Database`` connection - there is
+no per-table equivalent, matching how ``deserialize_json`` works.
+
 .. _python_api_conversions:
 
 Converting column values using SQL functions

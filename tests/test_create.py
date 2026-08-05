@@ -921,6 +921,46 @@ def test_deserialize_json(fresh_db):
     assert list(db2.query("select data from test"))[0]["data"] == {"foo": "bar"}
 
 
+def test_json_default_and_object_hook(fresh_db):
+    import enum
+
+    class Color(enum.Enum):
+        RED = "red"
+
+    def encode(value):
+        if isinstance(value, set):
+            return sorted(value)
+        if isinstance(value, enum.Enum):
+            return {"__enum__": value.value}
+        raise TypeError(value)
+
+    def decode(obj):
+        if "__enum__" in obj:
+            return Color(obj["__enum__"])
+        return obj
+
+    # A set/enum can't be a column's own type (SQLite has no such type), but they
+    # are common inside a dict/list column value - that's what json_default is for.
+    db = Database(fresh_db.conn, json_default=encode)
+    db["test"].insert(
+        {"id": 1, "data": {"tags": {"b", "a"}, "color": Color.RED}},
+        pk="id",
+    )
+    row = db.execute("select data from test").fetchone()
+    assert row[0] == '{"tags": ["a", "b"], "color": {"__enum__": "red"}}'
+
+    # Without json_default, an unsupported nested type falls back to repr()
+    db_default = Database(fresh_db.conn)
+    db_default["test2"].insert({"id": 1, "data": {"tags": {"a"}}}, pk="id")
+    row2 = db_default.execute("select data from test2").fetchone()
+    assert row2[0] == json.dumps({"tags": repr({"a"})})
+
+    # json_object_hook reconstructs the custom type on read
+    db2 = Database(fresh_db.conn, deserialize_json=True, json_object_hook=decode)
+    row3 = db2["test"].get(1)
+    assert row3["data"] == {"tags": ["a", "b"], "color": Color.RED}
+
+
 def test_insert_list_nested_unicode(fresh_db):
     fresh_db["test"].insert(
         {"id": 1, "data": {"key1": {"nested": ["cømplex"]}}}, pk="id"

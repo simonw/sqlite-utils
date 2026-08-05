@@ -505,6 +505,13 @@ class Database:
       look like JSON objects or arrays back into ``dict``/``list`` objects when rows are read
       via ``.rows``, ``.rows_where()``, ``.get()``, ``.search()`` or ``.query()``. Defaults to
       ``False``, so values are returned as the raw strings stored in the database.
+    :param json_default: optional function used as the ``default=`` callback to ``json.dumps()``
+      when serializing values (dicts, lists, tuples) to JSON on write. Use this to support types
+      that are not natively JSON-serializable, such as ``set``, ``enum.Enum`` or custom classes.
+      Defaults to ``repr``.
+    :param json_object_hook: optional function used as the ``object_hook=`` callback to
+      ``json.loads()`` when ``deserialize_json=True``. Use this to reconstruct custom types from
+      the JSON objects produced by ``json_default``.
     """
 
     _counts_table_name = "_counts"
@@ -524,11 +531,15 @@ class Database:
         use_old_upsert: bool = False,
         strict: bool = False,
         deserialize_json: bool = False,
+        json_default: Callable[[Any], Any] | None = None,
+        json_object_hook: Callable[[dict], Any] | None = None,
     ):
         self.memory_name = None
         self.memory = False
         self.use_old_upsert = use_old_upsert
         self.deserialize_json = deserialize_json
+        self.json_default = json_default
+        self.json_object_hook = json_object_hook
         if not (
             (filename_or_conn is not None and (not memory and not memory_name))
             or (filename_or_conn is None and (memory or memory_name))
@@ -822,7 +833,10 @@ class Database:
         "Build a row dict, deserializing JSON string values if self.deserialize_json is set."
         d = dict(zip(keys, row))
         if self.deserialize_json:
-            d = {key: dejsonify_if_needed(value) for key, value in d.items()}
+            d = {
+                key: dejsonify_if_needed(value, self.json_object_hook)
+                for key, value in d.items()
+            }
         return d
 
     def query(
@@ -3761,7 +3775,7 @@ class Table(Queryable):
             sets.append(
                 "{} = {}".format(quote_identifier(key), conversions.get(key, "?"))
             )
-            args.append(jsonify_if_needed(value))
+            args.append(jsonify_if_needed(value, self.db.json_default))
         wheres = [f"{quote_identifier(pk_name)} = ?" for pk_name in pks]
         args.extend(pk_values)
         sql = "update {} set {sets} where {wheres}".format(
@@ -3841,7 +3855,7 @@ class Table(Queryable):
 
             def convert_value(v):
                 bar.update(1)
-                return jsonify_if_needed(fn(v))
+                return jsonify_if_needed(fn(v), self.db.json_default)
 
             fn_name = getattr(fn, "__name__", "fn")
             if fn_name == "<lambda>":
@@ -3968,11 +3982,14 @@ class Table(Queryable):
                 # Pad short records with None, truncate long ones
                 record_len = len(record)
                 if record_len < num_columns:
-                    record_values = [jsonify_if_needed(v) for v in record] + [None] * (
-                        num_columns - record_len
-                    )
+                    record_values = [
+                        jsonify_if_needed(v, self.db.json_default) for v in record
+                    ] + [None] * (num_columns - record_len)
                 else:
-                    record_values = [jsonify_if_needed(v) for v in record[:num_columns]]
+                    record_values = [
+                        jsonify_if_needed(v, self.db.json_default)
+                        for v in record[:num_columns]
+                    ]
                 # Only process extracts if there are any
                 if has_extracts:
                     for i, key in enumerate(all_columns):
@@ -3994,7 +4011,8 @@ class Table(Queryable):
                                 if key != hash_id
                                 else hash_record(record, hash_id_columns)
                             ),
-                        )
+                        ),
+                        self.db.json_default,
                     )
                     if key in extracts and value is not None:
                         extract_table = extracts[key]
@@ -5105,11 +5123,13 @@ class View(Queryable):
                 raise
 
 
-def jsonify_if_needed(value: object) -> object:
+def jsonify_if_needed(
+    value: object, json_default: Callable[[Any], Any] | None = None
+) -> object:
     if isinstance(value, decimal.Decimal):
         return float(value)
     if isinstance(value, (dict, list, tuple)):
-        return json.dumps(value, default=repr, ensure_ascii=False)
+        return json.dumps(value, default=json_default or repr, ensure_ascii=False)
     elif isinstance(value, (datetime.time, datetime.date, datetime.datetime)):
         return value.isoformat()
     elif isinstance(value, (datetime.timedelta, uuid.UUID)):
@@ -5118,14 +5138,16 @@ def jsonify_if_needed(value: object) -> object:
         return value
 
 
-def dejsonify_if_needed(value: object) -> object:
+def dejsonify_if_needed(
+    value: object, json_object_hook: Callable[[dict], Any] | None = None
+) -> object:
     "Parse a string that looks like a JSON object or array back into a dict/list."
     if isinstance(value, str) and value[:1] in ("{", "["):
         try:
-            parsed = json.loads(value)
+            parsed = json.loads(value, object_hook=json_object_hook)
         except ValueError:
             return value
-        if isinstance(parsed, (dict, list)):
+        if isinstance(parsed, (dict, list)) or json_object_hook is not None:
             return parsed
     return value
 
