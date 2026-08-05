@@ -1,6 +1,7 @@
 import os
 import pathlib
 import sys
+import zlib
 
 import pytest
 from click.testing import CliRunner
@@ -169,6 +170,55 @@ def test_insert_files_fixed_value_column_bad_type():
         )
         assert result.exit_code == 1
         assert "colname:text:value" in result.output
+
+
+def test_insert_files_sqlar():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        tmpdir = pathlib.Path(".")
+        db_path = str(tmpdir / "files.db")
+        # Compresses well - lots of repetition
+        compressible = b"abcdefgh" * 1000
+        # Does not compress smaller than the original
+        incompressible = os.urandom(20)
+        (tmpdir / "one.txt").write_bytes(compressible)
+        (tmpdir / "two.bin").write_bytes(incompressible)
+        result = runner.invoke(
+            cli.cli,
+            ["insert-files", db_path, "sqlar", str(tmpdir), "--sqlar"],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        db = Database(db_path)
+        assert db["sqlar"].columns_dict == {
+            "name": str,
+            "mode": int,
+            "mtime": int,
+            "sz": int,
+            "data": bytes,
+        }
+        assert db["sqlar"].pks == ["name"]
+        rows_by_name = {r["name"]: r for r in db["sqlar"].rows}
+        one, two = rows_by_name["one.txt"], rows_by_name["two.bin"]
+        assert one["sz"] == len(compressible)
+        assert len(one["data"]) < len(compressible)
+        assert zlib.decompress(one["data"]) == compressible
+        assert two["sz"] == len(incompressible)
+        assert two["data"] == incompressible
+
+
+def test_insert_files_sqlar_and_text_conflict():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        tmpdir = pathlib.Path(".")
+        db_path = str(tmpdir / "files.db")
+        (tmpdir / "one.txt").write_text("hello", "utf-8")
+        result = runner.invoke(
+            cli.cli,
+            ["insert-files", db_path, "files", str(tmpdir), "--text", "--sqlar"],
+        )
+        assert result.exit_code == 1
+        assert "Cannot use --text and --sqlar together" in result.output
 
 
 @pytest.mark.parametrize(

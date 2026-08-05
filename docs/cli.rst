@@ -1740,6 +1740,14 @@ By default this command will create a table with the following schema:
 
 Content will be treated as binary by default and stored in a ``BLOB`` column. You can use the ``--text`` option to store that content in a ``TEXT`` column instead.
 
+Pass ``--sqlar`` to store the content zlib-compressed instead, using the same ``name``, ``mode``, ``mtime``, ``sz`` and ``data`` columns as `SQLite's own sqlar archive format <https://sqlite.org/sqlar.html>`__:
+
+.. code-block:: bash
+
+    sqlite-utils insert-files archive.db sqlar *.gif --sqlar
+
+Content is only stored compressed if doing so makes it smaller - otherwise the original bytes are stored as-is, matching the behaviour of SQLite's ``sqlar_compress()`` function.
+
 You can customize the schema using one or more ``-c`` options. For a table schema that includes just the path, MD5 hash and last modification time of the file, you would use this:
 
 .. code-block:: bash
@@ -1792,6 +1800,8 @@ The full list of column definitions you can use is as follows:
     The binary file contents, which will be stored as a BLOB
 ``content_text``
     The text file contents, which will be stored as TEXT
+``content_sqlar``
+    The file contents zlib-compressed for storage in a ``sqlar``-compatible BLOB column, matching the behaviour of ``--sqlar`` - the content is left uncompressed if compression would not make it smaller
 ``mtime``
     The modification time of the file, as floating point seconds since the Unix epoch
 ``ctime``
@@ -1819,7 +1829,7 @@ You can insert data piped from standard input like this:
 
 The ``-`` argument indicates data should be read from standard input. The string passed using the ``--name`` option will be used for the file name and path values.
 
-When inserting data from standard input only the following column definitions are supported: ``name``, ``path``, ``content``, ``content_text``, ``sha256``, ``md5`` and ``size``.
+When inserting data from standard input only the following column definitions are supported: ``name``, ``path``, ``content``, ``content_text``, ``content_sqlar``, ``sha256``, ``md5`` and ``size``.
 
 .. _cli_convert:
 

@@ -11,6 +11,7 @@ import pathlib
 import pdb  # noqa: T100
 import sys
 import textwrap
+import zlib
 from datetime import datetime, timezone
 from runpy import run_module
 from typing import Any
@@ -2914,6 +2915,11 @@ def extract(
 @click.option("--name", type=str, help="File name to use")
 @click.option("--text", is_flag=True, help="Store file content as TEXT, not BLOB")
 @click.option(
+    "--sqlar",
+    is_flag=True,
+    help="Store file content zlib-compressed, compatible with SQLite's sqlar format",
+)
+@click.option(
     "--encoding",
     help="Character encoding for input, defaults to utf-8",
 )
@@ -2930,6 +2936,7 @@ def insert_files(
     upsert,
     name,
     text,
+    sqlar,
     encoding,
     silent,
     load_extension,
@@ -2949,13 +2956,23 @@ def insert_files(
             -c size:size \\
             --pk name
     """
+    if text and sqlar:
+        raise click.ClickException("Cannot use --text and --sqlar together")
     if not column:
         if text:
             column = ["path:path", "content_text:content_text", "size:size"]
+        elif sqlar:
+            column = [
+                "name:name",
+                "mode:mode",
+                "mtime:mtime_int",
+                "sz:size",
+                "data:content_sqlar",
+            ]
         else:
             column = ["path:path", "content:content", "size:size"]
         if not pks:
-            pks = ["path"]
+            pks = ["name"] if sqlar else ["path"]
 
     def yield_paths_and_relative_paths():
         for f_or_d in file_or_dir:
@@ -2996,6 +3013,9 @@ def insert_files(
                         "content": lambda p, data=stdin_data: data,
                         "content_text": lambda p, data=stdin_data: data.decode(
                             encoding or "utf-8"
+                        ),
+                        "content_sqlar": lambda p, data=stdin_data: sqlar_compress(
+                            data
                         ),
                         "sha256": lambda p, data=stdin_data: hashlib.sha256(
                             data
@@ -3688,6 +3708,14 @@ class UnicodeDecodeErrorForPath(Exception):
         self.path = path
 
 
+def sqlar_compress(data):
+    # Matches SQLite's sqlar_compress(): use the zlib-compressed blob only
+    # if it is actually smaller than the original, otherwise store as-is.
+    # https://sqlite.org/sqlar.html
+    compressed = zlib.compress(data)
+    return compressed if len(compressed) < len(data) else data
+
+
 FILE_COLUMNS = {
     "name": lambda p: p.name,
     "path": lambda p: str(p),
@@ -3696,6 +3724,7 @@ FILE_COLUMNS = {
     "md5": lambda p: hashlib.md5(p.resolve().read_bytes()).hexdigest(),
     "mode": lambda p: p.stat().st_mode,
     "content": lambda p: p.resolve().read_bytes(),
+    "content_sqlar": lambda p: sqlar_compress(p.resolve().read_bytes()),
     "mtime": lambda p: p.stat().st_mtime,
     "ctime": lambda p: p.stat().st_ctime,
     "mtime_int": lambda p: int(p.stat().st_mtime),
