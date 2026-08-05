@@ -335,6 +335,7 @@ COLUMN_TYPE_MAPPING: dict[Any, str] = {
     "FLOAT": "FLOAT",
     "REAL": "REAL",
     "BLOB": "BLOB",
+    "JSON": "JSON",
     "text": "TEXT",
     "str": "TEXT",
     "integer": "INTEGER",
@@ -343,6 +344,7 @@ COLUMN_TYPE_MAPPING: dict[Any, str] = {
     "real": "REAL",
     "blob": "BLOB",
     "bytes": "BLOB",
+    "json": "JSON",
 }
 # If numpy is available, add more types
 if np:
@@ -532,11 +534,14 @@ class Database:
                 uri,
                 uri=True,
                 check_same_thread=False,
+                detect_types=sqlite3.PARSE_DECLTYPES,
             )
             self.memory = True
             self.memory_name = memory_name
         elif memory or filename_or_conn == ":memory:":
-            self.conn = sqlite3.connect(":memory:")
+            self.conn = sqlite3.connect(
+                ":memory:", detect_types=sqlite3.PARSE_DECLTYPES
+            )
             self.memory = True
         elif isinstance(filename_or_conn, (str, pathlib.Path)):
             if recreate and os.path.exists(filename_or_conn):
@@ -545,9 +550,13 @@ class Database:
                 except OSError:
                     # Avoid mypy and __repr__ errors, see:
                     # https://github.com/simonw/sqlite-utils/issues/503
-                    self.conn = sqlite3.connect(":memory:")
+                    self.conn = sqlite3.connect(
+                        ":memory:", detect_types=sqlite3.PARSE_DECLTYPES
+                    )
                     raise
-            self.conn = sqlite3.connect(str(filename_or_conn))
+            self.conn = sqlite3.connect(
+                str(filename_or_conn), detect_types=sqlite3.PARSE_DECLTYPES
+            )
         else:
             if recreate:
                 raise ValueError("recreate cannot be used with connections, only paths")

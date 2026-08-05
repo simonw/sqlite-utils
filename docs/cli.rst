@@ -192,7 +192,15 @@ If one of your columns contains JSON, by default it will be returned as an escap
         }
     ]
 
-You can use the ``--json-cols`` option to automatically detect these JSON columns and output them as nested JSON data:
+If the column is declared as type ``JSON`` in the table's schema, this happens automatically without needing ``--json-cols``:
+
+.. code-block:: bash
+
+    sqlite-utils dogs.db "CREATE TABLE dogs2 (id integer primary key, name text, friends JSON)"
+
+Columns declared this way are decoded as nested JSON by every command that returns JSON (``rows``, ``query``, ``search``, ``memory``), and by the Python library too. CSV, TSV and table output always show the underlying text, since flat formats cannot represent nested structures.
+
+For other TEXT columns that merely happen to contain a JSON string, you can use the ``--json-cols`` option to automatically detect these JSON columns and output them as nested JSON data:
 
 .. code-block:: bash
 

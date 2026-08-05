@@ -1564,12 +1564,13 @@ You can add a new column to a table using the ``.add_column(col_name, col_type)`
     db.table("dogs").add_column("dob", datetime.date)
     db.table("dogs").add_column("image", "BLOB")
     db.table("dogs").add_column("website") # str by default
+    db.table("dogs").add_column("friends", "JSON")
 
 You can specify the ``col_type`` argument either using a SQLite type as a string, or by directly passing a Python type e.g. ``str`` or ``float``.
 
 The ``col_type`` is optional - if you omit it the type of ``TEXT`` will be used.
 
-SQLite types you can specify are ``"TEXT"``, ``"INTEGER"``, ``"FLOAT"``, ``"REAL"`` or ``"BLOB"``.
+SQLite types you can specify are ``"TEXT"``, ``"INTEGER"``, ``"FLOAT"``, ``"REAL"``, ``"BLOB"`` or ``"JSON"``. A column declared as ``"JSON"`` will be automatically decoded back into a Python object (rather than a JSON string) whenever it is read, both by the Python library and by the :ref:`CLI <cli_json_values>`.
 
 If you pass a Python type, it will be mapped to SQLite types as shown here::
 

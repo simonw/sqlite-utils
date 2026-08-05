@@ -376,6 +376,12 @@ def test_create_error_if_invalid_self_referential_foreign_keys(fresh_db):
         ),
         ("blob", "blob", None, 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
         (
+            "friends",
+            "JSON",
+            None,
+            'CREATE TABLE "dogs" (\n   "name" TEXT\n, "friends" JSON)',
+        ),
+        (
             "default_str",
             None,
             None,

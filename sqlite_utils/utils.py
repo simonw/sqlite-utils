@@ -170,6 +170,10 @@ def column_affinity(column_type: str) -> type:
     column_type = column_type.upper().strip()
     if column_type == "":
         return str  # We differ from spec, which says it should be BLOB
+    if "JSON" in column_type:
+        # Not a real SQLite affinity, but sqlite-utils treats JSON as a
+        # supported column type (see issue 579) and it is stored as text
+        return str
     if "INT" in column_type:
         return int
     if "CHAR" in column_type or "CLOB" in column_type or "TEXT" in column_type:
@@ -180,6 +184,19 @@ def column_affinity(column_type: str) -> type:
         return float
     # Default is 'NUMERIC', which we currently also treat as float
     return float
+
+
+def _json_column_converter(raw: bytes) -> Any:
+    # Registered as the sqlite3 converter for columns declared as JSON, see
+    # https://github.com/simonw/sqlite-utils/issues/579 - falls back to the
+    # decoded text unchanged if it does not turn out to be valid JSON
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return raw.decode("utf-8", "replace")
+
+
+sqlite3.register_converter("JSON", _json_column_converter)
 
 
 def decode_base64_values(doc: dict[str, Any]) -> dict[str, Any]:

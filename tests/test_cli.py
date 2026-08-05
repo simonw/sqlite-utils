@@ -1137,6 +1137,40 @@ def test_query_json_with_json_cols(db_path):
     assert expected == result_rows.output.strip()
 
 
+def test_query_json_declared_column_type_auto_decoded(db_path):
+    # Columns declared as JSON should be decoded automatically, without
+    # needing --json-cols - see https://github.com/simonw/sqlite-utils/issues/579
+    db = Database(db_path)
+    with db.conn:
+        db.execute(
+            "CREATE TABLE dogs (id INTEGER PRIMARY KEY, name TEXT, friends JSON)"
+        )
+        db["dogs"].insert(
+            {
+                "id": 1,
+                "name": "Cleo",
+                "friends": json.dumps([{"name": "Pancakes"}, {"name": "Bailey"}]),
+            }
+        )
+    expected = r"""
+    [{"id": 1, "name": "Cleo", "friends": [{"name": "Pancakes"}, {"name": "Bailey"}]}]
+    """.strip()
+    result = CliRunner().invoke(
+        cli.cli, [db_path, "select id, name, friends from dogs"]
+    )
+    assert expected == result.output.strip()
+    result_rows = CliRunner().invoke(cli.cli, ["rows", db_path, "dogs"])
+    assert expected == result_rows.output.strip()
+    # Flat formats should keep it as a JSON string, not a Python repr
+    result_csv = CliRunner().invoke(
+        cli.cli, [db_path, "select id, name, friends from dogs", "--csv"]
+    )
+    assert (
+        '1,Cleo,"[{""name"": ""Pancakes""}, {""name"": ""Bailey""}]"'
+        in result_csv.output
+    )
+
+
 def test_query_json_unicode_not_escaped_by_default(db_path):
     db = Database(db_path)
     with db.conn:

@@ -2323,14 +2323,14 @@ def _execute_query(
         cursor_or_rows: Any = cursor
         if raw:
             row = cursor_or_rows.fetchone()
-            data = row[0] if row else None
+            data = _flatten_json(row[0]) if row else None
             if isinstance(data, bytes):
                 sys.stdout.buffer.write(data)
             else:
                 sys.stdout.write(str(data))
         elif raw_lines:
             for row in cursor:
-                data = row[0]
+                data = _flatten_json(row[0])
                 if isinstance(data, bytes):
                     sys.stdout.buffer.write(data + b"\n")
                 else:
@@ -2341,7 +2341,7 @@ def _execute_query(
         elif fmt or table:
             print(
                 tabulate.tabulate(
-                    list(cursor),
+                    [[_flatten_json(value) for value in row] for row in cursor],
                     headers=() if no_headers else headers,
                     tablefmt=fmt or "simple",
                 )
@@ -2351,7 +2351,7 @@ def _execute_query(
             if not no_headers:
                 writer.writerow(headers)
             for row in cursor:
-                writer.writerow(row)
+                writer.writerow([_flatten_json(value) for value in row])
         else:
             for line in output_rows(cursor, headers, nl, arrays, json_cols, ascii_):
                 click.echo(line)
@@ -3826,7 +3826,9 @@ def output_rows(iterator, headers, nl, arrays, json_cols, ascii_=False):
 def output_transpose(rows, headers, no_headers):
     # psql-style extended display: one "key = value" block per row
     headers = [str(h) for h in headers]
-    str_rows = [["" if v is None else str(v) for v in row] for row in rows]
+    str_rows = [
+        ["" if v is None else str(_flatten_json(v)) for v in row] for row in rows
+    ]
     key_width = max([len(h) for h in headers], default=0)
     val_width = max([len(v) for row in str_rows for v in row], default=0)
     total_width = key_width + 3 + val_width
@@ -3835,6 +3837,15 @@ def output_transpose(rows, headers, no_headers):
             yield "-[ RECORD {} ]-".format(i).ljust(total_width, "-")
         for header, value in zip(headers, row):
             yield "{} | {}".format(header.ljust(key_width), value)
+
+
+def _flatten_json(value):
+    # Columns declared as JSON are auto-decoded to dict/list by the sqlite3
+    # driver (see issue 579) - flat output formats (CSV/TSV/table/raw) need
+    # that turned back into a JSON string rather than a Python repr
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    return value
 
 
 def maybe_json(value):

@@ -32,6 +32,9 @@ EXAMPLES = [
     ("BOOLEAN", float),
     ("DATE", float),
     ("DATETIME", float),
+    # Not a real SQLite affinity, but sqlite-utils treats it as TEXT so
+    # transform() does not mangle JSON columns - see issue 579
+    ("JSON", str),
 ]
 
 
