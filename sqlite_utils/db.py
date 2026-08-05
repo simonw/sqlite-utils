@@ -2283,14 +2283,11 @@ class Table(Queryable):
     @property
     def indexes(self) -> list[Index]:
         "List of indexes defined on this table."
-        sql = f'PRAGMA index_list("{self.name}")'
+        sql = f"PRAGMA index_list({quote_identifier(self.name)})"
         indexes = []
         for row in self.db.execute_returning_dicts(sql):
             index_name = row["name"]
-            index_name_quoted = (
-                f'"{index_name}"' if not index_name.startswith('"') else index_name
-            )
-            column_sql = f"PRAGMA index_info({index_name_quoted})"
+            column_sql = f"PRAGMA index_info({quote_identifier(index_name)})"
             columns = []
             for seqno, cid, name in self.db.execute(column_sql).fetchall():
                 columns.append(name)
@@ -2305,14 +2302,11 @@ class Table(Queryable):
     @property
     def xindexes(self) -> list[XIndex]:
         "List of indexes defined on this table using the more detailed ``XIndex`` format."
-        sql = f'PRAGMA index_list("{self.name}")'
+        sql = f"PRAGMA index_list({quote_identifier(self.name)})"
         indexes = []
         for row in self.db.execute_returning_dicts(sql):
             index_name = row["name"]
-            index_name_quoted = (
-                f'"{index_name}"' if not index_name.startswith('"') else index_name
-            )
-            column_sql = f"PRAGMA index_xinfo({index_name_quoted})"
+            column_sql = f"PRAGMA index_xinfo({quote_identifier(index_name)})"
             index_columns = []
             for info in self.db.execute(column_sql).fetchall():
                 index_columns.append(XIndexColumn(*info))
