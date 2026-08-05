@@ -1409,6 +1409,8 @@ To extract the ``species`` column out to a separate ``Species`` table, you can d
 
 ``None`` values are not extracted: no record is created for them in the lookup table and the column value stays ``null``.
 
+The ``sqlite-utils insert`` and ``sqlite-utils upsert`` commands expose this as the ``--extract`` option, see :ref:`cli_insert_extract`.
+
 .. _python_api_m2m:
 
 Working with many-to-many relationships

@@ -317,6 +317,9 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --alter                   Alter existing table to add any missing columns
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column
+      --extract TEXT            Extract this column into a separate lookup table,
+                                e.g. --extract species or --extract species:Species
+                                to use a custom table name
       --type <TEXT CHOICE>...   Column types to use when creating the table
       --no-detect-types         Treat all CSV/TSV columns as TEXT
       --analyze                 Run ANALYZE at the end of this operation
@@ -384,6 +387,9 @@ See :ref:`cli_upsert`.
       --alter                   Alter existing table to add any missing columns
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column
+      --extract TEXT            Extract this column into a separate lookup table,
+                                e.g. --extract species or --extract species:Species
+                                to use a custom table name
       --type <TEXT CHOICE>...   Column types to use when creating the table
       --no-detect-types         Treat all CSV/TSV columns as TEXT
       --analyze                 Run ANALYZE at the end of this operation
@@ -602,6 +608,12 @@ See :ref:`cli_insert_files`.
               -c size:size \
               --pk name
 
+      Use --convert to transform each row before it is inserted, the same way as
+      sqlite-utils convert:
+
+          sqlite-utils insert-files archive.db sqlar *.gif --sqlar \
+              --convert 'row["data"] = zlib.compress(row["data"])' --import zlib
+
     Options:
       -c, --column TEXT      Column definitions for the table
       --pk TEXT              Column to use as primary key
@@ -610,7 +622,11 @@ See :ref:`cli_insert_files`.
       --upsert               Upsert files with matching primary key
       --name TEXT            File name to use
       --text                 Store file content as TEXT, not BLOB
+      --sqlar                Store file content zlib-compressed, compatible with
+                             SQLite's sqlar format
       --encoding TEXT        Character encoding for input, defaults to utf-8
+      --convert TEXT         Python code to convert each row before insertion
+      --import TEXT          Python modules to import
       -s, --silent           Don't show a progress bar
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.

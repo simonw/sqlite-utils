@@ -1027,6 +1027,14 @@ def insert_upsert_options(*, require_pk=False):
                     help="Default value that should be set for a column",
                 ),
                 click.option(
+                    "--extract",
+                    "extract",
+                    multiple=True,
+                    help="Extract this column into a separate lookup table, e.g. "
+                    "--extract species or --extract species:Species to use a "
+                    "custom table name",
+                ),
+                click.option(
                     "--type",
                     "types",
                     type=(
@@ -1091,6 +1099,7 @@ def insert_upsert_implementation(
     truncate=False,
     not_null=None,
     default=None,
+    extract=None,
     types=None,
     no_detect_types=False,
     analyze=False,
@@ -1119,6 +1128,10 @@ def insert_upsert_implementation(
             extra_kwargs["not_null"] = set(not_null)
         if default:
             extra_kwargs["defaults"] = dict(default)
+        if extract:
+            extra_kwargs["extracts"] = {
+                item.split(":", 1)[0]: item.split(":", 1)[-1] for item in extract
+            }
         if column_type_overrides:
             extra_kwargs["columns"] = column_type_overrides
         if upsert:
@@ -1405,6 +1418,7 @@ def insert(
     truncate,
     not_null,
     default,
+    extract,
     types,
     strict,
 ):
@@ -1500,6 +1514,7 @@ def insert(
             silent=silent,
             not_null=not_null,
             default=default,
+            extract=extract,
             types=types,
             strict=strict,
             code=code,
@@ -1536,6 +1551,7 @@ def upsert(
     alter,
     not_null,
     default,
+    extract,
     types,
     no_detect_types,
     analyze,
@@ -1588,6 +1604,7 @@ def upsert(
             key=key,
             not_null=not_null,
             default=default,
+            extract=extract,
             types=types,
             no_detect_types=no_detect_types,
             analyze=analyze,

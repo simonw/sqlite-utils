@@ -212,6 +212,57 @@ def test_insert_not_null_default(db_path, tmpdir):
     ) == db["dogs"].schema
 
 
+def test_insert_extract(db_path, tmpdir):
+    json_path = str(tmpdir / "trees.json")
+    trees = [
+        {"id": 1, "name": "Lila", "species": "Oak"},
+        {"id": 2, "name": "Suna", "species": "Oak"},
+        {"id": 3, "name": "Pancake", "species": "Palm"},
+    ]
+    with open(json_path, "w") as fp:
+        fp.write(json.dumps(trees))
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "trees", json_path, "--pk", "id", "--extract", "species"],
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    assert {"trees", "species"} <= set(db.table_names())
+    assert list(db["species"].rows) == [
+        {"id": 1, "value": "Oak"},
+        {"id": 2, "value": "Palm"},
+    ]
+    assert list(db["trees"].rows) == [
+        {"id": 1, "name": "Lila", "species": 1},
+        {"id": 2, "name": "Suna", "species": 1},
+        {"id": 3, "name": "Pancake", "species": 2},
+    ]
+
+
+def test_insert_extract_custom_table_name(db_path, tmpdir):
+    json_path = str(tmpdir / "trees.json")
+    trees = [{"id": 1, "species": "Oak"}]
+    with open(json_path, "w") as fp:
+        fp.write(json.dumps(trees))
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            db_path,
+            "trees",
+            json_path,
+            "--pk",
+            "id",
+            "--extract",
+            "species:Species",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    assert {"trees", "Species"} <= set(db.table_names())
+    assert list(db["Species"].rows) == [{"id": 1, "value": "Oak"}]
+
+
 def test_insert_binary_base64(db_path):
     result = CliRunner().invoke(
         cli.cli,

@@ -1445,6 +1445,31 @@ The column type should be one of ``TEXT``, ``INTEGER``, ``FLOAT``, ``REAL`` or `
 
 As with detected column types, ``--type`` only affects tables created by the command. If the table already exists, its existing column types are left unchanged.
 
+.. _cli_insert_extract:
+
+Extracting columns into a separate table
+-----------------------------------------
+
+Use ``--extract column-name`` to extract a column out into a separate lookup table during the insert, instead of running a separate :ref:`extract <cli_extract>` command afterwards.
+
+This can be used more than once, and works with both ``insert`` and ``upsert``:
+
+.. code-block:: bash
+
+    sqlite-utils insert trees.db trees trees.csv --csv \
+        --extract species
+
+This creates a ``species`` lookup table containing one row per distinct value, and replaces the ``species`` column on ``trees`` with a foreign key reference to it.
+
+To use a different name for the lookup table, add it after a colon:
+
+.. code-block:: bash
+
+    sqlite-utils insert trees.db trees trees.csv --csv \
+        --extract species:Species
+
+See :ref:`python_api_extracts` for more details on how this works, including how ``null`` values are handled.
+
 To disable type detection and treat all columns as TEXT, use ``--no-detect-types``:
 
 .. code-block:: bash
