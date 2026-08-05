@@ -202,15 +202,32 @@ class UpdateWrapper:
     def __init__(self, wrapped: io.IOBase, update: Callable[[int], None]) -> None:
         self._wrapped = wrapped
         self._update = update
+        # If wrapped is a decoded text stream (e.g. io.TextIOWrapper set up
+        # with --encoding), len(line)/len(data) counts characters, not the
+        # bytes actually consumed from the underlying file - for a multi-byte
+        # encoding like UTF-16 that undercounts by ~2x, so progress never
+        # reaches 100% even though reading completed. Track the underlying
+        # binary buffer's position instead so progress stays honest for any
+        # encoding.
+        self._byte_source = getattr(wrapped, "buffer", None)
+        self._last_pos = self._byte_source.tell() if self._byte_source else 0
+
+    def _report(self, data_len: int) -> None:
+        if self._byte_source is not None:
+            pos = self._byte_source.tell()
+            self._update(pos - self._last_pos)
+            self._last_pos = pos
+        else:
+            self._update(data_len)
 
     def __iter__(self) -> Iterator[bytes]:
         for line in self._wrapped:
-            self._update(len(line))
+            self._report(len(line))
             yield line
 
     def read(self, size: int = -1) -> bytes:
         data = self._wrapped.read(size)
-        self._update(len(data))
+        self._report(len(data))
         return data
 
 

@@ -2259,6 +2259,70 @@ def test_insert_encoding(tmpdir):
     ]
 
 
+def test_insert_encoding_utf16le(tmpdir):
+    # Regression test for issue #439: against utf-16-le CSV input, progress
+    # accounting used to undercount (it measured decoded characters against
+    # a byte-based file length, so it topped out around 50% - looking like a
+    # stall) even on a fully successful insert. And a genuine decode error
+    # further into the file needs to still surface as a clear exception
+    # rather than being silently swallowed.
+    db_path = str(tmpdir / "test.db")
+    csv_path = str(tmpdir / "test.csv")
+    rows = ["id,name"] + [f"{i},Name {i}" for i in range(500)]
+    with open(csv_path, "wb") as fp:
+        fp.write("\n".join(rows).encode("utf-16-le"))
+
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            db_path,
+            "names",
+            csv_path,
+            "--csv",
+            "--encoding",
+            "utf-16-le",
+            "--no-detect-types",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    # All 500 data rows made it in - progress accounting didn't drop any
+    assert db["names"].count == 500
+    assert list(db["names"].rows)[:2] == [
+        {"id": "0", "name": "Name 0"},
+        {"id": "1", "name": "Name 1"},
+    ]
+
+    # A file that is genuinely invalid utf-16-le should raise a visible,
+    # descriptive error - not hang or fail silently.
+    bad_csv_path = str(tmpdir / "bad.csv")
+    good_bytes = "\n".join(rows).encode("utf-16-le")
+    # Splice in an unpaired surrogate code unit part-way through the file,
+    # aligned to a 2-byte utf-16 code unit boundary
+    midpoint = (len(good_bytes) // 2) & ~1
+    bad_bytes = good_bytes[:midpoint] + b"\x00\xd8" + good_bytes[midpoint:]
+    with open(bad_csv_path, "wb") as fp:
+        fp.write(bad_bytes)
+
+    bad_result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            str(tmpdir / "bad.db"),
+            "names",
+            bad_csv_path,
+            "--csv",
+            "--encoding",
+            "utf-16-le",
+        ],
+        catch_exceptions=False,
+    )
+    assert bad_result.exit_code == 1
+    assert "codec can't decode" in bad_result.output
+
+
 @pytest.mark.parametrize("fts", ["FTS4", "FTS5"])
 @pytest.mark.parametrize(
     "extra_arg,expected",

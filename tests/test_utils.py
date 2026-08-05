@@ -1,5 +1,6 @@
 import csv
 import io
+import os
 
 import pytest
 
@@ -124,3 +125,27 @@ def test_rows_to_csv_no_headers():
 def test_rows_to_csv_empty_rows():
     assert utils.rows_to_csv([]) == ""
     assert utils.rows_to_csv([], headers=["id", "name"]) == "id,name\r\n"
+
+
+def test_update_wrapper_reports_honest_bytes_for_utf16(tmpdir):
+    # Regression test for issue #439: UpdateWrapper used to count decoded
+    # *characters* (len(line)) against a progress length measured in bytes.
+    # For utf-16-le every ASCII character is encoded as 2 bytes, so the
+    # reported progress topped out at ~50% of the file even though reading
+    # had actually finished - looking like a stall. It should now track the
+    # underlying binary stream's position, so total reported progress
+    # matches the file size exactly regardless of encoding.
+    path = str(tmpdir / "utf16.csv")
+    text = "id,name\n" + "".join(f"{i},Alice{i}\n" for i in range(500))
+    with open(path, "wb") as fp:
+        fp.write(text.encode("utf-16-le"))
+    file_length = os.path.getsize(path)
+
+    reported = []
+    with open(path, "rb") as fp:
+        decoded = io.TextIOWrapper(fp, encoding="utf-16-le")
+        wrapper = utils.UpdateWrapper(decoded, reported.append)
+        for _line in wrapper:
+            pass
+
+    assert sum(reported) == file_length
