@@ -3307,6 +3307,29 @@ The ``sqlite_utils.utils.rows_from_file()`` helper function can read rows (a seq
 .. autofunction:: sqlite_utils.utils.rows_from_file
    :noindex:
 
+.. _python_api_rows_to_csv:
+
+Writing rows to CSV
+===================
+
+The CLI can render query and table output as CSV using ``--csv``, see :ref:`cli_query_csv`. The ``sqlite_utils.utils.rows_to_csv()`` helper provides the same behavior from the Python API - pass it rows from :meth:`db.query() <python_api_query>` or ``table.rows`` / ``table.rows_where()`` and it writes CSV to a file-like object, or returns the CSV as a string if you don't pass one:
+
+.. code-block:: python
+
+    from sqlite_utils.utils import rows_to_csv
+
+    db = Database("dogs.db")
+    csv_string = rows_to_csv(db["dogs"].rows)
+
+    # Or write directly to a file:
+    with open("dogs.csv", "w", newline="") as fp:
+        rows_to_csv(db["dogs"].rows, fp=fp)
+
+Like the CLI, a header row is included by default - taken from the keys of the first row - and can be skipped with ``no_headers=True``.
+
+.. autofunction:: sqlite_utils.utils.rows_to_csv
+   :noindex:
+
 .. _python_api_maximize_csv_field_size_limit:
 
 Setting the maximum CSV field size limit

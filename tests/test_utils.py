@@ -102,3 +102,25 @@ def test_flatten(input, expected):
 )
 def test_dedupe_keys(input, expected):
     assert utils.dedupe_keys(input) == expected
+
+
+def test_rows_to_csv_returns_string():
+    rows = [{"id": 1, "name": "Cleo"}, {"id": 2, "name": "Pancakes"}]
+    assert utils.rows_to_csv(rows) == "id,name\r\n1,Cleo\r\n2,Pancakes\r\n"
+
+
+def test_rows_to_csv_writes_to_fp():
+    fp = io.StringIO()
+    result = utils.rows_to_csv([{"id": 1, "name": "Cleo"}], fp=fp)
+    assert result is None
+    assert fp.getvalue() == "id,name\r\n1,Cleo\r\n"
+
+
+def test_rows_to_csv_no_headers():
+    csv_string = utils.rows_to_csv([{"id": 1, "name": "Cleo"}], no_headers=True)
+    assert csv_string == "1,Cleo\r\n"
+
+
+def test_rows_to_csv_empty_rows():
+    assert utils.rows_to_csv([]) == ""
+    assert utils.rows_to_csv([], headers=["id", "name"]) == "id,name\r\n"

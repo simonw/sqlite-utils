@@ -94,6 +94,13 @@ sqlite_utils.utils.rows_from_file
 
 .. autofunction:: sqlite_utils.utils.rows_from_file
 
+.. _reference_utils_rows_to_csv:
+
+sqlite_utils.utils.rows_to_csv
+------------------------------
+
+.. autofunction:: sqlite_utils.utils.rows_to_csv
+
 .. _reference_utils_typetracker:
 
 sqlite_utils.utils.TypeTracker

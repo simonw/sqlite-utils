@@ -14,6 +14,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     BinaryIO,
+    TextIO,
     TypeVar,
     Union,
     cast,
@@ -390,6 +391,58 @@ def rows_from_file(
             )
     else:
         raise RowsFromFileError("Bad format")
+
+
+def rows_to_csv(
+    rows: Iterable[Row],
+    fp: TextIO | None = None,
+    headers: Iterable[str] | None = None,
+    dialect: str | type[csv.Dialect] = "excel",
+    no_headers: bool = False,
+) -> str | None:
+    """
+    Write a sequence of dictionaries - such as rows from :meth:`.Database.query`
+    or :attr:`.Table.rows` - to CSV, mirroring the CLI's ``--csv`` output.
+
+    .. code-block:: python
+
+        from sqlite_utils.utils import rows_to_csv
+
+        csv_string = rows_to_csv([{"id": 1, "name": "Cleo"}])
+        print(csv_string)
+        # Outputs "id,name\\r\\n1,Cleo\\r\\n"
+
+    Pass ``fp=`` a writable file-like object to write there instead - in that
+    case this function returns ``None``.
+
+    :param rows: iterable of dictionaries to write
+    :param fp: optional writable file-like object - if omitted the CSV is
+      returned as a string
+    :param headers: explicit list of column headers - defaults to the keys
+      of the first row, the same as the CLI
+    :param dialect: the CSV dialect to use, defaults to ``"excel"``
+    :param no_headers: set to ``True`` to skip the header row, equivalent to
+      the CLI's ``--no-headers`` option
+    """
+    return_string = fp is None
+    out: TextIO = fp if fp is not None else io.StringIO()
+    rows_iter = iter(rows)
+    first_row = next(rows_iter, None)
+    if headers is None:
+        if first_row is None:
+            # Nothing to write and no columns were specified
+            return cast(io.StringIO, out).getvalue() if return_string else None
+        headers = list(first_row.keys())
+    writer = csv.DictWriter(
+        out, fieldnames=list(headers), dialect=dialect, extrasaction="ignore"
+    )
+    if not no_headers:
+        writer.writeheader()
+    if first_row is not None:
+        writer.writerow(first_row)
+        for row in rows_iter:
+            writer.writerow(row)
+    return cast(io.StringIO, out).getvalue() if return_string else None
 
 
 class TypeTracker:
