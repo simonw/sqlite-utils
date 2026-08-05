@@ -1747,6 +1747,13 @@ You can change the name of one of these columns using a ``-c colname:coldef`` pa
     sqlite-utils insert-files gifs.db images *.gif \
         -c path -c md5 -c last_modified:mtime --pk=path
 
+You can also populate a column with a fixed value for every file using a ``-c colname:text:value`` parameter. This is useful for tagging every row from a given import with the same value, without a separate update pass:
+
+.. code-block:: bash
+
+    sqlite-utils insert-files gifs.db images *.gif \
+        -c path -c content -c file_type:text:gif --pk=path
+
 You can pass ``--replace`` or ``--upsert`` to indicate what should happen if you try to insert a file with an existing primary key. Pass ``--alter`` to cause any missing columns to be added to the table.
 
 The full list of column definitions you can use is as follows:

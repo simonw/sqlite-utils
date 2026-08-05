@@ -2978,8 +2978,19 @@ def insert_files(
                         "size": lambda p, data=stdin_data: len(data),
                     }
                 for coldef in column:
-                    if ":" in coldef:
-                        colname, coltype = coldef.rsplit(":", 1)
+                    parts = coldef.split(":", 2)
+                    if len(parts) == 3:
+                        # Fixed value, e.g. -c file_type:text:gif
+                        colname, coltype, fixed_value = parts
+                        if coltype != "text":
+                            raise click.ClickException(
+                                "Fixed value column definitions must use "
+                                "'colname:text:value', not '{}'".format(coldef)
+                            )
+                        row[colname] = fixed_value
+                        continue
+                    elif len(parts) == 2:
+                        colname, coltype = parts
                     else:
                         colname, coltype = coldef, coldef
                     try:

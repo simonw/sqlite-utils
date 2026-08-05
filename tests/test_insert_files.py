@@ -117,6 +117,60 @@ def test_insert_files(silent, pk_args, expected_pks):
         assert set(db["files"].pks) == set(expected_pks)
 
 
+def test_insert_files_fixed_value_column():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        tmpdir = pathlib.Path(".")
+        db_path = str(tmpdir / "files.db")
+        (tmpdir / "one.gif").write_text("gif content", "utf-8")
+        result = runner.invoke(
+            cli.cli,
+            [
+                "insert-files",
+                db_path,
+                "files",
+                str(tmpdir / "one.gif"),
+                "-c",
+                "path",
+                "-c",
+                "content",
+                "-c",
+                "file_type:text:gif",
+                "--pk",
+                "path",
+                "--pk",
+                "file_type",
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        db = Database(db_path)
+        row = next(iter(db["files"].rows))
+        assert row["file_type"] == "gif"
+        assert set(db["files"].pks) == {"path", "file_type"}
+
+
+def test_insert_files_fixed_value_column_bad_type():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        tmpdir = pathlib.Path(".")
+        db_path = str(tmpdir / "files.db")
+        (tmpdir / "one.gif").write_text("gif content", "utf-8")
+        result = runner.invoke(
+            cli.cli,
+            [
+                "insert-files",
+                db_path,
+                "files",
+                str(tmpdir / "one.gif"),
+                "-c",
+                "file_type:mtime:gif",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "colname:text:value" in result.output
+
+
 @pytest.mark.parametrize(
     "use_text,encoding,input,expected",
     (
