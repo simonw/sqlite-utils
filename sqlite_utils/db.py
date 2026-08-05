@@ -501,6 +501,10 @@ class Database:
     :param use_old_upsert: set to ``True`` to force the older upsert implementation. See
       :ref:`python_api_old_upsert`
     :param strict: Apply STRICT mode to all created tables (unless overridden)
+    :param deserialize_json: set to ``True`` to automatically parse string column values that
+      look like JSON objects or arrays back into ``dict``/``list`` objects when rows are read
+      via ``.rows``, ``.rows_where()``, ``.get()``, ``.search()`` or ``.query()``. Defaults to
+      ``False``, so values are returned as the raw strings stored in the database.
     """
 
     _counts_table_name = "_counts"
@@ -519,10 +523,12 @@ class Database:
         execute_plugins: bool = True,
         use_old_upsert: bool = False,
         strict: bool = False,
+        deserialize_json: bool = False,
     ):
         self.memory_name = None
         self.memory = False
         self.use_old_upsert = use_old_upsert
+        self.deserialize_json = deserialize_json
         if not (
             (filename_or_conn is not None and (not memory and not memory_name))
             or (filename_or_conn is None and (memory or memory_name))
@@ -812,6 +818,13 @@ class Database:
         """.strip()
         self.execute(attach_sql)
 
+    def _row_dict(self, keys: Iterable[str], row: Sequence) -> dict:
+        "Build a row dict, deserializing JSON string values if self.deserialize_json is set."
+        d = dict(zip(keys, row))
+        if self.deserialize_json:
+            d = {key: dejsonify_if_needed(value) for key, value in d.items()}
+        return d
+
     def query(
         self, sql: str, params: Sequence | dict[str, Any] | None = None
     ) -> Generator[dict, None, None]:
@@ -857,7 +870,7 @@ class Database:
             if cursor.description is None:
                 raise ValueError(message)
             keys = dedupe_keys(d[0] for d in cursor.description)
-            return (dict(zip(keys, row)) for row in cursor)
+            return (self._row_dict(keys, row) for row in cursor)
         # Execute inside a savepoint, so a statement that turns out not to
         # return rows can be rolled back before the ValueError is raised
         self.conn.execute('SAVEPOINT "sqlite_utils_query"')
@@ -879,8 +892,8 @@ class Database:
                 fetched = cursor.fetchall()
                 self.conn.execute('RELEASE "sqlite_utils_query"')
                 released = True
-                return (dict(zip(keys, row)) for row in fetched)
-            return (dict(zip(keys, row)) for row in cursor)
+                return (self._row_dict(keys, row) for row in fetched)
+            return (self._row_dict(keys, row) for row in cursor)
         finally:
             if not released and self.conn.in_transaction:
                 # An error occurred - undo anything the statement changed.
@@ -2016,7 +2029,7 @@ class Queryable:
         cursor = self.db.execute(sql, where_args or [])
         columns = dedupe_keys(c[0] for c in cursor.description)
         for row in cursor:
-            yield dict(zip(columns, row))
+            yield self.db._row_dict(columns, row)
 
     def pks_and_rows_where(
         self,
@@ -3664,7 +3677,7 @@ class Table(Queryable):
         )
         columns = dedupe_keys(c[0] for c in cursor.description)
         for row in cursor:
-            yield dict(zip(columns, row))
+            yield self.db._row_dict(columns, row)
 
     def value_or_default(self, key: str, value: Any) -> Any:
         return self._defaults[key] if value is DEFAULT else value
@@ -5103,6 +5116,18 @@ def jsonify_if_needed(value: object) -> object:
         return str(value)
     else:
         return value
+
+
+def dejsonify_if_needed(value: object) -> object:
+    "Parse a string that looks like a JSON object or array back into a dict/list."
+    if isinstance(value, str) and value[:1] in ("{", "["):
+        try:
+            parsed = json.loads(value)
+        except ValueError:
+            return value
+        if isinstance(parsed, (dict, list)):
+            return parsed
+    return value
 
 
 def resolve_extracts(

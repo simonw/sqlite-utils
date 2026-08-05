@@ -899,6 +899,28 @@ def test_insert_dictionaries_and_lists_as_json(fresh_db, data_structure):
     assert data_structure == json.loads(row[1])
 
 
+def test_deserialize_json(fresh_db):
+    fresh_db["test"].insert(
+        {"id": 1, "data": {"foo": "bar"}, "tags": [1, 2, 3], "name": "not json"},
+        pk="id",
+    )
+    # Default behaviour: values come back as the raw JSON strings that were stored
+    row = fresh_db["test"].get(1)
+    assert row["data"] == '{"foo": "bar"}'
+    assert row["tags"] == "[1, 2, 3]"
+    assert row["name"] == "not json"
+
+    # Opt-in: deserialize_json=True parses them back into dict/list
+    db2 = Database(fresh_db.conn, deserialize_json=True)
+    row2 = db2["test"].get(1)
+    assert row2["data"] == {"foo": "bar"}
+    assert row2["tags"] == [1, 2, 3]
+    assert row2["name"] == "not json"
+    # Also applies to .rows, .rows_where() and .query()
+    assert list(db2["test"].rows)[0]["data"] == {"foo": "bar"}
+    assert list(db2.query("select data from test"))[0]["data"] == {"foo": "bar"}
+
+
 def test_insert_list_nested_unicode(fresh_db):
     fresh_db["test"].insert(
         {"id": 1, "data": {"key1": {"nested": ["cømplex"]}}}, pk="id"

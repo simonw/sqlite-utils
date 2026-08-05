@@ -2287,6 +2287,21 @@ For example:
     """).fetchall()
     # Returns [('Felton, CA',)]
 
+Values read back out through the Python API - via ``.rows``, ``.rows_where()``, ``.get()``,
+``.search()`` or ``.query()`` - come back as the raw JSON string that was stored, not as a
+``dict`` or ``list``, since that is the value SQLite actually returned. Pass
+``deserialize_json=True`` to the ``Database()`` constructor to opt in to automatically parsing
+any string value that looks like a JSON object or array back into a ``dict`` or ``list``:
+
+.. code-block:: python
+
+    db = sqlite_utils.Database("museums.db", deserialize_json=True)
+    print(db["niche_museums"].get(1))
+    # {'id': 1, 'name': 'The Bigfoot Discovery Museum', ..., 'hours': {'Monday': [11, 18], ...}}
+
+This defaults to ``False``, so existing code that expects raw strings continues to work
+unchanged.
+
 .. _python_api_conversions:
 
 Converting column values using SQL functions
