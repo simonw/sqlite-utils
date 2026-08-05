@@ -160,6 +160,15 @@ def load_extension_option(fn):
     )(fn)
 
 
+def transpose_option(fn):
+    return click.option(
+        "-x",
+        "--transpose",
+        is_flag=True,
+        help="Transpose wide rows, one key/value pair per line (like psql's \\x)",
+    )(fn)
+
+
 def functions_option(fn):
     return click.option(
         "--functions",
@@ -1992,6 +2001,7 @@ def drop_view(path, view, ignore, load_extension):
     help="Additional databases to attach - specify alias and filepath",
 )
 @output_options
+@transpose_option
 @click.option("-r", "--raw", is_flag=True, help="Raw output, first column of first row")
 @click.option("--raw-lines", is_flag=True, help="Raw output, first column of each row")
 @click.option(
@@ -2016,6 +2026,7 @@ def query(
     fmt,
     json_cols,
     ascii_,
+    transpose,
     raw,
     raw_lines,
     param,
@@ -2063,6 +2074,7 @@ def query(
         arrays,
         json_cols,
         ascii_,
+        transpose,
     )
 
 
@@ -2087,6 +2099,7 @@ def query(
     help='Flatten nested JSON objects, so {"foo": {"bar": 1}} becomes {"foo_bar": 1}',
 )
 @output_options
+@transpose_option
 @click.option("-r", "--raw", is_flag=True, help="Raw output, first column of first row")
 @click.option("--raw-lines", is_flag=True, help="Raw output, first column of each row")
 @click.option(
@@ -2134,6 +2147,7 @@ def memory(
     fmt,
     json_cols,
     ascii_,
+    transpose,
     raw,
     raw_lines,
     param,
@@ -2274,6 +2288,7 @@ def memory(
         arrays,
         json_cols,
         ascii_,
+        transpose,
     )
 
 
@@ -2292,6 +2307,7 @@ def _execute_query(
     arrays,
     json_cols,
     ascii_,
+    transpose=False,
 ):
     with db.conn:
         try:
@@ -2319,6 +2335,9 @@ def _execute_query(
                     sys.stdout.buffer.write(data + b"\n")
                 else:
                     sys.stdout.write(str(data) + "\n")
+        elif transpose:
+            for line in output_transpose(cursor, headers, no_headers):
+                click.echo(line)
         elif fmt or table:
             print(
                 tabulate.tabulate(
@@ -2358,6 +2377,7 @@ def _execute_query(
 )
 @click.option("--quote", is_flag=True, help="Apply FTS quoting rules to search term")
 @output_options
+@transpose_option
 @load_extension_option
 @click.pass_context
 def search(
@@ -2379,6 +2399,7 @@ def search(
     fmt,
     json_cols,
     ascii_,
+    transpose,
     load_extension,
 ):
     """Execute a full-text search against this table
@@ -2424,6 +2445,7 @@ def search(
             fmt=fmt,
             json_cols=json_cols,
             ascii_=ascii_,
+            transpose=transpose,
             param=[("query", q)],
             load_extension=load_extension,
         )
@@ -2464,6 +2486,7 @@ def search(
     help="SQL offset to use",
 )
 @output_options
+@transpose_option
 @load_extension_option
 @click.pass_context
 def rows(
@@ -2485,6 +2508,7 @@ def rows(
     fmt,
     json_cols,
     ascii_,
+    transpose,
     load_extension,
 ):
     """Output all rows in the specified table
@@ -2520,6 +2544,7 @@ def rows(
         param=param,
         json_cols=json_cols,
         ascii_=ascii_,
+        transpose=transpose,
         load_extension=load_extension,
     )
 
@@ -3796,6 +3821,20 @@ def output_rows(iterator, headers, nl, arrays, json_cols, ascii_=False):
     if first:
         # We didn't output any rows, so yield the empty list
         yield "[]"
+
+
+def output_transpose(rows, headers, no_headers):
+    # psql-style extended display: one "key = value" block per row
+    headers = [str(h) for h in headers]
+    str_rows = [["" if v is None else str(v) for v in row] for row in rows]
+    key_width = max([len(h) for h in headers], default=0)
+    val_width = max([len(v) for row in str_rows for v in row], default=0)
+    total_width = key_width + 3 + val_width
+    for i, row in enumerate(str_rows, start=1):
+        if not no_headers:
+            yield "-[ RECORD {} ]-".format(i).ljust(total_width, "-")
+        for header, value in zip(headers, row):
+            yield "{} | {}".format(header.ljust(key_width), value)
 
 
 def maybe_json(value):

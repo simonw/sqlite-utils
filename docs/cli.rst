@@ -337,6 +337,31 @@ Available ``--fmt`` options are:
 
 This list can also be found by running ``sqlite-utils query --help``.
 
+.. _cli_query_transpose:
+
+Transposed output for wide rows
+--------------------------------
+
+If your rows have a lot of columns they can be hard to read as a table.
+Use the ``--transpose`` option (or the ``-x`` shortcut, matching ``psql``'s ``\x``) to display each row as a block of key/value pairs instead:
+
+.. code-block:: bash
+
+    sqlite-utils dogs.db "select * from dogs" --transpose
+
+.. code-block:: output
+
+    -[ RECORD 1 ]--
+    id   | 1
+    age  | 4
+    name | Cleo
+    -[ RECORD 2 ]--
+    id   | 2
+    age  | 2
+    name | Pancakes
+
+Combine this with ``--no-headers`` to omit the ``-[ RECORD n ]-`` separator lines.
+
 .. _cli_query_raw:
 
 Returning raw data, such as binary content
@@ -480,7 +505,7 @@ Without any extra arguments, this command executes SQL against the in-memory dat
 
     [{"sqlite_version()": "3.35.5"}]
 
-It takes all of the same output formatting options as :ref:`sqlite-utils query <cli_query>`: ``--csv`` and ``--csv`` and ``--table`` and ``--nl``:
+It takes all of the same output formatting options as :ref:`sqlite-utils query <cli_query>`: ``--csv`` and ``--table`` and ``--nl`` and ``--transpose``:
 
 .. code-block:: bash
 
@@ -690,7 +715,7 @@ You can return every row in a specified table using the ``rows`` command:
     [{"id": 1, "age": 4, "name": "Cleo"},
      {"id": 2, "age": 2, "name": "Pancakes"}]
 
-This command accepts the same output options as ``query`` - so you can pass ``--nl``, ``--csv``, ``--tsv``, ``--no-headers``, ``--table`` and ``--fmt``.
+This command accepts the same output options as ``query`` - so you can pass ``--nl``, ``--csv``, ``--tsv``, ``--no-headers``, ``--table``, ``--fmt`` and ``--transpose`` (see :ref:`cli_query_transpose`).
 
 You can use the ``-c`` option to specify a subset of columns to return:
 

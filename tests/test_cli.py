@@ -760,6 +760,58 @@ def test_query_csv(db_path, format, expected):
     assert result.output.strip().replace("\r", "") == expected_rest
 
 
+def test_query_transpose(db_path):
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert_all(
+            [
+                {"id": 1, "age": 4, "name": "Cleo"},
+                {"id": 2, "age": 2, "name": "Pancakes"},
+            ]
+        )
+    result = CliRunner().invoke(
+        cli.cli,
+        [db_path, "select id, name, age from dogs", "--transpose"],
+    )
+    assert result.exit_code == 0
+    assert result.output == (
+        "-[ RECORD 1 ]--\n"
+        "id   | 1\n"
+        "name | Cleo\n"
+        "age  | 4\n"
+        "-[ RECORD 2 ]--\n"
+        "id   | 2\n"
+        "name | Pancakes\n"
+        "age  | 2\n"
+    )
+    # -x is a shorthand for --transpose
+    result2 = CliRunner().invoke(
+        cli.cli, [db_path, "select id, name, age from dogs", "-x"]
+    )
+    assert result2.output == result.output
+    # --no-headers drops the "-[ RECORD n ]-" separators
+    result3 = CliRunner().invoke(
+        cli.cli,
+        [db_path, "select id, name, age from dogs", "--transpose", "--no-headers"],
+    )
+    assert result3.exit_code == 0
+    assert (
+        result3.output
+        == "id   | 1\nname | Cleo\nage  | 4\nid   | 2\nname | Pancakes\nage  | 2\n"
+    )
+
+
+def test_rows_transpose(db_path):
+    db = Database(db_path)
+    with db.conn:
+        db["dogs"].insert_all(
+            [{"id": 1, "name": "Cleo", "age": 4}], column_order=("id", "name", "age")
+        )
+    result = CliRunner().invoke(cli.cli, ["rows", db_path, "dogs", "-x"])
+    assert result.exit_code == 0
+    assert result.output == "-[ RECORD 1 ]-\nid   | 1\nname | Cleo\nage  | 4\n"
+
+
 _all_query = "select id, name, age from dogs"
 _one_query = "select id, name, age from dogs where id = 1"
 

@@ -136,6 +136,8 @@ See :ref:`cli_query`.
                                   escaped strings
       --ascii                     Escape non-ASCII characters in JSON output as
                                   \uXXXX
+      -x, --transpose             Transpose wide rows, one key/value pair per line
+                                  (like psql's \x)
       -r, --raw                   Raw output, first column of first row
       --raw-lines                 Raw output, first column of each row
       -p, --param <TEXT TEXT>...  Named :parameters for SQL query
@@ -207,6 +209,8 @@ See :ref:`cli_memory`.
                                   escaped strings
       --ascii                     Escape non-ASCII characters in JSON output as
                                   \uXXXX
+      -x, --transpose             Transpose wide rows, one key/value pair per line
+                                  (like psql's \x)
       -r, --raw                   Raw output, first column of first row
       --raw-lines                 Raw output, first column of each row
       -p, --param <TEXT TEXT>...  Named :parameters for SQL query
@@ -478,6 +482,8 @@ See :ref:`cli_search`.
       --json-cols            Detect JSON cols and output them as JSON, not escaped
                              strings
       --ascii                Escape non-ASCII characters in JSON output as \uXXXX
+      -x, --transpose        Transpose wide rows, one key/value pair per line (like
+                             psql's \x)
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 
@@ -842,6 +848,8 @@ See :ref:`cli_rows`.
                                   escaped strings
       --ascii                     Escape non-ASCII characters in JSON output as
                                   \uXXXX
+      -x, --transpose             Transpose wide rows, one key/value pair per line
+                                  (like psql's \x)
       --load-extension TEXT       Path to SQLite extension, with optional
                                   :entrypoint
       -h, --help                  Show this message and exit.
