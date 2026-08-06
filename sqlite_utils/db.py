@@ -3378,7 +3378,9 @@ class Table(Queryable):
                 table_fts=quote_identifier(self.name + "_fts"),
                 columns=", ".join(quote_identifier(c) for c in columns),
                 fts_version=fts_version,
-                tokenize=f"\n    tokenize='{tokenize}'," if tokenize else "",
+                tokenize=(
+                    f"\n    tokenize={self.db.quote(tokenize)}," if tokenize else ""
+                ),
             )
         )
         should_recreate = False
