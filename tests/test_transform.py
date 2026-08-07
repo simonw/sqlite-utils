@@ -1052,6 +1052,8 @@ def test_transform_with_view_in_open_transaction(fresh_db):
 
 
 def test_transform_restores_legacy_alter_table_setting(fresh_db):
+    if sqlite3.sqlite_version_info < (3, 25, 0):
+        pytest.skip("legacy_alter_table pragma requires SQLite 3.25 or higher")
     dogs = fresh_db["dogs"]
     dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
     # Default is OFF, reset to OFF afterwards
