@@ -16,7 +16,9 @@ from sqlite_utils.utils import OperationalError
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "age" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Change column type
@@ -26,7 +28,9 @@ from sqlite_utils.utils import OperationalError
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "age" INTEGER\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Rename a column
@@ -36,7 +40,9 @@ from sqlite_utils.utils import OperationalError
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "dog_age" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "dog_age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Drop a column
@@ -46,7 +52,9 @@ from sqlite_utils.utils import OperationalError
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name")\n   SELECT "rowid", "id", "name" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Convert type AND rename column
@@ -56,7 +64,9 @@ from sqlite_utils.utils import OperationalError
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "dog_age" INTEGER\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "dog_age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Change primary key
@@ -66,7 +76,9 @@ from sqlite_utils.utils import OperationalError
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "age" TEXT PRIMARY KEY\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Change primary key to a compound pk
@@ -76,7 +88,9 @@ from sqlite_utils.utils import OperationalError
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "age" TEXT,\n   PRIMARY KEY ("age", "name")\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Remove primary key, creating a rowid table
@@ -86,7 +100,9 @@ from sqlite_utils.utils import OperationalError
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "age" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Keeping the table
@@ -95,8 +111,10 @@ from sqlite_utils.utils import OperationalError
             [
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name")\n   SELECT "rowid", "id", "name" FROM "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs" RENAME TO "kept_table";',
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
     ],
@@ -139,7 +157,9 @@ def test_transform_sql_table_with_primary_key(
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "age" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Change column type
@@ -149,7 +169,9 @@ def test_transform_sql_table_with_primary_key(
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "age" INTEGER\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Rename a column
@@ -159,7 +181,9 @@ def test_transform_sql_table_with_primary_key(
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "dog_age" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "dog_age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Make ID a primary key
@@ -169,7 +193,9 @@ def test_transform_sql_table_with_primary_key(
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "age" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
     ],
@@ -903,3 +929,123 @@ def test_transform_with_unique_constraint_implicit_index(fresh_db):
         "You must manually drop this index prior to running this transformation and manually recreate the new index after running this transformation."
         in str(excinfo.value)
     )
+
+
+def test_transform_preserves_view(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/831
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute("create view dogs_view as select id, name from dogs")
+    view_sql_before = fresh_db.execute(
+        "select sql from sqlite_master where name = 'dogs_view'"
+    ).fetchone()[0]
+    dogs.transform(rename={"name": "title"})
+    view_sql_after = fresh_db.execute(
+        "select sql from sqlite_master where name = 'dogs_view'"
+    ).fetchone()[0]
+    assert view_sql_before == view_sql_after
+
+
+@pytest.mark.parametrize(
+    "transform_params",
+    [
+        {"types": {"name": int}},
+        {"pk": "name"},
+        {"add_foreign_keys": [("other_id", "other", "id")]},
+        {"drop_foreign_keys": ["other_id"]},
+    ],
+)
+def test_transform_variants_preserve_view(fresh_db, transform_params):
+    # Covers retyping, changing primary key and foreign key modifications,
+    # with a view whose columns are untouched by the transform
+    fresh_db["other"].insert({"id": 1}, pk="id")
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo", "other_id": 1}, pk="id")
+    if "drop_foreign_keys" in transform_params:
+        dogs.transform(add_foreign_keys=[("other_id", "other", "id")])
+    fresh_db.execute("create view dogs_view as select id, name from dogs")
+    view_sql_before = fresh_db.execute(
+        "select sql from sqlite_master where name = 'dogs_view'"
+    ).fetchone()[0]
+    dogs.transform(**transform_params)
+    view_sql_after = fresh_db.execute(
+        "select sql from sqlite_master where name = 'dogs_view'"
+    ).fetchone()[0]
+    assert view_sql_before == view_sql_after
+    assert list(fresh_db["dogs_view"].rows) == [{"id": 1, "name": "Cleo"}]
+
+
+def test_transform_view_referencing_renamed_column(fresh_db):
+    # The view survives but querying it raises "no such column" - inherent
+    # to SQLite views, whose SQL is stored as text
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute("create view dogs_view as select id, name from dogs")
+    dogs.transform(rename={"name": "title"})
+    with pytest.raises(OperationalError, match="no such column"):
+        fresh_db.execute("select * from dogs_view")
+
+
+def test_transform_view_on_view(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute("create view v1 as select id, name from dogs")
+    fresh_db.execute("create view v2 as select name from v1")
+    sqls_before = fresh_db.execute(
+        "select sql from sqlite_master where type = 'view' order by name"
+    ).fetchall()
+    dogs.transform(types={"id": str})
+    sqls_after = fresh_db.execute(
+        "select sql from sqlite_master where type = 'view' order by name"
+    ).fetchall()
+    assert sqls_before == sqls_after
+    assert list(fresh_db["v2"].rows) == [{"name": "Cleo"}]
+
+
+def test_transform_keep_table_does_not_repoint_view(fresh_db):
+    # Without legacy_alter_table the ALTER TABLE dogs RENAME TO dogs_backup
+    # step would rewrite the view to select from "dogs_backup"
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute("create view dogs_view as select id, name from dogs")
+    dogs.transform(types={"name": str}, keep_table="dogs_backup")
+    view_sql = fresh_db.execute(
+        "select sql from sqlite_master where name = 'dogs_view'"
+    ).fetchone()[0]
+    assert "dogs_backup" not in view_sql
+    # View reads from the live table, not the frozen backup
+    dogs.insert({"id": 2, "name": "Pancakes"})
+    assert list(fresh_db["dogs_view"].rows) == [
+        {"id": 1, "name": "Cleo"},
+        {"id": 2, "name": "Pancakes"},
+    ]
+
+
+def test_transform_sql_standalone_statements_work_with_view(fresh_db):
+    # The documented "run these statements yourself" workflow should be
+    # standalone-correct, so the pragmas must come from transform_sql()
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute("create view dogs_view as select id, name from dogs")
+    sqls = dogs.transform_sql(types={"name": str}, tmp_suffix="suffix")
+    assert sqls[-3] == "PRAGMA legacy_alter_table=ON;"
+    assert sqls[-2] == 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";'
+    assert sqls[-1] == "PRAGMA legacy_alter_table=OFF;"
+    for sql in sqls:
+        fresh_db.execute(sql)
+    assert list(fresh_db["dogs_view"].rows) == [{"id": 1, "name": "Cleo"}]
+
+
+def test_transform_with_view_in_open_transaction(fresh_db):
+    fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute("create view dogs_view as select id, name from dogs")
+    with fresh_db.conn:
+        fresh_db.execute("insert into dogs (id, name) values (2, 'Pancakes')")
+        dogs.transform(rename={"name": "title"})
+    assert dogs.columns_dict == {"id": int, "title": str}
+    view_sql = fresh_db.execute(
+        "select sql from sqlite_master where name = 'dogs_view'"
+    ).fetchone()[0]
+    assert view_sql == "CREATE VIEW dogs_view as select id, name from dogs"
