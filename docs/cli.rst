@@ -2288,7 +2288,11 @@ If you want to see the SQL that will be executed to make the change without actu
     INSERT INTO "roadside_attractions_new_4033a60276b9" ("longitude", "latitude", "id", "name")
        SELECT "longitude", "latitude", "pk", "name" FROM "roadside_attractions";
     DROP TABLE "roadside_attractions";
+    PRAGMA legacy_alter_table=ON;
     ALTER TABLE "roadside_attractions_new_4033a60276b9" RENAME TO "roadside_attractions";
+    PRAGMA legacy_alter_table=OFF;
+
+Tables that are referenced by views can be transformed - the view definitions are left unchanged, see :ref:`python_api_transform_views` for details.
 
 .. note::
     In Python: :ref:`table.transform() <python_api_transform>`  CLI reference: :ref:`sqlite-utils transform <cli_ref_transform>`

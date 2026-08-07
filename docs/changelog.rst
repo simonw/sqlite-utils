@@ -4,6 +4,13 @@
  Changelog
 ===========
 
+.. _unreleased:
+
+Unreleased
+----------
+
+- ``table.transform()`` now works for tables that are referenced by views. Previously the ``ALTER TABLE ... RENAME TO`` step raised ``no such table`` if a view referenced the table being transformed. View definitions are left unchanged - see :ref:`python_api_transform_views`. This also fixes a bug where ``transform(keep_table=...)`` silently rewrote dependent views to point at the frozen backup table instead of the live one. (:issue:`831`)
+
 .. _v3_39_1:
 
 3.39.1 (2026-07-25)
@@ -18,6 +25,7 @@
 
 - ``table.transform()`` now raises a ``TransactionError`` if called while a transaction is open with ``PRAGMA foreign_keys`` enabled and the table is referenced by foreign keys with destructive ``ON DELETE`` actions - ``CASCADE``, ``SET NULL`` or ``SET DEFAULT``. The pragma cannot be changed inside a transaction, so previously dropping the old table as part of the transform could fire those actions and silently delete or modify referencing rows. See :ref:`python_api_transform_foreign_keys_transactions` for details and workarounds. (:issue:`794`)
 - The :ref:`CLI <cli>` and :ref:`Python API <python_api>` documentation now cross-reference each other: CLI sections link to the equivalent Python API functionality and Python API sections link back to the corresponding CLI command. (:issue:`791`)
+
 .. _v4_1:
 
 4.1 (2026-07-11)
