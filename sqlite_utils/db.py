@@ -2830,7 +2830,12 @@ class Table(Queryable):
         # references the table that was just dropped - and with keep_table=
         # would silently repoint views at the backup table. These renames are
         # an implementation detail of transform(), so use legacy_alter_table
-        # to leave view definitions untouched.
+        # to leave view definitions untouched, restoring the connection's
+        # current value afterwards.
+        legacy_alter_table_row = self.db.execute("PRAGMA legacy_alter_table").fetchone()
+        legacy_alter_table_was_on = bool(
+            legacy_alter_table_row and legacy_alter_table_row[0]
+        )
         if keep_table:
             sqls.append("PRAGMA legacy_alter_table=ON;")
             sqls.append(
@@ -2842,7 +2847,11 @@ class Table(Queryable):
         sqls.append(
             f"ALTER TABLE {quote_identifier(new_table_name)} RENAME TO {quote_identifier(self.name)};"
         )
-        sqls.append("PRAGMA legacy_alter_table=OFF;")
+        sqls.append(
+            "PRAGMA legacy_alter_table={};".format(
+                "ON" if legacy_alter_table_was_on else "OFF"
+            )
+        )
         # Re-add existing indexes
         for index in self.indexes:
             if index.origin != "pk":

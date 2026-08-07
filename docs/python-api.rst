@@ -1995,7 +1995,7 @@ Tables that are referenced by views can be safely transformed - the view definit
 
 A view that references a column which the transform renamed or dropped will remain defined but will raise a ``no such column`` error when it is next queried. This is inherent to SQLite views, whose SQL is stored as text - if you rename or drop columns that a view depends on you should update that view definition yourself.
 
-To achieve this, the SQL produced by ``transform_sql()`` brackets its ``ALTER TABLE ... RENAME TO`` statements with ``PRAGMA legacy_alter_table=ON`` and ``PRAGMA legacy_alter_table=OFF`` - without this, SQLite would attempt to rewrite references to the renamed table in every view definition, which fails when a view references the table that was just dropped. One consequence is that ``PRAGMA legacy_alter_table`` is reset to ``OFF`` (the SQLite default) after a transform, even if it was previously set to ``ON`` for the connection.
+To achieve this, the SQL produced by ``transform_sql()`` turns on ``PRAGMA legacy_alter_table`` for its ``ALTER TABLE ... RENAME TO`` statements, then restores the pragma to the value it had when the SQL was generated - without this, SQLite would attempt to rewrite references to the renamed table in every view definition, which fails when a view references the table that was just dropped.
 
 .. _python_api_transform_sql:
 

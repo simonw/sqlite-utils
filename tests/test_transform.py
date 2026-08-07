@@ -1049,3 +1049,17 @@ def test_transform_with_view_in_open_transaction(fresh_db):
         "select sql from sqlite_master where name = 'dogs_view'"
     ).fetchone()[0]
     assert view_sql == "CREATE VIEW dogs_view as select id, name from dogs"
+
+
+def test_transform_restores_legacy_alter_table_setting(fresh_db):
+    dogs = fresh_db["dogs"]
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    # Default is OFF, reset to OFF afterwards
+    dogs.transform(types={"name": str})
+    assert fresh_db.execute("PRAGMA legacy_alter_table").fetchone()[0] == 0
+    # If the connection has it ON, it should be restored to ON
+    fresh_db.execute("PRAGMA legacy_alter_table=ON")
+    sqls = dogs.transform_sql(types={"name": str}, tmp_suffix="suffix")
+    assert sqls[-1] == "PRAGMA legacy_alter_table=ON;"
+    dogs.transform(types={"name": str})
+    assert fresh_db.execute("PRAGMA legacy_alter_table").fetchone()[0] == 1
