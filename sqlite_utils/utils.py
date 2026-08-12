@@ -373,6 +373,8 @@ def rows_from_file(
             raise TypeError(
                 "rows_from_file() requires a file-like object that supports peek(), such as io.BytesIO"
             )
+        if not first_bytes:
+            return (), Format.CSV
         if first_bytes.startswith((b"[", b"{")):
             # TODO: Detect newline-JSON
             return rows_from_file(buffered, format=Format.JSON)
