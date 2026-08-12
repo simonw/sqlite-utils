@@ -59,6 +59,10 @@ Row = dict[str, RowValue]
 T = TypeVar("T")
 
 
+class ANY:
+    """Marker type for an SQLite ``ANY`` column."""
+
+
 class _CloseableIterator(Iterator[Row]):
     """Iterator wrapper that closes a file when iteration is complete."""
 
@@ -178,6 +182,8 @@ def column_affinity(column_type: str) -> type:
         return bytes
     if "REAL" in column_type or "FLOA" in column_type or "DOUB" in column_type:
         return float
+    if column_type == "ANY":
+        return ANY
     # Default is 'NUMERIC', which we currently also treat as float
     return float
 

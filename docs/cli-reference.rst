@@ -494,7 +494,7 @@ See :ref:`cli_transform_table`.
 
     Options:
       --type <TEXT CHOICE>...         Change column type to INTEGER, TEXT, FLOAT,
-                                      REAL or BLOB
+                                      REAL, BLOB or ANY
       --drop TEXT                     Drop this column
       --rename <TEXT TEXT>...         Rename this column to X
       -o, --column-order TEXT         Reorder columns
@@ -963,7 +963,7 @@ See :ref:`cli_create_table`.
               height real \
               photo blob --pk id
 
-      Valid column types are text, integer, real, float and blob.
+      Valid column types are text, integer, real, float, blob and any.
 
     Options:
       --pk TEXT                 Column to use as primary key
@@ -1257,7 +1257,7 @@ See :ref:`cli_add_column`.
 ::
 
     Usage: sqlite-utils add-column [OPTIONS] PATH TABLE COL_NAME
-                          [integer|int|float|real|text|str|blob|bytes]
+                          [integer|int|float|real|text|str|blob|bytes|any]
 
       Add a column to the specified table
 

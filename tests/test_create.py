@@ -7,6 +7,7 @@ import uuid
 
 import pytest
 
+from sqlite_utils import ANY
 from sqlite_utils.db import (
     AlterError,
     Database,
@@ -1366,6 +1367,18 @@ def test_quote(fresh_db, input, expected):
             {"col": list},
             '"col" TEXT',
         ),
+        (
+            {"col": ANY},
+            '"col" ANY',
+        ),
+        (
+            {"col": "ANY"},
+            '"col" ANY',
+        ),
+        (
+            {"col": "any"},
+            '"col" ANY',
+        ),
     ),
 )
 def test_create_table_sql(fresh_db, columns, expected_sql_middle):
@@ -1587,6 +1600,33 @@ def test_create_strict(fresh_db, strict):
     table = fresh_db.table("t")
     table.create({"id": int}, strict=strict)
     assert table.strict == strict or not fresh_db.supports_strict
+
+
+def test_create_strict_with_any(fresh_db):
+    if not fresh_db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    table = fresh_db.table("items").create(
+        {"id": int, "data": ANY}, pk="id", strict=True
+    )
+    table.insert_all(
+        [
+            {"id": 1, "data": 42},
+            {"id": 2, "data": "000123"},
+            {"id": 3, "data": 3.14},
+            {"id": 4, "data": b"bytes"},
+            {"id": 5, "data": None},
+        ]
+    )
+    assert table.columns_dict == {"id": int, "data": ANY}
+    assert fresh_db.execute(
+        "select typeof(data), data from items order by id"
+    ).fetchall() == [
+        ("integer", 42),
+        ("text", "000123"),
+        ("real", 3.14),
+        ("blob", b"bytes"),
+        ("null", None),
+    ]
 
 
 def test_bad_table_and_view_exceptions(fresh_db):

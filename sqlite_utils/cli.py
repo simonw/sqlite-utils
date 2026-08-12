@@ -76,7 +76,7 @@ def _close_databases(ctx):
             pass
 
 
-VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "REAL", "BLOB")
+VALID_COLUMN_TYPES = ("INTEGER", "TEXT", "FLOAT", "REAL", "BLOB", "ANY")
 
 UNICODE_ERROR = """
 {}
@@ -489,7 +489,17 @@ def dump(path, load_extension):
 @click.argument(
     "col_type",
     type=click.Choice(
-        ["integer", "int", "float", "real", "text", "str", "blob", "bytes"],
+        [
+            "integer",
+            "int",
+            "float",
+            "real",
+            "text",
+            "str",
+            "blob",
+            "bytes",
+            "any",
+        ],
         case_sensitive=False,
     ),
     required=False,
@@ -1758,7 +1768,7 @@ def create_table(
             height real \\
             photo blob --pk id
 
-    Valid column types are text, integer, real, float and blob.
+    Valid column types are text, integer, real, float, blob and any.
     """
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
@@ -2668,12 +2678,10 @@ def schema(
     "--type",
     type=(
         str,
-        click.Choice(
-            ["INTEGER", "TEXT", "FLOAT", "REAL", "BLOB"], case_sensitive=False
-        ),
+        click.Choice(list(VALID_COLUMN_TYPES), case_sensitive=False),
     ),
     multiple=True,
-    help="Change column type to INTEGER, TEXT, FLOAT, REAL or BLOB",
+    help="Change column type to INTEGER, TEXT, FLOAT, REAL, BLOB or ANY",
 )
 @click.option("--drop", type=str, multiple=True, help="Drop this column")
 @click.option(

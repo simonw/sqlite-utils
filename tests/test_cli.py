@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from sqlite_utils import Database, cli
+from sqlite_utils import ANY, Database, cli
 from sqlite_utils.db import ForeignKey, Index
 
 
@@ -355,6 +355,7 @@ def test_create_index_desc(db_path):
         ("blob", "BLOB", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
         ("blob", "bytes", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
         ("blob", "BYTES", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
+        ("anything", "any", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "anything" ANY)'),
         ("default", None, 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "default" TEXT)'),
     ),
 )
@@ -2007,6 +2008,25 @@ def test_transform_strict_option_with_invalid_data(db_path):
     assert not any(name.startswith("dogs_new_") for name in db.table_names())
 
 
+def test_transform_column_to_any(db_path):
+    db = Database(db_path)
+    if not db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    db.table("items").create({"data": str}, strict=True)
+    db.table("items").insert({"data": "000123"})
+
+    result = CliRunner().invoke(
+        cli.cli, ["transform", db_path, "items", "--type", "data", "any"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert db.table("items").columns_dict == {"data": ANY}
+    assert db.execute("select typeof(data), data from items").fetchone() == (
+        "text",
+        "000123",
+    )
+
+
 @pytest.mark.parametrize(
     "extra_args,expected_schema",
     (
@@ -2872,6 +2892,30 @@ def test_create_table_strict(strict):
         assert db.table("items").columns_dict == {"id": int, "w": float}
 
 
+def test_create_table_strict_any():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        if not db.supports_strict:
+            pytest.skip("SQLite version does not support strict tables")
+        result = runner.invoke(
+            cli.cli,
+            [
+                "create-table",
+                "test.db",
+                "items",
+                "id",
+                "integer",
+                "data",
+                "any",
+                "--strict",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert db.table("items").strict is True
+        assert db.table("items").columns_dict == {"id": int, "data": ANY}
+
+
 @pytest.mark.parametrize("method", ("insert", "upsert"))
 @pytest.mark.parametrize("strict", (False, True))
 def test_insert_upsert_strict(tmpdir, method, strict):
@@ -2885,6 +2929,39 @@ def test_insert_upsert_strict(tmpdir, method, strict):
     assert result.exit_code == 0
     db = Database(db_path)
     assert db.table("items").strict == strict or not db.supports_strict
+
+
+@pytest.mark.parametrize("method", ("insert", "upsert"))
+def test_insert_upsert_strict_any(tmpdir, method):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    if not db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    db.close()
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            method,
+            db_path,
+            "items",
+            "-",
+            "--csv",
+            "--pk",
+            "id",
+            "--type",
+            "data",
+            "any",
+            "--strict",
+        ],
+        input="id,data\n1,000123",
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    assert db.table("items").columns_dict == {"id": int, "data": ANY}
+    assert db.execute("select typeof(data), data from items").fetchone() == (
+        "text",
+        "000123",
+    )
 
 
 def test_extract_bad_column_clean_error(db_path):

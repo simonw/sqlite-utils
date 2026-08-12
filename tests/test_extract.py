@@ -2,6 +2,7 @@ import itertools
 
 import pytest
 
+from sqlite_utils import ANY
 from sqlite_utils.db import InvalidColumns
 
 
@@ -305,3 +306,38 @@ def test_extract_repeated_into_shared_lookup_no_nulls(fresh_db):
     fresh_db.table("t1").extract(["species"], table="lk")
     fresh_db.table("t2").extract(["species"], table="lk")
     assert fresh_db.table("lk").count == 1
+
+
+def test_extract_preserves_strict_any(fresh_db):
+    if not fresh_db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    fresh_db.execute("create table items (id integer primary key, data any) strict")
+    fresh_db.execute("insert into items values (1, ?)", ("000123",))
+
+    fresh_db["items"].extract("data", table="data_values")
+
+    lookup = fresh_db["data_values"]
+    assert lookup.strict is True
+    assert lookup.columns_dict == {"id": int, "data": ANY}
+    assert fresh_db.execute(
+        "select typeof(data), data from data_values"
+    ).fetchone() == ("text", "000123")
+
+
+def test_extract_strict_any_rejects_non_strict_lookup(fresh_db):
+    if not fresh_db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    fresh_db.execute("create table items (data any) strict")
+    fresh_db.execute("insert into items values (?)", ("000123",))
+    fresh_db.execute("create table data_values (id integer primary key, data any)")
+
+    with pytest.raises(
+        InvalidColumns,
+        match="is not STRICT, so it cannot preserve ANY column values",
+    ):
+        fresh_db["items"].extract("data", table="data_values")
+
+    assert fresh_db.execute("select typeof(data), data from items").fetchone() == (
+        "text",
+        "000123",
+    )

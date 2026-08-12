@@ -39,6 +39,7 @@ from .create_table_parser import (
     sql_ends_in_line_comment,
 )
 from .utils import (
+    ANY,
     OperationalError,
     chunks,
     column_affinity,
@@ -366,6 +367,7 @@ COLUMN_TYPE_MAPPING: dict[Any, str] = {
     decimal.Decimal: "REAL",
     None.__class__: "TEXT",
     uuid.UUID: "TEXT",
+    ANY: "ANY",
     # SQLite explicit types
     "TEXT": "TEXT",
     "INTEGER": "INTEGER",
@@ -380,6 +382,8 @@ COLUMN_TYPE_MAPPING: dict[Any, str] = {
     "real": "REAL",
     "blob": "BLOB",
     "bytes": "BLOB",
+    "ANY": "ANY",
+    "any": "ANY",
 }
 # If numpy is available, add more types
 if np:
@@ -3092,6 +3096,15 @@ class Table(Queryable):
                 if col in columns
             }
             if lookup_table.exists():
+                if (
+                    self.strict
+                    and ANY in lookup_columns_definition.values()
+                    and not lookup_table.strict
+                ):
+                    raise InvalidColumns(
+                        f"Lookup table {table} already exists but is not STRICT, "
+                        "so it cannot preserve ANY column values"
+                    )
                 if not set(lookup_columns_definition.items()).issubset(
                     lookup_table.columns_dict.items()
                 ):
@@ -3105,6 +3118,7 @@ class Table(Queryable):
                         **lookup_columns_definition,
                     },
                     pk="id",
+                    strict=self.strict,
                 )
             lookup_columns = [(rename.get(col) or col) for col in columns]
             lookup_table.create_index(lookup_columns, unique=True, if_not_exists=True)

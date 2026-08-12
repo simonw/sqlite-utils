@@ -828,6 +828,19 @@ You can pass ``strict=True`` to create a table in ``STRICT`` mode:
         "name": str,
     }, strict=True)
 
+SQLite ``STRICT`` tables can use the ``ANY`` column type for values that should retain their exact SQLite storage class without coercion. Use the ``sqlite_utils.ANY`` marker type:
+
+.. code-block:: python
+
+    import sqlite_utils
+
+    db.table("events").create({
+        "id": int,
+        "payload": sqlite_utils.ANY,
+    }, pk="id", strict=True)
+
+An ``ANY`` column can store integers, floating point values, text, binary data or ``None``. In a ``STRICT`` table a text value such as ``"000123"`` remains text with its leading zeroes intact. SQLite also accepts ``ANY`` columns in ordinary non-``STRICT`` tables, but those columns apply numeric affinity and would store that same value as the integer ``123``.
+
 .. note::
     In the CLI: :ref:`sqlite-utils create-table <cli_create_table>`
 
@@ -1569,7 +1582,7 @@ You can specify the ``col_type`` argument either using a SQLite type as a string
 
 The ``col_type`` is optional - if you omit it the type of ``TEXT`` will be used.
 
-SQLite types you can specify are ``"TEXT"``, ``"INTEGER"``, ``"FLOAT"``, ``"REAL"`` or ``"BLOB"``.
+SQLite types you can specify are ``"TEXT"``, ``"INTEGER"``, ``"FLOAT"``, ``"REAL"``, ``"BLOB"`` or ``"ANY"``. You can use the ``sqlite_utils.ANY`` marker instead of the ``"ANY"`` string.
 
 If you pass a Python type, it will be mapped to SQLite types as shown here::
 
@@ -1582,6 +1595,7 @@ If you pass a Python type, it will be mapped to SQLite types as shown here::
     datetime.date: "TEXT"
     datetime.time: "TEXT"
     datetime.timedelta: "TEXT"
+    sqlite_utils.ANY: "ANY"
 
     # If numpy is installed
     np.int8: "INTEGER"
@@ -1830,6 +1844,8 @@ Pass ``strict=False`` to convert a strict table back to a regular non-strict tab
 .. code-block:: python
 
     table.transform(strict=False)
+
+If the table has ``ANY`` columns, converting it to non-strict mode can coerce text values that look numeric. For example, SQLite converts ``"000123"`` to the integer ``123`` when copying it into an ordinary ``ANY`` column. This is SQLite's documented distinction between `STRICT and ordinary ANY columns <https://www.sqlite.org/stricttables.html#the_any_datatype>`__.
 
 The default is ``strict=None``, which preserves the table's existing strict mode.
 
@@ -2457,6 +2473,11 @@ The ``.columns_dict`` property returns a dictionary version of the columns with 
 
     >>> db.table("PlantType").columns_dict
     {'id': <class 'int'>, 'value': <class 'str'>}
+
+SQLite ``ANY`` columns are represented by the ``sqlite_utils.ANY`` marker type::
+
+    >>> db.table("events").columns_dict
+    {'id': <class 'int'>, 'payload': <class 'sqlite_utils.utils.ANY'>}
 
 .. _python_api_introspection_default_values:
 

@@ -2,6 +2,7 @@ import sqlite3
 
 import pytest
 
+from sqlite_utils import ANY
 from sqlite_utils.db import Check, ForeignKey, TransactionError, TransformError
 from sqlite_utils.utils import OperationalError
 
@@ -821,6 +822,55 @@ def test_transform_to_strict_not_supported(fresh_db, method_name):
         getattr(table, method_name)(strict=True)
 
     assert table.strict is False
+
+
+def test_transform_preserves_any_column_in_strict_table(fresh_db):
+    if not fresh_db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    fresh_db.execute("create table items (id integer primary key, data any) strict")
+    fresh_db.conn.executemany(
+        "insert into items values (?, ?)",
+        [
+            (1, 42),
+            (2, "000123"),
+            (3, 3.14),
+            (4, b"bytes"),
+            (5, None),
+        ],
+    )
+    table = fresh_db["items"]
+
+    table.transform()
+
+    assert table.strict is True
+    assert table.columns_dict == {"id": int, "data": ANY}
+    assert fresh_db.execute(
+        "select typeof(data), data from items order by id"
+    ).fetchall() == [
+        ("integer", 42),
+        ("text", "000123"),
+        ("real", 3.14),
+        ("blob", b"bytes"),
+        ("null", None),
+    ]
+
+
+def test_transform_any_column_from_strict_to_non_strict(fresh_db):
+    if not fresh_db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    fresh_db.execute("create table items (data any) strict")
+    fresh_db.execute("insert into items values (?)", ("000123",))
+    table = fresh_db["items"]
+
+    table.transform(strict=False)
+
+    assert table.strict is False
+    assert table.columns_dict == {"data": ANY}
+    # Ordinary non-STRICT ANY columns apply NUMERIC affinity
+    assert fresh_db.execute("select typeof(data), data from items").fetchone() == (
+        "integer",
+        123,
+    )
 
 
 @pytest.mark.parametrize(

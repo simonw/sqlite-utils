@@ -1,5 +1,6 @@
 import pytest
 
+from sqlite_utils import ANY
 from sqlite_utils.utils import column_affinity
 
 EXAMPLES = [
@@ -26,6 +27,8 @@ EXAMPLES = [
     ("DOUBLE", float),
     ("DOUBLE PRECISION", float),
     ("FLOAT", float),
+    ("ANY", ANY),
+    ("any", ANY),
     # Numeric, treated as float:
     ("NUMERIC", float),
     ("DECIMAL(10,5)", float),
