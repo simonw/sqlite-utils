@@ -110,7 +110,7 @@ def test_comments_and_whitespace_can_separate_check_tokens(gaps):
     connection = sqlite3.connect(":memory:")
     connection.execute(sql)
     stored_sql = connection.execute(
-        "select sql from sqlite_schema where name = 't'"
+        "select sql from sqlite_master where name = 't'"
     ).fetchone()[0]
     assert parse_checks(stored_sql) == [Check(f"value{gaps[4]}> 0", column="value")]
 
@@ -130,7 +130,7 @@ def test_check_like_text_inside_strings_is_opaque(value):
     connection = sqlite3.connect(":memory:")
     connection.execute(sql)
     stored_sql = connection.execute(
-        "select sql from sqlite_schema where name = 't'"
+        "select sql from sqlite_master where name = 't'"
     ).fetchone()[0]
     checks = parse_checks(stored_sql)
     assert len(checks) == 1
