@@ -3598,8 +3598,6 @@ class Table(Queryable):
         if limit is not None:
             limit_offset += f" limit {limit}"
         if offset is not None:
-            # SQLite requires a limit clause before offset - a negative limit
-            # means "no upper bound", so offset works without an explicit limit
             if limit is None:
                 limit_offset += " limit -1"
             limit_offset += f" offset {offset}"

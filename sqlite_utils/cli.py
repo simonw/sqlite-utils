@@ -2478,8 +2478,6 @@ def rows(
     if limit:
         sql += f" limit {limit}"
     if offset:
-        # SQLite requires a limit clause before offset - a negative limit
-        # means "no upper bound", so offset works without an explicit limit
         if not limit:
             sql += " limit -1"
         sql += f" offset {offset}"
