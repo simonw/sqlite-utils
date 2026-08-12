@@ -2947,6 +2947,80 @@ class Table(Queryable):
             new_cols=", ".join(quote_identifier(col) for col in new_cols),
         )
         sqls.append(copy_sql)
+        # Capture indexes before the old table is changed. Simple indexes that
+        # reference renamed columns are recreated from structured PRAGMA
+        # metadata instead of editing their stored CREATE INDEX SQL.
+        index_drop_sqls = []
+        index_create_sqls = []
+        xindexes_by_name = {index.name: index for index in self.xindexes}
+        for index in self.indexes:
+            if index.origin == "pk":
+                continue
+            index_sql = self.db.execute(
+                """SELECT sql FROM sqlite_master WHERE type = 'index' AND name = :index_name;""",
+                {"index_name": index.name},
+            ).fetchall()[0][0]
+            if index_sql is None:
+                raise TransformError(
+                    f"Index '{index.name}' on table '{self.name}' does not have a "
+                    "CREATE INDEX statement. You must manually drop this index prior to running this "
+                    "transformation and manually recreate the new index after running this transformation."
+                )
+            dropped_index_column = next(
+                (column for column in index.columns if column in drop), None
+            )
+            renamed_index_column = next(
+                (column for column in index.columns if column in rename), None
+            )
+            if dropped_index_column is not None:
+                raise TransformError(
+                    f"Index '{index.name}' column '{dropped_index_column}' is not in updated table '{self.name}'. "
+                    f"You must manually drop this index prior to running this transformation "
+                    f"and manually recreate the new index after running this transformation. "
+                    f"The original index sql statement is: `{index_sql}`. No changes have been applied to this table."
+                )
+            xindex = xindexes_by_name[index.name]
+            indexed_columns = sorted(
+                (column for column in xindex.columns if column.key),
+                key=lambda column: column.seqno,
+            )
+            if (rename or drop) and (
+                index.partial or any(column.name is None for column in indexed_columns)
+            ):
+                raise TransformError(
+                    f"Index '{index.name}' is a partial or expression index, so it "
+                    f"cannot be safely recreated while columns are renamed or dropped. "
+                    f"You must manually drop this index prior to running this transformation "
+                    f"and manually recreate the new index after running this transformation. "
+                    f"The original index sql statement is: `{index_sql}`. No changes have been applied to this table."
+                )
+            if renamed_index_column is not None:
+                columns_sql = []
+                for column in indexed_columns:
+                    assert column.name is not None
+                    column_sql = quote_identifier(
+                        rename.get(column.name) or column.name
+                    )
+                    if column.coll and column.coll.upper() != "BINARY":
+                        column_sql += f" COLLATE {quote_identifier(column.coll)}"
+                    if column.desc:
+                        column_sql += " DESC"
+                    columns_sql.append(column_sql)
+                index_sql = "CREATE {unique}INDEX {index_name} ON {table_name} ({columns})".format(
+                    unique="UNIQUE " if index.unique else "",
+                    index_name=quote_identifier(index.name),
+                    table_name=quote_identifier(self.name),
+                    columns=", ".join(columns_sql),
+                )
+                index_drop_sqls.append(
+                    f"DROP INDEX IF EXISTS {quote_identifier(index.name)};"
+                )
+            elif keep_table:
+                index_drop_sqls.append(
+                    f"DROP INDEX IF EXISTS {quote_identifier(index.name)};"
+                )
+            index_create_sqls.append(index_sql)
+        sqls.extend(index_drop_sqls)
         # Drop (or keep) the old table, then rename the new one into place.
         # Since SQLite 3.25 ALTER TABLE ... RENAME TO rewrites references to
         # the renamed table in every view definition, which fails if a view
@@ -2976,29 +3050,7 @@ class Table(Queryable):
             )
         )
         # Re-add existing indexes
-        for index in self.indexes:
-            if index.origin != "pk":
-                index_sql = self.db.execute(
-                    """SELECT sql FROM sqlite_master WHERE type = 'index' AND name = :index_name;""",
-                    {"index_name": index.name},
-                ).fetchall()[0][0]
-                if index_sql is None:
-                    raise TransformError(
-                        f"Index '{index.name}' on table '{self.name}' does not have a "
-                        "CREATE INDEX statement. You must manually drop this index prior to running this "
-                        "transformation and manually recreate the new index after running this transformation."
-                    )
-                if keep_table:
-                    sqls.append(f"DROP INDEX IF EXISTS {quote_identifier(index.name)};")
-                for col in index.columns:
-                    if col in rename or col in drop:
-                        raise TransformError(
-                            f"Index '{index.name}' column '{col}' is not in updated table '{self.name}'. "
-                            f"You must manually drop this index prior to running this transformation "
-                            f"and manually recreate the new index after running this transformation. "
-                            f"The original index sql statement is: `{index_sql}`. No changes have been applied to this table."
-                        )
-                sqls.append(index_sql)
+        sqls.extend(index_create_sqls)
         return sqls
 
     def extract(

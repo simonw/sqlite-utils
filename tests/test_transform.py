@@ -893,28 +893,88 @@ def test_transform_retains_indexes_with_foreign_keys(fresh_db):
     ), f"Indexes before transform: {indexes_before_transform}\nIndexes after transform: {dogs.indexes}"
 
 
-@pytest.mark.parametrize(
-    "transform_params",
-    [
-        {"rename": {"age": "dog_age"}},
-        {"drop": ["age"]},
-    ],
-)
-def test_transform_with_indexes_errors(fresh_db, transform_params):
-    # Should error with a compound (name, age) index if age is renamed or dropped
+def test_transform_with_indexes_errors(fresh_db):
+    # Should error with a compound (name, age) index if age is dropped
     dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
 
     dogs.create_index(["name", "age"])
 
     with pytest.raises(TransformError) as excinfo:
-        dogs.transform(**transform_params)
+        dogs.transform(drop=["age"])
 
     assert (
         "Index 'idx_dogs_name_age' column 'age' is not in updated table 'dogs'. "
         "You must manually drop this index prior to running this transformation"
         in str(excinfo.value)
     )
+
+
+@pytest.mark.parametrize(
+    ("table_name", "index_name"),
+    (("name", "idx_name"), ("t", "name")),
+)
+def test_transform_rename_column_with_index(fresh_db, table_name, index_name):
+    # https://github.com/simonw/sqlite-utils/issues/822
+    # Use the same name for the table, column and index to ensure only the
+    # indexed column changes.
+    table = fresh_db.table(table_name)
+    table.insert({"id": 1, "name": "Cleo"}, pk="id")
+    table.create_index(["name"], index_name=index_name)
+
+    sqls = table.transform_sql(rename={"name": "full_name"}, tmp_suffix="suffix")
+    drop_index_sql = f'DROP INDEX IF EXISTS "{index_name}";'
+    assert drop_index_sql in sqls
+    assert sqls.index(drop_index_sql) < sqls.index(f'DROP TABLE "{table_name}";')
+
+    table.transform(rename={"name": "full_name"})
+
+    assert [column.name for column in table.columns] == ["id", "full_name"]
+    assert [(index.name, index.columns) for index in table.indexes] == [
+        (index_name, ["full_name"])
+    ]
+
+
+def test_transform_recreates_renamed_index_from_metadata(fresh_db):
+    table = fresh_db.table("t")
+    table.insert({"alpha": "one", "beta": "two"})
+    # Deliberately use unquoted SQL and index details that need to survive the
+    # reconstruction. Renaming both columns also guards against cascading
+    # string substitutions.
+    fresh_db.execute(
+        "CREATE UNIQUE INDEX swap_idx ON t(alpha COLLATE NOCASE DESC, beta)"
+    )
+
+    table.transform(rename={"alpha": "beta", "beta": "alpha"})
+
+    assert table.columns_dict == {"beta": str, "alpha": str}
+    assert [(index.name, index.unique, index.columns) for index in table.indexes] == [
+        ("swap_idx", 1, ["beta", "alpha"])
+    ]
+    key_columns = [column for column in table.xindexes[0].columns if column.key]
+    assert [(column.name, column.desc, column.coll) for column in key_columns] == [
+        ("beta", 1, "NOCASE"),
+        ("alpha", 0, "BINARY"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "index_sql",
+    (
+        "CREATE INDEX idx_t_name ON t(lower(name))",
+        "CREATE INDEX idx_t_name ON t(name) WHERE name IS NOT NULL",
+    ),
+)
+def test_transform_rename_complex_index_errors(fresh_db, index_sql):
+    table = fresh_db.table("t")
+    table.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute(index_sql)
+
+    with pytest.raises(TransformError, match="partial or expression index"):
+        table.transform(rename={"name": "full_name"})
+
+    assert table.columns_dict == {"id": int, "name": str}
+    assert [index.name for index in table.indexes] == ["idx_t_name"]
 
 
 def test_transform_with_unique_constraint_implicit_index(fresh_db):
