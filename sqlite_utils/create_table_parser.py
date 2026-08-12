@@ -26,6 +26,12 @@ class Check:
     end: int = field(default=-1, compare=False, repr=False)
 
 
+@dataclass(frozen=True)
+class ColumnComments:
+    before: str = ""
+    after: str = ""
+
+
 class ParseError(ValueError):
     pass
 
@@ -472,8 +478,7 @@ def _column_checks(
     return checks
 
 
-def parse_checks(create_sql: str) -> list[Check]:
-    """Return CHECK constraints from a valid SQLite CREATE TABLE statement."""
+def _table_body(create_sql: str) -> tuple[str, int] | None:
     all_tokens = _lex(create_sql)
     tokens = _meaningful(all_tokens)
     if not tokens or not tokens[0].is_keyword("CREATE"):
@@ -484,7 +489,7 @@ def parse_checks(create_sql: str) -> list[Check]:
     ):
         index += 1
     if index < len(tokens) and tokens[index].is_keyword("VIRTUAL"):
-        return []
+        return None
     if index >= len(tokens) or not tokens[index].is_keyword("TABLE"):
         raise ParseError("Expected CREATE TABLE")
     index += 1
@@ -501,7 +506,7 @@ def parse_checks(create_sql: str) -> list[Check]:
     if index + 1 < len(tokens) and tokens[index].text == ".":
         index += 2
     if index < len(tokens) and tokens[index].is_keyword("AS"):
-        return []
+        return None
     if index >= len(tokens) or tokens[index].text != "(":
         raise ParseError("CREATE TABLE is missing its column list")
     close = _matching_paren(tokens, index)
@@ -512,7 +517,15 @@ def parse_checks(create_sql: str) -> list[Check]:
 
     body_start = tokens[index].end
     body_end = tokens[close].start
-    body = create_sql[body_start:body_end]
+    return create_sql[body_start:body_end], body_start
+
+
+def parse_checks(create_sql: str) -> list[Check]:
+    """Return CHECK constraints from a valid SQLite CREATE TABLE statement."""
+    body_info = _table_body(create_sql)
+    if body_info is None:
+        return []
+    body, body_start = body_info
     body_tokens = _lex(body)
     checks: list[Check] = []
     for item, item_start, _ in _split_spans(body, body_tokens):
@@ -551,6 +564,35 @@ def parse_checks(create_sql: str) -> list[Check]:
     return checks
 
 
+def parse_column_comments(create_sql: str) -> dict[str, ColumnComments]:
+    """Return comments immediately before and after each column definition."""
+    body_info = _table_body(create_sql)
+    if body_info is None:
+        return {}
+    body, _ = body_info
+    comments: dict[str, ColumnComments] = {}
+    for item, _, _ in _split_spans(body, _lex(body)):
+        item_tokens = _meaningful(_lex(item))
+        if not item_tokens:
+            continue
+        item_index = 0
+        if item_tokens[item_index].is_keyword("CONSTRAINT"):
+            item_index = 2
+        head = item_tokens[item_index] if item_index < len(item_tokens) else None
+        if (
+            head
+            and head.kind == "word"
+            and head.text.upper() in _TABLE_CONSTRAINT_KEYWORDS
+        ):
+            continue
+        column = _unquote(item_tokens[0].text)
+        before = item[: item_tokens[0].start].strip()
+        after = item[item_tokens[-1].end :].strip()
+        if before or after:
+            comments[column] = ColumnComments(before=before, after=after)
+    return comments
+
+
 def _is_identifier_token(tokens: list[_Token], index: int) -> bool:
     token = tokens[index]
     if index + 1 < len(tokens) and tokens[index + 1].text in ("(", "."):
@@ -576,9 +618,9 @@ def check_references_identifier(expression: str, identifier: str) -> bool:
     )
 
 
-def check_expression_ends_in_line_comment(expression: str) -> bool:
+def sql_ends_in_line_comment(sql: str) -> bool:
     """Return True if appended SQL would be swallowed by a ``--`` comment."""
-    tokens = _lex(expression)
+    tokens = _lex(sql)
     if not tokens:
         return False
     final = tokens[-1]
