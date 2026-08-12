@@ -27,7 +27,14 @@ from typing_extensions import Self
 
 from sqlite_utils.plugins import ensure_plugins_loaded, pm
 
-from .create_table_parser import Check, parse_checks
+from .create_table_parser import (
+    Check,
+    ParseError,
+    check_expression_ends_in_line_comment,
+    check_references_identifier,
+    parse_checks,
+    rewrite_check_expression,
+)
 from .utils import (
     OperationalError,
     chunks,
@@ -84,6 +91,12 @@ def quote_identifier(identifier: str) -> str:
     Double quotes inside the identifier are escaped by doubling them.
     """
     return '"{}"'.format(identifier.replace('"', '""'))
+
+
+def _check_constraint_sql(check: Check) -> str:
+    prefix = f"CONSTRAINT {quote_identifier(check.name)} " if check.name else ""
+    newline = "\n" if check_expression_ends_in_line_comment(check.check) else ""
+    return f"{prefix}CHECK ({check.check}{newline})"
 
 
 _IDENTIFIER_CASEFOLD = str.maketrans(
@@ -1380,6 +1393,7 @@ class Database:
         extracts: dict[str, str] | list[str] | None = None,
         if_not_exists: bool = False,
         strict: bool = False,
+        _checks: Iterable[Check] | None = None,
     ) -> str:
         """
         Returns the SQL ``CREATE TABLE`` statement for creating the specified table.
@@ -1425,6 +1439,19 @@ class Database:
         defaults = {resolve_casing(n, columns): v for n, v in (defaults or {}).items()}
         if column_order is not None:
             column_order = [resolve_casing(c, columns) for c in column_order]
+        checks = list(_checks or ())
+        checks_by_column: dict[str, list[Check]] = {}
+        table_checks: list[Check] = []
+        for check in checks:
+            if check.column:
+                column = resolve_casing(check.column, columns)
+                if column not in columns:
+                    raise AlterError(
+                        f"No such column for CHECK constraint: {check.column}"
+                    )
+                checks_by_column.setdefault(column, []).append(check)
+            else:
+                table_checks.append(check)
         if not columns:
             raise ValueError("Tables must have at least one column")
         if not all(n in columns for n in not_null):
@@ -1481,6 +1508,10 @@ class Database:
                 column_extras.append(
                     f"REFERENCES {quote_identifier(fk.other_table)}({quote_identifier(cast(str, fk.other_column))}){_fk_actions_sql(fk)}"
                 )
+            column_extras.extend(
+                _check_constraint_sql(check)
+                for check in checks_by_column.get(column_name, ())
+            )
             column_type_str = COLUMN_TYPE_MAPPING[column_type]
             # Special case for strict tables to map FLOAT to REAL
             # Refs https://github.com/simonw/sqlite-utils/issues/644
@@ -1520,6 +1551,9 @@ class Database:
                     actions=_fk_actions_sql(fk),
                 )
             )
+        column_defs.extend(
+            f"   {_check_constraint_sql(check)}" for check in table_checks
+        )
         columns_sql = ",\n".join(column_defs)
         sql = """CREATE TABLE {if_not_exists}{table} (
 {columns_sql}{extra_pk}
@@ -2677,6 +2711,34 @@ class Table(Queryable):
         if column_order is not None:
             column_order = [resolve_casing(c, existing_columns) for c in column_order]
 
+        try:
+            existing_checks = self.checks
+        except ParseError as ex:
+            raise TransformError(
+                f"Could not parse CHECK constraints for table {self.name!r}: {ex}"
+            ) from ex
+        create_table_checks: list[Check] = []
+        for check in existing_checks:
+            owner = (
+                resolve_casing(check.column, existing_columns) if check.column else ""
+            )
+            # A column-level constraint disappears with the column that owns it.
+            if owner and owner in drop:
+                continue
+            for dropped_column in drop:
+                if check_references_identifier(check.check, dropped_column):
+                    raise TransformError(
+                        f"Cannot drop column {dropped_column!r}: it is used by "
+                        f"CHECK constraint {check.name or check.check!r}"
+                    )
+            create_table_checks.append(
+                Check(
+                    rewrite_check_expression(check.check, rename),
+                    name=check.name,
+                    column=rename.get(owner) or owner,
+                )
+            )
+
         create_table_foreign_keys: list[ForeignKeyIndicator] = []
 
         if foreign_keys is not None:
@@ -2826,6 +2888,7 @@ class Table(Queryable):
                 foreign_keys=create_table_foreign_keys,
                 column_order=column_order,
                 strict=self.strict if strict is None else strict,
+                _checks=create_table_checks,
             ).strip()
         )
 
