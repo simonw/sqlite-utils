@@ -1986,6 +1986,17 @@ A bare column name drops any foreign key that column participates in, including 
 
 Renaming a column with ``rename=`` updates any foreign keys that use it, and dropping a column with ``drop=`` also drops any foreign keys it participates in - for a compound foreign key this removes the whole constraint.
 
+.. _python_api_transform_views:
+
+Tables referenced by views
+--------------------------
+
+Tables that are referenced by views can be safely transformed - the view definitions are left byte-for-byte unchanged, and views continue to read from the live table even when ``keep_table=`` is used to keep a copy of the original around.
+
+A view that references a column which the transform renamed or dropped will remain defined but will raise a ``no such column`` error when it is next queried. This is inherent to SQLite views, whose SQL is stored as text - if you rename or drop columns that a view depends on you should update that view definition yourself.
+
+To achieve this, the SQL produced by ``transform_sql()`` turns on ``PRAGMA legacy_alter_table`` for its ``ALTER TABLE ... RENAME TO`` statements, then restores the pragma to the value it had when the SQL was generated - without this, SQLite would attempt to rewrite references to the renamed table in every view definition, which fails when a view references the table that was just dropped.
+
 .. _python_api_transform_sql:
 
 Custom transformations with .transform_sql()

@@ -2824,16 +2824,33 @@ class Table(Queryable):
             new_cols=", ".join(quote_identifier(col) for col in new_cols),
         )
         sqls.append(copy_sql)
-        # Drop (or keep) the old table
+        # Drop (or keep) the old table, then rename the new one into place.
+        # Since SQLite 3.25 ALTER TABLE ... RENAME TO rewrites references to
+        # the renamed table in every view definition, which fails if a view
+        # references the table that was just dropped - and with keep_table=
+        # would silently repoint views at the backup table. These renames are
+        # an implementation detail of transform(), so use legacy_alter_table
+        # to leave view definitions untouched, restoring the connection's
+        # current value afterwards.
+        legacy_alter_table_row = self.db.execute("PRAGMA legacy_alter_table").fetchone()
+        legacy_alter_table_was_on = bool(
+            legacy_alter_table_row and legacy_alter_table_row[0]
+        )
         if keep_table:
+            sqls.append("PRAGMA legacy_alter_table=ON;")
             sqls.append(
                 f"ALTER TABLE {quote_identifier(self.name)} RENAME TO {quote_identifier(keep_table)};"
             )
         else:
             sqls.append(f"DROP TABLE {quote_identifier(self.name)};")
-        # Rename the new one
+            sqls.append("PRAGMA legacy_alter_table=ON;")
         sqls.append(
             f"ALTER TABLE {quote_identifier(new_table_name)} RENAME TO {quote_identifier(self.name)};"
+        )
+        sqls.append(
+            "PRAGMA legacy_alter_table={};".format(
+                "ON" if legacy_alter_table_was_on else "OFF"
+            )
         )
         # Re-add existing indexes
         for index in self.indexes:
