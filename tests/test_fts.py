@@ -252,6 +252,18 @@ def test_fts_tokenize(fresh_db, fts_version):
     }.items() <= rows[0].items()
 
 
+def test_fts_tokenize_escaped(fresh_db):
+    # A malicious tokenize value must not be able to break out of the
+    # string literal in the CREATE VIRTUAL TABLE statement.
+    table = fresh_db["searchable"]
+    table.insert_all(search_records)
+    malicious = "porter'); CREATE TABLE injected(x); --"
+    with pytest.raises(Exception):
+        table.enable_fts(["text"], tokenize=malicious)
+    # The injected statement must not have executed
+    assert "injected" not in fresh_db.table_names()
+
+
 def test_optimize_fts(fresh_db):
     for fts_version in ("4", "5"):
         table_name = f"searchable_{fts_version}"
