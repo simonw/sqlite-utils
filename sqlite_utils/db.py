@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from types import TracebackType
 from typing import (
     Any,
+    TypeVar,
     Union,
     cast,
 )
@@ -256,8 +257,8 @@ class ForeignKey:
     column: str | None = field(compare=False)
     other_table: str
     other_column: str | None = field(compare=False)
-    columns: tuple[str, ...] = ()
-    other_columns: tuple[str, ...] = ()
+    columns: tuple[str, ...] | list[str] = ()
+    other_columns: tuple[str, ...] | list[str] = ()
     is_compound: bool = False
     on_delete: str = "NO ACTION"
     on_update: str = "NO ACTION"
@@ -320,12 +321,16 @@ ForeignKeyIndicator = (
 
 ForeignKeysType = Iterable[ForeignKeyIndicator] | list[ForeignKeyIndicator]
 
+PrimaryKey = str | tuple[str, ...] | list[str]
+
 
 class Default:
     pass
 
 
 DEFAULT = Default()
+
+T = TypeVar("T")
 
 Tracer = Callable[[str, Sequence[Any] | dict[str, Any] | None], None]
 
@@ -1853,8 +1858,8 @@ class Database:
             fk_object = self._resolve_foreign_key_casing(
                 fk_object, table_obj.columns_dict
             )
-            columns = fk_object.columns
-            other_columns = fk_object.other_columns
+            columns = tuple(fk_object.columns)
+            other_columns = tuple(fk_object.other_columns)
             for column in columns:
                 if column not in table_obj.columns_dict:
                     raise AlterError(f"No such column: {column} in {table}")
@@ -1914,9 +1919,10 @@ class Database:
             existing_indexes = {tuple(i.columns) for i in table.indexes}
             for fk in table.foreign_keys:
                 # A compound foreign key gets a single composite index
-                if fk.columns not in existing_indexes:
+                fk_columns = tuple(fk.columns)
+                if fk_columns not in existing_indexes:
                     table.create_index(fk.columns, find_unique_name=True)
-                    existing_indexes.add(fk.columns)
+                    existing_indexes.add(fk_columns)
 
     def vacuum(self) -> None:
         "Run a SQLite ``VACUUM`` against the database."
@@ -2453,7 +2459,7 @@ class Table(Queryable):
         replace: bool = False,
         ignore: bool = False,
         transform: bool = False,
-        strict: bool | Default = DEFAULT,
+        strict: bool | Default | None = DEFAULT,
     ) -> "Table":
         """
         Create a table with the specified columns.
@@ -2524,7 +2530,7 @@ class Table(Queryable):
                 replace=replace,
                 ignore=ignore,
                 transform=transform,
-                strict=strict,  # type: ignore[arg-type]
+                strict=cast(bool, strict),
             )
         return self
 
@@ -2860,7 +2866,7 @@ class Table(Queryable):
         for name, type_ in current_column_pairs:
             type_ = types.get(name) or type_
             if name in drop:
-                del [copy_from_to[name]]
+                del copy_from_to[name]
                 continue
             new_name = rename.get(name) or name
             new_column_pairs.append((new_name, type_))
@@ -3343,7 +3349,10 @@ class Table(Queryable):
         :param on_update: ``ON UPDATE`` action for the foreign key.
         """
         columns = (column,) if isinstance(column, str) else tuple(column)
+        if not columns:
+            raise ValueError("column must contain at least one column name")
         columns = tuple(resolve_casing(c, self.columns_dict) for c in columns)
+        assert columns
         # Ensure columns exist
         for col in columns:
             if col not in self.columns_dict:
@@ -3354,7 +3363,7 @@ class Table(Queryable):
                 raise ValueError(
                     "other_table must be specified for a compound foreign key"
                 )
-            other_table = self.guess_foreign_table(columns[0])
+            other_table = self.guess_foreign_table(next(iter(columns)))
         # If other_column is not specified, detect the primary key on other_table
         if other_column is None:
             if len(columns) > 1:
@@ -3801,8 +3810,10 @@ class Table(Queryable):
         for row in cursor:
             yield dict(zip(columns, row))
 
-    def value_or_default(self, key: str, value: Any) -> Any:
-        return self._defaults[key] if value is DEFAULT else value
+    def value_or_default(self, key: str, value: T | Default) -> T:
+        if value is DEFAULT:
+            return cast(T, self._defaults[key])
+        return cast(T, value)
 
     def delete(self, pk_values: list | tuple | str | float) -> "Table":
         """
@@ -3987,7 +3998,7 @@ class Table(Queryable):
 
     def _convert_multi(
         self, column, fn, drop, show_progress, where=None, where_args=None
-    ):
+    ) -> "Table":
         # First we execute the function
         pk_to_values = {}
         new_column_types: dict[str, set[type]] = {}
@@ -4033,6 +4044,7 @@ class Table(Queryable):
                 bar.update(1)
             if drop:
                 self.transform(drop=(column,))
+        return self
 
     def build_insert_queries_and_params(
         self,
@@ -4336,8 +4348,8 @@ class Table(Queryable):
     def insert(
         self,
         record: dict[str, Any],
-        pk=DEFAULT,
-        foreign_keys=DEFAULT,
+        pk: PrimaryKey | Default | None = DEFAULT,
+        foreign_keys: ForeignKeysType | Default | None = DEFAULT,
         column_order: list[str] | Default | None = DEFAULT,
         not_null: Iterable[str] | Default | None = DEFAULT,
         defaults: dict[str, Any] | Default | None = DEFAULT,
@@ -4405,24 +4417,24 @@ class Table(Queryable):
     def insert_all(
         self,
         records: Iterable[dict[str, Any]] | Iterable[Sequence[Any]],
-        pk=DEFAULT,
-        foreign_keys=DEFAULT,
-        column_order=DEFAULT,
-        not_null=DEFAULT,
-        defaults=DEFAULT,
-        batch_size=DEFAULT,
-        hash_id=DEFAULT,
-        hash_id_columns=DEFAULT,
-        alter=DEFAULT,
-        ignore=DEFAULT,
-        replace=DEFAULT,
-        truncate=False,
-        extracts=DEFAULT,
-        conversions=DEFAULT,
-        columns=DEFAULT,
-        upsert=False,
-        analyze=False,
-        strict=DEFAULT,
+        pk: PrimaryKey | Default | None = DEFAULT,
+        foreign_keys: ForeignKeysType | Default | None = DEFAULT,
+        column_order: list[str] | Default | None = DEFAULT,
+        not_null: Iterable[str] | Default | None = DEFAULT,
+        defaults: dict[str, Any] | Default | None = DEFAULT,
+        batch_size: int | Default = DEFAULT,
+        hash_id: str | Default | None = DEFAULT,
+        hash_id_columns: Iterable[str] | Default | None = DEFAULT,
+        alter: bool | Default | None = DEFAULT,
+        ignore: bool | Default | None = DEFAULT,
+        replace: bool | Default | None = DEFAULT,
+        truncate: bool = False,
+        extracts: dict[str, str] | list[str] | Default | None = DEFAULT,
+        conversions: dict[str, str] | Default | None = DEFAULT,
+        columns: dict[str, Any] | Default | None = DEFAULT,
+        upsert: bool = False,
+        analyze: bool = False,
+        strict: bool | Default | None = DEFAULT,
     ) -> "Table":
         """
         Like ``.insert()`` but takes a list of records and ensures that the table
@@ -4715,6 +4727,7 @@ class Table(Queryable):
                         elif isinstance(pk, str):
                             self.last_pk = row[resolve_casing(pk, row)]
                         else:
+                            assert pk is not None
                             self.last_pk = tuple(
                                 row[resolve_casing(p, row)] for p in pk
                             )
@@ -4732,6 +4745,7 @@ class Table(Queryable):
                         pk_index = column_names.index(resolve_casing(pk, column_names))
                         self.last_pk = first_record_list[pk_index]
                     else:
+                        assert pk is not None
                         self.last_pk = tuple(
                             first_record_list[
                                 column_names.index(resolve_casing(p, column_names))
@@ -4743,6 +4757,7 @@ class Table(Queryable):
                     if hash_id:
                         self.last_pk = hash_record(first_record_dict, hash_id_columns)
                     else:
+                        assert pk is not None
                         self.last_pk = (
                             first_record_dict[resolve_casing(pk, first_record_dict)]
                             if isinstance(pk, str)
@@ -4759,19 +4774,19 @@ class Table(Queryable):
 
     def upsert(
         self,
-        record,
-        pk=DEFAULT,
-        foreign_keys=DEFAULT,
-        column_order=DEFAULT,
-        not_null=DEFAULT,
-        defaults=DEFAULT,
-        hash_id=DEFAULT,
-        hash_id_columns=DEFAULT,
-        alter=DEFAULT,
-        extracts=DEFAULT,
-        conversions=DEFAULT,
-        columns=DEFAULT,
-        strict=DEFAULT,
+        record: dict[str, Any],
+        pk: PrimaryKey | Default | None = DEFAULT,
+        foreign_keys: ForeignKeysType | Default | None = DEFAULT,
+        column_order: list[str] | Default | None = DEFAULT,
+        not_null: Iterable[str] | Default | None = DEFAULT,
+        defaults: dict[str, Any] | Default | None = DEFAULT,
+        hash_id: str | Default | None = DEFAULT,
+        hash_id_columns: Iterable[str] | Default | None = DEFAULT,
+        alter: bool | Default | None = DEFAULT,
+        extracts: dict[str, str] | list[str] | Default | None = DEFAULT,
+        conversions: dict[str, str] | Default | None = DEFAULT,
+        columns: dict[str, Any] | Default | None = DEFAULT,
+        strict: bool | Default | None = DEFAULT,
     ) -> "Table":
         """
         Like ``.insert()`` but performs an ``UPSERT``, where records are inserted if they do
@@ -4798,20 +4813,20 @@ class Table(Queryable):
     def upsert_all(
         self,
         records: Iterable[dict[str, Any]] | Iterable[Sequence[Any]],
-        pk=DEFAULT,
-        foreign_keys=DEFAULT,
-        column_order=DEFAULT,
-        not_null=DEFAULT,
-        defaults=DEFAULT,
-        batch_size=DEFAULT,
-        hash_id=DEFAULT,
-        hash_id_columns=DEFAULT,
-        alter=DEFAULT,
-        extracts=DEFAULT,
-        conversions=DEFAULT,
-        columns=DEFAULT,
-        analyze=False,
-        strict=DEFAULT,
+        pk: PrimaryKey | Default | None = DEFAULT,
+        foreign_keys: ForeignKeysType | Default | None = DEFAULT,
+        column_order: list[str] | Default | None = DEFAULT,
+        not_null: Iterable[str] | Default | None = DEFAULT,
+        defaults: dict[str, Any] | Default | None = DEFAULT,
+        batch_size: int | Default = DEFAULT,
+        hash_id: str | Default | None = DEFAULT,
+        hash_id_columns: Iterable[str] | Default | None = DEFAULT,
+        alter: bool | Default | None = DEFAULT,
+        extracts: dict[str, str] | list[str] | Default | None = DEFAULT,
+        conversions: dict[str, str] | Default | None = DEFAULT,
+        columns: dict[str, Any] | Default | None = DEFAULT,
+        analyze: bool = False,
+        strict: bool | Default | None = DEFAULT,
     ) -> "Table":
         """
         Like ``.upsert()`` but can be applied to a list of records.

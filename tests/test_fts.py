@@ -510,7 +510,7 @@ def test_view_has_no_enable_fts():
     db.create_view("hello", "select 1 + 1")
     # Views deliberately do not have an enable_fts() method
     with pytest.raises(AttributeError):
-        db.view("hello").enable_fts()  # type: ignore[union-attr]
+        db.view("hello").enable_fts()  # type: ignore[attr-defined]
 
 
 @pytest.mark.parametrize(

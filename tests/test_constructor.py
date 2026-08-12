@@ -83,7 +83,8 @@ def test_autocommit_connections_are_rejected(tmpdir, autocommit):
 )
 def test_legacy_transaction_control_connection_is_accepted(tmpdir):
     conn = sqlite3.connect(
-        str(tmpdir / "test.db"), autocommit=sqlite3.LEGACY_TRANSACTION_CONTROL
+        str(tmpdir / "test.db"),
+        autocommit=sqlite3.LEGACY_TRANSACTION_CONTROL,  # type: ignore[arg-type]
     )
     db = Database(conn)
     db.table("t").insert({"id": 1}, pk="id")

@@ -608,7 +608,7 @@ def test_foreign_key_is_immutable():
 
     fk = ForeignKey("c", "pid", "p", "id")
     with pytest.raises(dataclasses.FrozenInstanceError):
-        fk.table = "other"
+        setattr(fk, "table", "other")
 
 
 def test_foreign_key_equality_and_hash_include_actions():

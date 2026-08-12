@@ -1220,7 +1220,7 @@ def test_rows(db_path, args, expected):
                 {"id": 1, "age": 4, "name": "Cleo"},
                 {"id": 2, "age": 2, "name": "Pancakes"},
             ],
-            column_order=("id", "name", "age"),
+            column_order=["id", "name", "age"],
         )
     result = CliRunner().invoke(cli.cli, ["rows", db_path, "dogs"] + args)
     assert expected == result.output.strip()

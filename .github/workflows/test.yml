@@ -43,6 +43,9 @@ jobs:
       run: pytest --sqlite-autocommit
     - name: run mypy
       run: mypy sqlite_utils tests
+    - name: run pyright regression checks
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14'
+      run: pyright sqlite_utils tests
     - name: run flake8
       run: flake8
     - name: run ty

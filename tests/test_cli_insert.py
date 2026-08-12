@@ -577,6 +577,7 @@ def test_insert_streaming_batch_size_1(db_path):
         stdin=subprocess.PIPE,
         stdout=sys.stdout,
     )
+    assert proc.stdin is not None
     proc.stdin.write(b'{"name": "Azi"}\n')
     proc.stdin.flush()
 
