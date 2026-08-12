@@ -1102,6 +1102,54 @@ def test_transform_preserves_check_ending_in_line_comment(fresh_db):
         inventory.insert({"quantity": -1})
 
 
+def test_transform_preserves_comments_owned_by_columns(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE people (
+            -- Primary identifier
+            id INTEGER PRIMARY KEY /* IDs are stable */,
+            /* Displayed to users */
+            name TEXT /* May contain spaces */,
+            -- Age in years
+            age INTEGER -- May be NULL
+        )
+    """)
+    people = fresh_db["people"]
+    people.insert({"id": 1, "name": "Cleo", "age": 5})
+    people.transform(
+        rename={"name": "display_name"},
+        types={"age": float},
+        column_order=("age", "id", "name"),
+    )
+    assert people.get(1) == {"age": 5.0, "id": 1, "display_name": "Cleo"}
+    schema = people.schema
+    assert schema.index("-- Age in years") < schema.index('"age" REAL')
+    assert schema.index('"age" REAL') < schema.index("-- May be NULL")
+    assert schema.index("-- Primary identifier") < schema.index('"id" INTEGER')
+    assert schema.index('"id" INTEGER') < schema.index("/* IDs are stable */")
+    assert schema.index("/* Displayed to users */") < schema.index(
+        '"display_name" TEXT'
+    )
+    assert schema.index('"display_name" TEXT') < schema.index(
+        "/* May contain spaces */"
+    )
+
+
+def test_transform_drops_comments_owned_by_dropped_column(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE t (
+            /* Keep this explanation */
+            id INTEGER,
+            /* Drop this explanation */
+            obsolete TEXT /* Drop this too */
+        )
+    """)
+    fresh_db["t"].transform(drop={"obsolete"})
+    schema = fresh_db["t"].schema
+    assert "Keep this explanation" in schema
+    assert "Drop this explanation" not in schema
+    assert "Drop this too" not in schema
+
+
 def test_transform_renames_columns_inside_check_constraints(fresh_db):
     fresh_db.execute("""
         CREATE TABLE inventory (

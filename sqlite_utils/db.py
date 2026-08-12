@@ -29,11 +29,13 @@ from sqlite_utils.plugins import ensure_plugins_loaded, pm
 
 from .create_table_parser import (
     Check,
+    ColumnComments,
     ParseError,
-    check_expression_ends_in_line_comment,
     check_references_identifier,
     parse_checks,
+    parse_column_comments,
     rewrite_check_expression,
+    sql_ends_in_line_comment,
 )
 from .utils import (
     OperationalError,
@@ -95,8 +97,24 @@ def quote_identifier(identifier: str) -> str:
 
 def _check_constraint_sql(check: Check) -> str:
     prefix = f"CONSTRAINT {quote_identifier(check.name)} " if check.name else ""
-    newline = "\n" if check_expression_ends_in_line_comment(check.check) else ""
+    newline = "\n" if sql_ends_in_line_comment(check.check) else ""
     return f"{prefix}CHECK ({check.check}{newline})"
+
+
+def _column_definition_with_comments(
+    definition: str, comments: ColumnComments | None
+) -> str:
+    if comments is None:
+        return definition
+    before = textwrap.dedent(comments.before).strip()
+    after = textwrap.dedent(comments.after).strip()
+    if before:
+        definition = f"{textwrap.indent(before, '   ')}\n{definition}"
+    if after:
+        definition = f"{definition} {after}"
+        if sql_ends_in_line_comment(after):
+            definition += "\n"
+    return definition
 
 
 _IDENTIFIER_CASEFOLD = str.maketrans(
@@ -1394,6 +1412,7 @@ class Database:
         if_not_exists: bool = False,
         strict: bool = False,
         _checks: Iterable[Check] | None = None,
+        _column_comments: Mapping[str, ColumnComments] | None = None,
     ) -> str:
         """
         Returns the SQL ``CREATE TABLE`` statement for creating the specified table.
@@ -1439,6 +1458,10 @@ class Database:
         defaults = {resolve_casing(n, columns): v for n, v in (defaults or {}).items()}
         if column_order is not None:
             column_order = [resolve_casing(c, columns) for c in column_order]
+        column_comments = {
+            resolve_casing(name, columns): comments
+            for name, comments in (_column_comments or {}).items()
+        }
         checks = list(_checks or ())
         checks_by_column: dict[str, list[Check]] = {}
         table_checks: list[Check] = []
@@ -1517,13 +1540,16 @@ class Database:
             # Refs https://github.com/simonw/sqlite-utils/issues/644
             if strict and column_type_str == "FLOAT":
                 column_type_str = "REAL"
+            column_definition = "   {} {column_type}{column_extras}".format(
+                quote_identifier(column_name),
+                column_type=column_type_str,
+                column_extras=(
+                    (" " + " ".join(column_extras)) if column_extras else ""
+                ),
+            )
             column_defs.append(
-                "   {} {column_type}{column_extras}".format(
-                    quote_identifier(column_name),
-                    column_type=column_type_str,
-                    column_extras=(
-                        (" " + " ".join(column_extras)) if column_extras else ""
-                    ),
+                _column_definition_with_comments(
+                    column_definition, column_comments.get(column_name)
                 )
             )
         extra_pk = ""
@@ -2713,9 +2739,10 @@ class Table(Queryable):
 
         try:
             existing_checks = self.checks
+            existing_column_comments = parse_column_comments(self.schema)
         except ParseError as ex:
             raise TransformError(
-                f"Could not parse CHECK constraints for table {self.name!r}: {ex}"
+                f"Could not parse table schema for table {self.name!r}: {ex}"
             ) from ex
         create_table_checks: list[Check] = []
         for check in existing_checks:
@@ -2738,6 +2765,12 @@ class Table(Queryable):
                     column=rename.get(owner) or owner,
                 )
             )
+
+        create_table_column_comments: dict[str, ColumnComments] = {}
+        for column, comments in existing_column_comments.items():
+            owner = resolve_casing(column, existing_columns)
+            if owner not in drop:
+                create_table_column_comments[rename.get(owner) or owner] = comments
 
         create_table_foreign_keys: list[ForeignKeyIndicator] = []
 
@@ -2889,6 +2922,7 @@ class Table(Queryable):
                 column_order=column_order,
                 strict=self.strict if strict is None else strict,
                 _checks=create_table_checks,
+                _column_comments=create_table_column_comments,
             ).strip()
         )
 

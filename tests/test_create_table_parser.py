@@ -4,7 +4,13 @@ import hypothesis.strategies as st
 import pytest
 from hypothesis import given
 
-from sqlite_utils.create_table_parser import Check, ParseError, parse_checks
+from sqlite_utils.create_table_parser import (
+    Check,
+    ColumnComments,
+    ParseError,
+    parse_checks,
+    parse_column_comments,
+)
 
 
 def test_parse_column_and_table_checks():
@@ -44,6 +50,26 @@ def test_comments_are_trivia_not_constraints():
         Check("b > 0", column="b"),
         Check("b < 10", name="upper"),
     ]
+
+
+def test_parse_comments_owned_by_columns():
+    sql = """
+        CREATE TABLE t (
+            -- Before id
+            id /* Between name and type */ INTEGER /* After id */,
+            /* Between column definitions */
+            value TEXT CHECK(value != '') /* After value */,
+            /* Before a table constraint, not a column */
+            CHECK(value != 'forbidden')
+        )
+    """
+    assert parse_column_comments(sql) == {
+        "id": ColumnComments(before="-- Before id", after="/* After id */"),
+        "value": ColumnComments(
+            before="/* Between column definitions */",
+            after="/* After value */",
+        ),
+    }
 
 
 @pytest.mark.parametrize(

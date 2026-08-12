@@ -1995,6 +1995,8 @@ CHECK constraints
 
 A column-level check is removed if its owning column is dropped. Dropping a column referenced by any remaining check raises ``TransformError`` instead of creating an invalid or unexpectedly weakened schema.
 
+Comments immediately before or after a column definition are preserved too. They move with that column if it is renamed or reordered, and are removed if the column is dropped. A comment between two column definitions is treated as belonging to the following column.
+
 .. _python_api_transform_views:
 
 Tables referenced by views
