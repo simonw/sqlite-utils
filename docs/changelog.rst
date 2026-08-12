@@ -13,6 +13,14 @@ Unreleased
 - ``table.transform()`` now preserves ``CHECK`` constraints, including comments within their expressions. Renaming a column rewrites identifier references in checks without changing string literals or function names. Dropping a column drops a check owned by that column, and raises ``TransformError`` if a remaining check depends on it. (:issue:`762`)
 - ``table.transform()`` now preserves comments immediately before or after column definitions. These comments move with the column if it is renamed or reordered, and are removed if the column is dropped. (:issue:`762`)
 - ``table.transform()`` now works for tables that are referenced by views. Previously the ``ALTER TABLE ... RENAME TO`` step raised ``no such table`` if a view referenced the table being transformed. View definitions are left unchanged - see :ref:`python_api_transform_views`. This also fixes a bug where ``transform(keep_table=...)`` silently rewrote dependent views to point at the frozen backup table instead of the live one. (:issue:`831`)
+- ``table.default_values`` now unescapes doubled single quotes in string defaults, so a default such as ``'O''Brien'`` is returned as ``"O'Brien"``. Thanks, `ikatyal2110 <https://github.com/ikatyal2110>`__. (`#811 <https://github.com/simonw/sqlite-utils/pull/811>`__)
+- ``table.default_values`` now decodes unquoted ``TRUE``, ``FALSE`` and ``NULL`` default literals as ``True``, ``False`` and ``None`` respectively. (:issue:`836`)
+- ``table.enable_fts(..., tokenize=...)`` and ``sqlite-utils enable-fts --tokenize`` now safely quote the tokenizer argument, preventing a crafted value from injecting additional SQL. Thanks, `Bunlong Heng <https://github.com/bunlongheng>`__. (`#828 <https://github.com/simonw/sqlite-utils/pull/828>`__)
+- ``rows_where()``, ``pks_and_rows_where()``, ``search()`` and ``search_sql()`` now support ``offset=`` without requiring ``limit=``. The ``sqlite-utils rows --offset`` option now works without ``--limit`` too. Thanks, `ethanhawkes-gif <https://github.com/ethanhawkes-gif>`__. (:issue:`816`, `#821 <https://github.com/simonw/sqlite-utils/pull/821>`__)
+- Empty or whitespace-only input passed to ``rows_from_file()`` is now handled as an empty CSV file instead of raising ``csv.Error``. Thanks, `Rami Abdelrazzaq <https://github.com/RamiNoodle733>`__. (:issue:`808`, `#837 <https://github.com/simonw/sqlite-utils/pull/837>`__)
+- ``sqlite-utils convert --dry-run`` now works for table and column names containing closing square brackets. (:issue:`829`)
+- ``table.indexes`` and ``table.xindexes`` now work for table, index and column names containing double quotes. This also fixes ``table.transform()`` for tables with those identifiers. Thanks, `nyxst4ck <https://github.com/nyxst4ck>`__. (:issue:`824`, `#825 <https://github.com/simonw/sqlite-utils/pull/825>`__)
+- Improved type annotations throughout the package and added Pyright regression checks to CI. (:issue:`833`)
 
 .. _v3_39_1:
 
