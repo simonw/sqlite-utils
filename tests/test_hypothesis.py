@@ -11,8 +11,8 @@ def test_roundtrip_integers(integer):
     row = {
         "integer": integer,
     }
-    db["test"].insert(row)
-    assert list(db["test"].rows) == [row]
+    db.table("test").insert(row)
+    assert list(db.table("test").rows) == [row]
 
 
 @given(st.text())
@@ -21,8 +21,8 @@ def test_roundtrip_text(text):
     row = {
         "text": text,
     }
-    db["test"].insert(row)
-    assert list(db["test"].rows) == [row]
+    db.table("test").insert(row)
+    assert list(db.table("test").rows) == [row]
 
 
 @given(st.binary(max_size=1024 * 1024))
@@ -31,8 +31,8 @@ def test_roundtrip_binary(binary):
     row = {
         "binary": binary,
     }
-    db["test"].insert(row)
-    assert list(db["test"].rows) == [row]
+    db.table("test").insert(row)
+    assert list(db.table("test").rows) == [row]
 
 
 @given(st.floats(allow_nan=False))
@@ -41,5 +41,5 @@ def test_roundtrip_floats(floats):
     row = {
         "floats": floats,
     }
-    db["test"].insert(row)
-    assert list(db["test"].rows) == [row]
+    db.table("test").insert(row)
+    assert list(db.table("test").rows) == [row]

@@ -20,7 +20,7 @@ search_records = [
 
 
 def test_enable_fts(fresh_db):
-    table = fresh_db["searchable"]
+    table = fresh_db.table("searchable")
     table.insert_all(search_records)
     assert ["searchable"] == fresh_db.table_names()
     table.enable_fts(["text", "country"], fts_version="FTS4")
@@ -54,7 +54,7 @@ def test_enable_fts(fresh_db):
 def test_enable_fts_escape_table_names(fresh_db):
     # Table names with restricted chars are handled correctly.
     # colons and dots are restricted characters for table names.
-    table = fresh_db["http://example.com"]
+    table = fresh_db.table("http://example.com")
     table.insert_all(search_records)
     assert ["http://example.com"] == fresh_db.table_names()
     table.enable_fts(["text", "country"], fts_version="FTS4")
@@ -87,7 +87,7 @@ def test_enable_fts_escape_table_names(fresh_db):
 
 def test_search_duplicate_columns_are_deduped(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/624
-    table = fresh_db["t"]
+    table = fresh_db.table("t")
     table.insert_all(search_records)
     table.enable_fts(["text", "country"], fts_version="FTS4")
     rows = list(table.search("tanuki", columns=["text", "text"]))
@@ -100,7 +100,7 @@ def test_search_duplicate_columns_are_deduped(fresh_db):
 
 
 def test_search_limit_offset(fresh_db):
-    table = fresh_db["t"]
+    table = fresh_db.table("t")
     table.insert_all(search_records)
     table.enable_fts(["text", "country"], fts_version="FTS4")
     assert len(list(table.search("are"))) == 2
@@ -113,7 +113,7 @@ def test_search_limit_offset(fresh_db):
 
 
 def test_search_offset_without_limit(fresh_db):
-    table = fresh_db["t"]
+    table = fresh_db.table("t")
     table.insert_all(search_records)
     table.enable_fts(["text", "country"], fts_version="FTS4")
     assert [row["rowid"] for row in table.search("are", order_by="rowid")] == [1, 2]
@@ -125,7 +125,7 @@ def test_search_offset_without_limit(fresh_db):
 
 @pytest.mark.parametrize("fts_version", ("FTS4", "FTS5"))
 def test_search_where(fresh_db, fts_version):
-    table = fresh_db["t"]
+    table = fresh_db.table("t")
     table.insert_all(search_records)
     table.enable_fts(["text", "country"], fts_version=fts_version)
     results = list(
@@ -142,7 +142,7 @@ def test_search_where(fresh_db, fts_version):
 
 
 def test_search_where_args_disallows_query(fresh_db):
-    table = fresh_db["t"]
+    table = fresh_db.table("t")
     with pytest.raises(ValueError) as ex:
         list(
             table.search(
@@ -156,7 +156,7 @@ def test_search_where_args_disallows_query(fresh_db):
 
 
 def test_search_include_rank(fresh_db):
-    table = fresh_db["t"]
+    table = fresh_db.table("t")
     table.insert_all(search_records)
     table.enable_fts(["text", "country"], fts_version="FTS5")
     results = list(table.search("are", include_rank=True))
@@ -182,7 +182,7 @@ def test_search_include_rank(fresh_db):
 
 
 def test_enable_fts_table_names_containing_spaces(fresh_db):
-    table = fresh_db["test"]
+    table = fresh_db.table("test")
     table.insert({"column with spaces": "in its name"})
     table.enable_fts(["column with spaces"])
     assert [
@@ -196,7 +196,7 @@ def test_enable_fts_table_names_containing_spaces(fresh_db):
 
 
 def test_populate_fts(fresh_db):
-    table = fresh_db["populatable"]
+    table = fresh_db.table("populatable")
     table.insert(search_records[0])
     table.enable_fts(["text", "country"], fts_version="FTS4")
     assert [] == list(table.search("trash pandas"))
@@ -217,7 +217,7 @@ def test_populate_fts(fresh_db):
 
 def test_populate_fts_escape_table_names(fresh_db):
     # Restricted characters such as colon and dots should be escaped.
-    table = fresh_db["http://example.com"]
+    table = fresh_db.table("http://example.com")
     table.insert(search_records[0])
     table.enable_fts(["text", "country"], fts_version="FTS4")
     assert [] == list(table.search("trash pandas"))
@@ -238,7 +238,7 @@ def test_populate_fts_escape_table_names(fresh_db):
 @pytest.mark.parametrize("fts_version", ("4", "5"))
 def test_fts_tokenize(fresh_db, fts_version):
     table_name = f"searchable_{fts_version}"
-    table = fresh_db[table_name]
+    table = fresh_db.table(table_name)
     table.insert_all(search_records)
     # Test without porter stemming
     table.enable_fts(
@@ -266,7 +266,7 @@ def test_fts_tokenize(fresh_db, fts_version):
 def test_fts_tokenize_escaped(fresh_db):
     # A malicious tokenize value must not be able to break out of the
     # string literal in the CREATE VIRTUAL TABLE statement.
-    table = fresh_db["searchable"]
+    table = fresh_db.table("searchable")
     table.insert_all(search_records)
     malicious = "porter'); CREATE TABLE injected(x); --"
     with pytest.raises(Exception):
@@ -278,7 +278,7 @@ def test_fts_tokenize_escaped(fresh_db):
 def test_optimize_fts(fresh_db):
     for fts_version in ("4", "5"):
         table_name = f"searchable_{fts_version}"
-        table = fresh_db[table_name]
+        table = fresh_db.table(table_name)
         table.insert_all(search_records)
         table.enable_fts(["text", "country"], fts_version=f"FTS{fts_version}")
     # You can call optimize successfully against the tables OR their _fts equivalents:
@@ -288,11 +288,11 @@ def test_optimize_fts(fresh_db):
         "searchable_4_fts",
         "searchable_5_fts",
     ):
-        fresh_db[table_name].optimize()
+        fresh_db.table(table_name).optimize()
 
 
 def test_enable_fts_with_triggers(fresh_db):
-    table = fresh_db["searchable"]
+    table = fresh_db.table("searchable")
     table.insert(search_records[0])
     table.enable_fts(["text", "country"], fts_version="FTS4", create_triggers=True)
     rows1 = list(table.search("tanuki"))
@@ -321,7 +321,7 @@ def test_enable_fts_with_triggers(fresh_db):
 
 @pytest.mark.parametrize("create_triggers", [True, False])
 def test_disable_fts(fresh_db, create_triggers):
-    table = fresh_db["searchable"]
+    table = fresh_db.table("searchable")
     table.insert(search_records[0])
     table.enable_fts(["text", "country"], create_triggers=create_triggers)
     assert {
@@ -354,7 +354,7 @@ def test_disable_fts(fresh_db, create_triggers):
 
 
 def test_rebuild_fts(fresh_db):
-    table = fresh_db["searchable"]
+    table = fresh_db.table("searchable")
     table.insert(search_records[0])
     table.enable_fts(["text", "country"])
     # Run a search
@@ -380,7 +380,7 @@ def test_rebuild_fts(fresh_db):
 def test_optimize_and_rebuild_fts_commit(tmpdir, method):
     path = str(tmpdir / "test.db")
     db = Database(path)
-    table = db["searchable"]
+    table = db.table("searchable")
     table.insert(search_records[0])
     table.enable_fts(["text", "country"])
     getattr(table, method)()
@@ -390,16 +390,16 @@ def test_optimize_and_rebuild_fts_commit(tmpdir, method):
     table.insert(search_records[1])
     db.close()
     db2 = Database(path)
-    assert db2["searchable"].count == 2
+    assert db2.table("searchable").count == 2
     db2.close()
 
 
 @pytest.mark.parametrize("invalid_table", ["does_not_exist", "not_searchable"])
 def test_rebuild_fts_invalid(fresh_db, invalid_table):
-    fresh_db["not_searchable"].insert({"foo": "bar"})
+    fresh_db.table("not_searchable").insert({"foo": "bar"})
     # Raise OperationalError on invalid table
     with pytest.raises(sqlite3.OperationalError):
-        fresh_db[invalid_table].rebuild_fts()
+        fresh_db.table(invalid_table).rebuild_fts()
 
 
 @pytest.mark.parametrize("fts_version", ["FTS4", "FTS5"])
@@ -408,15 +408,17 @@ def test_rebuild_removes_junk_docsize_rows(tmpdir, fts_version):
     path = tmpdir / "test.db"
     db = Database(str(path), recursive_triggers=False)
     licenses = [{"key": "apache2", "name": "Apache 2"}, {"key": "bsd", "name": "BSD"}]
-    db["licenses"].insert_all(licenses, pk="key", replace=True)
-    db["licenses"].enable_fts(["name"], create_triggers=True, fts_version=fts_version)
-    assert db["licenses_fts_docsize"].count == 2
+    db.table("licenses").insert_all(licenses, pk="key", replace=True)
+    db.table("licenses").enable_fts(
+        ["name"], create_triggers=True, fts_version=fts_version
+    )
+    assert db.table("licenses_fts_docsize").count == 2
     # Bug: insert with replace increases the number of rows in _docsize:
-    db["licenses"].insert_all(licenses, pk="key", replace=True)
-    assert db["licenses_fts_docsize"].count == 4
+    db.table("licenses").insert_all(licenses, pk="key", replace=True)
+    assert db.table("licenses_fts_docsize").count == 4
     # rebuild should fix this:
-    db["licenses_fts"].rebuild_fts()
-    assert db["licenses_fts_docsize"].count == 2
+    db.table("licenses_fts").rebuild_fts()
+    assert db.table("licenses_fts_docsize").count == 2
 
 
 @pytest.mark.parametrize(
@@ -430,7 +432,7 @@ def test_rebuild_removes_junk_docsize_rows(tmpdir, fts_version):
 )
 def test_enable_fts_replace(kwargs):
     db = Database(memory=True)
-    db["books"].insert(
+    db.table("books").insert(
         {
             "id": 1,
             "title": "Habits of Australian Marsupials",
@@ -438,31 +440,31 @@ def test_enable_fts_replace(kwargs):
         },
         pk="id",
     )
-    db["books"].enable_fts(["title", "author"])
-    assert not db["books"].triggers
-    assert db["books_fts"].columns_dict.keys() == {"title", "author"}
-    assert "FTS5" in db["books_fts"].schema
-    assert "porter" not in db["books_fts"].schema
+    db.table("books").enable_fts(["title", "author"])
+    assert not db.table("books").triggers
+    assert db.table("books_fts").columns_dict.keys() == {"title", "author"}
+    assert "FTS5" in db.table("books_fts").schema
+    assert "porter" not in db.table("books_fts").schema
     # Now modify the FTS configuration
     should_have_changed_columns = "columns" in kwargs
     if "columns" not in kwargs:
         kwargs["columns"] = ["title", "author"]
-    db["books"].enable_fts(**kwargs, replace=True)
+    db.table("books").enable_fts(**kwargs, replace=True)
     # Check that the new configuration is correct
     if should_have_changed_columns:
-        assert db["books_fts"].columns_dict.keys() == {"title"}
+        assert db.table("books_fts").columns_dict.keys() == {"title"}
     if "create_triggers" in kwargs:
-        assert db["books"].triggers
+        assert db.table("books").triggers
     if "fts_version" in kwargs:
-        assert "FTS4" in db["books_fts"].schema
+        assert "FTS4" in db.table("books_fts").schema
     if "tokenize" in kwargs:
-        assert "porter" in db["books_fts"].schema
+        assert "porter" in db.table("books_fts").schema
 
 
 def test_enable_fts_replace_does_nothing_if_args_the_same():
     queries = []
     db = Database(memory=True, tracer=lambda sql, params: queries.append((sql, params)))
-    db["books"].insert(
+    db.table("books").insert(
         {
             "id": 1,
             "title": "Habits of Australian Marsupials",
@@ -470,17 +472,19 @@ def test_enable_fts_replace_does_nothing_if_args_the_same():
         },
         pk="id",
     )
-    db["books"].enable_fts(["title", "author"], create_triggers=True)
+    db.table("books").enable_fts(["title", "author"], create_triggers=True)
     queries.clear()
     # Running that again shouldn't run much SQL:
-    db["books"].enable_fts(["title", "author"], create_triggers=True, replace=True)
+    db.table("books").enable_fts(
+        ["title", "author"], create_triggers=True, replace=True
+    )
     # The only SQL that executed should be select statements
     assert all(q[0].startswith("select ") for q in queries)
 
 
 def test_enable_fts_replace_handles_legacy_bracket_quoted_content_table():
     db = Database(memory=True)
-    db["books"].insert(
+    db.table("books").insert(
         {
             "id": 1,
             "title": "Habits of Australian Marsupials",
@@ -495,10 +499,10 @@ def test_enable_fts_replace_handles_legacy_bracket_quoted_content_table():
         );
     """)
 
-    db["books"].enable_fts(["title", "author"], replace=True)
+    db.table("books").enable_fts(["title", "author"], replace=True)
 
-    assert db["books_fts"].columns_dict.keys() == {"title", "author"}
-    assert 'content="books"' in db["books_fts"].schema
+    assert db.table("books_fts").columns_dict.keys() == {"title", "author"}
+    assert 'content="books"' in db.table("books_fts").schema
 
 
 def test_view_has_no_enable_fts():
@@ -506,7 +510,7 @@ def test_view_has_no_enable_fts():
     db.create_view("hello", "select 1 + 1")
     # Views deliberately do not have an enable_fts() method
     with pytest.raises(AttributeError):
-        db["hello"].enable_fts()  # type: ignore[union-attr]
+        db.view("hello").enable_fts()  # type: ignore[union-attr]
 
 
 @pytest.mark.parametrize(
@@ -712,14 +716,14 @@ def test_view_has_no_enable_fts():
 )
 def test_search_sql(kwargs, fts, expected):
     db = Database(memory=True)
-    db["books"].insert(
+    db.table("books").insert(
         {
             "title": "Habits of Australian Marsupials",
             "author": "Marlee Hawkins",
         }
     )
-    db["books"].enable_fts(["title", "author"], fts_version=fts)
-    sql = db["books"].search_sql(**kwargs)
+    db.table("books").enable_fts(["title", "author"], fts_version=fts)
+    sql = db.table("books").search_sql(**kwargs)
     assert sql == expected
 
 
@@ -740,7 +744,7 @@ def test_search_sql(kwargs, fts, expected):
     ),
 )
 def test_quote_fts_query(fresh_db, input, expected):
-    table = fresh_db["searchable"]
+    table = fresh_db.table("searchable")
     table.insert_all(search_records)
     table.enable_fts(["text", "country"])
     quoted = fresh_db.quote_fts(input)
@@ -750,7 +754,7 @@ def test_quote_fts_query(fresh_db, input, expected):
 
 
 def test_search_quote(fresh_db):
-    table = fresh_db["searchable"]
+    table = fresh_db.table("searchable")
     table.insert_all(search_records)
     table.enable_fts(["text", "country"])
     query = "cat's"
@@ -763,7 +767,7 @@ def test_search_quote(fresh_db):
 def test_enable_fts_cli_on_view_errors(tmpdir):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db["t"].insert({"text": "hello"})
+    db.table("t").insert({"text": "hello"})
     db.create_view("v", "select * from t")
     db.close()
     from click.testing import CliRunner

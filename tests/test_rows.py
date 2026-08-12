@@ -3,7 +3,7 @@ import pytest
 
 def test_rows(existing_db):
     assert [{"text": "one"}, {"text": "two"}, {"text": "three"}] == list(
-        existing_db["foo"].rows
+        existing_db.table("foo").rows
     )
 
 
@@ -18,7 +18,7 @@ def test_rows(existing_db):
     ],
 )
 def test_rows_where(where, where_args, expected_ids, fresh_db):
-    table = fresh_db["dogs"]
+    table = fresh_db.table("dogs")
     table.insert_all(
         [
             {"id": 1, "name": "Cleo", "age": 4, "is_good": True},
@@ -41,7 +41,7 @@ def test_rows_where(where, where_args, expected_ids, fresh_db):
     ],
 )
 def test_rows_where_order_by(where, order_by, expected_ids, fresh_db):
-    table = fresh_db["dogs"]
+    table = fresh_db.table("dogs")
     table.insert_all(
         [
             {"id": 1, "name": "Cleo", "age": 4},
@@ -65,7 +65,7 @@ def test_rows_where_order_by(where, order_by, expected_ids, fresh_db):
     ],
 )
 def test_rows_where_offset_limit(fresh_db, offset, limit, expected):
-    table = fresh_db["rows"]
+    table = fresh_db.table("rows")
     table.insert_all([{"id": id} for id in range(1, 101)], pk="id")
     assert table.count == 100
     assert expected == [
@@ -74,13 +74,13 @@ def test_rows_where_offset_limit(fresh_db, offset, limit, expected):
 
 
 def test_pks_and_rows_where_offset_without_limit(fresh_db):
-    table = fresh_db["rows"]
+    table = fresh_db.table("rows")
     table.insert_all([{"id": id} for id in range(1, 6)], pk="id")
     assert [pk for pk, _ in table.pks_and_rows_where(offset=3, order_by="id")] == [4, 5]
 
 
 def test_pks_and_rows_where_rowid(fresh_db):
-    table = fresh_db["rowid_table"]
+    table = fresh_db.table("rowid_table")
     table.insert_all({"number": i + 10} for i in range(3))
     pks_and_rows = list(table.pks_and_rows_where())
     assert pks_and_rows == [
@@ -91,7 +91,7 @@ def test_pks_and_rows_where_rowid(fresh_db):
 
 
 def test_pks_and_rows_where_simple_pk(fresh_db):
-    table = fresh_db["simple_pk_table"]
+    table = fresh_db.table("simple_pk_table")
     table.insert_all(({"id": i + 10} for i in range(3)), pk="id")
     pks_and_rows = list(table.pks_and_rows_where())
     assert pks_and_rows == [
@@ -102,7 +102,7 @@ def test_pks_and_rows_where_simple_pk(fresh_db):
 
 
 def test_pks_and_rows_where_compound_pk(fresh_db):
-    table = fresh_db["compound_pk_table"]
+    table = fresh_db.table("compound_pk_table")
     table.insert_all(
         ({"type": "number", "number": i, "plusone": i + 1} for i in range(3)),
         pk=("type", "number"),
@@ -117,8 +117,8 @@ def test_pks_and_rows_where_compound_pk(fresh_db):
 
 def test_rows_where_duplicate_select_columns_are_deduped(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/624
-    fresh_db["t"].insert({"id": 1, "name": "Cleo"})
-    rows = list(fresh_db["t"].rows_where(select="id, id, name"))
+    fresh_db.table("t").insert({"id": 1, "name": "Cleo"})
+    rows = list(fresh_db.table("t").rows_where(select="id, id, name"))
     assert rows == [{"id": 1, "id_2": 1, "name": "Cleo"}]
 
 
@@ -130,10 +130,10 @@ def test_pks_and_rows_where_view(fresh_db):
     # an AttributeError from View lacking Table-only properties
     from sqlite_utils.utils import sqlite3
 
-    fresh_db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.table("dogs").insert({"id": 1, "name": "Cleo"}, pk="id")
     fresh_db.create_view("dog_names", "select name from dogs")
     try:
-        result = list(fresh_db["dog_names"].pks_and_rows_where())
+        result = list(fresh_db.view("dog_names").pks_and_rows_where())
     except sqlite3.OperationalError:
         pass  # SQLite 3.36+: no such column: rowid
     else:
@@ -144,6 +144,6 @@ def test_pks_and_rows_where_view(fresh_db):
 def test_pks_and_rows_where_compound_pk_declaration_order(fresh_db):
     # Compound pks are returned in PRIMARY KEY declaration order
     fresh_db.execute("create table t (b text, a text, primary key (a, b))")
-    fresh_db["t"].insert({"a": "A", "b": "B"})
-    pks_and_rows = list(fresh_db["t"].pks_and_rows_where())
+    fresh_db.table("t").insert({"a": "A", "b": "B"})
+    pks_and_rows = list(fresh_db.table("t").pks_and_rows_where())
     assert pks_and_rows == [(("A", "B"), {"b": "B", "a": "A"})]

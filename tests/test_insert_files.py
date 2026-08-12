@@ -57,7 +57,7 @@ def test_insert_files(silent, pk_args, expected_pks):
         )
         assert result.exit_code == 0, result.stdout
         db = Database(db_path)
-        rows_by_path = {r["path"]: r for r in db["files"].rows}
+        rows_by_path = {r["path"]: r for r in db.table("files").rows}
         one, two, three = (
             rows_by_path["one.txt"],
             rows_by_path["two.txt"],
@@ -114,7 +114,7 @@ def test_insert_files(silent, pk_args, expected_pks):
         for colname, expected_type in expected_types.items():
             for row in (one, two, three):
                 assert isinstance(row[colname], expected_type)
-        assert set(db["files"].pks) == set(expected_pks)
+        assert set(db.table("files").pks) == set(expected_pks)
 
 
 @pytest.mark.parametrize(
@@ -144,7 +144,7 @@ def test_insert_files_stdin(use_text, encoding, input, expected):
         )
         assert result.exit_code == 0, result.stdout
         db = Database(db_path)
-        row = next(iter(db["files"].rows))
+        row = next(iter(db.table("files").rows))
         key = "content"
         if use_text:
             key = "content_text"

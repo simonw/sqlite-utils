@@ -22,7 +22,7 @@ def test_duplicate(fresh_db):
         "bool_col": True,
         "datetime_col": str(dt),
     }
-    table1 = fresh_db["table1"]
+    table1 = fresh_db.table("table1")
     row_id = table1.insert(data).last_rowid
     # Duplicate table:
     table2 = table1.duplicate("table2")
@@ -40,4 +40,4 @@ def test_duplicate(fresh_db):
 
 def test_duplicate_fails_if_table_does_not_exist(fresh_db):
     with pytest.raises(NoTable):
-        fresh_db["not_a_table"].duplicate("duplicated")
+        fresh_db.table("not_a_table").duplicate("duplicated")

@@ -19,7 +19,7 @@ def test_sniff(tmpdir, filepath):
     )
     assert result.exit_code == 0, result.stdout
     db = Database(db_path)
-    assert list(db["creatures"].rows) == [
+    assert list(db.table("creatures").rows) == [
         {"id": "1", "species": "dog", "name": "Cleo", "age": "5"},
         {"id": "2", "species": "dog", "name": "Pancakes", "age": "4"},
         {"id": "3", "species": "cat", "name": "Mozie", "age": "8"},

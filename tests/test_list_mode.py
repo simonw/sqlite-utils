@@ -19,9 +19,9 @@ def test_insert_all_list_mode_basic():
         yield [2, "Bob", 25]
         yield [3, "Charlie", 35]
 
-    db["people"].insert_all(data_generator())
+    db.table("people").insert_all(data_generator())
 
-    rows = list(db["people"].rows)
+    rows = list(db.table("people").rows)
     assert len(rows) == 3
     assert rows[0] == {"id": 1, "name": "Alice", "age": 30}
     assert rows[1] == {"id": 2, "name": "Bob", "age": 25}
@@ -37,10 +37,10 @@ def test_insert_all_list_mode_with_pk():
         yield [1, "Alice", 95]
         yield [2, "Bob", 87]
 
-    db["scores"].insert_all(data_generator(), pk="id")
+    db.table("scores").insert_all(data_generator(), pk="id")
 
-    assert db["scores"].pks == ["id"]
-    rows = list(db["scores"].rows)
+    assert db.table("scores").pks == ["id"]
+    rows = list(db.table("scores").rows)
     assert len(rows) == 2
 
 
@@ -54,7 +54,7 @@ def test_upsert_all_list_mode():
         yield [1, "Alice", 100]
         yield [2, "Bob", 200]
 
-    db["data"].insert_all(initial_data(), pk="id")
+    db.table("data").insert_all(initial_data(), pk="id")
 
     # Upsert with some updates and new records
     def upsert_data():
@@ -62,9 +62,9 @@ def test_upsert_all_list_mode():
         yield [1, "Alice", 150]  # Update existing
         yield [3, "Charlie", 300]  # Insert new
 
-    db["data"].upsert_all(upsert_data(), pk="id")
+    db.table("data").upsert_all(upsert_data(), pk="id")
 
-    rows = list(db["data"].rows_where(order_by="id"))
+    rows = list(db.table("data").rows_where(order_by="id"))
     assert len(rows) == 3
     assert rows[0] == {"id": 1, "name": "Alice", "value": 150}
     assert rows[1] == {"id": 2, "name": "Bob", "value": 200}
@@ -81,9 +81,9 @@ def test_list_mode_with_various_types():
         yield [2, "Bob", 87.3, False]
         yield [3, "Charlie", None, True]
 
-    db["mixed"].insert_all(data_generator())
+    db.table("mixed").insert_all(data_generator())
 
-    rows = list(db["mixed"].rows)
+    rows = list(db.table("mixed").rows)
     assert len(rows) == 3
     assert rows[0]["score"] == 95.5
     assert rows[1]["active"] == 0  # SQLite stores boolean as int
@@ -99,7 +99,7 @@ def test_list_mode_error_non_string_columns():
         yield ["a", "b", "c"]
 
     with pytest.raises(ValueError, match="must be a list of column name strings"):
-        db["bad"].insert_all(bad_data())
+        db.table("bad").insert_all(bad_data())
 
 
 def test_list_mode_error_mixed_types():
@@ -111,7 +111,7 @@ def test_list_mode_error_mixed_types():
         yield {"id": 1, "name": "Alice"}  # Should be a list, not dict
 
     with pytest.raises(ValueError, match="must also be lists"):
-        db["bad"].insert_all(bad_data())
+        db.table("bad").insert_all(bad_data())
 
 
 def test_list_mode_empty_after_headers():
@@ -122,9 +122,9 @@ def test_list_mode_empty_after_headers():
         yield ["id", "name", "age"]
         # No data rows
 
-    result = db["people"].insert_all(data_generator())
+    result = db.table("people").insert_all(data_generator())
     assert result is not None
-    assert not db["people"].exists()
+    assert not db.table("people").exists()
 
 
 def test_list_mode_batch_processing():
@@ -136,7 +136,7 @@ def test_list_mode_batch_processing():
         for i in range(1000):
             yield [i, f"value_{i}"]
 
-    db["large"].insert_all(large_data(), batch_size=100)
+    db.table("large").insert_all(large_data(), batch_size=100)
 
     count = db.execute("SELECT COUNT(*) as c FROM large").fetchone()[0]
     assert count == 1000
@@ -152,9 +152,9 @@ def test_list_mode_shorter_rows():
         yield [2, "Bob"]  # Missing age and city
         yield [3, "Charlie", 35]  # Missing city
 
-    db["people"].insert_all(data_generator())
+    db.table("people").insert_all(data_generator())
 
-    rows = list(db["people"].rows_where(order_by="id"))
+    rows = list(db.table("people").rows_where(order_by="id"))
     assert rows[0] == {"id": 1, "name": "Alice", "age": 30, "city": "NYC"}
     assert rows[1] == {"id": 2, "name": "Bob", "age": None, "city": None}
     assert rows[2] == {"id": 3, "name": "Charlie", "age": 35, "city": None}
@@ -170,9 +170,9 @@ def test_backwards_compatibility_dict_mode():
         {"id": 2, "name": "Bob", "age": 25},
     ]
 
-    db["people"].insert_all(data)
+    db.table("people").insert_all(data)
 
-    rows = list(db["people"].rows)
+    rows = list(db.table("people").rows)
     assert len(rows) == 2
     assert rows[0] == {"id": 1, "name": "Alice", "age": 30}
 
@@ -189,9 +189,9 @@ def test_insert_all_tuple_mode_basic():
         yield (2, "Bob", 25)
         yield (3, "Charlie", 35)
 
-    db["people"].insert_all(data_generator())
+    db.table("people").insert_all(data_generator())
 
-    rows = list(db["people"].rows)
+    rows = list(db.table("people").rows)
     assert len(rows) == 3
     assert rows[0] == {"id": 1, "name": "Alice", "age": 30}
     assert rows[1] == {"id": 2, "name": "Bob", "age": 25}
@@ -211,9 +211,9 @@ def test_insert_all_mixed_list_tuple():
         yield [3, "Charlie", 35]
         yield (4, "Diana", 40)
 
-    db["people"].insert_all(data_generator())
+    db.table("people").insert_all(data_generator())
 
-    rows = list(db["people"].rows)
+    rows = list(db.table("people").rows)
     assert len(rows) == 4
     assert rows[0] == {"id": 1, "name": "Alice", "age": 30}
     assert rows[1] == {"id": 2, "name": "Bob", "age": 25}
@@ -231,7 +231,7 @@ def test_upsert_all_tuple_mode():
         yield (1, "Alice", 100)
         yield (2, "Bob", 200)
 
-    db["data"].insert_all(initial_data(), pk="id")
+    db.table("data").insert_all(initial_data(), pk="id")
 
     # Upsert with tuples
     def upsert_data():
@@ -239,9 +239,9 @@ def test_upsert_all_tuple_mode():
         yield (1, "Alice", 150)  # Update existing
         yield (3, "Charlie", 300)  # Insert new
 
-    db["data"].upsert_all(upsert_data(), pk="id")
+    db.table("data").upsert_all(upsert_data(), pk="id")
 
-    rows = list(db["data"].rows_where(order_by="id"))
+    rows = list(db.table("data").rows_where(order_by="id"))
     assert len(rows) == 3
     assert rows[0] == {"id": 1, "name": "Alice", "value": 150}
     assert rows[1] == {"id": 2, "name": "Bob", "value": 200}
@@ -258,9 +258,9 @@ def test_tuple_mode_shorter_rows():
         yield 2, "Bob"  # Missing age and city
         yield 3, "Charlie", 35  # Missing city
 
-    db["people"].insert_all(data_generator())
+    db.table("people").insert_all(data_generator())
 
-    rows = list(db["people"].rows_where(order_by="id"))
+    rows = list(db.table("people").rows_where(order_by="id"))
     assert rows[0] == {"id": 1, "name": "Alice", "age": 30, "city": "NYC"}
     assert rows[1] == {"id": 2, "name": "Bob", "age": None, "city": None}
     assert rows[2] == {"id": 3, "name": "Charlie", "age": 35, "city": None}
@@ -271,18 +271,18 @@ def test_list_mode_single_record_upsert_last_pk():
     db = Database(memory=True)
 
     # Create table first
-    db["data"].insert({"id": 1, "name": "Alice", "value": 100}, pk="id")
+    db.table("data").insert({"id": 1, "name": "Alice", "value": 100}, pk="id")
 
     # Now upsert a single record using list mode
     def upsert_data():
         yield ["id", "name", "value"]
         yield [1, "Alice", 150]  # Update existing
 
-    table = db["data"]
+    table = db.table("data")
     table.upsert_all(upsert_data(), pk="id")
 
     # Verify the data was updated
-    rows = list(db["data"].rows)
+    rows = list(db.table("data").rows)
     assert rows == [{"id": 1, "name": "Alice", "value": 150}]
 
     # Verify last_pk is populated correctly

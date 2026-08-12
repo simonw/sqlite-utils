@@ -20,8 +20,8 @@ def test_recursive_triggers_off():
 def test_memory_name():
     db1 = Database(memory_name="shared")
     db2 = Database(memory_name="shared")
-    db1["dogs"].insert({"name": "Cleo"})
-    assert list(db2["dogs"].rows) == [{"name": "Cleo"}]
+    db1.table("dogs").insert({"name": "Cleo"})
+    assert list(db2.table("dogs").rows) == [{"name": "Cleo"}]
 
 
 def test_sqlite_version():
@@ -36,7 +36,7 @@ def test_sqlite_version():
 def test_database_context_manager(tmpdir):
     path = str(tmpdir / "test.db")
     with Database(path) as db:
-        db["t"].insert({"id": 1})
+        db.table("t").insert({"id": 1})
         # Raw writes commit automatically too
         db.execute("insert into t (id) values (2)")
         # An explicitly opened transaction left uncommitted on purpose:
@@ -47,7 +47,7 @@ def test_database_context_manager(tmpdir):
         db.execute("select 1")
     # ... and the open explicit transaction was rolled back, not committed
     db2 = Database(path)
-    assert [r["id"] for r in db2["t"].rows] == [1, 2]
+    assert [r["id"] for r in db2.table("t").rows] == [1, 2]
     db2.close()
 
 
@@ -86,8 +86,8 @@ def test_legacy_transaction_control_connection_is_accepted(tmpdir):
         str(tmpdir / "test.db"), autocommit=sqlite3.LEGACY_TRANSACTION_CONTROL
     )
     db = Database(conn)
-    db["t"].insert({"id": 1}, pk="id")
-    assert [r["id"] for r in db["t"].rows] == [1]
+    db.table("t").insert({"id": 1}, pk="id")
+    assert [r["id"] for r in db.table("t").rows] == [1]
     db.close()
 
 

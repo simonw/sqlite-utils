@@ -27,7 +27,7 @@ from sqlite_utils.db import BadMultiValues
     ),
 )
 def test_convert(fresh_db, columns, fn, expected):
-    table = fresh_db["table"]
+    table = fresh_db.table("table")
     table.insert({"title": "Mixed Case", "abstract": "Abstract"})
     table.convert(columns, fn)
     assert list(table.rows) == [expected]
@@ -37,7 +37,7 @@ def test_convert(fresh_db, columns, fn, expected):
     "where,where_args", (("id > 1", None), ("id > :id", {"id": 1}), ("id > ?", [1]))
 )
 def test_convert_where(fresh_db, where, where_args):
-    table = fresh_db["table"]
+    table = fresh_db.table("table")
     table.insert_all(
         [
             {"id": 1, "title": "One"},
@@ -53,7 +53,7 @@ def test_convert_where(fresh_db, where, where_args):
 
 def test_convert_handles_falsey_values(fresh_db):
     # Falsey values like 0 should be converted (issue #527)
-    table = fresh_db["table"]
+    table = fresh_db.table("table")
     table.insert_all([{"x": 0}, {"x": 1}])
     assert table.get(1)["x"] == 0
     assert table.get(2)["x"] == 1
@@ -70,14 +70,14 @@ def test_convert_handles_falsey_values(fresh_db):
     ),
 )
 def test_convert_output(fresh_db, drop, expected):
-    table = fresh_db["table"]
+    table = fresh_db.table("table")
     table.insert({"title": "Mixed Case"})
     table.convert("title", lambda v: v.upper(), output="other", drop=drop)
     assert list(table.rows) == [expected]
 
 
 def test_convert_output_multiple_column_error(fresh_db):
-    table = fresh_db["table"]
+    table = fresh_db.table("table")
     with pytest.raises(ValueError) as excinfo:
         table.convert(["title", "other"], lambda v: v, output="out")
         assert "output= can only be used with a single column" in str(excinfo.value)
@@ -91,14 +91,14 @@ def test_convert_output_multiple_column_error(fresh_db):
     ),
 )
 def test_convert_output_type(fresh_db, type, expected):
-    table = fresh_db["table"]
+    table = fresh_db.table("table")
     table.insert({"number": "123"})
     table.convert("number", lambda v: v, output="other", output_type=type, drop=True)
     assert list(table.rows) == [expected]
 
 
 def test_convert_multi(fresh_db):
-    table = fresh_db["table"]
+    table = fresh_db.table("table")
     table.insert({"title": "Mixed Case"})
     table.convert(
         "title",
@@ -123,7 +123,7 @@ def test_convert_multi(fresh_db):
 
 
 def test_convert_multi_where(fresh_db):
-    table = fresh_db["table"]
+    table = fresh_db.table("table")
     table.insert_all(
         [
             {"id": 1, "title": "One"},
@@ -145,14 +145,14 @@ def test_convert_multi_where(fresh_db):
 
 
 def test_convert_multi_exception(fresh_db):
-    table = fresh_db["table"]
+    table = fresh_db.table("table")
     table.insert({"title": "Mixed Case"})
     with pytest.raises(BadMultiValues):
         table.convert("title", lambda v: v.upper(), multi=True)
 
 
 def test_convert_repeated(fresh_db):
-    table = fresh_db["table"]
+    table = fresh_db.table("table")
     col = "num"
     table.insert({col: 1})
     table.convert(col, lambda x: x * 2)
