@@ -1986,6 +1986,15 @@ A bare column name drops any foreign key that column participates in, including 
 
 Renaming a column with ``rename=`` updates any foreign keys that use it, and dropping a column with ``drop=`` also drops any foreign keys it participates in - for a compound foreign key this removes the whole constraint.
 
+.. _python_api_transform_check_constraints:
+
+CHECK constraints
+-----------------
+
+``.transform()`` preserves both column-level and table-level ``CHECK`` constraints. If a column is renamed, references to that column in the check expression are renamed too.
+
+A column-level check is removed if its owning column is dropped. Dropping a column referenced by any remaining check raises ``TransformError`` instead of creating an invalid or unexpectedly weakened schema.
+
 .. _python_api_transform_views:
 
 Tables referenced by views

@@ -549,3 +549,86 @@ def parse_checks(create_sql: str) -> list[Check]:
             _column_checks(item, item_tokens, column, body_start + item_start)
         )
     return checks
+
+
+def _is_identifier_token(tokens: list[_Token], index: int) -> bool:
+    token = tokens[index]
+    if index + 1 < len(tokens) and tokens[index + 1].text in ("(", "."):
+        return False
+    if index and (
+        tokens[index - 1].is_keyword("COLLATE") or tokens[index - 1].is_keyword("AS")
+    ):
+        return False
+    if token.kind == "identifier":
+        return True
+    if token.kind != "word" or token.text.upper() in _SQLITE_KEYWORDS:
+        return False
+    return True
+
+
+def check_references_identifier(expression: str, identifier: str) -> bool:
+    tokens = _meaningful(_lex(expression))
+    folded = _ascii_fold(identifier)
+    return any(
+        _is_identifier_token(tokens, index)
+        and _ascii_fold(_unquote(token.text)) == folded
+        for index, token in enumerate(tokens)
+    )
+
+
+def check_expression_ends_in_line_comment(expression: str) -> bool:
+    """Return True if appended SQL would be swallowed by a ``--`` comment."""
+    tokens = _lex(expression)
+    if not tokens:
+        return False
+    final = tokens[-1]
+    return (
+        final.kind == "comment"
+        and final.text.startswith("--")
+        and not final.text.endswith(("\n", "\r"))
+    )
+
+
+def _valid_bare_identifier(identifier: str) -> bool:
+    if not identifier or identifier.upper() in _SQLITE_KEYWORDS:
+        return False
+    first = identifier[0]
+    if not (first == "_" or first.isalpha() or ord(first) >= 0x80):
+        return False
+    return all(
+        char == "_" or char == "$" or char.isalnum() or ord(char) >= 0x80
+        for char in identifier[1:]
+    )
+
+
+def _quote_replacement(original: str, replacement: str) -> str:
+    if original.startswith('"'):
+        return '"{}"'.format(replacement.replace('"', '""'))
+    if original.startswith("`"):
+        return "`{}`".format(replacement.replace("`", "``"))
+    if original.startswith("[") and "]" not in replacement:
+        return f"[{replacement}]"
+    if _valid_bare_identifier(replacement):
+        return replacement
+    return '"{}"'.format(replacement.replace('"', '""'))
+
+
+def rewrite_check_expression(expression: str, rename: dict[str, str]) -> str:
+    """Rewrite column identifiers in a CHECK expression, preserving trivia."""
+    if not rename:
+        return expression
+    tokens = _lex(expression)
+    meaningful = _meaningful(tokens)
+    replacements = {_ascii_fold(key): value for key, value in rename.items()}
+    edits: list[tuple[int, int, str]] = []
+    for index, token in enumerate(meaningful):
+        if not _is_identifier_token(meaningful, index):
+            continue
+        replacement = replacements.get(_ascii_fold(_unquote(token.text)))
+        if replacement is not None:
+            edits.append(
+                (token.start, token.end, _quote_replacement(token.text, replacement))
+            )
+    for start, end, replacement in reversed(edits):
+        expression = expression[:start] + replacement + expression[end:]
+    return expression
