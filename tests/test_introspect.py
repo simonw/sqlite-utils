@@ -393,6 +393,21 @@ def test_table_default_values_escaped_quotes(fresh_db):
     assert fresh_db.table("t").default_values == {"name": "O'Brien"}
 
 
+def test_table_default_values_keyword_literals(fresh_db):
+    fresh_db.execute(
+        "create table t ("
+        "enabled integer default TRUE, "
+        "disabled integer default false, "
+        "nullable text default NULL"
+        ")"
+    )
+    assert fresh_db.table("t").default_values == {
+        "enabled": True,
+        "disabled": False,
+        "nullable": None,
+    }
+
+
 def test_pks_use_primary_key_declaration_order(fresh_db):
     # PRIMARY KEY (a, b) declared against columns stored in order (b, a) -
     # pks must follow the declaration order, which is what SQLite uses to

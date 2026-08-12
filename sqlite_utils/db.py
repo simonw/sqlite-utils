@@ -5270,6 +5270,13 @@ def _decode_default_value(value: str) -> object:
         # It's a binary string, stored as hex
         to_decode = value[2:-1]
         return binascii.unhexlify(to_decode)
+    upper = value.upper()
+    if upper == "TRUE":
+        return True
+    if upper == "FALSE":
+        return False
+    if upper == "NULL":
+        return None
     # If it is a string containing a floating point number:
     try:
         return float(value)

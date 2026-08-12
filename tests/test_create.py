@@ -1509,6 +1509,26 @@ def test_create_transform(fresh_db, cols, kwargs, expected_schema, should_transf
     assert fresh_db.table("demo").count == 1
 
 
+def test_create_transform_keyword_literal_defaults_unchanged(fresh_db):
+    fresh_db.execute(
+        "create table demo ("
+        "id integer primary key, "
+        "enabled integer default TRUE, "
+        "disabled integer default FALSE, "
+        "nullable text default NULL"
+        ")"
+    )
+    traces = []
+    with fresh_db.tracer(lambda sql, parameters: traces.append((sql, parameters))):
+        fresh_db.table("demo").create(
+            {"id": int, "enabled": int, "disabled": int, "nullable": str},
+            pk="id",
+            defaults={"enabled": True, "disabled": False, "nullable": None},
+            transform=True,
+        )
+    assert not any(sql.startswith("CREATE TABLE") for sql, _ in traces)
+
+
 def test_rename_table(fresh_db):
     fresh_db.table("t").insert({"foo": "bar"})
     assert ["t"] == fresh_db.table_names()
