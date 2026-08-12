@@ -181,6 +181,34 @@ def test_convert_dryrun(test_db_and_path):
     assert result.output.strip().split("\n")[-1] == "Would affect 1 row"
 
 
+def test_convert_dryrun_table_and_column_names_containing_closing_bracket(
+    fresh_db_and_path,
+):
+    db, db_path = fresh_db_and_path
+    table_name = "table]name"
+    column_name = "column]name"
+    db[table_name].insert({column_name: "hello"})
+
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "convert",
+            db_path,
+            table_name,
+            column_name,
+            "value.upper()",
+            "--dry-run",
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0
+    assert result.output.strip() == (
+        "hello\n --- becomes:\nHELLO\n\nWould affect 1 row"
+    )
+    assert list(db[table_name].rows) == [{column_name: "hello"}]
+
+
 def test_convert_multi_dryrun(test_db_and_path):
     db_path = test_db_and_path[1]
     result = CliRunner().invoke(
