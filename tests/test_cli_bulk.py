@@ -91,6 +91,7 @@ def test_cli_bulk_batch_size(test_db_and_path):
         stdin=subprocess.PIPE,
         stdout=sys.stdout,
     )
+    assert proc.stdin is not None
     # Writing one record should not commit
     proc.stdin.write(b'{"id": 3, "name": "Three"}\n\n')
     proc.stdin.flush()

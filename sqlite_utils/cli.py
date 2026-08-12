@@ -1093,7 +1093,7 @@ def insert_upsert_implementation(
     column_type_overrides = {column: ctype.upper() for column, ctype in (types or [])}
 
     def _insert_docs(docs, tracker=None):
-        extra_kwargs = {
+        extra_kwargs: dict[str, Any] = {
             "ignore": ignore,
             "replace": replace,
             "truncate": truncate,
@@ -3275,15 +3275,10 @@ def convert(
         raise click.ClickException(str(e))
     if dry_run:
         # Pull first 20 values for first column and preview them
-        if multi:
-
-            def preview(v):
+        def preview(v):
+            if multi:
                 return json.dumps(fn(v), default=repr, ensure_ascii=False) if v else v
-
-        else:
-
-            def preview(v):
-                return fn(v) if v else v
+            return fn(v) if v else v
 
         db.conn.create_function("preview_transform", 1, preview)
         sql = """
@@ -3788,12 +3783,12 @@ def _rows_from_code(code):
             code = pathlib.Path(code).read_text()
         except FileNotFoundError:
             raise click.ClickException(f"File not found: {code}")
-    namespace = {}
+    namespace: dict[str, Any] = {}
     try:
         exec(code, namespace)  # noqa: S102
     except SyntaxError as ex:
         raise click.ClickException(f"Error in --code: {ex}")
-    rows = namespace.get("rows")
+    rows: Any = namespace.get("rows")
     if callable(rows):
         rows = rows()
     if isinstance(rows, dict):

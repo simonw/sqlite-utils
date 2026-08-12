@@ -14,6 +14,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     BinaryIO,
+    Generic,
     TypeVar,
     Union,
     cast,
@@ -344,7 +345,11 @@ def rows_from_file(
             reader = csv.DictReader(decoded_fp, dialect=dialect)
         else:
             reader = csv.DictReader(decoded_fp)
-        rows = _extra_key_strategy(reader, ignore_extras, extras_key)
+        rows = _extra_key_strategy(
+            cast(Iterable[dict[str | None, object]], reader),
+            ignore_extras,
+            extras_key,
+        )
         return _CloseableIterator(iter(rows), decoded_fp), Format.CSV
     elif format == Format.TSV:
         rows, _ = rows_from_file(
@@ -487,12 +492,12 @@ class ValueTracker:
             del self.couldbe[key]
 
 
-class NullProgressBar:
+class NullProgressBar(Generic[T]):
     def __init__(self, *args: Iterable[T]) -> None:
         self.args = args
 
     def __iter__(self) -> Iterator[T]:
-        yield from self.args[0]  # type: ignore
+        yield from self.args[0]
 
     def update(self, value: int) -> None:
         pass

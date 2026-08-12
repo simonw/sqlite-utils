@@ -86,21 +86,21 @@ def test_register_function_deterministic_tries_again_if_exception_raised(fresh_d
 
 def test_register_function_replace(fresh_db):
     @fresh_db.register_function()
-    def one():
+    def one():  # pyright: ignore[reportRedeclaration]
         return "one"
 
     assert "one" == fresh_db.execute("select one()").fetchone()[0]
 
     # This will silently fail to replaec the function
     @fresh_db.register_function()
-    def one():  # noqa
+    def one():  # pyright: ignore[reportRedeclaration]
         return "two"
 
     assert "one" == fresh_db.execute("select one()").fetchone()[0]
 
     # This will replace it
     @fresh_db.register_function(replace=True)
-    def one():  # noqa
+    def one():  # pyright: ignore[reportRedeclaration]
         return "two"
 
     assert "two" == fresh_db.execute("select one()").fetchone()[0]

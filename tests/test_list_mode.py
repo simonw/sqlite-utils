@@ -99,7 +99,7 @@ def test_list_mode_error_non_string_columns():
         yield ["a", "b", "c"]
 
     with pytest.raises(ValueError, match="must be a list of column name strings"):
-        db.table("bad").insert_all(bad_data())
+        db.table("bad").insert_all(bad_data())  # type: ignore[arg-type]
 
 
 def test_list_mode_error_mixed_types():
@@ -111,7 +111,7 @@ def test_list_mode_error_mixed_types():
         yield {"id": 1, "name": "Alice"}  # Should be a list, not dict
 
     with pytest.raises(ValueError, match="must also be lists"):
-        db.table("bad").insert_all(bad_data())
+        db.table("bad").insert_all(bad_data())  # type: ignore[arg-type]
 
 
 def test_list_mode_empty_after_headers():

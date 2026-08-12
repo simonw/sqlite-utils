@@ -1182,6 +1182,7 @@ def test_works_with_pathlib_path(tmpdir):
 
 @pytest.mark.skipif(pd is None, reason="pandas and numpy are not installed")
 def test_create_table_numpy(fresh_db):
+    assert pd is not None
     df = pd.DataFrame({"col 1": range(3), "col 2": range(3)})
     fresh_db.table("pandas").insert_all(df.to_dict(orient="records"))
     assert [

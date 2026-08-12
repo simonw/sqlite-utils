@@ -48,6 +48,7 @@ dev = [
     # flake8
     "flake8",
     "flake8-pyproject",
+    "pyright>=1.1.411",
     "ty>=0.0.37",
     # For stable cog:
     "tabulate>=0.10.0",
