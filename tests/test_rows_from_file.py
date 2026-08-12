@@ -20,6 +20,13 @@ def test_rows_from_file_detect_format(input, expected_format):
     assert rows_list == [{"id": "1", "name": "Cleo"}]
 
 
+@pytest.mark.parametrize("input", (b"", b" \n\t"))
+def test_rows_from_file_empty_input(input):
+    rows, format = rows_from_file(BytesIO(input))
+    assert format == Format.CSV
+    assert list(rows) == []
+
+
 @pytest.mark.parametrize(
     "ignore_extras,extras_key,expected",
     (
