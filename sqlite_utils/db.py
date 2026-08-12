@@ -27,6 +27,7 @@ from typing_extensions import Self
 
 from sqlite_utils.plugins import ensure_plugins_loaded, pm
 
+from .create_table_parser import Check, parse_checks
 from .utils import (
     OperationalError,
     chunks,
@@ -2195,6 +2196,27 @@ class Table(Queryable):
     def use_rowid(self) -> bool:
         "Does this table use ``rowid`` for its primary key (no other primary keys are specified)?"
         return not any(column for column in self.columns if column.is_pk)
+
+    @property
+    def checks(self) -> list[Check]:
+        "List of column-level and table-level CHECK constraints on this table."
+        if not self.exists() or self.virtual_table_using is not None:
+            return []
+        return parse_checks(self.schema)
+
+    @property
+    def column_checks(self) -> dict[str, list[Check]]:
+        "CHECK constraints grouped by the column on which they are defined."
+        checks: dict[str, list[Check]] = {}
+        for check in self.checks:
+            if check.column:
+                checks.setdefault(check.column, []).append(check)
+        return checks
+
+    @property
+    def table_checks(self) -> list[Check]:
+        "Table-level CHECK constraints on this table."
+        return [check for check in self.checks if not check.column]
 
     def get(self, pk_values: list | tuple | str | int) -> dict:
         """

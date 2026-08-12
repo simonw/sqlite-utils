@@ -2480,6 +2480,43 @@ Almost all SQLite tables have a ``rowid`` column, but a table with no explicitly
     False
 
 
+.. _python_api_introspection_checks:
+
+.checks
+-------
+
+The ``.checks`` property returns the column-level and table-level ``CHECK`` constraints defined on a table, as a list of ``Check`` objects. Each object has ``check`` (the expression inside ``CHECK (...)``), ``name``, ``column`` and ``options`` attributes. ``column`` is an empty string for a table-level check. ``options`` contains a list of values only when a column check consists entirely of ``column IN (literal, ...)``. The original constraint fragment is available as ``sql``; ``start`` and ``end`` are its offsets within ``table.schema``.
+
+.. code-block:: python
+
+    >>> db["scores"].checks
+    [Check(check='score > 0', name='positive', column='score', options=None),
+     Check(check='score <= maximum', name='within_maximum', column='', options=None)]
+
+.. _python_api_introspection_column_checks:
+
+.column_checks
+--------------
+
+The ``.column_checks`` property returns the column-level checks grouped by column name:
+
+.. code-block:: python
+
+    >>> db["scores"].column_checks
+    {'score': [Check(check='score > 0', name='positive', column='score', options=None)]}
+
+.. _python_api_introspection_table_checks:
+
+.table_checks
+-------------
+
+The ``.table_checks`` property returns only the table-level checks:
+
+.. code-block:: python
+
+    >>> db["scores"].table_checks
+    [Check(check='score <= maximum', name='within_maximum', column='', options=None)]
+
 .. _python_api_introspection_foreign_keys:
 
 .foreign_keys

@@ -9,6 +9,7 @@
 Unreleased
 ----------
 
+- New ``table.checks``, ``table.column_checks`` and ``table.table_checks`` introspection properties expose column-level and table-level ``CHECK`` constraints. (:issue:`834`)
 - ``table.transform()`` now works for tables that are referenced by views. Previously the ``ALTER TABLE ... RENAME TO`` step raised ``no such table`` if a view referenced the table being transformed. View definitions are left unchanged - see :ref:`python_api_transform_views`. This also fixes a bug where ``transform(keep_table=...)`` silently rewrote dependent views to point at the frozen backup table instead of the live one. (:issue:`831`)
 
 .. _v3_39_1:

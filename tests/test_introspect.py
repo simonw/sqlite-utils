@@ -1,6 +1,6 @@
 import pytest
 
-from sqlite_utils.db import Database, Index, View, XIndex, XIndexColumn
+from sqlite_utils.db import Check, Database, Index, View, XIndex, XIndexColumn
 
 
 def _check_supports_strict():
@@ -175,6 +175,31 @@ def test_guess_foreign_table(fresh_db, column, expected_table_guess):
 def test_pks(fresh_db, pk, expected):
     fresh_db["foo"].insert_all([{"id": 1, "id2": 2}], pk=pk)
     assert expected == fresh_db["foo"].pks
+
+
+def test_checks(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE scores (
+            score INTEGER CONSTRAINT positive CHECK(score > 0),
+            maximum INTEGER,
+            CONSTRAINT within_maximum CHECK(score <= maximum)
+        )
+    """)
+    scores = fresh_db["scores"]
+    expected_column = Check("score > 0", name="positive", column="score")
+    expected_table = Check("score <= maximum", name="within_maximum")
+    assert scores.checks == [expected_column, expected_table]
+    assert scores.column_checks == {"score": [expected_column]}
+    assert scores.table_checks == [expected_table]
+    assert scores.checks[0].sql == "CONSTRAINT positive CHECK(score > 0)"
+
+
+def test_checks_nonexistent_and_virtual_tables(fresh_db):
+    assert fresh_db["does_not_exist"].checks == []
+    fresh_db["searchable"].insert({"text": "hello"}).enable_fts(
+        ["text"], fts_version="FTS5"
+    )
+    assert fresh_db["searchable_fts"].checks == []
 
 
 def test_triggers_and_triggers_dict(fresh_db):
