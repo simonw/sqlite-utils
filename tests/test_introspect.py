@@ -161,6 +161,31 @@ def test_xindexes(fresh_db):
     ]
 
 
+def test_indexes_with_double_quotes_in_identifiers(fresh_db):
+    fresh_db['Go"sh'].insert({"id": 1, 'c"1': 2}, pk="id")
+    fresh_db['Go"sh'].create_index(['c"1'])
+    assert [(index.name, index.columns) for index in fresh_db['Go"sh'].indexes] == [
+        ('idx_Go"sh_c"1', ['c"1'])
+    ]
+    assert fresh_db['Go"sh'].xindexes == [
+        XIndex(
+            name='idx_Go"sh_c"1',
+            columns=[
+                XIndexColumn(seqno=0, cid=1, name='c"1', desc=0, coll="BINARY", key=1),
+                XIndexColumn(seqno=1, cid=-1, name=None, desc=0, coll="BINARY", key=0),
+            ],
+        )
+    ]
+
+
+def test_transform_table_with_double_quotes_in_identifiers(fresh_db):
+    fresh_db['Go"sh'].insert({"id": 1, 'c"1': 2, "c2": 3}, pk="id")
+    fresh_db['Go"sh'].create_index(['c"1'])
+    fresh_db['Go"sh'].transform(types={"c2": str})
+    assert fresh_db['Go"sh'].columns_dict["c2"] is str
+    assert [index.columns for index in fresh_db['Go"sh'].indexes] == [['c"1']]
+
+
 @pytest.mark.parametrize(
     "column,expected_table_guess",
     (
