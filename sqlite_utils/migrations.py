@@ -1,10 +1,19 @@
-from collections.abc import Iterable
-from dataclasses import dataclass
 import datetime
-from typing import Callable, cast, TYPE_CHECKING
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Protocol, TypeVar, cast
 
 if TYPE_CHECKING:
     from sqlite_utils.db import Database, Table
+
+
+class _MigrationFunction(Protocol):
+    __name__: str
+
+    def __call__(self, db: "Database", /) -> None: ...
+
+
+_MigrationFunctionT = TypeVar("_MigrationFunctionT", bound=_MigrationFunction)
 
 
 class Migrations:
@@ -13,7 +22,7 @@ class Migrations:
     @dataclass
     class _Migration:
         name: str
-        fn: Callable
+        fn: _MigrationFunction
         transactional: bool = True
 
     @dataclass
@@ -32,7 +41,7 @@ class Migrations:
 
     def __call__(
         self, *, name: str | None = None, transactional: bool = True
-    ) -> Callable:
+    ) -> Callable[[_MigrationFunctionT], _MigrationFunctionT]:
         """
         :param name: The name to use for this migration - if not provided,
           the name of the function will be used.
@@ -43,13 +52,11 @@ class Migrations:
           example those that execute ``VACUUM``.
         """
 
-        def inner(func: Callable) -> Callable:
-            migration_name = name or getattr(func, "__name__")
+        def inner(func: _MigrationFunctionT) -> _MigrationFunctionT:
+            migration_name = name or func.__name__
             if any(m.name == migration_name for m in self._migrations):
                 raise ValueError(
-                    "Migration '{}' is already registered in set '{}'".format(
-                        migration_name, self.name
-                    )
+                    f"Migration '{migration_name}' is already registered in set '{self.name}'"
                 )
             self._migrations.append(
                 self._Migration(migration_name, func, transactional)

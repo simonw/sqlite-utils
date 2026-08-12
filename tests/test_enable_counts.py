@@ -1,14 +1,14 @@
-from sqlite_utils import Database
-from sqlite_utils import cli
-from click.testing import CliRunner
 import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import Database, cli
 
 
 def test_enable_counts_specific_table(fresh_db):
-    foo = fresh_db["foo"]
+    foo = fresh_db.table("foo")
     assert fresh_db.table_names() == []
     for i in range(10):
-        foo.insert({"name": "item {}".format(i)})
+        foo.insert({"name": f"item {i}"})
     assert fresh_db.table_names() == ["foo"]
     assert foo.count == 10
     # Now enable counts
@@ -41,24 +41,24 @@ def test_enable_counts_specific_table(fresh_db):
         ),
     }
     assert fresh_db.table_names() == ["foo", "_counts"]
-    assert list(fresh_db["_counts"].rows) == [{"count": 10, "table": "foo"}]
+    assert list(fresh_db.table("_counts").rows) == [{"count": 10, "table": "foo"}]
     # Add some items to test the triggers
     for i in range(5):
-        foo.insert({"name": "item {}".format(10 + i)})
+        foo.insert({"name": f"item {10 + i}"})
     assert foo.count == 15
-    assert list(fresh_db["_counts"].rows) == [{"count": 15, "table": "foo"}]
+    assert list(fresh_db.table("_counts").rows) == [{"count": 15, "table": "foo"}]
     # Delete some items
     foo.delete_where("rowid < 7")
     assert foo.count == 9
-    assert list(fresh_db["_counts"].rows) == [{"count": 9, "table": "foo"}]
+    assert list(fresh_db.table("_counts").rows) == [{"count": 9, "table": "foo"}]
     foo.delete_where()
     assert foo.count == 0
-    assert list(fresh_db["_counts"].rows) == [{"count": 0, "table": "foo"}]
+    assert list(fresh_db.table("_counts").rows) == [{"count": 0, "table": "foo"}]
 
 
 def test_enable_counts_all_tables(fresh_db):
-    foo = fresh_db["foo"]
-    bar = fresh_db["bar"]
+    foo = fresh_db.table("foo")
+    bar = fresh_db.table("bar")
     foo.insert({"name": "Cleo"})
     bar.insert({"name": "Cleo"})
     foo.enable_fts(["name"])
@@ -73,7 +73,7 @@ def test_enable_counts_all_tables(fresh_db):
         "foo_fts_config",
         "_counts",
     }
-    assert list(fresh_db["_counts"].rows) == [
+    assert list(fresh_db.table("_counts").rows) == [
         {"count": 1, "table": "foo"},
         {"count": 1, "table": "bar"},
         {"count": 3, "table": "foo_fts_data"},
@@ -87,10 +87,10 @@ def test_enable_counts_all_tables(fresh_db):
 def counts_db_path(tmpdir):
     path = str(tmpdir / "test.db")
     db = Database(path)
-    db["foo"].insert({"name": "bar"})
-    db["bar"].insert({"name": "bar"})
-    db["bar"].insert({"name": "bar"})
-    db["baz"].insert({"name": "bar"})
+    db.table("foo").insert({"name": "bar"})
+    db.table("bar").insert({"name": "bar"})
+    db.table("bar").insert({"name": "bar"})
+    db.table("baz").insert({"name": "bar"})
     return path
 
 
@@ -163,25 +163,25 @@ def test_uses_counts_after_enable_counts(counts_db_path):
 
 def test_reset_counts(counts_db_path):
     db = Database(counts_db_path)
-    db["foo"].enable_counts()
-    db["bar"].enable_counts()
+    db.table("foo").enable_counts()
+    db.table("bar").enable_counts()
     assert db.cached_counts() == {"foo": 1, "bar": 2}
     # Corrupt the value
-    db["_counts"].update("foo", {"count": 3})
+    db.table("_counts").update("foo", {"count": 3})
     assert db.cached_counts() == {"foo": 3, "bar": 2}
-    assert db["foo"].count == 3
+    assert db.table("foo").count == 3
     # Reset them
     db.reset_counts()
     assert db.cached_counts() == {"foo": 1, "bar": 2}
-    assert db["foo"].count == 1
+    assert db.table("foo").count == 1
 
 
 def test_reset_counts_cli(counts_db_path):
     db = Database(counts_db_path)
-    db["foo"].enable_counts()
-    db["bar"].enable_counts()
+    db.table("foo").enable_counts()
+    db.table("bar").enable_counts()
     assert db.cached_counts() == {"foo": 1, "bar": 2}
-    db["_counts"].update("foo", {"count": 3})
+    db.table("_counts").update("foo", {"count": 3})
     result = CliRunner().invoke(cli.cli, ["reset-counts", counts_db_path])
     assert result.exit_code == 0
     assert db.cached_counts() == {"foo": 1, "bar": 2}

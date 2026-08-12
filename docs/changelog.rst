@@ -4,15 +4,43 @@
  Changelog
 ===========
 
-.. _v_unreleased:
+.. _unreleased:
 
 Unreleased
 ----------
 
-- ``sqlite-utils query`` can now read the SQL query from standard input by passing ``-`` in place of the query, for example ``echo "select * from dogs" | sqlite-utils query dogs.db -``. (:issue:`765`)
+- New ``table.checks``, ``table.column_checks`` and ``table.table_checks`` introspection properties expose column-level and table-level ``CHECK`` constraints. (:issue:`834`)
+- ``table.transform()`` now preserves ``CHECK`` constraints, including comments within their expressions. Renaming a column rewrites identifier references in checks without changing string literals or function names. Dropping a column drops a check owned by that column, and raises ``TransformError`` if a remaining check depends on it. (:issue:`762`)
+- ``table.transform()`` now preserves comments immediately before or after column definitions. These comments move with the column if it is renamed or reordered, and are removed if the column is dropped. (:issue:`762`)
+- ``table.transform()`` now works for tables that are referenced by views. Previously the ``ALTER TABLE ... RENAME TO`` step raised ``no such table`` if a view referenced the table being transformed. View definitions are left unchanged - see :ref:`python_api_transform_views`. This also fixes a bug where ``transform(keep_table=...)`` silently rewrote dependent views to point at the frozen backup table instead of the live one. (:issue:`831`)
+
+.. _v3_39_1:
+
+3.39.1 (2026-07-25)
+-------------------
+
+- Fixed a bug where ``table.delete_where()`` left the connection in an open transaction, causing deleted rows to be silently restored when the connection was closed. (:issue:`815`)
+
+.. _v4_1_1:
+
+4.1.1 (2026-07-12)
+------------------
+
+- ``table.transform()`` now raises a ``TransactionError`` if called while a transaction is open with ``PRAGMA foreign_keys`` enabled and the table is referenced by foreign keys with destructive ``ON DELETE`` actions - ``CASCADE``, ``SET NULL`` or ``SET DEFAULT``. The pragma cannot be changed inside a transaction, so previously dropping the old table as part of the transform could fire those actions and silently delete or modify referencing rows. See :ref:`python_api_transform_foreign_keys_transactions` for details and workarounds. (:issue:`794`)
+- The :ref:`CLI <cli>` and :ref:`Python API <python_api>` documentation now cross-reference each other: CLI sections link to the equivalent Python API functionality and Python API sections link back to the corresponding CLI command. (:issue:`791`)
+
+.. _v4_1:
+
+4.1 (2026-07-11)
+----------------
+
 - ``sqlite-utils insert`` and ``sqlite-utils upsert`` now accept a ``--code`` option for :ref:`providing a block of Python code <cli_insert_code>` (or a path to a ``.py`` file) that defines a ``rows()`` function or ``rows`` iterable of rows to insert, as an alternative to importing from a file. (:issue:`684`)
 - ``sqlite-utils insert`` and ``sqlite-utils upsert`` now accept ``--type column-name type`` to :ref:`override the type automatically chosen when the table is created <cli_insert_csv_tsv_column_types>`. This is useful for CSV or TSV columns such as ZIP codes that look like integers but should be stored as ``TEXT`` to preserve leading zeros. (:issue:`131`)
 - New ``table.drop_index(name)`` method and ``sqlite-utils drop-index`` command for dropping an index by name. Both accept ``ignore=True``/``--ignore`` to ignore a missing index. (:issue:`626`)
+- ``sqlite-utils query`` can now read the SQL query from standard input by passing ``-`` in place of the query, for example ``echo "select * from dogs" | sqlite-utils query dogs.db -``. (:issue:`765`)
+- ``sqlite-utils upsert`` can now infer the primary key of an existing table, so ``--pk`` can be omitted when upserting into a table that already has a primary key.
+- ``table.transform()`` and ``table.transform_sql()`` now accept ``strict=True`` or ``strict=False`` to change a table's `SQLite strict mode <https://www.sqlite.org/stricttables.html>`__. Omitting the option preserves the existing mode. (:issue:`787`)
+- The ``sqlite-utils transform`` command now accepts ``--strict`` and ``--no-strict`` to change a table's strict mode. (:issue:`787`)
 
 .. _v4_0:
 

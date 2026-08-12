@@ -1,6 +1,6 @@
 [project]
 name = "sqlite-utils"
-version = "4.0"
+version = "4.1.1"
 description = "CLI tool and Python library for manipulating SQLite databases"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
@@ -48,6 +48,7 @@ dev = [
     # flake8
     "flake8",
     "flake8-pyproject",
+    "pyright>=1.1.411",
     "ty>=0.0.37",
     # For stable cog:
     "tabulate>=0.10.0",
@@ -79,7 +80,14 @@ build-backend = "setuptools.build_meta"
 max-line-length = 160
 # Black compatibility, E203 whitespace before ':':
 extend-ignore = ["E203"]
-extend-exclude = [".venv", "build", "dist", "docs", "sqlite_utils.egg-info"]
+extend-exclude = [
+    ".venv",
+    ".claude",
+    "build",
+    "dist",
+    "docs",
+    "sqlite_utils.egg-info",
+]
 
 [tool.setuptools.package-data]
 sqlite_utils = ["py.typed"]

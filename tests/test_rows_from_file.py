@@ -1,6 +1,8 @@
-from sqlite_utils.utils import rows_from_file, Format, RowError
 from io import BytesIO, StringIO
+
 import pytest
+
+from sqlite_utils.utils import Format, RowError, rows_from_file
 
 
 @pytest.mark.parametrize(
@@ -18,6 +20,13 @@ def test_rows_from_file_detect_format(input, expected_format):
     assert rows_list == [{"id": "1", "name": "Cleo"}]
 
 
+@pytest.mark.parametrize("input", (b"", b" \n\t"))
+def test_rows_from_file_empty_input(input):
+    rows, format = rows_from_file(BytesIO(input))
+    assert format == Format.CSV
+    assert list(rows) == []
+
+
 @pytest.mark.parametrize(
     "ignore_extras,extras_key,expected",
     (
@@ -29,7 +38,7 @@ def test_rows_from_file_detect_format(input, expected_format):
 )
 def test_rows_from_file_extra_fields_strategies(ignore_extras, extras_key, expected):
     try:
-        rows, format = rows_from_file(
+        rows, _format = rows_from_file(
             BytesIO(b"id,name\r\n1,Cleo,oops"),
             format=Format.CSV,
             ignore_extras=ignore_extras,

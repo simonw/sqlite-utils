@@ -508,6 +508,8 @@ See :ref:`cli_transform_table`.
                                       Add a foreign key constraint from a column to
                                       another table with another column
       --drop-foreign-key TEXT         Drop foreign key constraint for this column
+      --strict / --no-strict          Enable or disable STRICT mode (default:
+                                      preserve current mode)
       --sql                           Output SQL without executing it
       --load-extension TEXT           Path to SQLite extension, with optional
                                       :entrypoint
@@ -660,7 +662,7 @@ See :ref:`cli_convert`.
       Convert a string like a,b,c into a JSON array ["a", "b", "c"]
 
       r.parsedate(value: 'str', dayfirst: 'bool' = False, yearfirst: 'bool' = False,
-      errors: 'Optional[object]' = None) -> 'Optional[str]'
+      errors: 'object | None' = None) -> 'str | None'
 
       Parse a date and convert it to ISO date format: yyyy-mm-dd
       - dayfirst=True: treat xx as the day in xx/yy/zz
@@ -669,7 +671,7 @@ See :ref:`cli_convert`.
       - errors=r.SET_NULL to set values that cannot be parsed to null
 
       r.parsedatetime(value: 'str', dayfirst: 'bool' = False, yearfirst: 'bool' =
-      False, errors: 'Optional[object]' = None) -> 'Optional[str]'
+      False, errors: 'object | None' = None) -> 'str | None'
 
       Parse a datetime and convert it to ISO datetime format: yyyy-mm-ddTHH:MM:SS
       - dayfirst=True: treat xx as the day in xx/yy/zz

@@ -1,25 +1,27 @@
-from sqlite_utils.db import (
-    Index,
-    Database,
-    DescIndex,
-    AlterError,
-    InvalidColumns,
-    NoObviousTable,
-    OperationalError,
-    ForeignKey,
-    Table,
-    View,
-    NoTable,
-    NoView,
-)
-from sqlite_utils.utils import hash_record, sqlite3
 import collections
 import datetime
 import decimal
 import json
 import pathlib
-import pytest
 import uuid
+
+import pytest
+
+from sqlite_utils.db import (
+    AlterError,
+    Database,
+    DescIndex,
+    ForeignKey,
+    Index,
+    InvalidColumns,
+    NoObviousTable,
+    NoTable,
+    NoView,
+    OperationalError,
+    Table,
+    View,
+)
+from sqlite_utils.utils import hash_record, sqlite3
 
 try:
     import pandas as pd  # type: ignore
@@ -78,9 +80,10 @@ def test_create_table_compound_primary_key(fresh_db):
 
 @pytest.mark.parametrize("pk", ("id", ["id"]))
 def test_create_table_with_single_primary_key(fresh_db, pk):
-    fresh_db["foo"].insert({"id": 1}, pk=pk)
+    fresh_db.table("foo").insert({"id": 1}, pk=pk)
     assert (
-        fresh_db["foo"].schema == 'CREATE TABLE "foo" (\n   "id" INTEGER PRIMARY KEY\n)'
+        fresh_db.table("foo").schema
+        == 'CREATE TABLE "foo" (\n   "id" INTEGER PRIMARY KEY\n)'
     )
 
 
@@ -157,7 +160,7 @@ def test_create_table_with_not_null(fresh_db):
     ),
 )
 def test_create_table_from_example(fresh_db, example, expected_columns):
-    people_table = fresh_db["people"]
+    people_table = fresh_db.table("people")
     assert people_table.last_rowid is None
     assert people_table.last_pk is None
     people_table.insert(example)
@@ -165,13 +168,13 @@ def test_create_table_from_example(fresh_db, example, expected_columns):
     assert people_table.last_pk == 1
     assert ["people"] == fresh_db.table_names()
     assert expected_columns == [
-        {"name": col.name, "type": col.type} for col in fresh_db["people"].columns
+        {"name": col.name, "type": col.type} for col in fresh_db.table("people").columns
     ]
 
 
 def test_create_table_from_example_with_compound_primary_keys(fresh_db):
     record = {"name": "Zhang", "group": "staff", "employee_id": 2}
-    table = fresh_db["people"].insert(record, pk=("group", "employee_id"))
+    table = fresh_db.table("people").insert(record, pk=("group", "employee_id"))
     assert ["group", "employee_id"] == table.pks
     assert record == table.get(("staff", 2))
 
@@ -182,7 +185,7 @@ def test_create_table_from_example_with_compound_primary_keys(fresh_db):
 @pytest.mark.parametrize("use_old_upsert", (False, True))
 def test_create_table_with_custom_columns(method_name, use_old_upsert):
     db = Database(memory=True, use_old_upsert=use_old_upsert)
-    table = db["dogs"]
+    table = db.table("dogs")
     method = getattr(table, method_name)
     record = {"id": 1, "name": "Cleo", "age": "5"}
     if method_name.endswith("_all"):
@@ -216,14 +219,16 @@ def test_create_table_column_order(fresh_db, use_table_factory):
     if use_table_factory:
         fresh_db.table("table", column_order=column_order).insert(row)
     else:
-        fresh_db["table"].insert(row, column_order=column_order)
+        fresh_db.table("table").insert(row, column_order=column_order)
     assert [
         {"name": "abc", "type": "TEXT"},
         {"name": "ccc", "type": "TEXT"},
         {"name": "zzz", "type": "TEXT"},
         {"name": "bbb", "type": "TEXT"},
         {"name": "aaa", "type": "TEXT"},
-    ] == [{"name": col.name, "type": col.type} for col in fresh_db["table"].columns]
+    ] == [
+        {"name": col.name, "type": col.type} for col in fresh_db.table("table").columns
+    ]
 
 
 @pytest.mark.parametrize(
@@ -259,8 +264,8 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(
         fresh_db.table("one", pk="id").insert({"id": 1})
         fresh_db.table("two", pk="id").insert({"id": 1})
     else:
-        fresh_db["one"].insert({"id": 1}, pk="id")
-        fresh_db["two"].insert({"id": 1}, pk="id")
+        fresh_db.table("one").insert({"id": 1}, pk="id")
+        fresh_db.table("two").insert({"id": 1}, pk="id")
 
     row = {"one_id": 1, "two_id": 1}
 
@@ -268,7 +273,7 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(
         if use_table_factory:
             fresh_db.table("m2m", foreign_keys=foreign_key_specification).insert(row)
         else:
-            fresh_db["m2m"].insert(row, foreign_keys=foreign_key_specification)
+            fresh_db.table("m2m").insert(row, foreign_keys=foreign_key_specification)
 
     if expected_exception:
         with pytest.raises(expected_exception):
@@ -279,7 +284,7 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(
     assert [
         {"name": "one_id", "type": "INTEGER"},
         {"name": "two_id", "type": "INTEGER"},
-    ] == [{"name": col.name, "type": col.type} for col in fresh_db["m2m"].columns]
+    ] == [{"name": col.name, "type": col.type} for col in fresh_db.table("m2m").columns]
     assert sorted(
         [
             {"column": "one_id", "other_table": "one", "other_column": "id"},
@@ -293,7 +298,7 @@ def test_create_table_works_for_m2m_with_only_foreign_keys(
                 "other_table": fk.other_table,
                 "other_column": fk.other_column,
             }
-            for fk in fresh_db["m2m"].foreign_keys
+            for fk in fresh_db.table("m2m").foreign_keys
         ],
         key=lambda s: repr(s),
     )
@@ -320,7 +325,7 @@ def test_self_referential_foreign_key(fresh_db):
 
 def test_create_error_if_invalid_foreign_keys(fresh_db):
     with pytest.raises(AlterError):
-        fresh_db["one"].insert(
+        fresh_db.table("one").insert(
             {"id": 1, "ref_id": 3},
             pk="id",
             foreign_keys=(("ref_id", "bad_table", "bad_column"),),
@@ -329,7 +334,7 @@ def test_create_error_if_invalid_foreign_keys(fresh_db):
 
 def test_create_error_if_invalid_self_referential_foreign_keys(fresh_db):
     with pytest.raises(AlterError) as ex:
-        fresh_db["one"].insert(
+        fresh_db.table("one").insert(
             {"id": 1, "ref_id": 3},
             pk="id",
             foreign_keys=(("ref_id", "one", "bad_column"),),
@@ -395,41 +400,43 @@ def test_create_error_if_invalid_self_referential_foreign_keys(fresh_db):
 )
 def test_add_column(fresh_db, col_name, col_type, not_null_default, expected_schema):
     fresh_db.create_table("dogs", {"name": str})
-    assert fresh_db["dogs"].schema == 'CREATE TABLE "dogs" (\n   "name" TEXT\n)'
-    fresh_db["dogs"].add_column(col_name, col_type, not_null_default=not_null_default)
-    assert fresh_db["dogs"].schema == expected_schema
+    assert fresh_db.table("dogs").schema == 'CREATE TABLE "dogs" (\n   "name" TEXT\n)'
+    fresh_db.table("dogs").add_column(
+        col_name, col_type, not_null_default=not_null_default
+    )
+    assert fresh_db.table("dogs").schema == expected_schema
 
 
 def test_add_foreign_key(fresh_db):
-    fresh_db["authors"].insert_all(
+    fresh_db.table("authors").insert_all(
         [{"id": 1, "name": "Sally"}, {"id": 2, "name": "Asheesh"}], pk="id"
     )
-    fresh_db["books"].insert_all(
+    fresh_db.table("books").insert_all(
         [
             {"title": "Hedgehogs of the world", "author_id": 1},
             {"title": "How to train your wolf", "author_id": 2},
         ]
     )
-    assert [] == fresh_db["books"].foreign_keys
-    t = fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+    assert [] == fresh_db.table("books").foreign_keys
+    t = fresh_db.table("books").add_foreign_key("author_id", "authors", "id")
     # Ensure it returned self:
     assert isinstance(t, Table) and t.name == "books"
     assert [
         ForeignKey(
             table="books", column="author_id", other_table="authors", other_column="id"
         )
-    ] == fresh_db["books"].foreign_keys
+    ] == fresh_db.table("books").foreign_keys
 
 
 def test_add_foreign_key_if_column_contains_space(fresh_db):
-    fresh_db["authors"].insert_all([{"id": 1, "name": "Sally"}], pk="id")
-    fresh_db["books"].insert_all(
+    fresh_db.table("authors").insert_all([{"id": 1, "name": "Sally"}], pk="id")
+    fresh_db.table("books").insert_all(
         [
             {"title": "Hedgehogs of the world", "author id": 1},
         ]
     )
-    fresh_db["books"].add_foreign_key("author id", "authors", "id")
-    assert fresh_db["books"].foreign_keys == [
+    fresh_db.table("books").add_foreign_key("author id", "authors", "id")
+    assert fresh_db.table("books").foreign_keys == [
         ForeignKey(
             table="books", column="author id", other_table="authors", other_column="id"
         )
@@ -437,44 +444,44 @@ def test_add_foreign_key_if_column_contains_space(fresh_db):
 
 
 def test_add_foreign_key_error_if_column_does_not_exist(fresh_db):
-    fresh_db["books"].insert(
+    fresh_db.table("books").insert(
         {"id": 1, "title": "Hedgehogs of the world", "author_id": 1}
     )
     with pytest.raises(AlterError):
-        fresh_db["books"].add_foreign_key("author2_id", "books", "id")
+        fresh_db.table("books").add_foreign_key("author2_id", "books", "id")
 
 
 def test_add_foreign_key_error_if_other_table_does_not_exist(fresh_db):
-    fresh_db["books"].insert({"title": "Hedgehogs of the world", "author_id": 1})
+    fresh_db.table("books").insert({"title": "Hedgehogs of the world", "author_id": 1})
     with pytest.raises(AlterError):
-        fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+        fresh_db.table("books").add_foreign_key("author_id", "authors", "id")
 
 
 def test_add_foreign_key_error_if_already_exists(fresh_db):
-    fresh_db["books"].insert({"title": "Hedgehogs of the world", "author_id": 1})
-    fresh_db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
-    fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+    fresh_db.table("books").insert({"title": "Hedgehogs of the world", "author_id": 1})
+    fresh_db.table("authors").insert({"id": 1, "name": "Sally"}, pk="id")
+    fresh_db.table("books").add_foreign_key("author_id", "authors", "id")
     with pytest.raises(AlterError) as ex:
-        fresh_db["books"].add_foreign_key("author_id", "authors", "id")
+        fresh_db.table("books").add_foreign_key("author_id", "authors", "id")
     assert "Foreign key already exists for author_id => authors.id" == ex.value.args[0]
 
 
 def test_add_foreign_key_no_error_if_exists_and_ignore_true(fresh_db):
-    fresh_db["books"].insert({"title": "Hedgehogs of the world", "author_id": 1})
-    fresh_db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
-    fresh_db["books"].add_foreign_key("author_id", "authors", "id")
-    fresh_db["books"].add_foreign_key("author_id", "authors", "id", ignore=True)
+    fresh_db.table("books").insert({"title": "Hedgehogs of the world", "author_id": 1})
+    fresh_db.table("authors").insert({"id": 1, "name": "Sally"}, pk="id")
+    fresh_db.table("books").add_foreign_key("author_id", "authors", "id")
+    fresh_db.table("books").add_foreign_key("author_id", "authors", "id", ignore=True)
 
 
 def test_add_foreign_keys(fresh_db):
-    fresh_db["authors"].insert_all(
+    fresh_db.table("authors").insert_all(
         [{"id": 1, "name": "Sally"}, {"id": 2, "name": "Asheesh"}], pk="id"
     )
-    fresh_db["categories"].insert_all([{"id": 1, "name": "Wildlife"}], pk="id")
-    fresh_db["books"].insert_all(
+    fresh_db.table("categories").insert_all([{"id": 1, "name": "Wildlife"}], pk="id")
+    fresh_db.table("books").insert_all(
         [{"title": "Hedgehogs of the world", "author_id": 1, "category_id": 1}]
     )
-    assert [] == fresh_db["books"].foreign_keys
+    assert [] == fresh_db.table("books").foreign_keys
     fresh_db.add_foreign_keys(
         [
             ("books", "author_id", "authors", "id"),
@@ -491,14 +498,14 @@ def test_add_foreign_keys(fresh_db):
             other_table="categories",
             other_column="id",
         ),
-    ] == sorted(fresh_db["books"].foreign_keys)
+    ] == sorted(fresh_db.table("books").foreign_keys)
 
 
 def test_add_column_foreign_key(fresh_db):
     fresh_db.create_table("dogs", {"name": str})
     fresh_db.create_table("breeds", {"name": str})
-    fresh_db["dogs"].add_column("breed_id", fk="breeds")
-    assert fresh_db["dogs"].schema == (
+    fresh_db.table("dogs").add_column("breed_id", fk="breeds")
+    assert fresh_db.table("dogs").schema == (
         'CREATE TABLE "dogs" (\n'
         '   "name" TEXT,\n'
         '   "breed_id" INTEGER REFERENCES "breeds"("rowid")\n'
@@ -506,8 +513,8 @@ def test_add_column_foreign_key(fresh_db):
     )
     # And again with an explicit primary key column
     fresh_db.create_table("subbreeds", {"name": str, "primkey": str}, pk="primkey")
-    fresh_db["dogs"].add_column("subbreed_id", fk="subbreeds")
-    assert fresh_db["dogs"].schema == (
+    fresh_db.table("dogs").add_column("subbreed_id", fk="subbreeds")
+    assert fresh_db.table("dogs").schema == (
         'CREATE TABLE "dogs" (\n'
         '   "name" TEXT,\n'
         '   "breed_id" INTEGER REFERENCES "breeds"("rowid"),\n'
@@ -519,9 +526,9 @@ def test_add_column_foreign_key(fresh_db):
 def test_add_foreign_key_guess_table(fresh_db):
     fresh_db.create_table("dogs", {"name": str})
     fresh_db.create_table("breeds", {"name": str, "id": int}, pk="id")
-    fresh_db["dogs"].add_column("breed_id", int)
-    fresh_db["dogs"].add_foreign_key("breed_id")
-    assert fresh_db["dogs"].schema == (
+    fresh_db.table("dogs").add_column("breed_id", int)
+    fresh_db.table("dogs").add_foreign_key("breed_id")
+    assert fresh_db.table("dogs").schema == (
         'CREATE TABLE "dogs" (\n'
         '   "name" TEXT,\n'
         '   "breed_id" INTEGER REFERENCES "breeds"("id")\n'
@@ -531,21 +538,23 @@ def test_add_foreign_key_guess_table(fresh_db):
 
 def test_index_foreign_keys(fresh_db):
     test_add_foreign_key_guess_table(fresh_db)
-    assert [] == fresh_db["dogs"].indexes
+    assert [] == fresh_db.table("dogs").indexes
     fresh_db.index_foreign_keys()
-    assert [["breed_id"]] == [i.columns for i in fresh_db["dogs"].indexes]
+    assert [["breed_id"]] == [i.columns for i in fresh_db.table("dogs").indexes]
     # Calling it a second time should do nothing
     fresh_db.index_foreign_keys()
-    assert [["breed_id"]] == [i.columns for i in fresh_db["dogs"].indexes]
+    assert [["breed_id"]] == [i.columns for i in fresh_db.table("dogs").indexes]
 
 
 def test_index_foreign_keys_if_index_name_is_already_used(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/335
     test_add_foreign_key_guess_table(fresh_db)
     # Add index with a name that will conflict with index_foreign_keys()
-    fresh_db["dogs"].create_index(["name"], index_name="idx_dogs_breed_id")
+    fresh_db.table("dogs").create_index(["name"], index_name="idx_dogs_breed_id")
     fresh_db.index_foreign_keys()
-    assert {(idx.name, tuple(idx.columns)) for idx in fresh_db["dogs"].indexes} == {
+    assert {
+        (idx.name, tuple(idx.columns)) for idx in fresh_db.table("dogs").indexes
+    } == {
         ("idx_dogs_breed_id_2", ("breed_id",)),
         ("idx_dogs_breed_id", ("name",)),
     }
@@ -569,7 +578,7 @@ def test_index_foreign_keys_if_index_name_is_already_used(fresh_db):
 def test_insert_row_alter_table(
     fresh_db, extra_data, expected_new_columns, use_table_factory
 ):
-    table = fresh_db["books"]
+    table = fresh_db.table("books")
     table.insert({"title": "Hedgehogs of the world", "author_id": 1})
     assert [
         {"name": "title", "type": "TEXT"},
@@ -580,7 +589,7 @@ def test_insert_row_alter_table(
     if use_table_factory:
         fresh_db.table("books", alter=True).insert(record)
     else:
-        fresh_db["books"].insert(record, alter=True)
+        fresh_db.table("books").insert(record, alter=True)
     assert [
         {"name": "title", "type": "TEXT"},
         {"name": "author_id", "type": "INTEGER"},
@@ -590,7 +599,7 @@ def test_insert_row_alter_table(
 
 
 def test_add_missing_columns_case_insensitive(fresh_db):
-    table = fresh_db["foo"]
+    table = fresh_db.table("foo")
     table.insert({"id": 1, "name": "Cleo"}, pk="id")
     table.add_missing_columns([{"Name": ".", "age": 4}])
     assert (
@@ -616,7 +625,7 @@ def test_insert_replace_rows_alter_table(fresh_db, use_table_factory):
         table.insert(first_row)
         table.insert_all(next_rows, replace=True)
     else:
-        table = fresh_db["books"]
+        table = fresh_db.table("books")
         table.insert(first_row, pk="id")
         table.insert_all(next_rows, alter=True, replace=True)
     assert {
@@ -662,8 +671,8 @@ def test_insert_all_with_extra_columns_in_later_chunks(fresh_db):
         {"record": "Record 3"},
         {"record": "Record 4", "extra": 1},
     ]
-    fresh_db["t"].insert_all(chunk, batch_size=2, alter=True)
-    assert list(fresh_db["t"].rows) == [
+    fresh_db.table("t").insert_all(chunk, batch_size=2, alter=True)
+    assert list(fresh_db.table("t").rows) == [
         {"record": "Record 1", "extra": None},
         {"record": "Record 2", "extra": None},
         {"record": "Record 3", "extra": None},
@@ -673,7 +682,7 @@ def test_insert_all_with_extra_columns_in_later_chunks(fresh_db):
 
 def test_bulk_insert_more_than_999_values(fresh_db):
     "Inserting 100 items with 11 columns should work"
-    fresh_db["big"].insert_all(
+    fresh_db.table("big").insert_all(
         (
             {
                 "id": i + 1,
@@ -692,19 +701,19 @@ def test_bulk_insert_more_than_999_values(fresh_db):
         ),
         pk="id",
     )
-    assert fresh_db["big"].count == 100
+    assert fresh_db.table("big").count == 100
 
 
 @pytest.mark.parametrize(
     "num_columns,should_error", ((900, False), (999, False), (1000, True))
 )
 def test_error_if_more_than_999_columns(fresh_db, num_columns, should_error):
-    record = dict([("c{}".format(i), i) for i in range(num_columns)])
+    record = {f"c{i}": i for i in range(num_columns)}
     if should_error:
         with pytest.raises(ValueError):
-            fresh_db["big"].insert(record)
+            fresh_db.table("big").insert(record)
     else:
-        fresh_db["big"].insert(record)
+        fresh_db.table("big").insert(record)
 
 
 def test_columns_not_in_first_record_should_not_cause_batch_to_be_too_large(fresh_db):
@@ -718,17 +727,11 @@ def test_columns_not_in_first_record_should_not_cause_batch_to_be_too_large(fres
     records = [
         {"c0": "first record"},  # one column in first record -> batch size = 999
         # fill out the batch with 99 records with enough columns to exceed THRESHOLD
-        *[
-            dict([("c{}".format(i), j) for i in range(extra_columns)])
-            for j in range(batch_size - 1)
-        ],
+        *[{f"c{i}": j for i in range(extra_columns)} for j in range(batch_size - 1)],
     ]
-    try:
-        fresh_db["too_many_columns"].insert_all(
-            records, alter=True, batch_size=batch_size
-        )
-    except sqlite3.OperationalError:
-        raise
+    fresh_db.table("too_many_columns").insert_all(
+        records, alter=True, batch_size=batch_size
+    )
 
 
 @pytest.mark.parametrize(
@@ -773,7 +776,7 @@ def test_columns_not_in_first_record_should_not_cause_batch_to_be_too_large(fres
     ),
 )
 def test_create_index(fresh_db, columns, index_name, expected_index):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is good dog": True})
     assert [] == dogs.indexes
     dogs.create_index(columns, index_name)
@@ -781,7 +784,7 @@ def test_create_index(fresh_db, columns, index_name, expected_index):
 
 
 def test_create_index_unique(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is_good_dog": True})
     assert [] == dogs.indexes
     dogs.create_index(["name"], unique=True)
@@ -799,7 +802,7 @@ def test_create_index_unique(fresh_db):
 
 
 def test_create_index_if_not_exists(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is_good_dog": True})
     assert [] == dogs.indexes
     dogs.create_index(["name"])
@@ -810,7 +813,7 @@ def test_create_index_if_not_exists(fresh_db):
 
 
 def test_drop_index(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is_good_dog": True})
     dogs.create_index(["name"])
     assert [index.name for index in dogs.indexes] == ["idx_dogs_name"]
@@ -819,7 +822,7 @@ def test_drop_index(fresh_db):
 
 
 def test_drop_index_ignore(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"name": "Cleo"})
     with pytest.raises(OperationalError, match="No index named idx_dogs_name"):
         dogs.drop_index("idx_dogs_name")
@@ -827,8 +830,8 @@ def test_drop_index_ignore(fresh_db):
 
 
 def test_drop_index_wrong_table(fresh_db):
-    dogs = fresh_db["dogs"]
-    cats = fresh_db["cats"]
+    dogs = fresh_db.table("dogs")
+    cats = fresh_db.table("cats")
     dogs.insert({"name": "Cleo"})
     cats.insert({"name": "Misty"})
     dogs.create_index(["name"])
@@ -838,7 +841,7 @@ def test_drop_index_wrong_table(fresh_db):
 
 
 def test_create_index_desc(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is good dog": True})
     assert [] == dogs.indexes
     dogs.create_index([DescIndex("age"), "name"])
@@ -851,7 +854,7 @@ def test_create_index_desc(fresh_db):
 
 
 def test_create_index_find_unique_name(fresh_db):
-    table = fresh_db["t"]
+    table = fresh_db.table("t")
     table.insert({"id": 1})
     table.create_index(["id"])
     # Without find_unique_name should error
@@ -866,12 +869,12 @@ def test_create_index_find_unique_name(fresh_db):
 
 
 def test_create_index_analyze(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     assert "sqlite_stat1" not in fresh_db.table_names()
     dogs.insert({"name": "Cleo", "twitter": "cleopaws"})
     dogs.create_index(["name"], analyze=True)
     assert "sqlite_stat1" in fresh_db.table_names()
-    assert list(fresh_db["sqlite_stat1"].rows) == [
+    assert list(fresh_db.table("sqlite_stat1").rows) == [
         {"tbl": "dogs", "idx": "idx_dogs_name", "stat": "1 1"}
     ]
 
@@ -893,14 +896,14 @@ def test_create_index_analyze(fresh_db):
     ),
 )
 def test_insert_dictionaries_and_lists_as_json(fresh_db, data_structure):
-    fresh_db["test"].insert({"id": 1, "data": data_structure}, pk="id")
+    fresh_db.table("test").insert({"id": 1, "data": data_structure}, pk="id")
     row = fresh_db.execute("select id, data from test").fetchone()
     assert row[0] == 1
     assert data_structure == json.loads(row[1])
 
 
 def test_insert_list_nested_unicode(fresh_db):
-    fresh_db["test"].insert(
+    fresh_db.table("test").insert(
         {"id": 1, "data": {"key1": {"nested": ["cømplex"]}}}, pk="id"
     )
     row = fresh_db.execute("select id, data from test").fetchone()
@@ -909,44 +912,44 @@ def test_insert_list_nested_unicode(fresh_db):
 
 def test_insert_uuid(fresh_db):
     uuid4 = uuid.uuid4()
-    fresh_db["test"].insert({"uuid": uuid4})
-    row = list(fresh_db["test"].rows)[0]
+    fresh_db.table("test").insert({"uuid": uuid4})
+    row = next(iter(fresh_db.table("test").rows))
     assert {"uuid"} == row.keys()
     assert isinstance(row["uuid"], str)
     assert row["uuid"] == str(uuid4)
 
 
 def test_insert_memoryview(fresh_db):
-    fresh_db["test"].insert({"data": memoryview(b"hello")})
-    row = list(fresh_db["test"].rows)[0]
+    fresh_db.table("test").insert({"data": memoryview(b"hello")})
+    row = next(iter(fresh_db.table("test").rows))
     assert {"data"} == row.keys()
     assert isinstance(row["data"], bytes)
     assert row["data"] == b"hello"
 
 
 def test_insert_thousands_using_generator(fresh_db):
-    fresh_db["test"].insert_all(
-        {"i": i, "word": "word_{}".format(i)} for i in range(10000)
+    fresh_db.table("test").insert_all(
+        {"i": i, "word": f"word_{i}"} for i in range(10000)
     )
     assert [{"name": "i", "type": "INTEGER"}, {"name": "word", "type": "TEXT"}] == [
-        {"name": col.name, "type": col.type} for col in fresh_db["test"].columns
+        {"name": col.name, "type": col.type} for col in fresh_db.table("test").columns
     ]
-    assert fresh_db["test"].count == 10000
+    assert fresh_db.table("test").count == 10000
 
 
 def test_insert_thousands_raises_exception_with_extra_columns_after_first_100(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/139
     with pytest.raises(Exception, match="table test has no column named extra"):
-        fresh_db["test"].insert_all(
-            [{"i": i, "word": "word_{}".format(i)} for i in range(100)]
+        fresh_db.table("test").insert_all(
+            [{"i": i, "word": f"word_{i}"} for i in range(100)]
             + [{"i": 101, "extra": "This extra column should cause an exception"}],
         )
 
 
 def test_insert_thousands_adds_extra_columns_after_first_100_with_alter(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/139
-    fresh_db["test"].insert_all(
-        [{"i": i, "word": "word_{}".format(i)} for i in range(100)]
+    fresh_db.table("test").insert_all(
+        [{"i": i, "word": f"word_{i}"} for i in range(100)]
         + [{"i": 101, "extra": "Should trigger ALTER"}],
         alter=True,
     )
@@ -958,15 +961,15 @@ def test_insert_thousands_adds_extra_columns_after_first_100_with_alter(fresh_db
 def test_insert_all_pk_not_in_records_raises(fresh_db, num_rows):
     # https://github.com/simonw/sqlite-utils/issues/732
     fresh_db.conn.execute("CREATE TABLE t (a TEXT, b INT, PRIMARY KEY (a, b))")
-    rows = [{"a": "x{}".format(i), "b": i} for i in range(num_rows)]
+    rows = [{"a": f"x{i}", "b": i} for i in range(num_rows)]
 
     with pytest.raises(InvalidColumns) as ex:
-        fresh_db["t"].insert_all(rows, pk="not_a_column")
+        fresh_db.table("t").insert_all(rows, pk="not_a_column")
 
     assert ex.value.args == (
         "Invalid primary key column ['not_a_column'] for table t with columns ['a', 'b']",
     )
-    assert fresh_db["t"].count == 0
+    assert fresh_db.table("t").count == 0
 
 
 @pytest.mark.parametrize("num_rows", (1, 2, 3, 10))
@@ -975,23 +978,23 @@ def test_insert_all_pk_not_in_records_alter_raises(fresh_db, num_rows):
     # known - a pk column that is in neither the table nor the records
     # still raises
     fresh_db.conn.execute("CREATE TABLE t (a TEXT, b INT, PRIMARY KEY (a, b))")
-    rows = [{"a": "x{}".format(i), "b": i} for i in range(num_rows)]
+    rows = [{"a": f"x{i}", "b": i} for i in range(num_rows)]
 
     with pytest.raises(InvalidColumns) as ex:
-        fresh_db["t"].insert_all(rows, pk="not_a_column", alter=True)
+        fresh_db.table("t").insert_all(rows, pk="not_a_column", alter=True)
 
     assert ex.value.args == (
         "Invalid primary key column ['not_a_column'] for table t with columns ['a', 'b']",
     )
-    assert fresh_db["t"].count == 0
+    assert fresh_db.table("t").count == 0
 
 
 def test_insert_pk_in_records_with_alter_adds_column(fresh_db):
     # 3.x allowed insert(pk=..., alter=True) to add the pk column from the
     # records - the InvalidColumns check must not fire in that case
-    fresh_db["t"].insert({"a": 1})
-    fresh_db["t"].insert({"id": 5, "a": 2}, pk="id", alter=True)
-    assert fresh_db["t"].columns_dict.keys() == {"a", "id"}
+    fresh_db.table("t").insert({"a": 1})
+    fresh_db.table("t").insert({"id": 5, "a": 2}, pk="id", alter=True)
+    assert fresh_db.table("t").columns_dict.keys() == {"a", "id"}
     assert list(fresh_db.query("select * from t order by a")) == [
         {"a": 1, "id": None},
         {"a": 2, "id": 5},
@@ -1002,17 +1005,17 @@ def test_insert_all_invalid_pk_alter_empty_records_is_noop(fresh_db):
     # With alter=True the pk check needs record keys, so an empty iterator
     # returns without error - matching the 3.x no-op for empty inserts
     fresh_db.conn.execute("CREATE TABLE t (a TEXT)")
-    fresh_db["t"].insert_all([], pk="not_a_column", alter=True)
-    assert fresh_db["t"].count == 0
+    fresh_db.table("t").insert_all([], pk="not_a_column", alter=True)
+    assert fresh_db.table("t").count == 0
 
 
 def test_insert_ignore(fresh_db):
-    fresh_db["test"].insert({"id": 1, "bar": 2}, pk="id")
+    fresh_db.table("test").insert({"id": 1, "bar": 2}, pk="id")
     # Should raise an error if we try this again
     with pytest.raises(Exception, match="UNIQUE constraint failed"):
-        fresh_db["test"].insert({"id": 1, "bar": 2}, pk="id")
+        fresh_db.table("test").insert({"id": 1, "bar": 2}, pk="id")
     # Using ignore=True should cause our insert to be silently ignored
-    fresh_db["test"].insert({"id": 1, "bar": 3}, pk="id", ignore=True)
+    fresh_db.table("test").insert({"id": 1, "bar": 3}, pk="id", ignore=True)
     # Only one row, and it should be bar=2, not bar=3
     rows = list(fresh_db.query("select * from test"))
     assert rows == [{"id": 1, "bar": 2}]
@@ -1021,12 +1024,12 @@ def test_insert_ignore(fresh_db):
 def test_insert_ignore_reports_existing_row(fresh_db):
     # An ignored insert (row already exists) should point last_rowid and
     # last_pk at the existing conflicting row - see the Datasette insert API
-    fresh_db["docs"].insert({"id": 1, "title": "Exists"}, pk="id")
+    fresh_db.table("docs").insert({"id": 1, "title": "Exists"}, pk="id")
     # Insert a conflicting row with ignore=True and no explicit pk=
-    table = fresh_db["docs"].insert({"id": 1, "title": "One"}, ignore=True)
+    table = fresh_db.table("docs").insert({"id": 1, "title": "One"}, ignore=True)
     assert table.last_rowid == 1
     assert table.last_pk == 1
-    assert list(fresh_db["docs"].rows_where("rowid = ?", [table.last_rowid])) == [
+    assert list(fresh_db.table("docs").rows_where("rowid = ?", [table.last_rowid])) == [
         {"id": 1, "title": "Exists"}
     ]
 
@@ -1037,51 +1040,51 @@ def test_pk_rowid_alias_on_rowid_table(fresh_db, rowid_alias, method):
     # rowid and its aliases are valid primary keys for a rowid table even
     # though they are not listed among the table's columns - see the Datasette
     # upsert API against tables without an explicit primary key
-    fresh_db["t"].insert({"title": "Hello"})
-    assert fresh_db["t"].pks == ["rowid"]
+    fresh_db.table("t").insert({"title": "Hello"})
+    assert fresh_db.table("t").pks == ["rowid"]
     record = {rowid_alias: 1, "title": "Updated"}
     if method == "upsert":
-        table = fresh_db["t"].upsert(record, pk=rowid_alias)
+        table = fresh_db.table("t").upsert(record, pk=rowid_alias)
     elif method == "insert_replace":
-        table = fresh_db["t"].insert(record, pk=rowid_alias, replace=True)
+        table = fresh_db.table("t").insert(record, pk=rowid_alias, replace=True)
     else:
-        table = fresh_db["t"].insert(record, pk=rowid_alias, ignore=True)
+        table = fresh_db.table("t").insert(record, pk=rowid_alias, ignore=True)
     assert table.last_pk == 1
     expected_title = "Hello" if method == "insert_ignore" else "Updated"
-    assert list(fresh_db["t"].rows) == [{"title": expected_title}]
+    assert list(fresh_db.table("t").rows) == [{"title": expected_title}]
 
 
 def test_insert_ignore_reports_existing_row_compound_pk(fresh_db):
     # Compound primary key variant of the ignored-insert lookup
-    fresh_db["t"].insert_all([{"a": 1, "b": 2, "note": "first"}], pk=("a", "b"))
-    table = fresh_db["t"].insert(
+    fresh_db.table("t").insert_all([{"a": 1, "b": 2, "note": "first"}], pk=("a", "b"))
+    table = fresh_db.table("t").insert(
         {"a": 1, "b": 2, "note": "second"}, pk=("a", "b"), ignore=True
     )
     assert table.last_pk == (1, 2)
-    assert list(fresh_db["t"].rows_where("rowid = ?", [table.last_rowid])) == [
+    assert list(fresh_db.table("t").rows_where("rowid = ?", [table.last_rowid])) == [
         {"a": 1, "b": 2, "note": "first"}
     ]
 
 
 def test_insert_ignore_reports_existing_row_list_mode(fresh_db):
     # List-based iteration variant of the ignored-insert lookup
-    fresh_db["t"].insert_all([["id", "title"], [1, "first"]], pk="id")
-    table = fresh_db["t"].insert_all(
+    fresh_db.table("t").insert_all([["id", "title"], [1, "first"]], pk="id")
+    table = fresh_db.table("t").insert_all(
         [["id", "title"], [1, "second"]], pk="id", ignore=True
     )
     assert table.last_pk == 1
     assert table.last_rowid == 1
-    assert list(fresh_db["t"].rows) == [{"id": 1, "title": "first"}]
+    assert list(fresh_db.table("t").rows) == [{"id": 1, "title": "first"}]
 
 
 def test_insert_ignore_hash_id_reports_pk(fresh_db):
     # With hash_id the pk is the computed hash; the original record has no id
     # column to look up so last_rowid is left unset
-    first = fresh_db["dogs"].insert({"name": "Cleo"}, hash_id="id")
-    table = fresh_db["dogs"].insert({"name": "Cleo"}, hash_id="id", ignore=True)
+    first = fresh_db.table("dogs").insert({"name": "Cleo"}, hash_id="id")
+    table = fresh_db.table("dogs").insert({"name": "Cleo"}, hash_id="id", ignore=True)
     assert table.last_pk == first.last_pk
     assert table.last_rowid is None
-    assert fresh_db["dogs"].count == 1
+    assert fresh_db.table("dogs").count == 1
 
 
 def test_insert_ignore_unresolvable_conflict_leaves_pk_unset(fresh_db):
@@ -1089,45 +1092,45 @@ def test_insert_ignore_unresolvable_conflict_leaves_pk_unset(fresh_db):
     # last_rowid are left unset rather than reporting a misleading value
 
     # rowid table with a UNIQUE column and no primary key: no pk to look up
-    fresh_db["u"].db.execute("create table u (title text unique)")
-    fresh_db["u"].insert({"title": "x"})
-    table = fresh_db["u"].insert({"title": "x"}, ignore=True)
+    fresh_db.table("u").db.execute("create table u (title text unique)")
+    fresh_db.table("u").insert({"title": "x"})
+    table = fresh_db.table("u").insert({"title": "x"}, ignore=True)
     assert table.last_pk is None
     assert table.last_rowid is None
-    assert fresh_db["u"].count == 1
+    assert fresh_db.table("u").count == 1
 
     # Conflict on a UNIQUE column other than the primary key: the pk value from
     # the record does not match the existing row, so the lookup finds nothing
-    fresh_db["docs"].db.execute(
+    fresh_db.table("docs").db.execute(
         "create table docs (id integer primary key, email text unique)"
     )
-    fresh_db["docs"].insert({"id": 1, "email": "a"}, pk="id")
-    table = fresh_db["docs"].insert({"id": 2, "email": "a"}, ignore=True)
+    fresh_db.table("docs").insert({"id": 1, "email": "a"}, pk="id")
+    table = fresh_db.table("docs").insert({"id": 2, "email": "a"}, ignore=True)
     assert table.last_pk is None
     assert table.last_rowid is None
-    assert fresh_db["docs"].count == 1
+    assert fresh_db.table("docs").count == 1
 
 
 def test_insert_ignore_with_pk_after_other_table_insert(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/554
     user = {"id": "abc", "name": "david"}
 
-    fresh_db["users"].insert(user, pk="id")
-    fresh_db["comments"].insert_all(
+    fresh_db.table("users").insert(user, pk="id")
+    fresh_db.table("comments").insert_all(
         [
             {"id": "def", "text": "ok"},
             {"id": "ghi", "text": "great"},
         ],
     )
 
-    table = fresh_db["users"].insert(user, pk="id", ignore=True)
+    table = fresh_db.table("users").insert(user, pk="id", ignore=True)
 
     assert table.last_pk == "abc"
-    assert list(fresh_db["users"].rows) == [user]
+    assert list(fresh_db.table("users").rows) == [user]
 
 
 def test_insert_hash_id(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     id = dogs.insert({"name": "Cleo", "twitter": "cleopaws"}, hash_id="id").last_pk
     assert "f501265970505d9825d8d9f590bfab3519fb20b1" == id
     assert dogs.count == 1
@@ -1145,8 +1148,8 @@ def test_insert_hash_id_columns(fresh_db, use_table_factory):
         dogs = fresh_db.table("dogs", hash_id_columns=("name", "twitter"))
         insert_kwargs = {}
     else:
-        dogs = fresh_db["dogs"]
-        insert_kwargs = dict(hash_id_columns=("name", "twitter"))
+        dogs = fresh_db.table("dogs")
+        insert_kwargs = {"hash_id_columns": ("name", "twitter")}
 
     id = dogs.insert(
         {"name": "Cleo", "twitter": "cleopaws", "age": 5},
@@ -1166,26 +1169,27 @@ def test_insert_hash_id_columns(fresh_db, use_table_factory):
 
 
 def test_vacuum(fresh_db):
-    fresh_db["data"].insert({"foo": "foo", "bar": "bar"})
+    fresh_db.table("data").insert({"foo": "foo", "bar": "bar"})
     fresh_db.vacuum()
 
 
 def test_works_with_pathlib_path(tmpdir):
     path = pathlib.Path(tmpdir / "test.db")
     db = Database(path)
-    db["demo"].insert_all([{"foo": 1}])
-    assert db["demo"].count == 1
+    db.table("demo").insert_all([{"foo": 1}])
+    assert db.table("demo").count == 1
 
 
 @pytest.mark.skipif(pd is None, reason="pandas and numpy are not installed")
 def test_create_table_numpy(fresh_db):
+    assert pd is not None
     df = pd.DataFrame({"col 1": range(3), "col 2": range(3)})
-    fresh_db["pandas"].insert_all(df.to_dict(orient="records"))
+    fresh_db.table("pandas").insert_all(df.to_dict(orient="records"))
     assert [
         {"col 1": 0, "col 2": 0},
         {"col 1": 1, "col 2": 1},
         {"col 1": 2, "col 2": 2},
-    ] == list(fresh_db["pandas"].rows)
+    ] == list(fresh_db.table("pandas").rows)
     # Now try all the different types
     df = pd.DataFrame(
         {
@@ -1230,7 +1234,7 @@ def test_create_table_numpy(fresh_db):
         "float32",
         "float64",
     ] == [str(t) for t in df.dtypes]
-    fresh_db["types"].insert_all(df.to_dict(orient="records"))
+    fresh_db.table("types").insert_all(df.to_dict(orient="records"))
     assert [
         {
             "np.float16": 16.5,
@@ -1245,7 +1249,7 @@ def test_create_table_numpy(fresh_db):
             "np.uint64": 64,
             "np.uint8": 8,
         }
-    ] == list(fresh_db["types"].rows)
+    ] == list(fresh_db.table("types").rows)
 
 
 def test_cannot_provide_both_filename_and_memory():
@@ -1257,31 +1261,31 @@ def test_cannot_provide_both_filename_and_memory():
 
 def test_creates_id_column(fresh_db):
     last_pk = fresh_db.table("cats", pk="id").insert({"name": "barry"}).last_pk
-    assert [{"name": "barry", "id": last_pk}] == list(fresh_db["cats"].rows)
+    assert [{"name": "barry", "id": last_pk}] == list(fresh_db.table("cats").rows)
 
 
 def test_drop(fresh_db):
-    fresh_db["t"].insert({"foo": 1})
+    fresh_db.table("t").insert({"foo": 1})
     assert ["t"] == fresh_db.table_names()
-    assert None is fresh_db["t"].drop()
+    assert None is fresh_db.table("t").drop()
     assert [] == fresh_db.table_names()
 
 
 def test_drop_view(fresh_db):
     fresh_db.create_view("foo_view", "select 1")
     assert ["foo_view"] == fresh_db.view_names()
-    assert None is fresh_db["foo_view"].drop()
+    assert None is fresh_db.view("foo_view").drop()
     assert [] == fresh_db.view_names()
 
 
 def test_drop_ignore(fresh_db):
     with pytest.raises(sqlite3.OperationalError):
-        fresh_db["does_not_exist"].drop()
-    fresh_db["does_not_exist"].drop(ignore=True)
+        fresh_db.table("does_not_exist").drop()
+    fresh_db.table("does_not_exist").drop(ignore=True)
     # Testing view is harder, we need to create it in order
     # to get a View object, then drop it twice
     fresh_db.create_view("foo_view", "select 1")
-    view = fresh_db["foo_view"]
+    view = fresh_db.view("foo_view")
     assert isinstance(view, View)
     view.drop()
     with pytest.raises(sqlite3.OperationalError):
@@ -1290,16 +1294,16 @@ def test_drop_ignore(fresh_db):
 
 
 def test_insert_all_empty_list(fresh_db):
-    fresh_db["t"].insert({"foo": 1})
-    assert fresh_db["t"].count == 1
-    fresh_db["t"].insert_all([])
-    assert fresh_db["t"].count == 1
-    fresh_db["t"].insert_all([], replace=True)
-    assert fresh_db["t"].count == 1
+    fresh_db.table("t").insert({"foo": 1})
+    assert fresh_db.table("t").count == 1
+    fresh_db.table("t").insert_all([])
+    assert fresh_db.table("t").count == 1
+    fresh_db.table("t").insert_all([], replace=True)
+    assert fresh_db.table("t").count == 1
 
 
 def test_insert_all_single_column(fresh_db):
-    table = fresh_db["table"]
+    table = fresh_db.table("table")
     table.insert_all([{"name": "Cleo"}], pk="name")
     assert [{"name": "Cleo"}] == list(table.rows)
     assert table.pks == ["name"]
@@ -1307,31 +1311,33 @@ def test_insert_all_single_column(fresh_db):
 
 @pytest.mark.parametrize("method_name", ("insert_all", "upsert_all"))
 def test_insert_all_analyze(fresh_db, method_name):
-    table = fresh_db["table"]
+    table = fresh_db.table("table")
     table.insert_all([{"id": 1, "name": "Cleo"}], pk="id")
     assert "sqlite_stat1" not in fresh_db.table_names()
     table.create_index(["name"], analyze=True)
-    assert list(fresh_db["sqlite_stat1"].rows) == [
+    assert list(fresh_db.table("sqlite_stat1").rows) == [
         {"tbl": "table", "idx": "idx_table_name", "stat": "1 1"}
     ]
     method = getattr(table, method_name)
     method([{"id": 2, "name": "Suna"}], pk="id", analyze=True)
     assert "sqlite_stat1" in fresh_db.table_names()
-    assert list(fresh_db["sqlite_stat1"].rows) == [
+    assert list(fresh_db.table("sqlite_stat1").rows) == [
         {"tbl": "table", "idx": "idx_table_name", "stat": "2 1"}
     ]
 
 
 def test_create_with_a_null_column(fresh_db):
     record = {"name": "Name", "description": None}
-    fresh_db["t"].insert(record)
-    assert [record] == list(fresh_db["t"].rows)
+    fresh_db.table("t").insert(record)
+    assert [record] == list(fresh_db.table("t").rows)
 
 
 def test_create_with_nested_bytes(fresh_db):
     record = {"id": 1, "data": {"foo": b"bytes"}}
-    fresh_db["t"].insert(record)
-    assert [{"id": 1, "data": '{"foo": "b\'bytes\'"}'}] == list(fresh_db["t"].rows)
+    fresh_db.table("t").insert(record)
+    assert [{"id": 1, "data": '{"foo": "b\'bytes\'"}'}] == list(
+        fresh_db.table("t").rows
+    )
 
 
 @pytest.mark.parametrize(
@@ -1369,7 +1375,7 @@ def test_create_table_sql(fresh_db, columns, expected_sql_middle):
 
 
 def test_create(fresh_db):
-    fresh_db["t"].create(
+    fresh_db.table("t").create(
         {
             "id": int,
             "text": str,
@@ -1382,7 +1388,7 @@ def test_create(fresh_db):
         not_null=("float", "integer"),
         defaults={"integer": 0},
     )
-    assert fresh_db["t"].schema == (
+    assert fresh_db.table("t").schema == (
         'CREATE TABLE "t" (\n'
         '   "id" INTEGER PRIMARY KEY,\n'
         '   "float" REAL NOT NULL,\n'
@@ -1394,37 +1400,37 @@ def test_create(fresh_db):
 
 
 def test_create_if_not_exists(fresh_db):
-    fresh_db["t"].create({"id": int})
+    fresh_db.table("t").create({"id": int})
     # This should error
     with pytest.raises(sqlite3.OperationalError):
-        fresh_db["t"].create({"id": int})
+        fresh_db.table("t").create({"id": int})
     # This should not
-    fresh_db["t"].create({"id": int}, if_not_exists=True)
+    fresh_db.table("t").create({"id": int}, if_not_exists=True)
 
 
 def test_create_if_no_columns(fresh_db):
     with pytest.raises(ValueError) as error:
-        fresh_db["t"].create({})
+        fresh_db.table("t").create({})
     assert error.value.args[0] == "Tables must have at least one column"
 
 
 def test_create_ignore(fresh_db):
-    fresh_db["t"].create({"id": int})
+    fresh_db.table("t").create({"id": int})
     # This should error
     with pytest.raises(sqlite3.OperationalError):
-        fresh_db["t"].create({"id": int})
+        fresh_db.table("t").create({"id": int})
     # This should not
-    fresh_db["t"].create({"id": int}, ignore=True)
+    fresh_db.table("t").create({"id": int}, ignore=True)
 
 
 def test_create_replace(fresh_db):
-    fresh_db["t"].create({"id": int})
+    fresh_db.table("t").create({"id": int})
     # This should error
     with pytest.raises(sqlite3.OperationalError):
-        fresh_db["t"].create({"id": int})
+        fresh_db.table("t").create({"id": int})
     # This should not
-    fresh_db["t"].create({"name": str}, replace=True)
-    assert fresh_db["t"].schema == ('CREATE TABLE "t" (\n' '   "name" TEXT\n' ")")
+    fresh_db.table("t").create({"name": str}, replace=True)
+    assert fresh_db.table("t").schema == ('CREATE TABLE "t" (\n' '   "name" TEXT\n' ")")
 
 
 @pytest.mark.parametrize(
@@ -1492,23 +1498,23 @@ def test_create_replace(fresh_db):
 )
 def test_create_transform(fresh_db, cols, kwargs, expected_schema, should_transform):
     fresh_db.create_table("demo", {"id": int, "name": str}, pk="id")
-    fresh_db["demo"].insert({"id": 1, "name": "Cleo"})
+    fresh_db.table("demo").insert({"id": 1, "name": "Cleo"})
     traces = []
     with fresh_db.tracer(lambda sql, parameters: traces.append((sql, parameters))):
-        fresh_db["demo"].create(cols, **kwargs, transform=True)
+        fresh_db.table("demo").create(cols, **kwargs, transform=True)
     at_least_one_create_table = any(sql.startswith("CREATE TABLE") for sql, _ in traces)
     assert should_transform == at_least_one_create_table
-    new_schema = fresh_db["demo"].schema
+    new_schema = fresh_db.table("demo").schema
     assert new_schema == expected_schema, repr(new_schema)
-    assert fresh_db["demo"].count == 1
+    assert fresh_db.table("demo").count == 1
 
 
 def test_rename_table(fresh_db):
-    fresh_db["t"].insert({"foo": "bar"})
+    fresh_db.table("t").insert({"foo": "bar"})
     assert ["t"] == fresh_db.table_names()
     fresh_db.rename_table("t", "renamed")
     assert ["renamed"] == fresh_db.table_names()
-    assert [{"foo": "bar"}] == list(fresh_db["renamed"].rows)
+    assert [{"foo": "bar"}] == list(fresh_db.table("renamed").rows)
     # Should error if table does not exist:
     with pytest.raises(sqlite3.OperationalError):
         fresh_db.rename_table("does_not_exist", "renamed")
@@ -1535,7 +1541,7 @@ def test_database_strict_override(strict):
 )
 @pytest.mark.parametrize("strict", (False, True))
 def test_insert_upsert_strict(fresh_db, method_name, strict):
-    table = fresh_db["t"]
+    table = fresh_db.table("t")
     method = getattr(table, method_name)
     record = {"id": 1}
     if method_name.endswith("_all"):
@@ -1558,7 +1564,7 @@ def test_create_table_strict(fresh_db, strict):
 
 @pytest.mark.parametrize("strict", (False, True))
 def test_create_strict(fresh_db, strict):
-    table = fresh_db["t"]
+    table = fresh_db.table("t")
     table.create({"id": int}, strict=strict)
     assert table.strict == strict or not fresh_db.supports_strict
 
@@ -1583,7 +1589,7 @@ def test_bad_table_and_view_exceptions(fresh_db):
 
 def test_pk_persists_after_insert_655(fresh_db):
     """When pk is passed to insert(), subsequent inserts should use it."""
-    table = fresh_db["users"]
+    table = fresh_db.table("users")
     table.insert({"id": 1, "name": "Alice"}, pk="id")
     # Second insert should use pk="id" from _defaults
     table.insert({"id": 2, "name": "Bob"})
@@ -1594,7 +1600,7 @@ def test_pk_persists_after_insert_655(fresh_db):
 
 def test_pk_persists_after_insert_all_655(fresh_db):
     """When pk is passed to insert_all(), subsequent inserts should use it."""
-    table = fresh_db["users"]
+    table = fresh_db.table("users")
     table.insert_all([{"id": 1, "name": "Alice"}], pk="id")
     # Second insert_all should use pk="id" from _defaults
     table.insert_all([{"id": 2, "name": "Bob"}])
@@ -1604,7 +1610,7 @@ def test_pk_persists_after_insert_all_655(fresh_db):
 
 def test_pk_persists_after_create_655(fresh_db):
     """When pk is passed to create(), it should be stored in _defaults."""
-    table = fresh_db["users"]
+    table = fresh_db.table("users")
     table.create({"id": int, "name": str}, pk="id")
     assert table._defaults["pk"] == "id"
     # Subsequent insert should use the pk
@@ -1615,8 +1621,8 @@ def test_pk_persists_after_create_655(fresh_db):
 
 def test_foreign_keys_persist_after_create_655(fresh_db):
     """When foreign_keys is passed to create(), it should be stored in _defaults."""
-    fresh_db["authors"].insert({"id": 1, "name": "Alice"}, pk="id")
-    table = fresh_db["books"]
+    fresh_db.table("authors").insert({"id": 1, "name": "Alice"}, pk="id")
+    table = fresh_db.table("books")
     table.create(
         {"id": int, "title": str, "author_id": int},
         pk="id",
@@ -1628,38 +1634,38 @@ def test_foreign_keys_persist_after_create_655(fresh_db):
 
 def test_not_null_persists_after_create_655(fresh_db):
     """When not_null is passed to create(), it should be stored in _defaults."""
-    table = fresh_db["users"]
+    table = fresh_db.table("users")
     table.create({"id": int, "name": str}, pk="id", not_null=["name"])
     assert table._defaults["not_null"] == ["name"]
 
 
 def test_defaults_persist_after_create_655(fresh_db):
     """When defaults is passed to create(), it should be stored in _defaults."""
-    table = fresh_db["users"]
+    table = fresh_db.table("users")
     table.create({"id": int, "score": int}, pk="id", defaults={"score": 0})
     assert table._defaults["defaults"] == {"score": 0}
 
 
 def test_strict_persists_after_create_655(fresh_db):
     """When strict is passed to create(), it should be stored in _defaults."""
-    table = fresh_db["users"]
+    table = fresh_db.table("users")
     table.create({"id": int, "name": str}, pk="id", strict=True)
     assert table._defaults["strict"] is True
 
 
 def test_upsert_uses_pk_from_prior_insert_655(fresh_db):
     """After insert with pk, upsert should use the same pk."""
-    table = fresh_db["users"]
+    table = fresh_db.table("users")
     table.insert({"id": 1, "name": "Alice"}, pk="id")
     # Upsert should work without specifying pk again
     table.upsert({"id": 1, "name": "Alice Updated"})
     assert table.count == 1
-    assert list(table.rows)[0]["name"] == "Alice Updated"
+    assert next(iter(table.rows))["name"] == "Alice Updated"
 
 
 def test_upsert_all_uses_pk_from_prior_insert_655(fresh_db):
     """After insert with pk, upsert_all should use the same pk."""
-    table = fresh_db["users"]
+    table = fresh_db.table("users")
     table.insert({"id": 1, "name": "Alice"}, pk="id")
     # Upsert_all should work without specifying pk again
     table.upsert_all([{"id": 1, "name": "Alice Updated"}, {"id": 2, "name": "Bob"}])

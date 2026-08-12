@@ -184,6 +184,9 @@ You can attach an additional database using the ``.attach()`` method, providing 
 
 You can reference tables in the attached database using the alias value you passed to ``db.attach(alias, filepath)`` as a prefix, for example the ``second.table_in_second`` reference in the SQL query above.
 
+.. note::
+    In the CLI: :ref:`sqlite-utils --attach <cli_query_attach>`
+
 .. _python_api_tracing:
 
 Tracing queries
@@ -254,6 +257,9 @@ If a query returns more than one column with the same name - a join between two 
 
 A suffix that would collide with another column in the query is skipped - ``select 1 as id, 2 as id, 3 as id_2`` returns ``{'id': 1, 'id_3': 2, 'id_2': 3}``. The same renaming is applied by ``table.rows_where()`` and ``table.search()``.
 
+.. note::
+    In the CLI: :ref:`sqlite-utils query <cli_query>`
+
 .. _python_api_execute:
 
 db.execute(sql, params)
@@ -320,10 +326,14 @@ Every method in this library that writes to the database - ``insert()``, ``upser
 
 The same applies to raw SQL executed with :ref:`db.execute() <python_api_transactions_execute>` - a write statement is committed as soon as it has run.
 
+Another way to think about this is that each sqlite-utils method call is its own unit of work. If several method calls must either all succeed or all fail, use ``db.atomic()`` to turn them into a single unit of work.
+
 You never need to call ``commit()``, and you do not need to close the database to persist your changes. There are exactly two situations where you need to think about transactions:
 
 1. You want to group several write operations together, so they either all succeed or all fail - use :ref:`db.atomic() <python_api_atomic>`.
 2. You are :ref:`managing a transaction yourself <python_api_transactions_manual>` with ``db.begin()``, in which case nothing is committed until you commit - the library will never commit a transaction you opened.
+
+``with Database(...) as db:`` is not a transaction block. It manages the lifetime of the database connection and closes it on exit. Use ``with db.atomic():`` for a transaction.
 
 .. _python_api_atomic:
 
@@ -339,6 +349,27 @@ Use ``db.atomic()`` to group multiple operations in a single transaction:
         db.table("dogs").insert({"id": 2, "name": "Pancakes"})
 
 The transaction commits when the block exits. If an exception is raised, changes made inside the block will be rolled back.
+
+This matters when several operations represent a single logical change. Without ``db.atomic()``, an earlier method call remains committed if a later one fails:
+
+.. code-block:: python
+
+    # These are two separate transactions
+    db.table("accounts").update(1, {"balance": 90})
+    db.table("accounts").update(2, {"balance": 110})
+
+    # These updates either both succeed or both fail
+    with db.atomic():
+        db.table("accounts").update(1, {"balance": 90})
+        db.table("accounts").update(2, {"balance": 110})
+
+Transactions can also improve performance. Calling ``insert()`` repeatedly outside ``db.atomic()`` creates and commits a separate transaction for every call. For bulk inserts, prefer :ref:`insert_all() <python_api_bulk_inserts>`. If you need to call several different methods in a loop, wrap the loop in ``db.atomic()``:
+
+.. code-block:: python
+
+    with db.atomic():
+        for row in rows:
+            db.table("events").insert(row)
 
 ``db.atomic()`` can be nested. Nested blocks use SQLite savepoints, so an exception in an inner block can roll back to that savepoint without rolling back the entire outer transaction:
 
@@ -367,6 +398,8 @@ Write statements executed with :ref:`db.execute() <python_api_execute>` follow t
 
     db.execute("insert into news (headline) values (?)", ["Dog wins award"])
     # Already committed
+
+``db.execute()`` participates in sqlite-utils transaction handling. Calling ``db.conn.execute()`` directly bypasses that policy and leaves transaction handling to Python's underlying ``sqlite3.Connection``. Prefer ``db.execute()`` unless you deliberately need the lower-level API.
 
 If a transaction is open - because the call happens inside a ``db.atomic()`` block, or after ``db.begin()`` - the statement becomes part of that transaction instead, and commits when the transaction commits:
 
@@ -399,9 +432,12 @@ You can take full manual control using the ``db.begin()``, ``db.commit()`` and `
 
 The library will never commit a transaction you opened. If you call write methods such as ``insert()`` - or use ``db.atomic()`` - while your transaction is open, they participate in it using SQLite savepoints instead of committing: exiting an ``atomic()`` block releases its savepoint, but nothing is saved to disk until you commit the outer transaction yourself. If you roll back, their changes are rolled back too.
 
-Two related safeguards to be aware of:
+Prefer ``db.atomic()`` or ``db.begin()``, ``db.commit()`` and ``db.rollback()`` over mixing sqlite-utils transaction methods with calls to ``db.conn.commit()``, ``db.conn.rollback()`` or raw transaction-control SQL. Mixing the two layers makes it much harder to tell which layer owns the current transaction.
+
+Some related safeguards to be aware of:
 
 - ``db.enable_wal()`` and ``db.disable_wal()`` raise a ``sqlite_utils.db.TransactionError`` if called while a transaction is open, because changing the journal mode would commit it as a side effect.
+- ``table.transform()`` raises a ``sqlite_utils.db.TransactionError`` if called while a transaction is open with ``PRAGMA foreign_keys`` enabled and the table is referenced by foreign keys with destructive ``ON DELETE`` actions, because the pragma cannot be turned off mid-transaction to protect those referencing rows - see :ref:`python_api_transform_foreign_keys_transactions`.
 - Closing the database - explicitly with ``db.close()``, or by exiting a ``with Database(...) as db:`` block - rolls back any transaction that is still open, see :ref:`python_api_close`.
 
 .. _python_api_transactions_modes:
@@ -409,9 +445,11 @@ Two related safeguards to be aware of:
 Supported connection modes
 --------------------------
 
-``db.atomic()`` and the automatic per-method transactions require a connection in Python's default transaction handling mode. Passing a connection created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options to ``Database()`` raises a ``sqlite_utils.db.TransactionError``.
+``db.atomic()`` and the automatic per-method transactions currently require a connection using Python's legacy transaction control mode (``sqlite3.LEGACY_TRANSACTION_CONTROL`` on Python 3.12 and later). Passing a connection created with the Python 3.12+ ``sqlite3.connect(..., autocommit=True)`` or ``autocommit=False`` options to ``Database()`` raises a ``sqlite_utils.db.TransactionError``.
 
-This is because ``commit()`` and ``rollback()`` behave differently on those connections - under ``autocommit=True`` they are documented no-ops - which would cause every write made by this library to be silently discarded when the connection closed, rather than failing loudly.
+Connections using ``autocommit=False`` are not supported because Python keeps a transaction open continuously. sqlite-utils uses ``Connection.in_transaction`` to distinguish its own transactions from transactions opened by its caller, and that distinction is not available in this mode.
+
+Connections using ``autocommit=True`` are also currently rejected because sqlite-utils has not formally exposed that as a supported configuration.
 
 .. _python_api_table:
 
@@ -466,6 +504,9 @@ You can also iterate through the table objects themselves using the ``.tables`` 
     >>> db.tables
     [<Table dogs>]
 
+.. note::
+    In the CLI: :ref:`sqlite-utils tables <cli_tables>`
+
 .. _python_api_views:
 
 Listing views
@@ -490,6 +531,9 @@ View objects are similar to Table objects, except that any attempts to insert or
 * ``rows``
 * ``rows_where(where, where_args, order_by, select)``
 * ``drop()``
+
+.. note::
+    In the CLI: :ref:`sqlite-utils views <cli_views>`
 
 .. _python_api_rows:
 
@@ -545,6 +589,9 @@ This method also accepts ``offset=`` and ``limit=`` arguments, for specifying an
     >>> for row in db.table("dogs").rows_where(order_by="age desc", limit=1):
     ...     print(row)
     {'id': 1, 'age': 4, 'name': 'Cleo'}
+
+.. note::
+    In the CLI: :ref:`sqlite-utils rows <cli_rows>`
 
 .. _python_api_rows_count_where:
 
@@ -629,6 +676,9 @@ The ``db.schema`` property returns the full SQL schema for the database as a str
         "id" INTEGER PRIMARY KEY,
         "name" TEXT
     );
+
+.. note::
+    In the CLI: :ref:`sqlite-utils schema <cli_schema>`
 
 .. _python_api_creating_tables:
 
@@ -777,6 +827,9 @@ You can pass ``strict=True`` to create a table in ``STRICT`` mode:
         "id": int,
         "name": str,
     }, strict=True)
+
+.. note::
+    In the CLI: :ref:`sqlite-utils create-table <cli_create_table>`
 
 .. _python_api_compound_primary_keys:
 
@@ -958,6 +1011,9 @@ Here's an example that uses these features:
     # )
 
 
+.. note::
+    In the CLI: :ref:`sqlite-utils insert --not-null and --default <cli_defaults_not_null>`
+
 .. _python_api_rename_table:
 
 Renaming a table
@@ -975,6 +1031,9 @@ This executes the following SQL:
 
     ALTER TABLE [my_table] RENAME TO [new_name_for_my_table]
 
+.. note::
+    In the CLI: :ref:`sqlite-utils rename-table <cli_renaming_tables>`
+
 .. _python_api_duplicate:
 
 Duplicating tables
@@ -989,6 +1048,9 @@ The ``table.duplicate()`` method creates a copy of the table, copying both the t
 The new ``authors_copy`` table will now contain a duplicate copy of the data from ``authors``.
 
 This method raises ``sqlite_utils.db.NoTable`` if the table does not exist.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils duplicate <cli_duplicate_table>`
 
 .. _python_api_bulk_inserts:
 
@@ -1031,6 +1093,9 @@ You can skip inserting any records that have a primary key that already exists u
 You can delete all the existing rows in the table before inserting the new records using ``truncate=True``. This is useful if you want to replace the data in the table.
 
 Pass ``analyze=True`` to run ``ANALYZE`` against the table after inserting the new records.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils insert <cli_inserting_data>`
 
 .. _python_api_insert_lists:
 
@@ -1108,6 +1173,9 @@ To replace any existing records that have a matching primary key, use the ``repl
 
 .. note::
     Prior to sqlite-utils 2.0 the ``.upsert()`` and ``.upsert_all()`` methods worked the same way as ``.insert(replace=True)`` does today. See :ref:`python_api_upsert` for the new behaviour of those methods introduced in 2.0.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils insert --replace <cli_insert_replace>`
 
 .. _python_api_update:
 
@@ -1193,6 +1261,9 @@ Every record passed to ``upsert()`` or ``upsert_all()`` must include a value for
 
 .. note::
     ``.upsert()`` and ``.upsert_all()`` in sqlite-utils 1.x worked like ``.insert(..., replace=True)`` and ``.insert_all(..., replace=True)`` do in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils upsert <cli_upsert>`
 
 .. _python_api_old_upsert:
 
@@ -1545,6 +1616,9 @@ You can set a ``NOT NULL DEFAULT 'x'`` constraint on the new column using ``not_
 
     db.table("dogs").add_column("friends_count", int, not_null_default=0)
 
+.. note::
+    In the CLI: :ref:`sqlite-utils add-column <cli_add_column>`
+
 .. _python_api_add_column_alter:
 
 Adding columns automatically on insert/update
@@ -1567,6 +1641,9 @@ You can insert or update data that includes new columns and have the table autom
     # This works too:
     new_table = db.table("new_table", alter=True)
     new_table.insert({"name": "Gareth", "age": 32, "shoe_size": 11})
+
+.. note::
+    In the CLI: :ref:`sqlite-utils insert --alter <cli_add_column_alter>`
 
 .. _python_api_add_foreign_key:
 
@@ -1626,6 +1703,9 @@ Use ``on_delete=`` and ``on_update=`` to specify ``ON DELETE`` and ``ON UPDATE``
 
 This creates a foreign key with an ``ON DELETE CASCADE`` clause, so deleting an author will also delete their books (provided foreign key enforcement is enabled with ``PRAGMA foreign_keys = ON``). Valid actions are ``"SET NULL"``, ``"SET DEFAULT"``, ``"CASCADE"``, ``"RESTRICT"`` and the default ``"NO ACTION"``.
 
+.. note::
+    In the CLI: :ref:`sqlite-utils add-foreign-key <cli_add_foreign_key>`
+
 .. _python_api_add_foreign_keys:
 
 Adding multiple foreign key constraints at once
@@ -1646,6 +1726,9 @@ This method runs the same checks as ``.add_foreign_keys()`` and will raise ``sql
 
 Foreign keys that already exist are silently skipped, so repeated calls are idempotent - but only if they match exactly. Requesting a foreign key that exists with different ``ON DELETE``/``ON UPDATE`` actions raises ``AlterError``: use ``table.transform()`` to change the actions of an existing foreign key.
 
+.. note::
+    In the CLI: :ref:`sqlite-utils add-foreign-keys <cli_add_foreign_keys>`
+
 .. _python_api_index_foreign_keys:
 
 Adding indexes for all foreign keys
@@ -1658,6 +1741,9 @@ If you want to ensure that every foreign key column in your database has a corre
     db.index_foreign_keys()
 
 Compound foreign keys get a single composite index across their columns.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils index-foreign-keys <cli_index_foreign_keys>`
 
 .. _python_api_drop:
 
@@ -1679,6 +1765,9 @@ Pass ``ignore=True`` if you want to ignore the error caused by the table or view
 .. code-block:: python
 
     db.table("my_table").drop(ignore=True)
+
+.. note::
+    In the CLI: :ref:`sqlite-utils drop-table <cli_drop_table>` and :ref:`sqlite-utils drop-view <cli_drop_view>`
 
 .. _python_api_transform:
 
@@ -1708,6 +1797,9 @@ To keep the original table around instead of dropping it, pass the ``keep_table=
 
 This method raises a ``sqlite_utils.db.TransformError`` exception if the table cannot be transformed, usually because there are existing constraints or indexes that are incompatible with modifications to the columns.
 
+.. note::
+    In the CLI: :ref:`sqlite-utils transform <cli_transform_table>`
+
 .. _python_api_transform_alter_column_types:
 
 Altering column types
@@ -1721,6 +1813,29 @@ To alter the type of a column, use the ``types=`` argument:
     table.transform(types={"age": int, "weight": float})
 
 See :ref:`python_api_add_column` for a list of available types.
+
+.. _python_api_transform_strict:
+
+Changing strict mode
+--------------------
+
+The optional ``strict=`` parameter can change whether a table uses `SQLite STRICT mode <https://www.sqlite.org/stricttables.html>`__. Pass ``strict=True`` to convert a regular table to a strict table:
+
+.. code-block:: python
+
+    table.transform(strict=True)
+
+Pass ``strict=False`` to convert a strict table back to a regular non-strict table:
+
+.. code-block:: python
+
+    table.transform(strict=False)
+
+The default is ``strict=None``, which preserves the table's existing strict mode.
+
+Passing ``strict=True`` raises ``sqlite_utils.db.TransformError`` if the available SQLite version does not support strict tables.
+
+Converting to a strict table validates all existing rows as they are copied into the replacement table. If a value is incompatible with its declared column type, SQLite raises ``sqlite3.IntegrityError`` and the transformation is rolled back, leaving the original table and its data unchanged.
 
 .. _python_api_transform_rename_columns:
 
@@ -1871,6 +1986,28 @@ A bare column name drops any foreign key that column participates in, including 
 
 Renaming a column with ``rename=`` updates any foreign keys that use it, and dropping a column with ``drop=`` also drops any foreign keys it participates in - for a compound foreign key this removes the whole constraint.
 
+.. _python_api_transform_check_constraints:
+
+CHECK constraints
+-----------------
+
+``.transform()`` preserves both column-level and table-level ``CHECK`` constraints. If a column is renamed, references to that column in the check expression are renamed too.
+
+A column-level check is removed if its owning column is dropped. Dropping a column referenced by any remaining check raises ``TransformError`` instead of creating an invalid or unexpectedly weakened schema.
+
+Comments immediately before or after a column definition are preserved too. They move with that column if it is renamed or reordered, and are removed if the column is dropped. A comment between two column definitions is treated as belonging to the following column.
+
+.. _python_api_transform_views:
+
+Tables referenced by views
+--------------------------
+
+Tables that are referenced by views can be safely transformed - the view definitions are left byte-for-byte unchanged, and views continue to read from the live table even when ``keep_table=`` is used to keep a copy of the original around.
+
+A view that references a column which the transform renamed or dropped will remain defined but will raise a ``no such column`` error when it is next queried. This is inherent to SQLite views, whose SQL is stored as text - if you rename or drop columns that a view depends on you should update that view definition yourself.
+
+To achieve this, the SQL produced by ``transform_sql()`` turns on ``PRAGMA legacy_alter_table`` for its ``ALTER TABLE ... RENAME TO`` statements, then restores the pragma to the value it had when the SQL was generated - without this, SQLite would attempt to rewrite references to the renamed table in every view definition, which fails when a view references the table that was just dropped.
+
 .. _python_api_transform_sql:
 
 Custom transformations with .transform_sql()
@@ -1881,6 +2018,36 @@ The ``.transform()`` method can handle most cases, but it does not automatically
 If you want to do something more advanced, you can call the ``table.transform_sql(...)`` method with the same arguments that you would have passed to ``table.transform(...)``.
 
 This method will return a list of SQL statements that should be executed to implement the change. You can then make modifications to that SQL - or add additional SQL statements - before executing it yourself.
+
+.. _python_api_transform_foreign_keys_transactions:
+
+Foreign keys and transactions
+-----------------------------
+
+Because ``.transform()`` drops the old table, running it with ``PRAGMA foreign_keys`` enabled could fire ``ON DELETE`` actions on any tables that reference it - an inbound ``ON DELETE CASCADE`` foreign key would silently delete those referencing rows. To prevent this, ``.transform()`` turns ``PRAGMA foreign_keys`` off for the duration of the operation and restores it afterwards, running ``PRAGMA foreign_key_check`` before committing.
+
+``PRAGMA foreign_keys`` cannot be changed inside a transaction, so this protection is impossible if you call ``.transform()`` while a transaction is already open - for example inside a ``with db.atomic():`` block or after ``db.begin()``. If ``PRAGMA foreign_keys`` is on and another table references the table being transformed with a destructive ``ON DELETE`` action - ``CASCADE``, ``SET NULL`` or ``SET DEFAULT`` - the method will refuse to run and raise a ``sqlite_utils.db.TransactionError``:
+
+.. code-block:: python
+
+    from sqlite_utils.db import TransactionError
+
+    try:
+        with db.atomic():
+            db["authors"].transform(types={"id": str})
+    except TransactionError as ex:
+        print("Could not transform in transaction:", ex)
+
+To transform such a table either call ``.transform()`` outside of the transaction, or execute ``PRAGMA foreign_keys = off`` before opening it:
+
+.. code-block:: python
+
+    db.execute("PRAGMA foreign_keys = off")
+    with db.atomic():
+        db["authors"].transform(types={"id": str})
+    db.execute("PRAGMA foreign_keys = on")
+
+Tables referenced by foreign keys without a destructive action (the default ``NO ACTION``, or ``RESTRICT``) can still be transformed inside a transaction - sqlite-utils uses ``PRAGMA defer_foreign_keys`` to postpone the foreign key checks until the transaction commits.
 
 .. _python_api_extract:
 
@@ -2040,6 +2207,9 @@ This produces a lookup table like so:
 
 Rows where every extracted column is ``null`` are not extracted: no record is created for them in the lookup table and their foreign key column is left as ``null``. When extracting multiple columns, rows where at least one of the extracted columns has a value will be extracted as usual.
 
+.. note::
+    In the CLI: :ref:`sqlite-utils extract <cli_extract>`
+
 .. _python_api_hash:
 
 Setting an ID based on the hash of the row contents
@@ -2100,6 +2270,9 @@ You can pass ``ignore=True`` to silently ignore an existing view and do nothing,
     db.create_view("good_dogs", """
         select * from dogs where is_good_dog = 1
     """, replace=True)
+
+.. note::
+    In the CLI: :ref:`sqlite-utils create-view <cli_create_view>`
 
 Storing JSON
 ============
@@ -2219,6 +2392,9 @@ If you are using ``pysqlite3`` the underlying method may be missing. If you inst
 
     pip install sqlite-dump
 
+.. note::
+    In the CLI: :ref:`sqlite-utils dump <cli_dump>`
+
 .. _python_api_introspection:
 
 Introspecting tables and views
@@ -2314,6 +2490,43 @@ Almost all SQLite tables have a ``rowid`` column, but a table with no explicitly
     >>> db.table("PlantType").use_rowid
     False
 
+
+.. _python_api_introspection_checks:
+
+.checks
+-------
+
+The ``.checks`` property returns the column-level and table-level ``CHECK`` constraints defined on a table, as a list of ``Check`` objects. Each object has ``check`` (the expression inside ``CHECK (...)``), ``name``, ``column`` and ``options`` attributes. ``column`` is an empty string for a table-level check. ``options`` contains a list of values only when a column check consists entirely of ``column IN (literal, ...)``. The original constraint fragment is available as ``sql``; ``start`` and ``end`` are its offsets within ``table.schema``.
+
+.. code-block:: python
+
+    >>> db["scores"].checks
+    [Check(check='score > 0', name='positive', column='score', options=None),
+     Check(check='score <= maximum', name='within_maximum', column='', options=None)]
+
+.. _python_api_introspection_column_checks:
+
+.column_checks
+--------------
+
+The ``.column_checks`` property returns the column-level checks grouped by column name:
+
+.. code-block:: python
+
+    >>> db["scores"].column_checks
+    {'score': [Check(check='score > 0', name='positive', column='score', options=None)]}
+
+.. _python_api_introspection_table_checks:
+
+.table_checks
+-------------
+
+The ``.table_checks`` property returns only the table-level checks:
+
+.. code-block:: python
+
+    >>> db["scores"].table_checks
+    [Check(check='score <= maximum', name='within_maximum', column='', options=None)]
 
 .. _python_api_introspection_foreign_keys:
 
@@ -2418,6 +2631,9 @@ The ``.indexes`` property returns all indexes created for a table, as a list of 
      Index(seq=4, name='"Street_Tree_List_qCaretaker"', unique=0, origin='c', partial=0, columns=['qCaretaker']),
      Index(seq=5, name='"Street_Tree_List_PlantType"', unique=0, origin='c', partial=0, columns=['PlantType'])]
 
+.. note::
+    In the CLI: :ref:`sqlite-utils indexes <cli_indexes>`
+
 .. _python_api_introspection_xindexes:
 
 .xindexes
@@ -2460,6 +2676,9 @@ The ``.triggers`` property lists database triggers. It can be used on both datab
      Trigger(name='authors_au', table='authors', sql="CREATE TRIGGER [authors_au] AFTER UPDATE")]
     >>> db.triggers
     ... similar output to db.table("authors").triggers
+
+.. note::
+    In the CLI: :ref:`sqlite-utils triggers <cli_triggers>`
 
 .. _python_api_introspection_triggers_dict:
 
@@ -2609,6 +2828,9 @@ To remove the FTS tables and triggers you created, use the ``disable_fts()`` tab
 
     db.table("dogs").disable_fts()
 
+.. note::
+    In the CLI: :ref:`sqlite-utils enable-fts <cli_fts>`
+
 .. _python_api_quote_fts:
 
 Quoting characters for use in search
@@ -2672,6 +2894,9 @@ To return just the title and published columns for three matches for ``"dog"`` w
         columns=["title", "published"]
     ):
         print(article)
+
+.. note::
+    In the CLI: :ref:`sqlite-utils search <cli_search>`
 
 .. _python_api_fts_search_sql:
 
@@ -2757,6 +2982,9 @@ This runs the following SQL::
 
     INSERT INTO dogs_fts (dogs_fts) VALUES ("rebuild");
 
+.. note::
+    In the CLI: :ref:`sqlite-utils rebuild-fts <cli_fts>`
+
 .. _python_api_fts_optimize:
 
 Optimizing a full-text search table
@@ -2771,6 +2999,9 @@ Once you have populated a FTS table you can optimize it to dramatically reduce i
 This runs the following SQL::
 
     INSERT INTO dogs_fts (dogs_fts) VALUES ("optimize");
+
+.. note::
+    In the CLI: :ref:`sqlite-utils optimize <cli_optimize>`
 
 .. _python_api_cached_table_counts:
 
@@ -2834,6 +3065,9 @@ If the ``_counts`` table ever becomes out-of-sync with the actual table counts y
 
     db.reset_counts()
 
+.. note::
+    In the CLI: :ref:`sqlite-utils enable-counts <cli_enable_counts>`
+
 .. _python_api_create_index:
 
 Creating indexes
@@ -2885,6 +3119,9 @@ You can drop an index from a table using ``.drop_index(index_name)``:
 
 Use ``ignore=True`` to ignore the error if the index does not exist.
 
+.. note::
+    In the CLI: :ref:`sqlite-utils create-index <cli_create_index>` and :ref:`sqlite-utils drop-index <cli_drop_index>`
+
 .. _python_api_analyze:
 
 Optimizing index usage with ANALYZE
@@ -2912,6 +3149,9 @@ To run against all indexes attached to a specific table, you can either pass the
 
     db.table("dogs").analyze()
 
+.. note::
+    In the CLI: :ref:`sqlite-utils analyze <cli_analyze>`
+
 .. _python_api_vacuum:
 
 Vacuum
@@ -2922,6 +3162,9 @@ You can optimize your database by running VACUUM against it like so:
 .. code-block:: python
 
     Database("my_database.db").vacuum()
+
+.. note::
+    In the CLI: :ref:`sqlite-utils vacuum <cli_vacuum>`
 
 .. _python_api_wal:
 
@@ -2949,6 +3192,9 @@ You can check the current journal mode for a database using the ``journal_mode``
     journal_mode = Database("my_database.db").journal_mode
 
 This will usually be ``wal`` or ``delete`` (meaning WAL is disabled), but can have other values - see the `PRAGMA journal_mode <https://www.sqlite.org/pragma.html#pragma_journal_mode>`__ documentation.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils enable-wal and disable-wal <cli_wal>`
 
 .. _python_api_suggest_column_types:
 
@@ -3090,6 +3336,9 @@ You can cause ``sqlite3`` to return more useful errors, including the traceback 
 
     sqlite3.enable_callback_tracebacks(True)
 
+.. note::
+    In the CLI: :ref:`sqlite-utils query --functions <cli_query_functions>`
+
 .. _python_api_quote:
 
 Quoting strings for use in SQL
@@ -3222,6 +3471,9 @@ Initialize SpatiaLite
 .. automethod:: sqlite_utils.db.Database.init_spatialite
    :noindex:
 
+.. note::
+    In the CLI: :ref:`sqlite-utils create-database --init-spatialite <cli_create_database>`
+
 .. _python_api_gis_find_spatialite:
 
 Finding SpatiaLite
@@ -3237,6 +3489,9 @@ Adding geometry columns
 .. automethod:: sqlite_utils.db.Table.add_geometry_column
    :noindex:
 
+.. note::
+    In the CLI: :ref:`sqlite-utils add-geometry-column <cli_spatialite>`
+
 .. _python_api_gis_create_spatial_index:
 
 Creating a spatial index
@@ -3244,3 +3499,6 @@ Creating a spatial index
 
 .. automethod:: sqlite_utils.db.Table.create_spatial_index
    :noindex:
+
+.. note::
+    In the CLI: :ref:`sqlite-utils create-spatial-index <cli_spatialite_indexes>`

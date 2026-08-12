@@ -1,13 +1,14 @@
-from sqlite_utils.db import Index
 import pytest
+
+from sqlite_utils.db import Index
 
 
 @pytest.mark.parametrize(
     "kwargs,expected_table",
     [
-        (dict(extracts={"species_id": "Species"}), "Species"),
-        (dict(extracts=["species_id"]), "species_id"),
-        (dict(extracts=("species_id",)), "species_id"),
+        ({"extracts": {"species_id": "Species"}}, "Species"),
+        ({"extracts": ["species_id"]}, "species_id"),
+        ({"extracts": ("species_id",)}, "species_id"),
     ],
 )
 @pytest.mark.parametrize("use_table_factory", [True, False])
@@ -30,20 +31,16 @@ def test_extracts(fresh_db, kwargs, expected_table, use_table_factory):
     # Should now have two tables: Trees and Species
     assert {expected_table, "Trees"} == set(fresh_db.table_names())
     assert (
-        'CREATE TABLE "{}" (\n   "id" INTEGER PRIMARY KEY,\n   "value" TEXT\n)'.format(
-            expected_table
-        )
-        == fresh_db[expected_table].schema
+        f'CREATE TABLE "{expected_table}" (\n   "id" INTEGER PRIMARY KEY,\n   "value" TEXT\n)'
+        == fresh_db.table(expected_table).schema
     )
     assert (
-        'CREATE TABLE "Trees" (\n   "id" INTEGER,\n   "species_id" INTEGER REFERENCES "{}"("id")\n)'.format(
-            expected_table
-        )
-        == fresh_db["Trees"].schema
+        f'CREATE TABLE "Trees" (\n   "id" INTEGER,\n   "species_id" INTEGER REFERENCES "{expected_table}"("id")\n)'
+        == fresh_db.table("Trees").schema
     )
     # Should have a foreign key reference
-    assert len(fresh_db["Trees"].foreign_keys) == 1
-    fk = fresh_db["Trees"].foreign_keys[0]
+    assert len(fresh_db.table("Trees").foreign_keys) == 1
+    fk = fresh_db.table("Trees").foreign_keys[0]
     assert fk.table == "Trees"
     assert fk.column == "species_id"
 
@@ -51,28 +48,28 @@ def test_extracts(fresh_db, kwargs, expected_table, use_table_factory):
     assert [
         Index(
             seq=0,
-            name="idx_{}_value".format(expected_table),
+            name=f"idx_{expected_table}_value",
             unique=1,
             origin="c",
             partial=0,
             columns=["value"],
         )
-    ] == fresh_db[expected_table].indexes
+    ] == fresh_db.table(expected_table).indexes
     # Finally, check the rows
     assert [{"id": 1, "value": "Oak"}, {"id": 2, "value": "Palm"}] == list(
-        fresh_db[expected_table].rows
+        fresh_db.table(expected_table).rows
     )
     assert [
         {"id": 1, "species_id": 1},
         {"id": 2, "species_id": 1},
         {"id": 3, "species_id": 2},
-    ] == list(fresh_db["Trees"].rows)
+    ] == list(fresh_db.table("Trees").rows)
 
 
 def test_extracts_null_values(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/186
     # Null values should stay null, not be extracted into the lookup table
-    fresh_db["Trees"].insert_all(
+    fresh_db.table("Trees").insert_all(
         [
             {"id": 1, "species_id": "Oak"},
             {"id": 2, "species_id": None},
@@ -81,11 +78,11 @@ def test_extracts_null_values(fresh_db):
         ],
         extracts={"species_id": "Species"},
     )
-    assert list(fresh_db["Species"].rows) == [
+    assert list(fresh_db.table("Species").rows) == [
         {"id": 1, "value": "Oak"},
         {"id": 2, "value": "Palm"},
     ]
-    assert list(fresh_db["Trees"].rows) == [
+    assert list(fresh_db.table("Trees").rows) == [
         {"id": 1, "species_id": 1},
         {"id": 2, "species_id": None},
         {"id": 3, "species_id": 2},
@@ -95,7 +92,7 @@ def test_extracts_null_values(fresh_db):
 
 def test_extracts_null_values_list_mode(fresh_db):
     # Same as test_extracts_null_values but for list-based records
-    fresh_db["Trees"].insert_all(
+    fresh_db.table("Trees").insert_all(
         [
             ["id", "species_id"],
             [1, "Oak"],
@@ -105,11 +102,11 @@ def test_extracts_null_values_list_mode(fresh_db):
         ],
         extracts={"species_id": "Species"},
     )
-    assert list(fresh_db["Species"].rows) == [
+    assert list(fresh_db.table("Species").rows) == [
         {"id": 1, "value": "Oak"},
         {"id": 2, "value": "Palm"},
     ]
-    assert list(fresh_db["Trees"].rows) == [
+    assert list(fresh_db.table("Trees").rows) == [
         {"id": 1, "species_id": 1},
         {"id": 2, "species_id": None},
         {"id": 3, "species_id": 2},

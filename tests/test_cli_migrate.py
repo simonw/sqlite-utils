@@ -1,7 +1,8 @@
 import pathlib
 
-from click.testing import CliRunner
 import pytest
+from click.testing import CliRunner
+
 import sqlite_utils
 import sqlite_utils.cli
 
@@ -12,11 +13,11 @@ m = Migrations("hello")
 
 @m()
 def foo(db):
-    db["foo"].insert({"hello": "world"})
+    db.table("foo").insert({"hello": "world"})
 
 @m()
 def bar(db):
-    db["bar"].insert({"hello": "world"})
+    db.table("bar").insert({"hello": "world"})
 """
 
 
@@ -41,21 +42,21 @@ creatures = Migrations("creatures")
 
 @creatures()
 def create_table(db):
-    db["creatures"].insert({"name": "Cleo"})
+    db.table("creatures").insert({"name": "Cleo"})
 
 @creatures()
 def add_weight(db):
-    db["creature_weights"].insert({"weight": 4.2})
+    db.table("creature_weights").insert({"weight": 4.2})
 
 sales = Migrations("sales")
 
 @sales()
 def create_table(db):
-    db["sales"].insert({"id": 1})
+    db.table("sales").insert({"id": 1})
 
 @sales()
 def add_weight(db):
-    db["sales_weights"].insert({"weight": 10})
+    db.table("sales_weights").insert({"weight": 10})
 """,
         "utf-8",
     )
@@ -98,10 +99,10 @@ def test_basic(two_migrations, arg):
     assert " Pending:\n    (none)" in list_output
 
     db = sqlite_utils.Database(db_path)
-    assert db["foo"].exists()
-    assert db["bar"].exists()
-    assert db["_sqlite_migrations"].exists()
-    rows = list(db["_sqlite_migrations"].rows)
+    assert db.table("foo").exists()
+    assert db.table("bar").exists()
+    assert db.table("_sqlite_migrations").exists()
+    rows = list(db.table("_sqlite_migrations").rows)
     assert len(rows) == 2
     assert rows[0]["name"] == "foo"
     assert rows[1]["name"] == "bar"
@@ -112,13 +113,13 @@ def test_list_same_migration_names_in_different_sets(capsys):
 
     @applied(name="foo")
     def applied_foo(db):
-        db["applied"].insert({"hello": "world"})
+        db.table("applied").insert({"hello": "world"})
 
     pending = sqlite_utils.Migrations("pending")
 
     @pending(name="foo")
     def pending_foo(db):
-        db["pending"].insert({"hello": "world"})
+        db.table("pending").insert({"hello": "world"})
 
     db = sqlite_utils.Database(memory=True)
     applied.apply(db)
@@ -143,7 +144,7 @@ m = Migrations("hello")
 
 @m()
 def foo(db):
-    db["dogs"].insert({"id": 1, "name": "Cleo"})
+    db.table("dogs").insert({"id": 1, "name": "Cleo"})
     """,
         "utf-8",
     )
@@ -183,9 +184,9 @@ Schema after:
     new_migration = """
 @m()
 def bar(db):
-    db["dogs"].add_column("age", int)
-    db["dogs"].add_column("weight", float)
-    db["dogs"].transform()
+    db.table("dogs").add_column("age", int)
+    db.table("dogs").add_column("weight", float)
+    db.table("dogs").transform()
 """
     migrations_py.write_text(migrations_py.read_text("utf-8") + new_migration)
 
@@ -223,8 +224,8 @@ def test_stop_before(two_migrations):
     )
     assert result.exit_code == 0
     db = sqlite_utils.Database(db_path)
-    assert db["foo"].exists()
-    assert not db["bar"].exists()
+    assert db.table("foo").exists()
+    assert not db.table("bar").exists()
 
 
 def test_stop_before_multiple_sets_unqualified(two_migrations):
@@ -238,7 +239,7 @@ m = Migrations("hello2")
 
 @m()
 def foo(db):
-    db["foo"].insert({"hello": "world"})
+    db.table("foo").insert({"hello": "world"})
     """,
         "utf-8",
     )
@@ -256,7 +257,7 @@ def foo(db):
     assert result.exit_code == 0, result.output
     db = sqlite_utils.Database(db_path)
     assert db.table_names() == ["_sqlite_migrations"]
-    assert list(db["_sqlite_migrations"].rows) == []
+    assert list(db.table("_sqlite_migrations").rows) == []
 
 
 def test_stop_before_qualified_only_affects_named_set(two_sets_same_migration_name):
@@ -274,10 +275,10 @@ def test_stop_before_qualified_only_affects_named_set(two_sets_same_migration_na
     )
     assert result.exit_code == 0, result.output
     db = sqlite_utils.Database(db_path)
-    assert db["creatures"].exists()
-    assert not db["creature_weights"].exists()
-    assert db["sales"].exists()
-    assert db["sales_weights"].exists()
+    assert db.table("creatures").exists()
+    assert not db.table("creature_weights").exists()
+    assert db.table("sales").exists()
+    assert db.table("sales_weights").exists()
 
 
 def test_stop_before_multiple_qualified(two_sets_same_migration_name):
@@ -297,10 +298,10 @@ def test_stop_before_multiple_qualified(two_sets_same_migration_name):
     )
     assert result.exit_code == 0, result.output
     db = sqlite_utils.Database(db_path)
-    assert db["creatures"].exists()
-    assert not db["creature_weights"].exists()
-    assert db["sales"].exists()
-    assert not db["sales_weights"].exists()
+    assert db.table("creatures").exists()
+    assert not db.table("creature_weights").exists()
+    assert db.table("sales").exists()
+    assert not db.table("sales_weights").exists()
 
 
 LEGACY_MIGRATIONS = """
@@ -330,7 +331,7 @@ class LegacyMigrations:
         return fn
 
     def ensure_migrations_table(self, db):
-        db[self.migrations_table].create(
+        db.table(self.migrations_table).create(
             {"migration_set": str, "name": str, "applied_at": str},
             pk=("migration_set", "name"),
             if_not_exists=True,
@@ -340,7 +341,7 @@ class LegacyMigrations:
         self.ensure_migrations_table(db)
         return [
             _Applied(row["name"], row["applied_at"])
-            for row in db[self.migrations_table].rows_where(
+            for row in db.table(self.migrations_table).rows_where(
                 "migration_set = ?", [self.name]
             )
         ]
@@ -354,7 +355,7 @@ class LegacyMigrations:
             if migration.name == stop_before:
                 return
             migration.fn(db)
-            db[self.migrations_table].insert(
+            db.table(self.migrations_table).insert(
                 {
                     "migration_set": self.name,
                     "name": migration.name,
@@ -368,11 +369,11 @@ legacy = LegacyMigrations("legacy_set")
 
 @legacy
 def first(db):
-    db["first"].insert({"hello": "world"})
+    db.table("first").insert({"hello": "world"})
 
 @legacy
 def second(db):
-    db["second"].insert({"hello": "world"})
+    db.table("second").insert({"hello": "world"})
 """
 
 
@@ -445,11 +446,11 @@ def test_list_does_not_upgrade_legacy_migrations_table(two_migrations):
     path, _ = two_migrations
     db_path = str(path / "test.db")
     db = sqlite_utils.Database(db_path)
-    db["_sqlite_migrations"].create(
+    db.table("_sqlite_migrations").create(
         {"migration_set": str, "name": str, "applied_at": str},
         pk=("migration_set", "name"),
     )
-    db["_sqlite_migrations"].insert(
+    db.table("_sqlite_migrations").insert(
         {"migration_set": "hello", "name": "foo", "applied_at": "x"}
     )
     db.close()
@@ -461,7 +462,7 @@ def test_list_does_not_upgrade_legacy_migrations_table(two_migrations):
     assert "foo - x" in result.output
     # --list must not perform the one-way legacy schema upgrade
     db2 = sqlite_utils.Database(db_path)
-    assert db2["_sqlite_migrations"].pks == ["migration_set", "name"]
+    assert db2.table("_sqlite_migrations").pks == ["migration_set", "name"]
     db2.close()
 
 
@@ -484,7 +485,7 @@ def test_stop_before_applied_migration_errors(two_migrations):
     assert result.exit_code != 0
     assert "already been applied" in result.output
     db = sqlite_utils.Database(db_path)
-    assert not db["bar"].exists()
+    assert not db.table("bar").exists()
 
 
 def test_list_with_legacy_class_is_read_only(tmpdir):
@@ -495,7 +496,7 @@ def test_list_with_legacy_class_is_read_only(tmpdir):
     (path / "migrations.py").write_text(LEGACY_MIGRATIONS, "utf-8")
     db_path = str(path / "test.db")
     db = sqlite_utils.Database(db_path)
-    db["existing"].insert({"id": 1})
+    db.table("existing").insert({"id": 1})
     db.close()
     result = CliRunner().invoke(
         sqlite_utils.cli.cli, ["migrate", db_path, str(path), "--list"]

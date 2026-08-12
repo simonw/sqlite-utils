@@ -1,7 +1,6 @@
-from .utils import suggest_column_types
-from .hookspecs import hookimpl
-from .hookspecs import hookspec
 from .db import Database
+from .hookspecs import hookimpl, hookspec
 from .migrations import Migrations
+from .utils import suggest_column_types
 
-__all__ = ["Database", "Migrations", "suggest_column_types", "hookimpl", "hookspec"]
+__all__ = ["Database", "Migrations", "hookimpl", "hookspec", "suggest_column_types"]

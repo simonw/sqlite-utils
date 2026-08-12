@@ -8,14 +8,16 @@
 @run *options:
   uv run -- {{options}}
 
-# Run linters: black, flake8, mypy, ty, cog
+# Run linters: black, flake8, mypy, pyright, ty, cog
 @lint:
   just run black . --check
   uv run flake8
   uv run mypy sqlite_utils tests
+  uv run pyright sqlite_utils tests
   uv run ty check sqlite_utils
   uv run cog --check README.md docs/*.rst
   uv run --group docs codespell docs/*.rst --ignore-words docs/codespell-ignore-words.txt
+  uv run --group docs codespell sqlite_utils --ignore-words docs/codespell-ignore-words.txt
 
 # Rebuild docs with cog
 @cog:

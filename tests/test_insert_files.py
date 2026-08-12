@@ -1,9 +1,11 @@
-from sqlite_utils import cli, Database
-from click.testing import CliRunner
 import os
 import pathlib
-import pytest
 import sys
+
+import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import Database, cli
 
 
 @pytest.mark.parametrize("silent", (False, True))
@@ -44,7 +46,7 @@ def test_insert_files(silent, pk_args, expected_pks):
         )
         cols = []
         for coltype in coltypes:
-            cols += ["-c", "{}:{}".format(coltype, coltype)]
+            cols += ["-c", f"{coltype}:{coltype}"]
         result = runner.invoke(
             cli.cli,
             ["insert-files", db_path, "files", str(tmpdir)]
@@ -55,7 +57,7 @@ def test_insert_files(silent, pk_args, expected_pks):
         )
         assert result.exit_code == 0, result.stdout
         db = Database(db_path)
-        rows_by_path = {r["path"]: r for r in db["files"].rows}
+        rows_by_path = {r["path"]: r for r in db.table("files").rows}
         one, two, three = (
             rows_by_path["one.txt"],
             rows_by_path["two.txt"],
@@ -112,7 +114,7 @@ def test_insert_files(silent, pk_args, expected_pks):
         for colname, expected_type in expected_types.items():
             for row in (one, two, three):
                 assert isinstance(row[colname], expected_type)
-        assert set(db["files"].pks) == set(expected_pks)
+        assert set(db.table("files").pks) == set(expected_pks)
 
 
 @pytest.mark.parametrize(
@@ -142,7 +144,7 @@ def test_insert_files_stdin(use_text, encoding, input, expected):
         )
         assert result.exit_code == 0, result.stdout
         db = Database(db_path)
-        row = list(db["files"].rows)[0]
+        row = next(iter(db.table("files").rows))
         key = "content"
         if use_text:
             key = "content_text"
@@ -167,5 +169,5 @@ def test_insert_files_bad_text_encoding_error():
         )
         assert result.exit_code == 1, result.output
         assert result.output.strip().startswith(
-            "Error: Could not read file '{}' as text".format(str(latin.resolve()))
+            f"Error: Could not read file '{latin.resolve()!s}' as text"
         )
