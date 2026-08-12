@@ -2478,6 +2478,8 @@ def rows(
     if limit:
         sql += f" limit {limit}"
     if offset:
+        if not limit:
+            sql += " limit -1"
         sql += f" offset {offset}"
     ctx.invoke(
         query,

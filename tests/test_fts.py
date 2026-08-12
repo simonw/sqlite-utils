@@ -112,6 +112,17 @@ def test_search_limit_offset(fresh_db):
     )
 
 
+def test_search_offset_without_limit(fresh_db):
+    table = fresh_db["t"]
+    table.insert_all(search_records)
+    table.enable_fts(["text", "country"], fts_version="FTS4")
+    assert [row["rowid"] for row in table.search("are", order_by="rowid")] == [1, 2]
+    assert [
+        row["rowid"] for row in table.search("are", offset=1, order_by="rowid")
+    ] == [2]
+    assert table.search_sql(offset=1).strip().endswith("limit -1 offset 1")
+
+
 @pytest.mark.parametrize("fts_version", ("FTS4", "FTS5"))
 def test_search_where(fresh_db, fts_version):
     table = fresh_db["t"]

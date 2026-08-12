@@ -2064,6 +2064,10 @@ class Queryable:
         if limit is not None:
             sql += f" limit {limit}"
         if offset is not None:
+            # SQLite requires a limit clause before offset - a negative limit
+            # means "no upper bound", so offset works without an explicit limit
+            if limit is None:
+                sql += " limit -1"
             sql += f" offset {offset}"
         cursor = self.db.execute(sql, where_args or [])
         columns = dedupe_keys(c[0] for c in cursor.description)
@@ -3732,6 +3736,8 @@ class Table(Queryable):
         if limit is not None:
             limit_offset += f" limit {limit}"
         if offset is not None:
+            if limit is None:
+                limit_offset += " limit -1"
             limit_offset += f" offset {offset}"
         return sql.format(
             dbtable=quote_identifier(self.name),
