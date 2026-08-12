@@ -112,7 +112,7 @@ def test_mutator_commits_by_default(tmp_path, mutate, expected_rows):
     db = seed_database(path)
 
     assert not db.conn.in_transaction
-    mutate(db["items"])
+    mutate(db.table("items"))
     assert current_rows(db) == expected_rows
     assert not db.conn.in_transaction
 
@@ -127,7 +127,7 @@ def test_mutator_commits_with_outer_atomic(tmp_path, mutate, expected_rows):
 
     with db.atomic():
         assert db.conn.in_transaction
-        mutate(db["items"])
+        mutate(db.table("items"))
         assert current_rows(db) == expected_rows
         assert db.conn.in_transaction
 
@@ -143,7 +143,7 @@ def test_mutator_rolls_back_outer_atomic(tmp_path, mutate, expected_rows):
     db = seed_database(path)
 
     with pytest.raises(RollbackTest), db.atomic():
-        mutate(db["items"])
+        mutate(db.table("items"))
         assert current_rows(db) == expected_rows
         assert db.conn.in_transaction
         raise RollbackTest

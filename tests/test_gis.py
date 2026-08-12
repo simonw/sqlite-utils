@@ -45,7 +45,7 @@ def test_add_geometry_column():
         coord_dimension="XY",
     )
 
-    assert db["geometry_columns"].get(["locations", "geometry"]) == {
+    assert db.table("geometry_columns").get(["locations", "geometry"]) == {
         "f_table_name": "locations",
         "f_geometry_column": "geometry",
         "geometry_type": 1,  # point
@@ -133,7 +133,7 @@ def test_cli_add_geometry_column(tmpdir):
     db = Database(str(db_path))
     db.init_spatialite()
 
-    table = db["locations"].create({"name": str})
+    table = db.table("locations").create({"name": str})
 
     result = CliRunner().invoke(
         cli,
@@ -149,7 +149,7 @@ def test_cli_add_geometry_column(tmpdir):
 
     assert result.exit_code == 0
 
-    assert db["geometry_columns"].get(["locations", "geometry"]) == {
+    assert db.table("geometry_columns").get(["locations", "geometry"]) == {
         "f_table_name": "locations",
         "f_geometry_column": "geometry",
         "geometry_type": 1,  # point
@@ -164,7 +164,7 @@ def test_cli_add_geometry_column_options(tmpdir):
     db_path = tmpdir / "spatial.db"
     db = Database(str(db_path))
     db.init_spatialite()
-    table = db["locations"].create({"name": str})
+    table = db.table("locations").create({"name": str})
 
     result = CliRunner().invoke(
         cli,
@@ -183,7 +183,7 @@ def test_cli_add_geometry_column_options(tmpdir):
 
     assert result.exit_code == 0
 
-    assert db["geometry_columns"].get(["locations", "geometry"]) == {
+    assert db.table("geometry_columns").get(["locations", "geometry"]) == {
         "f_table_name": "locations",
         "f_geometry_column": "geometry",
         "geometry_type": 3,  # polygon
@@ -202,7 +202,7 @@ def test_cli_add_geometry_column_invalid_type(tmpdir):
     db = Database(str(db_path))
     db.init_spatialite()
 
-    table = db["locations"].create({"name": str})
+    table = db.table("locations").create({"name": str})
 
     result = CliRunner().invoke(
         cli,
@@ -225,7 +225,7 @@ def test_cli_create_spatial_index(tmpdir):
     db = Database(str(db_path))
     db.init_spatialite()
 
-    table = db["locations"].create({"name": str})
+    table = db.table("locations").create({"name": str})
     table.add_geometry_column("geometry", "POINT")
 
     result = CliRunner().invoke(

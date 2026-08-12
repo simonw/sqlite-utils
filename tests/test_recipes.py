@@ -8,7 +8,7 @@ from sqlite_utils.utils import sqlite3
 
 @pytest.fixture
 def dates_db(fresh_db):
-    fresh_db["example"].insert_all(
+    fresh_db.table("example").insert_all(
         [
             {"id": 1, "dt": "5th October 2019 12:04"},
             {"id": 2, "dt": "6th October 2019 00:05:06"},
@@ -21,8 +21,8 @@ def dates_db(fresh_db):
 
 
 def test_parsedate(dates_db):
-    dates_db["example"].convert("dt", recipes.parsedate)
-    assert list(dates_db["example"].rows) == [
+    dates_db.table("example").convert("dt", recipes.parsedate)
+    assert list(dates_db.table("example").rows) == [
         {"id": 1, "dt": "2019-10-05"},
         {"id": 2, "dt": "2019-10-06"},
         {"id": 3, "dt": ""},
@@ -31,8 +31,8 @@ def test_parsedate(dates_db):
 
 
 def test_parsedatetime(dates_db):
-    dates_db["example"].convert("dt", recipes.parsedatetime)
-    assert list(dates_db["example"].rows) == [
+    dates_db.table("example").convert("dt", recipes.parsedatetime)
+    assert list(dates_db.table("example").rows) == [
         {"id": 1, "dt": "2019-10-05T12:04:00"},
         {"id": 2, "dt": "2019-10-06T00:05:06"},
         {"id": 3, "dt": ""},
@@ -50,16 +50,16 @@ def test_parsedatetime(dates_db):
     ),
 )
 def test_dayfirst_yearfirst(fresh_db, recipe, kwargs, expected):
-    fresh_db["example"].insert_all(
+    fresh_db.table("example").insert_all(
         [
             {"id": 1, "dt": "03/04/05"},
         ],
         pk="id",
     )
-    fresh_db["example"].convert(
+    fresh_db.table("example").convert(
         "dt", lambda value: getattr(recipes, recipe)(value, **kwargs)
     )
-    assert list(fresh_db["example"].rows) == [
+    assert list(fresh_db.table("example").rows) == [
         {"id": 1, "dt": expected},
     ]
 
@@ -68,7 +68,7 @@ def test_dayfirst_yearfirst(fresh_db, recipe, kwargs, expected):
 @pytest.mark.parametrize("fn", ("parsedate", "parsedatetime"))
 def test_dateparse_errors_raises(fresh_db, fn):
     """Test that invalid dates raise errors when errors=None"""
-    fresh_db["example"].insert_all(
+    fresh_db.table("example").insert_all(
         [
             {"id": 1, "dt": "invalid"},
         ],
@@ -76,30 +76,32 @@ def test_dateparse_errors_raises(fresh_db, fn):
     )
     # Exception in SQLite callback surfaces as OperationalError
     with pytest.raises(sqlite3.OperationalError):
-        fresh_db["example"].convert("dt", lambda value: getattr(recipes, fn)(value))
+        fresh_db.table("example").convert(
+            "dt", lambda value: getattr(recipes, fn)(value)
+        )
 
 
 @pytest.mark.parametrize("fn", ("parsedate", "parsedatetime"))
 @pytest.mark.parametrize("errors", (recipes.SET_NULL, recipes.IGNORE))
 def test_dateparse_errors_handled(fresh_db, fn, errors):
     """Test error handling modes for invalid dates"""
-    fresh_db["example"].insert_all(
+    fresh_db.table("example").insert_all(
         [
             {"id": 1, "dt": "invalid"},
         ],
         pk="id",
     )
-    fresh_db["example"].convert(
+    fresh_db.table("example").convert(
         "dt", lambda value: getattr(recipes, fn)(value, errors=errors)
     )
-    rows = list(fresh_db["example"].rows)
+    rows = list(fresh_db.table("example").rows)
     expected = [{"id": 1, "dt": None if errors is recipes.SET_NULL else "invalid"}]
     assert rows == expected
 
 
 @pytest.mark.parametrize("delimiter", [None, ";", "-"])
 def test_jsonsplit(fresh_db, delimiter):
-    fresh_db["example"].insert_all(
+    fresh_db.table("example").insert_all(
         [
             {"id": 1, "tags": (delimiter or ",").join(["foo", "bar"])},
             {"id": 2, "tags": (delimiter or ",").join(["bar", "baz"])},
@@ -114,8 +116,8 @@ def test_jsonsplit(fresh_db, delimiter):
     else:
         fn = recipes.jsonsplit
 
-    fresh_db["example"].convert("tags", fn)
-    assert list(fresh_db["example"].rows) == [
+    fresh_db.table("example").convert("tags", fn)
+    assert list(fresh_db.table("example").rows) == [
         {"id": 1, "tags": '["foo", "bar"]'},
         {"id": 2, "tags": '["bar", "baz"]'},
     ]
@@ -130,7 +132,7 @@ def test_jsonsplit(fresh_db, delimiter):
     ),
 )
 def test_jsonsplit_type(fresh_db, type, expected):
-    fresh_db["example"].insert_all(
+    fresh_db.table("example").insert_all(
         [
             {"id": 1, "records": "1,2,3"},
         ],
@@ -144,5 +146,5 @@ def test_jsonsplit_type(fresh_db, type, expected):
     else:
         fn = recipes.jsonsplit
 
-    fresh_db["example"].convert("records", fn)
-    assert json.loads(fresh_db["example"].get(1)["records"]) == expected
+    fresh_db.table("example").convert("records", fn)
+    assert json.loads(fresh_db.table("example").get(1)["records"]) == expected

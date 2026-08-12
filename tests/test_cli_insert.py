@@ -21,7 +21,7 @@ def test_insert_simple(tmpdir):
     )
     db = Database(db_path)
     assert ["dogs"] == db.table_names()
-    assert [] == db["dogs"].indexes
+    assert [] == db.table("dogs").indexes
 
 
 def test_insert_from_stdin(tmpdir):
@@ -96,7 +96,7 @@ def test_insert_with_primary_keys(db_path, tmpdir, args, expected_pks):
         Database(db_path).query("select * from dogs")
     )
     db = Database(db_path)
-    assert db["dogs"].pks == expected_pks
+    assert db.table("dogs").pks == expected_pks
 
 
 def test_insert_multiple_with_primary_key(db_path, tmpdir):
@@ -110,7 +110,7 @@ def test_insert_multiple_with_primary_key(db_path, tmpdir):
     assert result.exit_code == 0
     db = Database(db_path)
     assert dogs == list(db.query("select * from dogs order by id"))
-    assert ["id"] == db["dogs"].pks
+    assert ["id"] == db.table("dogs").pks
 
 
 def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
@@ -127,7 +127,7 @@ def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
     assert result.exit_code == 0
     db = Database(db_path)
     assert dogs == list(db.query("select * from dogs order by breed, id"))
-    assert {"breed", "id"} == set(db["dogs"].pks)
+    assert {"breed", "id"} == set(db.table("dogs").pks)
     assert (
         'CREATE TABLE "dogs" (\n'
         '   "breed" TEXT,\n'
@@ -136,7 +136,7 @@ def test_insert_multiple_with_compound_primary_key(db_path, tmpdir):
         '   "age" INTEGER,\n'
         '   PRIMARY KEY ("id", "breed")\n'
         ")"
-    ) == db["dogs"].schema
+    ) == db.table("dogs").schema
 
 
 def test_insert_not_null_default(db_path, tmpdir):
@@ -160,7 +160,7 @@ def test_insert_not_null_default(db_path, tmpdir):
         '   "name" TEXT NOT NULL,\n'
         "   \"age\" INTEGER NOT NULL DEFAULT '1',\n"
         "   \"score\" INTEGER DEFAULT '5'\n)"
-    ) == db["dogs"].schema
+    ) == db.table("dogs").schema
 
 
 def test_insert_binary_base64(db_path):
@@ -191,7 +191,7 @@ def test_insert_newline_delimited(db_path):
 
 def test_insert_ignore(db_path, tmpdir):
     db = Database(db_path)
-    db["dogs"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    db.table("dogs").insert({"id": 1, "name": "Cleo"}, pk="id")
     json_path = str(tmpdir / "dogs.json")
     with open(json_path, "w") as fp:
         fp.write(json.dumps([{"id": 1, "name": "Bailey"}]))
@@ -232,7 +232,7 @@ def test_insert_csv_tsv(content, options, db_path, tmpdir):
         catch_exceptions=False,
     )
     assert result.exit_code == 0
-    assert [{"foo": "1", "bar": "2", "baz": "cat,dog"}] == list(db["data"].rows)
+    assert [{"foo": "1", "bar": "2", "baz": "cat,dog"}] == list(db.table("data").rows)
 
 
 @pytest.mark.parametrize("empty_null", (True, False))
@@ -248,7 +248,7 @@ def test_insert_csv_empty_null(db_path, empty_null):
     )
     assert result.exit_code == 0
     db = Database(db_path)
-    assert [r for r in db["data"].rows] == [
+    assert [r for r in db.table("data").rows] == [
         {"foo": "1", "bar": None if empty_null else "", "baz": "cat"}
     ]
 
@@ -302,7 +302,7 @@ def test_insert_replace(db_path, tmpdir):
     test_insert_multiple_with_primary_key(db_path, tmpdir)
     json_path = str(tmpdir / "insert-replace.json")
     db = Database(db_path)
-    assert db["dogs"].count == 20
+    assert db.table("dogs").count == 20
     insert_replace_dogs = [
         {"id": 1, "name": "Insert replaced 1", "age": 4},
         {"id": 2, "name": "Insert replaced 2", "age": 4},
@@ -314,7 +314,7 @@ def test_insert_replace(db_path, tmpdir):
         cli.cli, ["insert", db_path, "dogs", json_path, "--pk", "id", "--replace"]
     )
     assert result.exit_code == 0, result.output
-    assert db["dogs"].count == 21
+    assert db.table("dogs").count == 21
     assert (
         list(db.query("select * from dogs where id in (1, 2, 21) order by id"))
         == insert_replace_dogs
@@ -377,7 +377,7 @@ def test_insert_alter(db_path, tmpdir):
     assert result.exit_code == 0, result.output
     # Soundness check the database itself
     db = Database(db_path)
-    assert {"foo": str, "n": int, "baz": int} == db["from_json_nl"].columns_dict
+    assert {"foo": str, "n": int, "baz": int} == db.table("from_json_nl").columns_dict
     assert [
         {"foo": "bar", "n": 1, "baz": None},
         {"foo": "baz", "n": 2, "baz": None},
@@ -387,8 +387,8 @@ def test_insert_alter(db_path, tmpdir):
 
 def test_insert_analyze(db_path):
     db = Database(db_path)
-    db["rows"].insert({"foo": "x", "n": 3})
-    db["rows"].create_index(["n"])
+    db.table("rows").insert({"foo": "x", "n": 3})
+    db.table("rows").create_index(["n"])
     assert "sqlite_stat1" not in db.table_names()
     result = CliRunner().invoke(
         cli.cli,
@@ -583,7 +583,7 @@ def test_insert_streaming_batch_size_1(db_path):
     def try_until(expected):
         tries = 0
         while True:
-            rows = list(Database(db_path)["rows"].rows)
+            rows = list(Database(db_path).table("rows").rows)
             if rows == expected:
                 return
             tries += 1
@@ -615,13 +615,13 @@ def test_insert_csv_headers_only(tmpdir):
     assert result.exit_code == 0
     # Table should not exist since there were no data rows
     db = Database(db_path)
-    assert not db["data"].exists()
+    assert not db.table("data").exists()
 
 
 def test_insert_into_view_errors(tmpdir):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db["t"].insert({"id": 1})
+    db.table("t").insert({"id": 1})
     db.create_view("v", "select * from t")
     db.close()
     result = CliRunner().invoke(
@@ -637,7 +637,7 @@ def test_insert_csv_detect_types_leaves_existing_table_alone(db_path):
     # table would rewrite its column types and corrupt data such as
     # TEXT zip codes with leading zeros
     db = Database(db_path)
-    db["places"].insert({"name": "Boston", "zip": "01234"})
+    db.table("places").insert({"name": "Boston", "zip": "01234"})
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "places", "-", "--csv"],
@@ -645,8 +645,8 @@ def test_insert_csv_detect_types_leaves_existing_table_alone(db_path):
         input="name,zip\nSF,94107",
     )
     assert result.exit_code == 0, result.output
-    assert db["places"].columns_dict["zip"] is str
-    assert list(db["places"].rows) == [
+    assert db.table("places").columns_dict["zip"] is str
+    assert list(db.table("places").rows) == [
         {"name": "Boston", "zip": "01234"},
         {"name": "SF", "zip": "94107"},
     ]
@@ -662,7 +662,7 @@ def test_insert_csv_detect_types_new_table(db_path):
     )
     assert result.exit_code == 0, result.output
     db = Database(db_path)
-    assert db["data"].columns_dict == {"name": str, "age": int, "weight": float}
+    assert db.table("data").columns_dict == {"name": str, "age": int, "weight": float}
 
 
 @pytest.mark.parametrize(
@@ -708,13 +708,13 @@ def test_insert_upsert_csv_type_overrides_detected_types(
     expected_columns = {"zipcode": str, "score": float}
     if command == "upsert":
         expected_columns = {"id": int, **expected_columns}
-    assert db["places"].columns_dict == expected_columns
-    assert list(db["places"].rows) == [expected_row]
+    assert db.table("places").columns_dict == expected_columns
+    assert list(db.table("places").rows) == [expected_row]
 
 
 def test_upsert_csv_detect_types_leaves_existing_table_alone(db_path):
     db = Database(db_path)
-    db["places"].insert({"id": 1, "name": "Boston", "zip": "01234"}, pk="id")
+    db.table("places").insert({"id": 1, "name": "Boston", "zip": "01234"}, pk="id")
     result = CliRunner().invoke(
         cli.cli,
         ["upsert", db_path, "places", "-", "--csv", "--pk", "id"],
@@ -722,15 +722,15 @@ def test_upsert_csv_detect_types_leaves_existing_table_alone(db_path):
         input="id,name,zip\n2,SF,94107",
     )
     assert result.exit_code == 0, result.output
-    assert db["places"].columns_dict["zip"] is str
-    assert db["places"].get(1)["zip"] == "01234"
+    assert db.table("places").columns_dict["zip"] is str
+    assert db.table("places").get(1)["zip"] == "01234"
 
 
 def test_insert_invalid_pk_clean_error(db_path):
     # An invalid --pk against an existing table should be a clean CLI
     # error, not a raw InvalidColumns traceback
     db = Database(db_path)
-    db["t"].insert({"a": 1})
+    db.table("t").insert({"a": 1})
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "t", "-", "--pk", "badcol"],
@@ -765,8 +765,8 @@ def test_insert_code(tmpdir, code):
     )
     assert result.exit_code == 0, result.output
     db = Database(db_path)
-    assert db["creatures"].pks == ["id"]
-    assert list(db["creatures"].rows) == [
+    assert db.table("creatures").pks == ["id"]
+    assert list(db.table("creatures").rows) == [
         {"id": 1, "name": "Cleo"},
         {"id": 2, "name": "Suna"},
     ]
@@ -782,7 +782,7 @@ def test_insert_code_from_file(tmpdir):
         ["insert", db_path, "creatures", "--code", code_path],
     )
     assert result.exit_code == 0, result.output
-    assert list(Database(db_path)["creatures"].rows) == [
+    assert list(Database(db_path).table("creatures").rows) == [
         {"id": 1, "name": "Cleo"},
         {"id": 2, "name": "Suna"},
     ]
@@ -791,7 +791,7 @@ def test_insert_code_from_file(tmpdir):
 def test_upsert_code(tmpdir):
     db_path = str(tmpdir / "dogs.db")
     db = Database(db_path)
-    db["creatures"].insert_all(
+    db.table("creatures").insert_all(
         [{"id": 1, "name": "old"}, {"id": 2, "name": "Suna"}], pk="id"
     )
     result = CliRunner().invoke(
@@ -799,7 +799,7 @@ def test_upsert_code(tmpdir):
         ["upsert", db_path, "creatures", "--code", CODE_ROWS_FUNCTION, "--pk", "id"],
     )
     assert result.exit_code == 0, result.output
-    assert list(db["creatures"].rows) == [
+    assert list(db.table("creatures").rows) == [
         {"id": 1, "name": "Cleo"},
         {"id": 2, "name": "Suna"},
     ]
@@ -858,7 +858,9 @@ def test_insert_code_single_dict(tmpdir):
         ],
     )
     assert result.exit_code == 0, result.output
-    assert list(Database(db_path)["creatures"].rows) == [{"id": 1, "name": "Cleo"}]
+    assert list(Database(db_path).table("creatures").rows) == [
+        {"id": 1, "name": "Cleo"}
+    ]
 
 
 def test_insert_code_not_iterable(tmpdir):

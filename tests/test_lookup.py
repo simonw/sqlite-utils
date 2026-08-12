@@ -4,7 +4,7 @@ from sqlite_utils.db import Index
 
 
 def test_lookup_new_table(fresh_db):
-    species = fresh_db["species"]
+    species = fresh_db.table("species")
     palm_id = species.lookup({"name": "Palm"})
     oak_id = species.lookup({"name": "Oak"})
     cherry_id = species.lookup({"name": "Cherry"})
@@ -26,7 +26,7 @@ def test_lookup_new_table(fresh_db):
 
 
 def test_lookup_new_table_compound_key(fresh_db):
-    species = fresh_db["species"]
+    species = fresh_db.table("species")
     palm_id = species.lookup({"name": "Palm", "type": "Tree"})
     oak_id = species.lookup({"name": "Oak", "type": "Tree"})
     assert palm_id == species.lookup({"name": "Palm", "type": "Tree"})
@@ -70,7 +70,7 @@ def test_lookup_fails_if_constraint_cannot_be_added(fresh_db):
 
 
 def test_lookup_with_extra_values(fresh_db):
-    species = fresh_db["species"]
+    species = fresh_db.table("species")
     id = species.lookup({"name": "Palm", "type": "Tree"}, {"first_seen": "2020-01-01"})
     assert species.get(id) == {
         "id": 1,
@@ -90,9 +90,9 @@ def test_lookup_with_extra_values(fresh_db):
 
 
 def test_lookup_with_extra_insert_parameters(fresh_db):
-    other_table = fresh_db["other_table"]
+    other_table = fresh_db.table("other_table")
     other_table.insert({"id": 1, "name": "Name"}, pk="id")
-    species = fresh_db["species"]
+    species = fresh_db.table("species")
     id = species.lookup(
         {"name": "Palm", "type": "Tree"},
         {
@@ -156,15 +156,15 @@ def test_lookup_with_extra_insert_parameters(fresh_db):
 
 @pytest.mark.parametrize("strict", (False, True))
 def test_lookup_new_table_strict(fresh_db, strict):
-    fresh_db["species"].lookup({"name": "Palm"}, strict=strict)
-    assert fresh_db["species"].strict == strict or not fresh_db.supports_strict
+    fresh_db.table("species").lookup({"name": "Palm"}, strict=strict)
+    assert fresh_db.table("species").strict == strict or not fresh_db.supports_strict
 
 
 def test_lookup_null_value_idempotent(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/186
     # Repeated lookups of a null value should return the same row,
     # not insert a duplicate row each time
-    species = fresh_db["species"]
+    species = fresh_db.table("species")
     first_id = species.lookup({"name": None})
     second_id = species.lookup({"name": None})
     assert first_id == second_id
@@ -172,7 +172,7 @@ def test_lookup_null_value_idempotent(fresh_db):
 
 
 def test_lookup_compound_key_with_null_idempotent(fresh_db):
-    species = fresh_db["species"]
+    species = fresh_db.table("species")
     palm_id = species.lookup({"name": "Palm", "type": None})
     oak_id = species.lookup({"name": "Oak", "type": "Tree"})
     assert palm_id == species.lookup({"name": "Palm", "type": None})

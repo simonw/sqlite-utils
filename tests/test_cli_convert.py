@@ -12,7 +12,7 @@ from sqlite_utils import cli
 @pytest.fixture
 def test_db_and_path(fresh_db_and_path):
     db, db_path = fresh_db_and_path
-    db["example"].insert_all(
+    db.table("example").insert_all(
         [
             {"id": 1, "dt": "5th October 2019 12:04"},
             {"id": 2, "dt": "6th October 2019 00:05:06"},
@@ -47,12 +47,12 @@ def fresh_db_and_path(tmpdir):
 )
 def test_convert_code(fresh_db_and_path, code):
     db, db_path = fresh_db_and_path
-    db["t"].insert({"text": "October"})
+    db.table("t").insert({"text": "October"})
     result = CliRunner().invoke(
         cli.cli, ["convert", db_path, "t", "text", code], catch_exceptions=False
     )
     assert result.exit_code == 0, result.output
-    value = next(iter(db["t"].rows))["text"]
+    value = next(iter(db.table("t").rows))["text"]
     assert value == "Spooktober"
 
 
@@ -65,7 +65,7 @@ def test_convert_code(fresh_db_and_path, code):
 )
 def test_convert_code_errors(fresh_db_and_path, bad_code):
     db, db_path = fresh_db_and_path
-    db["t"].insert({"text": "October"})
+    db.table("t").insert({"text": "October"})
     result = CliRunner().invoke(
         cli.cli, ["convert", db_path, "t", "text", bad_code], catch_exceptions=False
     )
@@ -93,12 +93,12 @@ def test_convert_import(test_db_and_path):
         {"id": 2, "dt": "6th OXXober 2019 00:05:06"},
         {"id": 3, "dt": ""},
         {"id": 4, "dt": None},
-    ] == list(db["example"].rows)
+    ] == list(db.table("example").rows)
 
 
 def test_convert_import_nested(fresh_db_and_path):
     db, db_path = fresh_db_and_path
-    db["example"].insert({"xml": '<item name="Cleo" />'})
+    db.table("example").insert({"xml": '<item name="Cleo" />'})
     result = CliRunner().invoke(
         cli.cli,
         [
@@ -114,7 +114,7 @@ def test_convert_import_nested(fresh_db_and_path):
     assert result.exit_code == 0, result.output
     assert [
         {"xml": "Cleo"},
-    ] == list(db["example"].rows)
+    ] == list(db.table("example").rows)
 
 
 def test_convert_dryrun(test_db_and_path):
@@ -152,7 +152,7 @@ def test_convert_dryrun(test_db_and_path):
         "Would affect 4 rows"
     )
     # But it should not have actually modified the table data
-    assert list(db["example"].rows) == [
+    assert list(db.table("example").rows) == [
         {"id": 1, "dt": "5th October 2019 12:04"},
         {"id": 2, "dt": "6th October 2019 00:05:06"},
         {"id": 3, "dt": ""},
@@ -269,7 +269,7 @@ def test_convert_output_column(test_db_and_path, drop):
     if drop:
         for row in expected:
             del row["dt"]
-    assert list(db["example"].rows) == expected
+    assert list(db.table("example").rows) == expected
 
 
 @pytest.mark.parametrize(
@@ -352,7 +352,7 @@ def test_convert_output_error(test_db_and_path, options, expected_error):
 @pytest.mark.parametrize("drop", (True, False))
 def test_convert_multi(fresh_db_and_path, drop):
     db, db_path = fresh_db_and_path
-    db["creatures"].insert_all(
+    db.table("creatures").insert_all(
         [
             {"id": 1, "name": "Simon"},
             {"id": 2, "name": "Cleo"},
@@ -378,12 +378,12 @@ def test_convert_multi(fresh_db_and_path, drop):
     if drop:
         for row in expected:
             del row["name"]
-    assert list(db["creatures"].rows) == expected
+    assert list(db.table("creatures").rows) == expected
 
 
 def test_convert_multi_complex_column_types(fresh_db_and_path):
     db, db_path = fresh_db_and_path
-    db["rows"].insert_all(
+    db.table("rows").insert_all(
         [
             {"id": 1},
             {"id": 2},
@@ -412,7 +412,7 @@ def test_convert_multi_complex_column_types(fresh_db_and_path):
         ],
     )
     assert result.exit_code == 0, result.output
-    assert list(db["rows"].rows) == [
+    assert list(db.table("rows").rows) == [
         {"id": 1, "is_str": "", "is_float": 1.2, "is_int": None, "is_bytes": None},
         {"id": 2, "is_str": None, "is_float": 1.0, "is_int": 12, "is_bytes": None},
         {
@@ -424,7 +424,7 @@ def test_convert_multi_complex_column_types(fresh_db_and_path):
         },
         {"id": 4, "is_str": None, "is_float": None, "is_int": None, "is_bytes": None},
     ]
-    assert db["rows"].schema == (
+    assert db.table("rows").schema == (
         'CREATE TABLE "rows" (\n'
         '   "id" INTEGER PRIMARY KEY\n'
         ', "is_str" TEXT, "is_float" REAL, "is_int" INTEGER, "is_bytes" BLOB)'
@@ -435,7 +435,7 @@ def test_convert_multi_complex_column_types(fresh_db_and_path):
 def test_recipe_jsonsplit(tmpdir, delimiter):
     db_path = str(pathlib.Path(tmpdir) / "data.db")
     db = sqlite_utils.Database(db_path)
-    db["example"].insert_all(
+    db.table("example").insert_all(
         [
             {"id": 1, "tags": (delimiter or ",").join(["foo", "bar"])},
             {"id": 2, "tags": (delimiter or ",").join(["bar", "baz"])},
@@ -448,7 +448,7 @@ def test_recipe_jsonsplit(tmpdir, delimiter):
     args = ["convert", db_path, "example", "tags", code]
     result = CliRunner().invoke(cli.cli, args)
     assert result.exit_code == 0, result.output
-    assert list(db["example"].rows) == [
+    assert list(db.table("example").rows) == [
         {"id": 1, "tags": '["foo", "bar"]'},
         {"id": 2, "tags": '["bar", "baz"]'},
     ]
@@ -464,7 +464,7 @@ def test_recipe_jsonsplit(tmpdir, delimiter):
 )
 def test_recipe_jsonsplit_type(fresh_db_and_path, type, expected_array):
     db, db_path = fresh_db_and_path
-    db["example"].insert_all(
+    db.table("example").insert_all(
         [
             {"id": 1, "records": "1,2,3"},
         ],
@@ -476,13 +476,13 @@ def test_recipe_jsonsplit_type(fresh_db_and_path, type, expected_array):
     args = ["convert", db_path, "example", "records", code]
     result = CliRunner().invoke(cli.cli, args)
     assert result.exit_code == 0, result.output
-    assert json.loads(db["example"].get(1)["records"]) == expected_array
+    assert json.loads(db.table("example").get(1)["records"]) == expected_array
 
 
 @pytest.mark.parametrize("drop", (True, False))
 def test_recipe_jsonsplit_output(fresh_db_and_path, drop):
     db, db_path = fresh_db_and_path
-    db["example"].insert_all(
+    db.table("example").insert_all(
         [
             {"id": 1, "records": "1,2,3"},
         ],
@@ -501,7 +501,7 @@ def test_recipe_jsonsplit_output(fresh_db_and_path, drop):
     }
     if drop:
         del expected["records"]
-    assert db["example"].get(1) == expected
+    assert db.table("example").get(1) == expected
 
 
 def test_cannot_use_drop_without_multi_or_output(fresh_db_and_path):
@@ -558,7 +558,7 @@ def test_convert_where(test_db_and_path):
         ],
     )
     assert result.exit_code == 0, result.output
-    assert list(db["example"].rows) == [
+    assert list(db.table("example").rows) == [
         {"id": 1, "dt": "5th October 2019 12:04"},
         {"id": 2, "dt": "6TH OCTOBER 2019 00:05:06"},
         {"id": 3, "dt": ""},
@@ -568,7 +568,7 @@ def test_convert_where(test_db_and_path):
 
 def test_convert_where_multi(fresh_db_and_path):
     db, db_path = fresh_db_and_path
-    db["names"].insert_all(
+    db.table("names").insert_all(
         [{"id": 1, "name": "Cleo"}, {"id": 2, "name": "Bants"}], pk="id"
     )
     result = CliRunner().invoke(
@@ -588,7 +588,7 @@ def test_convert_where_multi(fresh_db_and_path):
         ],
     )
     assert result.exit_code == 0, result.output
-    assert list(db["names"].rows) == [
+    assert list(db.table("names").rows) == [
         {"id": 1, "name": "Cleo", "upper": None},
         {"id": 2, "name": "Bants", "upper": "BANTS"},
     ]
@@ -596,7 +596,7 @@ def test_convert_where_multi(fresh_db_and_path):
 
 def test_convert_code_standard_input(fresh_db_and_path):
     db, db_path = fresh_db_and_path
-    db["names"].insert_all([{"id": 1, "name": "Cleo"}], pk="id")
+    db.table("names").insert_all([{"id": 1, "name": "Cleo"}], pk="id")
     result = CliRunner().invoke(
         cli.cli,
         [
@@ -609,27 +609,27 @@ def test_convert_code_standard_input(fresh_db_and_path):
         input="value.upper()",
     )
     assert result.exit_code == 0, result.output
-    assert list(db["names"].rows) == [
+    assert list(db.table("names").rows) == [
         {"id": 1, "name": "CLEO"},
     ]
 
 
 def test_convert_hyphen_workaround(fresh_db_and_path):
     db, db_path = fresh_db_and_path
-    db["names"].insert_all([{"id": 1, "name": "Cleo"}], pk="id")
+    db.table("names").insert_all([{"id": 1, "name": "Cleo"}], pk="id")
     result = CliRunner().invoke(
         cli.cli,
         ["convert", db_path, "names", "name", '"-"'],
     )
     assert result.exit_code == 0, result.output
-    assert list(db["names"].rows) == [
+    assert list(db.table("names").rows) == [
         {"id": 1, "name": "-"},
     ]
 
 
 def test_convert_initialization_pattern(fresh_db_and_path):
     db, db_path = fresh_db_and_path
-    db["names"].insert_all([{"id": 1, "name": "Cleo"}], pk="id")
+    db.table("names").insert_all([{"id": 1, "name": "Cleo"}], pk="id")
     result = CliRunner().invoke(
         cli.cli,
         [
@@ -642,7 +642,7 @@ def test_convert_initialization_pattern(fresh_db_and_path):
         input="import random\nrandom.seed(1)\ndef convert(value):    return random.randint(0, 100)",
     )
     assert result.exit_code == 0, result.output
-    assert list(db["names"].rows) == [
+    assert list(db.table("names").rows) == [
         {"id": 1, "name": "17"},
     ]
 
@@ -657,13 +657,13 @@ def test_convert_handles_falsey_values(fresh_db_and_path):
         "x",
         "-",
     ]
-    db["t"].insert_all([{"x": 0}, {"x": 1}])
-    assert db["t"].get(1)["x"] == 0
-    assert db["t"].get(2)["x"] == 1
+    db.table("t").insert_all([{"x": 0}, {"x": 1}])
+    assert db.table("t").get(1)["x"] == 0
+    assert db.table("t").get(2)["x"] == 1
     result = CliRunner().invoke(cli.cli, args, input="value + 1")
     assert result.exit_code == 0, result.output
-    assert db["t"].get(1)["x"] == 1
-    assert db["t"].get(2)["x"] == 2
+    assert db.table("t").get(1)["x"] == 1
+    assert db.table("t").get(2)["x"] == 2
 
 
 @pytest.mark.parametrize(
@@ -684,7 +684,7 @@ def test_convert_callable_reference(test_db_and_path, code):
         cli.cli, ["convert", db_path, "example", "dt", code], catch_exceptions=False
     )
     assert result.exit_code == 0, result.output
-    rows = list(db["example"].rows)
+    rows = list(db.table("example").rows)
     assert rows[0]["dt"] == "2019-10-05"
     assert rows[1]["dt"] == "2019-10-06"
     assert rows[2]["dt"] == ""
@@ -694,7 +694,7 @@ def test_convert_callable_reference(test_db_and_path, code):
 def test_convert_callable_reference_with_import(fresh_db_and_path):
     """Test callable reference from an imported module"""
     db, db_path = fresh_db_and_path
-    db["example"].insert({"id": 1, "data": '{"name": "test"}'})
+    db.table("example").insert({"id": 1, "data": '{"name": "test"}'})
     result = CliRunner().invoke(
         cli.cli,
         [
@@ -710,5 +710,5 @@ def test_convert_callable_reference_with_import(fresh_db_and_path):
     )
     assert result.exit_code == 0, result.output
     # json.loads returns a dict, which sqlite stores as JSON string
-    row = db["example"].get(1)
+    row = db.table("example").get(1)
     assert row["data"] == '{"name": "test"}'

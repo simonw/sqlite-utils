@@ -32,7 +32,7 @@ def compound_db():
 
 
 def test_compound_foreign_key(compound_db):
-    fks = compound_db["courses"].foreign_keys
+    fks = compound_db.table("courses").foreign_keys
     assert len(fks) == 1
     fk = fks[0]
     assert fk.is_compound is True
@@ -46,10 +46,10 @@ def test_compound_foreign_key(compound_db):
 
 
 def test_single_foreign_key_gets_columns_fields(fresh_db):
-    fresh_db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
-    fresh_db["books"].insert({"title": "Hedgehogs", "author_id": 1})
-    fresh_db["books"].add_foreign_key("author_id", "authors", "id")
-    fk = fresh_db["books"].foreign_keys[0]
+    fresh_db.table("authors").insert({"id": 1, "name": "Sally"}, pk="id")
+    fresh_db.table("books").insert({"title": "Hedgehogs", "author_id": 1})
+    fresh_db.table("books").add_foreign_key("author_id", "authors", "id")
+    fk = fresh_db.table("books").foreign_keys[0]
     assert fk.is_compound is False
     assert fk.column == "author_id"
     assert fk.other_column == "id"
@@ -60,10 +60,10 @@ def test_single_foreign_key_gets_columns_fields(fresh_db):
 def test_foreign_key_no_longer_unpacks_as_tuple(fresh_db):
     # Clean break in 4.0: ForeignKey is a dataclass, not a namedtuple, so the
     # old tuple unpacking and indexing patterns now fail hard.
-    fresh_db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
-    fresh_db["books"].insert({"title": "Hedgehogs", "author_id": 1})
-    fresh_db["books"].add_foreign_key("author_id", "authors", "id")
-    fk = fresh_db["books"].foreign_keys[0]
+    fresh_db.table("authors").insert({"id": 1, "name": "Sally"}, pk="id")
+    fresh_db.table("books").insert({"title": "Hedgehogs", "author_id": 1})
+    fresh_db.table("books").add_foreign_key("author_id", "authors", "id")
+    fk = fresh_db.table("books").foreign_keys[0]
     with pytest.raises(TypeError):
         _table, _column, _other_table, _other_column = fk
     with pytest.raises(TypeError):
@@ -71,16 +71,18 @@ def test_foreign_key_no_longer_unpacks_as_tuple(fresh_db):
 
 
 def test_foreign_keys_are_sortable(fresh_db):
-    fresh_db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
-    fresh_db["categories"].insert({"id": 1, "name": "Wildlife"}, pk="id")
-    fresh_db["books"].insert({"title": "Hedgehogs", "author_id": 1, "category_id": 1})
+    fresh_db.table("authors").insert({"id": 1, "name": "Sally"}, pk="id")
+    fresh_db.table("categories").insert({"id": 1, "name": "Wildlife"}, pk="id")
+    fresh_db.table("books").insert(
+        {"title": "Hedgehogs", "author_id": 1, "category_id": 1}
+    )
     fresh_db.add_foreign_keys(
         [
             ("books", "author_id", "authors", "id"),
             ("books", "category_id", "categories", "id"),
         ]
     )
-    fks = sorted(fresh_db["books"].foreign_keys)
+    fks = sorted(fresh_db.table("books").foreign_keys)
     assert fks[0].column == "author_id"
     assert fks[1].column == "category_id"
 
@@ -105,7 +107,7 @@ def test_mixed_compound_and_single_foreign_keys_are_sortable():
         REFERENCES departments(campus_name, dept_code)
     );
     """)
-    fks = db["courses"].foreign_keys
+    fks = db.table("courses").foreign_keys
     assert len(fks) == 2
     assert {fk.is_compound for fk in fks} == {True, False}
     fks_sorted = sorted(fks)
@@ -163,8 +165,8 @@ def test_create_table_with_compound_foreign_key(departments_db, foreign_keys):
         pk="course_code",
         foreign_keys=foreign_keys,
     )
-    assert departments_db["courses"].schema == EXPECTED_COURSES_SCHEMA
-    fks = departments_db["courses"].foreign_keys
+    assert departments_db.table("courses").schema == EXPECTED_COURSES_SCHEMA
+    fks = departments_db.table("courses").foreign_keys
     assert len(fks) == 1
     fk = fks[0]
     assert fk.is_compound is True
@@ -181,10 +183,10 @@ def test_create_table_compound_foreign_key_enforced(departments_db):
         pk="course_code",
         foreign_keys=[(("campus_name", "dept_code"), "departments")],
     )
-    departments_db["departments"].insert(
+    departments_db.table("departments").insert(
         {"campus_name": "Berkeley", "dept_code": "CS", "dept_name": "Computer Science"}
     )
-    departments_db["courses"].insert(
+    departments_db.table("courses").insert(
         {"course_code": "CS101", "campus_name": "Berkeley", "dept_code": "CS"}
     )
     with pytest.raises(sqlite3.IntegrityError):
@@ -207,8 +209,8 @@ def test_create_table_compound_foreign_key_missing_other_column(departments_db):
 
 
 def test_transform_preserves_compound_foreign_key(compound_db):
-    compound_db["courses"].transform(rename={"course_name": "title"})
-    fks = compound_db["courses"].foreign_keys
+    compound_db.table("courses").transform(rename={"course_name": "title"})
+    fks = compound_db.table("courses").foreign_keys
     assert len(fks) == 1
     fk = fks[0]
     assert fk.is_compound is True
@@ -218,8 +220,8 @@ def test_transform_preserves_compound_foreign_key(compound_db):
 
 
 def test_transform_rename_member_column_updates_compound_foreign_key(compound_db):
-    compound_db["courses"].transform(rename={"campus_name": "campus"})
-    fks = compound_db["courses"].foreign_keys
+    compound_db.table("courses").transform(rename={"campus_name": "campus"})
+    fks = compound_db.table("courses").foreign_keys
     assert len(fks) == 1
     fk = fks[0]
     assert fk.is_compound is True
@@ -231,9 +233,9 @@ def test_transform_rename_member_column_updates_compound_foreign_key(compound_db
 def test_transform_drop_member_column_drops_compound_foreign_key(compound_db):
     # Matches single-column behavior: dropping the column silently
     # drops the foreign key that used it
-    compound_db["courses"].transform(drop={"dept_code"})
-    assert compound_db["courses"].foreign_keys == []
-    assert "FOREIGN KEY" not in compound_db["courses"].schema
+    compound_db.table("courses").transform(drop={"dept_code"})
+    assert compound_db.table("courses").foreign_keys == []
+    assert "FOREIGN KEY" not in compound_db.table("courses").schema
 
 
 @pytest.mark.parametrize(
@@ -246,11 +248,11 @@ def test_transform_drop_member_column_drops_compound_foreign_key(compound_db):
     ),
 )
 def test_transform_drop_compound_foreign_key(compound_db, drop_foreign_keys):
-    compound_db["courses"].transform(drop_foreign_keys=drop_foreign_keys)
-    assert compound_db["courses"].foreign_keys == []
+    compound_db.table("courses").transform(drop_foreign_keys=drop_foreign_keys)
+    assert compound_db.table("courses").foreign_keys == []
     # The columns themselves survive
     assert {"campus_name", "dept_code"} <= set(
-        compound_db["courses"].columns_dict.keys()
+        compound_db.table("courses").columns_dict.keys()
     )
 
 
@@ -265,12 +267,12 @@ def courses_db(departments_db):
 
 
 def test_add_compound_foreign_key(courses_db):
-    t = courses_db["courses"].add_foreign_key(
+    t = courses_db.table("courses").add_foreign_key(
         ("campus_name", "dept_code"), "departments", ("campus_name", "dept_code")
     )
     # Returns self
     assert t.name == "courses"
-    fks = courses_db["courses"].foreign_keys
+    fks = courses_db.table("courses").foreign_keys
     assert len(fks) == 1
     fk = fks[0]
     assert fk.is_compound is True
@@ -281,27 +283,33 @@ def test_add_compound_foreign_key(courses_db):
 
 def test_add_compound_foreign_key_guesses_other_columns(courses_db):
     # Lists work here too, though tuples are the documented form
-    courses_db["courses"].add_foreign_key(["campus_name", "dept_code"], "departments")
-    fk = courses_db["courses"].foreign_keys[0]
+    courses_db.table("courses").add_foreign_key(
+        ["campus_name", "dept_code"], "departments"
+    )
+    fk = courses_db.table("courses").foreign_keys[0]
     assert fk.other_columns == ("campus_name", "dept_code")
 
 
 def test_add_compound_foreign_key_error_if_already_exists(courses_db):
-    courses_db["courses"].add_foreign_key(("campus_name", "dept_code"), "departments")
+    courses_db.table("courses").add_foreign_key(
+        ("campus_name", "dept_code"), "departments"
+    )
     with pytest.raises(AlterError) as ex:
-        courses_db["courses"].add_foreign_key(
+        courses_db.table("courses").add_foreign_key(
             ("campus_name", "dept_code"), "departments"
         )
     assert "already exists" in ex.value.args[0]
     # ignore=True should not raise
-    courses_db["courses"].add_foreign_key(
+    courses_db.table("courses").add_foreign_key(
         ("campus_name", "dept_code"), "departments", ignore=True
     )
 
 
 def test_add_compound_foreign_key_error_if_column_missing(courses_db):
     with pytest.raises(AlterError):
-        courses_db["courses"].add_foreign_key(("campus_name", "nope"), "departments")
+        courses_db.table("courses").add_foreign_key(
+            ("campus_name", "nope"), "departments"
+        )
 
 
 def test_db_add_foreign_keys_compound(courses_db):
@@ -315,14 +323,14 @@ def test_db_add_foreign_keys_compound(courses_db):
             )
         ]
     )
-    fk = courses_db["courses"].foreign_keys[0]
+    fk = courses_db.table("courses").foreign_keys[0]
     assert fk.is_compound is True
     assert fk.columns == ("campus_name", "dept_code")
 
 
 def test_index_foreign_keys_compound_creates_composite_index(compound_db):
     compound_db.index_foreign_keys()
-    index_columns = [i.columns for i in compound_db["courses"].indexes]
+    index_columns = [i.columns for i in compound_db.table("courses").indexes]
     assert ["campus_name", "dept_code"] in index_columns
     # No separate single-column indexes for the members
     assert ["campus_name"] not in index_columns
@@ -339,22 +347,22 @@ def test_foreign_key_captures_on_delete_and_on_update():
             ON DELETE CASCADE ON UPDATE RESTRICT
     );
     """)
-    fk = db["books"].foreign_keys[0]
+    fk = db.table("books").foreign_keys[0]
     assert fk.on_delete == "CASCADE"
     assert fk.on_update == "RESTRICT"
 
 
 def test_foreign_key_on_delete_defaults_to_no_action(fresh_db):
-    fresh_db["authors"].insert({"id": 1}, pk="id")
-    fresh_db["books"].insert({"id": 1, "author_id": 1}, pk="id")
-    fresh_db["books"].add_foreign_key("author_id", "authors", "id")
-    fk = fresh_db["books"].foreign_keys[0]
+    fresh_db.table("authors").insert({"id": 1}, pk="id")
+    fresh_db.table("books").insert({"id": 1, "author_id": 1}, pk="id")
+    fresh_db.table("books").add_foreign_key("author_id", "authors", "id")
+    fk = fresh_db.table("books").foreign_keys[0]
     assert fk.on_delete == "NO ACTION"
     assert fk.on_update == "NO ACTION"
 
 
 def test_create_table_foreign_key_with_on_delete(fresh_db):
-    fresh_db["authors"].insert({"id": 1}, pk="id")
+    fresh_db.table("authors").insert({"id": 1}, pk="id")
     fresh_db.create_table(
         "books",
         {"id": int, "author_id": int},
@@ -369,8 +377,8 @@ def test_create_table_foreign_key_with_on_delete(fresh_db):
             )
         ],
     )
-    assert "ON DELETE CASCADE" in fresh_db["books"].schema
-    assert fresh_db["books"].foreign_keys[0].on_delete == "CASCADE"
+    assert "ON DELETE CASCADE" in fresh_db.table("books").schema
+    assert fresh_db.table("books").foreign_keys[0].on_delete == "CASCADE"
 
 
 def test_transform_preserves_on_delete_cascade():
@@ -383,11 +391,11 @@ def test_transform_preserves_on_delete_cascade():
         author_id INTEGER REFERENCES authors(id) ON DELETE CASCADE
     );
     """)
-    db["books"].transform(rename={"title": "book_title"})
-    fk = db["books"].foreign_keys[0]
+    db.table("books").transform(rename={"title": "book_title"})
+    fk = db.table("books").foreign_keys[0]
     assert fk.on_delete == "CASCADE"
     assert fk.on_update == "NO ACTION"
-    assert "ON DELETE CASCADE" in db["books"].schema
+    assert "ON DELETE CASCADE" in db.table("books").schema
 
 
 def test_transform_preserves_compound_foreign_key_on_delete():
@@ -406,11 +414,11 @@ def test_transform_preserves_compound_foreign_key_on_delete():
         REFERENCES departments(campus_name, dept_code) ON DELETE CASCADE
     );
     """)
-    db["courses"].transform(rename={"course_code": "code"})
-    fk = db["courses"].foreign_keys[0]
+    db.table("courses").transform(rename={"course_code": "code"})
+    fk = db.table("courses").foreign_keys[0]
     assert fk.is_compound is True
     assert fk.on_delete == "CASCADE"
-    assert "ON DELETE CASCADE" in db["courses"].schema
+    assert "ON DELETE CASCADE" in db.table("courses").schema
 
 
 def test_implicit_primary_key_reference_is_resolved():
@@ -424,7 +432,7 @@ def test_implicit_primary_key_reference_is_resolved():
         author_id INTEGER REFERENCES authors
     );
     """)
-    fk = db["books"].foreign_keys[0]
+    fk = db.table("books").foreign_keys[0]
     assert fk.is_compound is False
     assert fk.other_column == "author_id"
     assert fk.other_columns == ("author_id",)
@@ -445,7 +453,7 @@ def test_implicit_compound_primary_key_reference_is_resolved():
         FOREIGN KEY (campus_name, dept_code) REFERENCES departments
     );
     """)
-    fk = db["courses"].foreign_keys[0]
+    fk = db.table("courses").foreign_keys[0]
     assert fk.is_compound is True
     assert fk.other_columns == ("campus_name", "dept_code")
 
@@ -470,14 +478,14 @@ def test_add_foreign_keys_preserves_actions(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/594 review finding:
     # ForeignKey objects passed to db.add_foreign_keys() were flattened
     # to plain tuples, losing on_delete/on_update
-    fresh_db["authors"].insert({"id": 1}, pk="id")
-    fresh_db["books"].insert({"id": 1, "author_id": 1}, pk="id")
+    fresh_db.table("authors").insert({"id": 1}, pk="id")
+    fresh_db.table("books").insert({"id": 1, "author_id": 1}, pk="id")
     fresh_db.add_foreign_keys(
         [ForeignKey("books", "author_id", "authors", "id", on_delete="CASCADE")]
     )
-    fk = fresh_db["books"].foreign_keys[0]
+    fk = fresh_db.table("books").foreign_keys[0]
     assert fk.on_delete == "CASCADE"
-    assert "ON DELETE CASCADE" in fresh_db["books"].schema
+    assert "ON DELETE CASCADE" in fresh_db.table("books").schema
 
 
 def test_add_foreign_keys_preserves_actions_compound(courses_db):
@@ -495,36 +503,36 @@ def test_add_foreign_keys_preserves_actions_compound(courses_db):
             )
         ]
     )
-    fk = courses_db["courses"].foreign_keys[0]
+    fk = courses_db.table("courses").foreign_keys[0]
     assert fk.is_compound is True
     assert fk.on_delete == "CASCADE"
-    assert "ON DELETE CASCADE" in courses_db["courses"].schema
+    assert "ON DELETE CASCADE" in courses_db.table("courses").schema
 
 
 def test_add_foreign_key_on_delete_on_update(fresh_db):
-    fresh_db["authors"].insert({"id": 1}, pk="id")
-    fresh_db["books"].insert({"id": 1, "author_id": 1}, pk="id")
-    fresh_db["books"].add_foreign_key(
+    fresh_db.table("authors").insert({"id": 1}, pk="id")
+    fresh_db.table("books").insert({"id": 1, "author_id": 1}, pk="id")
+    fresh_db.table("books").add_foreign_key(
         "author_id", "authors", "id", on_delete="CASCADE", on_update="RESTRICT"
     )
-    fk = fresh_db["books"].foreign_keys[0]
+    fk = fresh_db.table("books").foreign_keys[0]
     assert fk.on_delete == "CASCADE"
     assert fk.on_update == "RESTRICT"
-    assert "ON UPDATE RESTRICT ON DELETE CASCADE" in fresh_db["books"].schema
+    assert "ON UPDATE RESTRICT ON DELETE CASCADE" in fresh_db.table("books").schema
     # The cascade should actually fire
     fresh_db.execute("PRAGMA foreign_keys = ON")
     fresh_db.execute("delete from authors where id = 1")
-    assert fresh_db["books"].count == 0
+    assert fresh_db.table("books").count == 0
 
 
 def test_add_compound_foreign_key_on_delete(courses_db):
-    courses_db["courses"].add_foreign_key(
+    courses_db.table("courses").add_foreign_key(
         ("campus_name", "dept_code"), "departments", on_delete="SET NULL"
     )
-    fk = courses_db["courses"].foreign_keys[0]
+    fk = courses_db.table("courses").foreign_keys[0]
     assert fk.is_compound is True
     assert fk.on_delete == "SET NULL"
-    assert "ON DELETE SET NULL" in courses_db["courses"].schema
+    assert "ON DELETE SET NULL" in courses_db.table("courses").schema
 
 
 def test_implicit_compound_foreign_key_resolves_pk_declaration_order(fresh_db):
@@ -536,7 +544,7 @@ def test_implicit_compound_foreign_key_resolves_pk_declaration_order(fresh_db):
     fresh_db.execute(
         "create table child (x text, y text, foreign key (x, y) references other)"
     )
-    fk = fresh_db["child"].foreign_keys[0]
+    fk = fresh_db.table("child").foreign_keys[0]
     assert fk.other_columns == ("a", "b")
 
 
@@ -549,46 +557,46 @@ def test_transform_implicit_compound_foreign_key_stays_valid(fresh_db):
         "create table child (x text, y text, foreign key (x, y) references other)"
     )
     fresh_db.execute("PRAGMA foreign_keys = ON")
-    fresh_db["other"].insert({"a": "A", "b": "B"})
-    fresh_db["child"].insert({"x": "A", "y": "B"})
-    fresh_db["child"].transform(types={"x": str})
-    assert fresh_db["child"].foreign_keys[0].other_columns == ("a", "b")
+    fresh_db.table("other").insert({"a": "A", "b": "B"})
+    fresh_db.table("child").insert({"x": "A", "y": "B"})
+    fresh_db.table("child").transform(types={"x": str})
+    assert fresh_db.table("child").foreign_keys[0].other_columns == ("a", "b")
     # The constraint still points the right way around
-    fresh_db["child"].insert({"x": "A", "y": "B"})
+    fresh_db.table("child").insert({"x": "A", "y": "B"})
     with pytest.raises(sqlite3.IntegrityError):
-        fresh_db["child"].insert({"x": "B", "y": "A"})
+        fresh_db.table("child").insert({"x": "B", "y": "A"})
 
 
 def test_create_compound_foreign_key_guesses_pk_declaration_order(fresh_db):
     fresh_db.execute("create table other (b text, a text, primary key (a, b))")
-    fresh_db["other"].insert({"a": "A", "b": "B"})
-    fresh_db["child"].create(
+    fresh_db.table("other").insert({"a": "A", "b": "B"})
+    fresh_db.table("child").create(
         {"id": int, "x": str, "y": str},
         pk="id",
         foreign_keys=[(("x", "y"), "other")],
     )
-    assert fresh_db["child"].foreign_keys[0].other_columns == ("a", "b")
+    assert fresh_db.table("child").foreign_keys[0].other_columns == ("a", "b")
     fresh_db.execute("PRAGMA foreign_keys = ON")
-    fresh_db["child"].insert({"id": 1, "x": "A", "y": "B"})
+    fresh_db.table("child").insert({"id": 1, "x": "A", "y": "B"})
     with pytest.raises(sqlite3.IntegrityError):
-        fresh_db["child"].insert({"id": 2, "x": "B", "y": "A"})
+        fresh_db.table("child").insert({"id": 2, "x": "B", "y": "A"})
 
 
 def test_add_compound_foreign_key_guesses_pk_declaration_order(fresh_db):
     fresh_db.execute("create table other (b text, a text, primary key (a, b))")
-    fresh_db["child"].insert({"id": 1, "x": "A", "y": "B"}, pk="id")
-    fresh_db["child"].add_foreign_key(("x", "y"), "other")
-    assert fresh_db["child"].foreign_keys[0].other_columns == ("a", "b")
+    fresh_db.table("child").insert({"id": 1, "x": "A", "y": "B"}, pk="id")
+    fresh_db.table("child").add_foreign_key(("x", "y"), "other")
+    assert fresh_db.table("child").foreign_keys[0].other_columns == ("a", "b")
 
 
 def test_foreign_keys_are_hashable(fresh_db):
     # set() over foreign_keys worked with the 3.x namedtuple and must
     # keep working with the dataclass
-    fresh_db["p"].insert({"id": 1}, pk="id")
-    fresh_db["c"].insert(
+    fresh_db.table("p").insert({"id": 1}, pk="id")
+    fresh_db.table("c").insert(
         {"id": 1, "pid": 1}, pk="id", foreign_keys=[("pid", "p", "id")]
     )
-    fks = set(fresh_db["c"].foreign_keys)
+    fks = set(fresh_db.table("c").foreign_keys)
     assert len(fks) == 1
     assert ForeignKey("c", "pid", "p", "id") in fks
     # Usable as dict keys too
@@ -617,9 +625,9 @@ def test_create_table_mixed_foreign_keys_list(fresh_db):
     # 3.x accepted a mix of ForeignKey objects, tuples and bare column
     # strings in foreign_keys= (ForeignKey was a namedtuple, so it passed
     # the tuple check) - keep accepting the mix
-    fresh_db["authors"].insert({"id": 1}, pk="id")
-    fresh_db["publishers"].insert({"id": 1}, pk="id")
-    fresh_db["books"].create(
+    fresh_db.table("authors").insert({"id": 1}, pk="id")
+    fresh_db.table("publishers").insert({"id": 1}, pk="id")
+    fresh_db.table("books").create(
         {"id": int, "author_id": int, "publisher_id": int},
         pk="id",
         foreign_keys=[
@@ -627,14 +635,14 @@ def test_create_table_mixed_foreign_keys_list(fresh_db):
             ("publisher_id", "publishers", "id"),
         ],
     )
-    fks = {fk.column: fk.other_table for fk in fresh_db["books"].foreign_keys}
+    fks = {fk.column: fk.other_table for fk in fresh_db.table("books").foreign_keys}
     assert fks == {"author_id": "authors", "publisher_id": "publishers"}
 
 
 def test_create_table_mixed_foreign_keys_with_string(fresh_db):
-    fresh_db["authors"].insert({"id": 1}, pk="id")
-    fresh_db["publishers"].insert({"id": 1}, pk="id")
-    fresh_db["books"].create(
+    fresh_db.table("authors").insert({"id": 1}, pk="id")
+    fresh_db.table("publishers").insert({"id": 1}, pk="id")
+    fresh_db.table("books").create(
         {"id": int, "author_id": int, "publisher_id": int},
         pk="id",
         foreign_keys=[
@@ -642,15 +650,15 @@ def test_create_table_mixed_foreign_keys_with_string(fresh_db):
             ("publisher_id", "publishers", "id"),
         ],
     )
-    fks = {fk.column: fk.other_table for fk in fresh_db["books"].foreign_keys}
+    fks = {fk.column: fk.other_table for fk in fresh_db.table("books").foreign_keys}
     assert fks == {"author_id": "authors", "publisher_id": "publishers"}
 
 
 def test_add_foreign_keys_existing_with_different_actions_errors(fresh_db):
     # Requesting an existing foreign key with different ON DELETE/ON UPDATE
     # actions was silently skipped, dropping the requested change
-    fresh_db["authors"].insert({"id": 1}, pk="id")
-    fresh_db["books"].insert(
+    fresh_db.table("authors").insert({"id": 1}, pk="id")
+    fresh_db.table("books").insert(
         {"id": 1, "author_id": 1},
         pk="id",
         foreign_keys=[("author_id", "authors", "id")],
@@ -660,19 +668,21 @@ def test_add_foreign_keys_existing_with_different_actions_errors(fresh_db):
             [ForeignKey("books", "author_id", "authors", "id", on_delete="CASCADE")]
         )
     assert "ON DELETE" in str(ex.value)
-    assert fresh_db["books"].foreign_keys[0].on_delete == "NO ACTION"
+    assert fresh_db.table("books").foreign_keys[0].on_delete == "NO ACTION"
 
 
 def test_add_foreign_keys_identical_existing_is_noop(fresh_db):
     # An exact match, including actions, is silently skipped so repeated
     # calls stay idempotent
-    fresh_db["authors"].insert({"id": 1}, pk="id")
-    fresh_db["books"].insert({"id": 1, "author_id": 1}, pk="id")
-    fresh_db["books"].add_foreign_key("author_id", "authors", "id", on_delete="CASCADE")
+    fresh_db.table("authors").insert({"id": 1}, pk="id")
+    fresh_db.table("books").insert({"id": 1, "author_id": 1}, pk="id")
+    fresh_db.table("books").add_foreign_key(
+        "author_id", "authors", "id", on_delete="CASCADE"
+    )
     fresh_db.add_foreign_keys(
         [ForeignKey("books", "author_id", "authors", "id", on_delete="CASCADE")]
     )
-    fks = fresh_db["books"].foreign_keys
+    fks = fresh_db.table("books").foreign_keys
     assert len(fks) == 1
     assert fks[0].on_delete == "CASCADE"
 
@@ -680,13 +690,13 @@ def test_add_foreign_keys_identical_existing_is_noop(fresh_db):
 def test_add_foreign_keys_compound_column_count_mismatch_errors(fresh_db):
     # Previously the extra other-column was silently discarded, creating
     # a single-column foreign key to just ("id")
-    fresh_db["departments"].insert(
+    fresh_db.table("departments").insert(
         {"campus": "north", "code": "cs"}, pk=("campus", "code")
     )
-    fresh_db["courses"].insert({"id": 1, "campus": "north"}, pk="id")
+    fresh_db.table("courses").insert({"id": 1, "campus": "north"}, pk="id")
     with pytest.raises(ValueError) as ex:
         fresh_db.add_foreign_keys(
             [("courses", ("campus",), "departments", ("campus", "code"))]
         )
     assert "same number of columns" in str(ex.value)
-    assert fresh_db["courses"].foreign_keys == []
+    assert fresh_db.table("courses").foreign_keys == []

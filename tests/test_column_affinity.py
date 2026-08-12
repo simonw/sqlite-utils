@@ -43,4 +43,4 @@ def test_column_affinity(column_def, expected_type):
 @pytest.mark.parametrize("column_def,expected_type", EXAMPLES)
 def test_columns_dict(fresh_db, column_def, expected_type):
     fresh_db.execute(f"create table foo (col {column_def})")
-    assert {"col": expected_type} == fresh_db["foo"].columns_dict
+    assert {"col": expected_type} == fresh_db.table("foo").columns_dict

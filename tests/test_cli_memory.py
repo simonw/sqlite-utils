@@ -228,7 +228,7 @@ def test_memory_save(tmpdir, extra_args):
     )
     assert result.exit_code == 0
     db = Database(save_to)
-    assert list(db["stdin"].rows) == [
+    assert list(db.table("stdin").rows) == [
         {"id": 1, "name": "Cleo"},
         {"id": 2, "name": "Bants"},
     ]

@@ -10,11 +10,11 @@ def migrations():
 
     @migrations()
     def m001(db):
-        db["dogs"].insert({"name": "Cleo"})
+        db.table("dogs").insert({"name": "Cleo"})
 
     @migrations()
     def m002(db):
-        db["cats"].create({"name": str})
+        db.table("cats").create({"name": str})
         db.execute("insert into dogs (name) values ('Pancakes')")
 
     return migrations
@@ -28,11 +28,11 @@ def migrations_not_ordered_alphabetically():
 
     @migrations()
     def m002(db):
-        db["dogs"].insert({"name": "Cleo"})
+        db.table("dogs").insert({"name": "Cleo"})
 
     @migrations()
     def m001(db):
-        db["cats"].create({"name": str})
+        db.table("cats").create({"name": str})
         db.execute("insert into dogs (name) values ('Pancakes')")
 
     return migrations
@@ -44,7 +44,7 @@ def migrations2():
 
     @migrations()
     def m001(db):
-        db["dogs2"].insert({"name": "Cleo"})
+        db.table("dogs2").insert({"name": "Cleo"})
 
     return migrations
 
@@ -96,7 +96,7 @@ def test_applied_at_is_a_string(migrations):
 def test_failing_migration_rolls_back(migrations):
     @migrations()
     def m003(db):
-        db["birds"].create({"name": str})
+        db.table("birds").create({"name": str})
         db.execute("insert into dogs (name) values ('Dozer')")
         raise ValueError("boom")
 
@@ -105,7 +105,7 @@ def test_failing_migration_rolls_back(migrations):
         migrations.apply(db)
     # m001 and m002 committed before the failure and stay applied
     assert set(db.table_names()) == {"_sqlite_migrations", "dogs", "cats"}
-    assert [r["name"] for r in db["dogs"].rows] == ["Cleo", "Pancakes"]
+    assert [r["name"] for r in db.table("dogs").rows] == ["Cleo", "Pancakes"]
     assert [m.name for m in migrations.applied(db)] == ["m001", "m002"]
     # Everything m003 did was rolled back and it is still pending
     assert [m.name for m in migrations.pending(db)] == ["m003"]
@@ -117,11 +117,11 @@ def test_rerun_after_failure_applies_each_migration_once():
 
     @migrations()
     def m001(db):
-        db["dogs"].insert({"name": "Cleo"})
+        db.table("dogs").insert({"name": "Cleo"})
 
     @migrations()
     def m002(db):
-        db["dogs"].insert({"name": "Pancakes"})
+        db.table("dogs").insert({"name": "Pancakes"})
         if state["fail"]:
             raise ValueError("boom")
 
@@ -131,7 +131,7 @@ def test_rerun_after_failure_applies_each_migration_once():
     state["fail"] = False
     migrations.apply(db)
     # m001 must not have been re-applied, m002 applied exactly once
-    assert [r["name"] for r in db["dogs"].rows] == ["Cleo", "Pancakes"]
+    assert [r["name"] for r in db.table("dogs").rows] == ["Cleo", "Pancakes"]
     assert [m.name for m in migrations.applied(db)] == ["m001", "m002"]
 
 
@@ -142,7 +142,7 @@ def test_non_transactional_migration_allows_vacuum(tmpdir):
 
     @migrations()
     def m001(db):
-        db["dogs"].insert({"name": "Cleo"})
+        db.table("dogs").insert({"name": "Cleo"})
 
     @migrations(transactional=False)
     def m002(db):
@@ -185,11 +185,13 @@ def test_apply_composes_inside_outer_transaction(migrations):
 )
 def test_upgrades_sqlite_migrations(migrations, create_table, pk):
     db = sqlite_utils.Database(memory=True)
-    db["_sqlite_migrations"].create(create_table, pk=pk)
+    db.table("_sqlite_migrations").create(create_table, pk=pk)
     assert db.table_names() == ["_sqlite_migrations"]
-    assert db["_sqlite_migrations"].pks == ([pk] if isinstance(pk, str) else list(pk))
+    assert db.table("_sqlite_migrations").pks == (
+        [pk] if isinstance(pk, str) else list(pk)
+    )
     migrations.apply(db)
-    assert db["_sqlite_migrations"].pks == ["id"]
+    assert db.table("_sqlite_migrations").pks == ["id"]
 
 
 def test_pending_and_applied_are_read_only(migrations):
@@ -227,7 +229,7 @@ def test_stop_before_applied_migration_errors(migrations):
     assert "m001" in str(ex.value)
     assert "already been applied" in str(ex.value)
     # Nothing else was applied
-    assert not db["cats"].exists()
+    assert not db.table("cats").exists()
 
 
 def test_stop_before_applied_migration_errors_before_any_apply(migrations):
@@ -238,9 +240,9 @@ def test_stop_before_applied_migration_errors_before_any_apply(migrations):
 
     @only_second()
     def m002(db):
-        db["cats"].create({"name": str})
+        db.table("cats").create({"name": str})
 
     only_second.apply(db)  # m002 applied, m001 still pending
     with pytest.raises(ValueError):
         migrations.apply(db, stop_before="m002")
-    assert not db["dogs"].exists()
+    assert not db.table("dogs").exists()
