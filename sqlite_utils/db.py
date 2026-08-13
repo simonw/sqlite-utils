@@ -32,10 +32,13 @@ from .create_table_parser import (
     Check,
     ColumnComments,
     ParseError,
+    Unique,
+    UniqueColumn,
     check_references_identifier,
     parse_autoincrement,
     parse_checks,
     parse_column_comments,
+    parse_uniques,
     rewrite_check_expression,
     sql_ends_in_line_comment,
 )
@@ -102,6 +105,24 @@ def _check_constraint_sql(check: Check) -> str:
     prefix = f"CONSTRAINT {quote_identifier(check.name)} " if check.name else ""
     newline = "\n" if sql_ends_in_line_comment(check.check) else ""
     return f"{prefix}CHECK ({check.check}{newline})"
+
+
+def _unique_constraint_sql(unique: Unique) -> str:
+    prefix = f"CONSTRAINT {quote_identifier(unique.name)} " if unique.name else ""
+    if unique.column:
+        constraint = "UNIQUE"
+    else:
+        columns = []
+        for column in unique.columns:
+            column_sql = quote_identifier(column.name)
+            if column.collation:
+                column_sql += f" COLLATE {quote_identifier(column.collation)}"
+            if column.order:
+                column_sql += f" {column.order}"
+            columns.append(column_sql)
+        constraint = "UNIQUE ({})".format(", ".join(columns))
+    conflict = f" ON CONFLICT {unique.conflict}" if unique.conflict else ""
+    return f"{prefix}{constraint}{conflict}"
 
 
 def _column_definition_with_comments(
@@ -1424,6 +1445,7 @@ class Database:
         _checks: Iterable[Check] | None = None,
         _column_comments: Mapping[str, ColumnComments] | None = None,
         _autoincrement: str | None = None,
+        _uniques: Iterable[Unique] | None = None,
     ) -> str:
         """
         Returns the SQL ``CREATE TABLE`` statement for creating the specified table.
@@ -1486,6 +1508,60 @@ class Database:
                 checks_by_column.setdefault(column, []).append(check)
             else:
                 table_checks.append(check)
+        uniques_by_column: dict[str, list[Unique]] = {}
+        table_uniques: list[Unique] = []
+        for unique in _uniques or ():
+            resolved_unique = Unique(
+                tuple(
+                    UniqueColumn(
+                        resolve_casing(column.name, columns),
+                        collation=column.collation,
+                        order=column.order,
+                    )
+                    for column in unique.columns
+                ),
+                name=unique.name,
+                column=(
+                    resolve_casing(unique.column, columns) if unique.column else ""
+                ),
+                conflict=unique.conflict,
+            )
+            missing = [
+                column.name
+                for column in resolved_unique.columns
+                if column.name not in columns
+            ]
+            if missing:
+                raise AlterError(
+                    "No such column for UNIQUE constraint: {}".format(
+                        ", ".join(missing)
+                    )
+                )
+            if resolved_unique.column:
+                if (
+                    len(resolved_unique.columns) != 1
+                    or resolved_unique.columns[0].name != resolved_unique.column
+                ):
+                    raise AlterError("Invalid column-level UNIQUE constraint")
+                if any(
+                    column.collation or column.order
+                    for column in resolved_unique.columns
+                ):
+                    # Render this as a table constraint so the collation or sort
+                    # order that governs uniqueness can be represented explicitly.
+                    table_uniques.append(
+                        Unique(
+                            resolved_unique.columns,
+                            name=resolved_unique.name,
+                            conflict=resolved_unique.conflict,
+                        )
+                    )
+                else:
+                    uniques_by_column.setdefault(resolved_unique.column, []).append(
+                        resolved_unique
+                    )
+            else:
+                table_uniques.append(resolved_unique)
         if not columns:
             raise ValueError("Tables must have at least one column")
         if not all(n in columns for n in not_null):
@@ -1555,6 +1631,10 @@ class Database:
                     f"REFERENCES {quote_identifier(fk.other_table)}({quote_identifier(cast(str, fk.other_column))}){_fk_actions_sql(fk)}"
                 )
             column_extras.extend(
+                _unique_constraint_sql(unique)
+                for unique in uniques_by_column.get(column_name, ())
+            )
+            column_extras.extend(
                 _check_constraint_sql(check)
                 for check in checks_by_column.get(column_name, ())
             )
@@ -1600,6 +1680,9 @@ class Database:
                     actions=_fk_actions_sql(fk),
                 )
             )
+        column_defs.extend(
+            f"   {_unique_constraint_sql(unique)}" for unique in table_uniques
+        )
         column_defs.extend(
             f"   {_check_constraint_sql(check)}" for check in table_checks
         )
@@ -2763,6 +2846,7 @@ class Table(Queryable):
             existing_checks = self.checks
             existing_column_comments = parse_column_comments(self.schema)
             existing_autoincrement = parse_autoincrement(self.schema)
+            existing_uniques = parse_uniques(self.schema)
         except ParseError as ex:
             raise TransformError(
                 f"Could not parse table schema for table {self.name!r}: {ex}"
@@ -2786,6 +2870,37 @@ class Table(Queryable):
                     rewrite_check_expression(check.check, rename),
                     name=check.name,
                     column=rename.get(owner) or owner,
+                )
+            )
+
+        create_table_uniques: list[Unique] = []
+        for unique in existing_uniques:
+            columns = tuple(
+                UniqueColumn(
+                    resolve_casing(column.name, existing_columns),
+                    collation=column.collation,
+                    order=column.order,
+                )
+                for column in unique.columns
+            )
+            if any(column.name in drop for column in columns):
+                continue
+            owner = (
+                resolve_casing(unique.column, existing_columns) if unique.column else ""
+            )
+            create_table_uniques.append(
+                Unique(
+                    tuple(
+                        UniqueColumn(
+                            rename.get(column.name) or column.name,
+                            collation=column.collation,
+                            order=column.order,
+                        )
+                        for column in columns
+                    ),
+                    name=unique.name,
+                    column=rename.get(owner) or owner,
+                    conflict=unique.conflict,
                 )
             )
 
@@ -2974,6 +3089,7 @@ class Table(Queryable):
                 _checks=create_table_checks,
                 _column_comments=create_table_column_comments,
                 _autoincrement=create_table_autoincrement,
+                _uniques=create_table_uniques,
             ).strip()
         )
 
@@ -3008,6 +3124,9 @@ class Table(Queryable):
                 {"index_name": index.name},
             ).fetchall()[0][0]
             if index_sql is None:
+                if index.origin == "u":
+                    # UNIQUE constraints are reproduced in CREATE TABLE above.
+                    continue
                 raise TransformError(
                     f"Index '{index.name}' on table '{self.name}' does not have a "
                     "CREATE INDEX statement. You must manually drop this index prior to running this "

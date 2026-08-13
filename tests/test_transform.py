@@ -1033,24 +1033,78 @@ def test_transform_with_unique_constraint_implicit_index(fresh_db):
     fresh_db.execute("""
         CREATE TABLE dogs (
             id INTEGER PRIMARY KEY,
-            name TEXT UNIQUE,
+            name TEXT UNIQUE ON CONFLICT IGNORE,
             age INTEGER
         );
     """)
     dogs.insert({"id": 1, "name": "Cleo", "age": 5})
 
-    # Attempt to transform the table without modifying 'name'
-    with pytest.raises(TransformError) as excinfo:
-        dogs.transform(types={"age": str})
+    dogs.transform(types={"age": str}, rename={"name": "dog_name"})
+
+    assert 'dog_name" TEXT UNIQUE ON CONFLICT IGNORE' in dogs.schema
+    dogs.insert({"id": 2, "dog_name": "Cleo", "age": "6"})
+    assert list(dogs.rows) == [{"id": 1, "dog_name": "Cleo", "age": "5"}]
+
+
+def test_transform_preserves_composite_unique_constraint(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE memberships (
+            account_id INTEGER,
+            email TEXT,
+            note TEXT,
+            CONSTRAINT unique_membership
+                UNIQUE (account_id DESC, email COLLATE NOCASE)
+                ON CONFLICT ABORT
+        )
+    """)
+    memberships = fresh_db.table("memberships")
+    memberships.insert({"account_id": 1, "email": "one@example.com", "note": "x"})
+
+    memberships.transform(rename={"account_id": "organization_id"}, types={"note": str})
 
     assert (
-        "Index 'sqlite_autoindex_dogs_1' on table 'dogs' does not have a CREATE INDEX statement."
-        in str(excinfo.value)
+        'CONSTRAINT "unique_membership" UNIQUE '
+        '("organization_id" DESC, "email" COLLATE "NOCASE") ON CONFLICT ABORT'
+        in memberships.schema
     )
-    assert (
-        "You must manually drop this index prior to running this transformation and manually recreate the new index after running this transformation."
-        in str(excinfo.value)
-    )
+    with pytest.raises(sqlite3.IntegrityError):
+        memberships.insert(
+            {"organization_id": 1, "email": "ONE@example.com", "note": "y"}
+        )
+
+
+def test_transform_preserves_column_unique_collation(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE people (
+            id INTEGER PRIMARY KEY,
+            name TEXT COLLATE NOCASE UNIQUE
+        )
+    """)
+    people = fresh_db.table("people")
+    people.insert({"id": 1, "name": "Cleo"})
+
+    people.transform(rename={"name": "full_name"})
+
+    assert 'UNIQUE ("full_name" COLLATE "NOCASE")' in people.schema
+    with pytest.raises(sqlite3.IntegrityError):
+        people.insert({"id": 2, "full_name": "cleo"})
+
+
+def test_transform_drops_entire_composite_unique_constraint(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE memberships (
+            account_id INTEGER,
+            email TEXT,
+            UNIQUE (account_id, email)
+        )
+    """)
+    memberships = fresh_db.table("memberships")
+    memberships.insert({"account_id": 1, "email": "one@example.com"})
+
+    memberships.transform(drop={"email"})
+
+    assert "UNIQUE" not in memberships.schema
+    memberships.insert({"account_id": 1})
 
 
 def test_transform_preserves_autoincrement_and_sequence(fresh_db):

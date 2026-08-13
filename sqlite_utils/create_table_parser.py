@@ -32,6 +32,24 @@ class ColumnComments:
     after: str = ""
 
 
+@dataclass(frozen=True)
+class UniqueColumn:
+    name: str
+    collation: str = ""
+    order: str = ""
+
+
+@dataclass
+class Unique:
+    columns: tuple[UniqueColumn, ...]
+    name: str = ""
+    column: str = ""
+    conflict: str = ""
+    sql: str = field(default="", compare=False, repr=False)
+    start: int = field(default=-1, compare=False, repr=False)
+    end: int = field(default=-1, compare=False, repr=False)
+
+
 class ParseError(ValueError):
     pass
 
@@ -590,6 +608,181 @@ def parse_autoincrement(create_sql: str) -> str | None:
                 return column
             index += 1
     return None
+
+
+_CONFLICT_ACTIONS = frozenset(("ROLLBACK", "ABORT", "FAIL", "IGNORE", "REPLACE"))
+
+
+def _conflict_after(tokens: list[_Token], index: int) -> tuple[str, int]:
+    if index >= len(tokens) or not tokens[index].is_keyword("ON"):
+        return "", index
+    if index + 2 >= len(tokens) or not tokens[index + 1].is_keyword("CONFLICT"):
+        raise ParseError("ON after UNIQUE must be followed by CONFLICT and an action")
+    action = tokens[index + 2].text.upper()
+    if tokens[index + 2].kind != "word" or action not in _CONFLICT_ACTIONS:
+        raise ParseError("Invalid UNIQUE ON CONFLICT action")
+    return action, index + 3
+
+
+def _unique_columns(
+    item: str, tokens: list[_Token], open_index: int
+) -> tuple[tuple[UniqueColumn, ...], int]:
+    close = _matching_paren(tokens, open_index)
+    inner = item[tokens[open_index].end : tokens[close].start]
+    columns: list[UniqueColumn] = []
+    for raw_column in _split_ranges(inner, _lex(inner)):
+        column_tokens = _meaningful(_lex(raw_column))
+        if not column_tokens or column_tokens[0].kind not in (
+            "word",
+            "identifier",
+            "string",
+        ):
+            raise ParseError("UNIQUE constraint has an invalid column")
+        name = _unquote(column_tokens[0].text)
+        collation = ""
+        order = ""
+        index = 1
+        if index < len(column_tokens) and column_tokens[index].is_keyword("COLLATE"):
+            if index + 1 >= len(column_tokens):
+                raise ParseError("COLLATE in UNIQUE constraint is missing its name")
+            collation = _unquote(column_tokens[index + 1].text)
+            index += 2
+        if index < len(column_tokens) and (
+            column_tokens[index].is_keyword("ASC")
+            or column_tokens[index].is_keyword("DESC")
+        ):
+            order = column_tokens[index].text.upper()
+            index += 1
+        if index != len(column_tokens):
+            raise ParseError("UNIQUE constraint has an invalid indexed column")
+        columns.append(UniqueColumn(name, collation=collation, order=order))
+    if not columns:
+        raise ParseError("UNIQUE constraint must include at least one column")
+    return tuple(columns), close + 1
+
+
+def _column_uniques(
+    item: str, tokens: list[_Token], column: str, base_offset: int
+) -> list[Unique]:
+    uniques: list[Unique] = []
+    collation = ""
+    collation_index = 1
+    while collation_index < len(tokens):
+        token = tokens[collation_index]
+        if token.text == "(":
+            collation_index = _matching_paren(tokens, collation_index) + 1
+            continue
+        if token.is_keyword("COLLATE"):
+            if collation_index + 1 >= len(tokens):
+                raise ParseError("COLLATE is missing its name")
+            collation = _unquote(tokens[collation_index + 1].text)
+            collation_index += 2
+            continue
+        collation_index += 1
+    pending_name = ""
+    pending_start: int | None = None
+    index = 1
+    while index < len(tokens):
+        token = tokens[index]
+        if token.text == "(":
+            index = _matching_paren(tokens, index) + 1
+            continue
+        if token.is_keyword("CONSTRAINT"):
+            if index + 1 >= len(tokens):
+                raise ParseError("CONSTRAINT is missing its name")
+            pending_name = _unquote(tokens[index + 1].text)
+            pending_start = index
+            index += 2
+            continue
+        if token.is_keyword("UNIQUE"):
+            source_start = tokens[
+                pending_start if pending_start is not None else index
+            ].start
+            conflict, next_index = _conflict_after(tokens, index + 1)
+            source_end = tokens[next_index - 1].end
+            uniques.append(
+                Unique(
+                    (UniqueColumn(column, collation=collation),),
+                    name=pending_name,
+                    column=column,
+                    conflict=conflict,
+                    sql=item[source_start:source_end],
+                    start=base_offset + source_start,
+                    end=base_offset + source_end,
+                )
+            )
+            pending_name = ""
+            pending_start = None
+            index = next_index
+            continue
+        if (
+            token.kind == "word"
+            and token.text.upper() in _OTHER_COLUMN_CONSTRAINT_KEYWORDS
+        ):
+            pending_name = ""
+            pending_start = None
+        index += 1
+    return uniques
+
+
+def parse_uniques(create_sql: str) -> list[Unique]:
+    """Return column-level and table-level UNIQUE constraints."""
+    body_info = _table_body(create_sql)
+    if body_info is None:
+        return []
+    body, body_start = body_info
+    uniques: list[Unique] = []
+    for item, item_start, _ in _split_spans(body, _lex(body)):
+        item_tokens = _meaningful(_lex(item))
+        if not item_tokens:
+            continue
+        item_index = 0
+        constraint_name = ""
+        if item_tokens[item_index].is_keyword("CONSTRAINT"):
+            if len(item_tokens) < 2:
+                raise ParseError("CONSTRAINT is missing its name")
+            constraint_name = _unquote(item_tokens[1].text)
+            item_index = 2
+        head = item_tokens[item_index] if item_index < len(item_tokens) else None
+        if head and head.is_keyword("UNIQUE"):
+            if (
+                item_index + 1 >= len(item_tokens)
+                or item_tokens[item_index + 1].text != "("
+            ):
+                raise ParseError("Table UNIQUE must be followed by a column list")
+            columns, next_index = _unique_columns(item, item_tokens, item_index + 1)
+            conflict, next_index = _conflict_after(item_tokens, next_index)
+            if next_index != len(item_tokens):
+                raise ParseError("Unexpected SQL after UNIQUE constraint")
+            source_start = item_tokens[0].start
+            source_end = item_tokens[next_index - 1].end
+            uniques.append(
+                Unique(
+                    columns,
+                    name=constraint_name,
+                    conflict=conflict,
+                    sql=item[source_start:source_end],
+                    start=body_start + item_start + source_start,
+                    end=body_start + item_start + source_end,
+                )
+            )
+            continue
+        if (
+            head
+            and head.kind == "word"
+            and head.text.upper() in _TABLE_CONSTRAINT_KEYWORDS
+        ):
+            continue
+        column = _unquote(item_tokens[0].text)
+        uniques.extend(
+            _column_uniques(
+                item,
+                item_tokens,
+                column,
+                body_start + item_start,
+            )
+        )
+    return uniques
 
 
 def parse_column_comments(create_sql: str) -> dict[str, ColumnComments]:

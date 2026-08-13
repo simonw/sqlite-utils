@@ -8,9 +8,12 @@ from sqlite_utils.create_table_parser import (
     Check,
     ColumnComments,
     ParseError,
+    Unique,
+    UniqueColumn,
     parse_autoincrement,
     parse_checks,
     parse_column_comments,
+    parse_uniques,
 )
 
 
@@ -146,6 +149,51 @@ def test_virtual_table_has_no_checks():
 def test_parse_autoincrement(sql, expected):
     sqlite3.connect(":memory:").execute(sql)
     assert parse_autoincrement(sql) == expected
+
+
+def test_parse_column_and_table_uniques():
+    sql = """
+        CREATE TABLE memberships (
+            email TEXT COLLATE RTRIM CONSTRAINT unique_email UNIQUE ON CONFLICT IGNORE,
+            account_id INTEGER,
+            CONSTRAINT unique_membership UNIQUE (
+                account_id DESC,
+                email COLLATE NOCASE ASC
+            ) ON CONFLICT REPLACE
+        )
+    """
+    sqlite3.connect(":memory:").execute(sql)
+    assert parse_uniques(sql) == [
+        Unique(
+            (UniqueColumn("email", collation="RTRIM"),),
+            name="unique_email",
+            column="email",
+            conflict="IGNORE",
+        ),
+        Unique(
+            (
+                UniqueColumn("account_id", order="DESC"),
+                UniqueColumn("email", collation="NOCASE", order="ASC"),
+            ),
+            name="unique_membership",
+            conflict="REPLACE",
+        ),
+    ]
+    uniques = parse_uniques(sql)
+    assert uniques[0].sql == "CONSTRAINT unique_email UNIQUE ON CONFLICT IGNORE"
+    assert sql[uniques[1].start : uniques[1].end] == uniques[1].sql
+
+
+def test_unique_like_text_in_comments_and_checks_is_ignored():
+    sql = """
+        CREATE TABLE t (
+            value TEXT /* UNIQUE ON CONFLICT REPLACE */
+                CHECK(value != 'UNIQUE(other)'),
+            other TEXT
+        )
+    """
+    sqlite3.connect(":memory:").execute(sql)
+    assert parse_uniques(sql) == []
 
 
 comment_or_space = st.sampled_from(
