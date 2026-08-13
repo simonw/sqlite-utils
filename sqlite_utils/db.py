@@ -2023,6 +2023,8 @@ class Queryable:
         :param where_args: Parameters to use with that fragment - an iterable for ``id > ?``
           parameters, or a dictionary for ``id > :id``
         """
+        if not self.exists():
+            return 0
         sql = f"select count(*) from {quote_identifier(self.name)}"
         if where is not None:
             sql += " where " + where

@@ -96,6 +96,12 @@ def test_count_where(existing_db):
     assert existing_db.table("foo").count_where("text != :t", {"t": "two"}) == 2
 
 
+def test_count_where_nonexistent_table(fresh_db):
+    assert fresh_db.table("does_not_exist").count_where() == 0
+    assert fresh_db.table("does_not_exist").count_where("id > ?", [5]) == 0
+    assert fresh_db.table("does_not_exist").count == 0
+
+
 def test_columns(existing_db):
     table = existing_db.table("foo")
     assert [{"name": "text", "type": "TEXT"}] == [
