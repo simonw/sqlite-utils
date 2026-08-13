@@ -24,6 +24,8 @@ from typing import (
 )
 
 from sqlite_fts4 import rank_bm25
+from typing_extensions import Self
+
 from sqlite_utils.plugins import ensure_plugins_loaded, pm
 
 from .create_table_parser import (
@@ -635,7 +637,7 @@ class Database:
             pm.hook.prepare_connection(conn=self.conn)
         self.strict = strict
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(
