@@ -2027,6 +2027,7 @@ class Database:
 
     def vacuum(self) -> None:
         "Run a SQLite ``VACUUM`` against the database."
+        self.commit()
         self.execute("VACUUM;")
 
     def analyze(self, name: str | None = None) -> None:
