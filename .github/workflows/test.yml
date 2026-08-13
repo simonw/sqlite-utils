@@ -54,6 +54,7 @@ jobs:
         pip install uv
         uv run ty check sqlite_utils
     - name: Check no accidental dev= dependencies needed
+      if: matrix.os == 'ubuntu-latest'
       run: |
         pip install uv
         uv run --no-default-groups sqlite-utils --help
