@@ -53,6 +53,9 @@ jobs:
       run: |
         pip install uv
         uv run ty check sqlite_utils
+    - name: Check no accidental dev= dependencies needed
+      run: |
+        uv run --no-default-groups sqlite-utils --help
     - name: Check formatting
       run: black . --check
     - name: Check if cog needs to be run
