@@ -1,8 +1,7 @@
 import sqlite3
 
 import click
-from pluggy import HookimplMarker
-from pluggy import HookspecMarker
+from pluggy import HookimplMarker, HookspecMarker
 
 hookspec = HookspecMarker("sqlite_utils")
 hookimpl = HookimplMarker("sqlite_utils")

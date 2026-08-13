@@ -1,13 +1,15 @@
-from sqlite_utils.db import Database, ColumnDetails
-from sqlite_utils import cli
-from click.testing import CliRunner
-import pytest
 import sqlite3
+
+import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import cli
+from sqlite_utils.db import ColumnDetails, Database
 
 
 @pytest.fixture
 def db_to_analyze(fresh_db):
-    stuff = fresh_db["stuff"]
+    stuff = fresh_db.table("stuff")
     stuff.insert_all(
         [
             {"id": 1, "owner": "Terryterryterry", "size": 5},
@@ -43,7 +45,7 @@ def big_db_to_analyze_path(tmpdir):
                     "all_null": None,
                 }
             )
-    db["stuff"].insert_all(to_insert)
+    db.table("stuff").insert_all(to_insert)
     return path
 
 
@@ -124,7 +126,7 @@ def big_db_to_analyze_path(tmpdir):
 )
 def test_analyze_column(db_to_analyze, column, extra_kwargs, expected):
     assert (
-        db_to_analyze["stuff"].analyze_column(
+        db_to_analyze.table("stuff").analyze_column(
             column, common_limit=2, value_truncate=5, **extra_kwargs
         )
         == expected
@@ -184,7 +186,7 @@ def test_analyze_table_save(db_to_analyze_path):
         cli.cli, ["analyze-tables", db_to_analyze_path, "--save"]
     )
     assert result.exit_code == 0
-    rows = list(Database(db_to_analyze_path)["_analyze_tables_"].rows)
+    rows = list(Database(db_to_analyze_path).table("_analyze_tables_").rows)
     assert rows == [
         {
             "table": "stuff",
@@ -246,7 +248,7 @@ def test_analyze_table_save_no_most_no_least_options(
         args.append("--no-least")
     result = CliRunner().invoke(cli.cli, args)
     assert result.exit_code == 0
-    rows = list(Database(big_db_to_analyze_path)["_analyze_tables_"].rows)
+    rows = list(Database(big_db_to_analyze_path).table("_analyze_tables_").rows)
     expected = {
         "table": "stuff",
         "column": "category",
@@ -295,13 +297,13 @@ def test_analyze_table_column_all_nulls(big_db_to_analyze_path):
 def test_analyze_table_validate_columns(tmpdir, args, expected_error):
     path = str(tmpdir / "test_validate_columns.db")
     db = Database(path)
-    db["one"].insert(
+    db.table("one").insert(
         {
             "id": 1,
             "name": "one",
         }
     )
-    db["two"].insert(
+    db.table("two").insert(
         {
             "id": 1,
             "age": 5,

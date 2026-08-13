@@ -1,17 +1,19 @@
-from click.testing import CliRunner
-from sqlite_utils import cli, Database
 import pathlib
-import pytest
 import subprocess
 import sys
 import time
+
+import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import Database, cli
 
 
 @pytest.fixture
 def test_db_and_path(tmpdir):
     db_path = str(pathlib.Path(tmpdir) / "data.db")
     db = Database(db_path)
-    db["example"].insert_all(
+    db.table("example").insert_all(
         [
             {"id": 1, "name": "One"},
             {"id": 2, "name": "Two"},
@@ -42,7 +44,7 @@ def test_cli_bulk(test_db_and_path):
         {"id": 2, "name": "Two"},
         {"id": 3, "name": "THREE"},
         {"id": 4, "name": "FOUR"},
-    ] == list(db["example"].rows)
+    ] == list(db.table("example").rows)
 
 
 def test_cli_bulk_multiple_functions(test_db_and_path):
@@ -68,7 +70,7 @@ def test_cli_bulk_multiple_functions(test_db_and_path):
         {"id": 2, "name": "Two"},
         {"id": 3, "name": "THREE"},
         {"id": 4, "name": "FOUR"},
-    ] == list(db["example"].rows)
+    ] == list(db.table("example").rows)
 
 
 def test_cli_bulk_batch_size(test_db_and_path):
@@ -89,17 +91,18 @@ def test_cli_bulk_batch_size(test_db_and_path):
         stdin=subprocess.PIPE,
         stdout=sys.stdout,
     )
+    assert proc.stdin is not None
     # Writing one record should not commit
     proc.stdin.write(b'{"id": 3, "name": "Three"}\n\n')
     proc.stdin.flush()
     time.sleep(1)
-    assert db["example"].count == 2
+    assert db.table("example").count == 2
 
     # Writing another should trigger a commit:
     proc.stdin.write(b'{"id": 4, "name": "Four"}\n\n')
     proc.stdin.flush()
     time.sleep(1)
-    assert db["example"].count == 4
+    assert db.table("example").count == 4
 
     proc.stdin.close()
     proc.wait()

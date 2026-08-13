@@ -1,8 +1,10 @@
 import sqlite3
 
-from sqlite_utils.db import ForeignKey, TransactionError, TransformError
-from sqlite_utils.utils import OperationalError
 import pytest
+
+from sqlite_utils import ANY
+from sqlite_utils.db import Check, ForeignKey, TransactionError, TransformError
+from sqlite_utils.utils import OperationalError
 
 
 @pytest.mark.parametrize(
@@ -15,7 +17,9 @@ import pytest
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "age" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Change column type
@@ -25,7 +29,9 @@ import pytest
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "age" INTEGER\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", NULLIF("age", \'\') FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Rename a column
@@ -35,7 +41,9 @@ import pytest
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "dog_age" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "dog_age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Drop a column
@@ -45,7 +53,9 @@ import pytest
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name")\n   SELECT "rowid", "id", "name" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Convert type AND rename column
@@ -55,7 +65,9 @@ import pytest
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "dog_age" INTEGER\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "dog_age")\n   SELECT "rowid", "id", "name", NULLIF("age", \'\') FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Change primary key
@@ -65,7 +77,9 @@ import pytest
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "age" TEXT PRIMARY KEY\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Change primary key to a compound pk
@@ -75,7 +89,9 @@ import pytest
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "age" TEXT,\n   PRIMARY KEY ("age", "name")\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Remove primary key, creating a rowid table
@@ -85,7 +101,9 @@ import pytest
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "age" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Keeping the table
@@ -94,8 +112,10 @@ import pytest
             [
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name")\n   SELECT "rowid", "id", "name" FROM "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs" RENAME TO "kept_table";',
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
     ],
@@ -109,11 +129,11 @@ def test_transform_sql_table_with_primary_key(
     def tracer(sql, params):
         return captured.append((sql, params))
 
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     if use_pragma_foreign_keys:
         fresh_db.conn.execute("PRAGMA foreign_keys=ON")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
-    sql = dogs.transform_sql(**{**params, **{"tmp_suffix": "suffix"}})
+    sql = dogs.transform_sql(**{**params, "tmp_suffix": "suffix"})
     assert sql == expected_sql
     # Check that .transform() runs without exceptions:
     with fresh_db.tracer(tracer):
@@ -138,7 +158,9 @@ def test_transform_sql_table_with_primary_key(
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "age" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Change column type
@@ -148,7 +170,9 @@ def test_transform_sql_table_with_primary_key(
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "age" INTEGER\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", NULLIF("age", \'\') FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Rename a column
@@ -158,7 +182,9 @@ def test_transform_sql_table_with_primary_key(
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "dog_age" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "dog_age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
         # Make ID a primary key
@@ -168,7 +194,9 @@ def test_transform_sql_table_with_primary_key(
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "age" TEXT\n);',
                 'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
                 'DROP TABLE "dogs";',
+                "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
+                "PRAGMA legacy_alter_table=OFF;",
             ],
         ),
     ],
@@ -182,11 +210,11 @@ def test_transform_sql_table_with_no_primary_key(
     def tracer(sql, params):
         return captured.append((sql, params))
 
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     if use_pragma_foreign_keys:
         fresh_db.conn.execute("PRAGMA foreign_keys=ON")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"})
-    sql = dogs.transform_sql(**{**params, **{"tmp_suffix": "suffix"}})
+    sql = dogs.transform_sql(**{**params, "tmp_suffix": "suffix"})
     assert sql == expected_sql
     # Check that .transform() runs without exceptions:
     with fresh_db.tracer(tracer):
@@ -202,7 +230,7 @@ def test_transform_sql_table_with_no_primary_key(
 
 
 def test_transform_sql_with_no_primary_key_to_primary_key_of_id(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"})
     assert (
         dogs.schema
@@ -217,7 +245,7 @@ def test_transform_sql_with_no_primary_key_to_primary_key_of_id(fresh_db):
 
 
 def test_transform_rename_pk(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
     dogs.transform(rename={"id": "pk"})
     assert (
@@ -238,7 +266,7 @@ def test_transform_preserves_keyword_literal_defaults(fresh_db):
         " note TEXT DEFAULT NULL"
         ")"
     )
-    table = fresh_db["t"]
+    table = fresh_db.table("t")
     table.insert({"id": 1})
     before = fresh_db.execute("SELECT is_active, flag, note FROM t").fetchone()
     assert before == (1, 0, None)
@@ -261,7 +289,7 @@ def test_transform_preserves_keyword_literal_defaults(fresh_db):
 
 
 def test_transform_not_null(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
     dogs.transform(not_null={"name"})
     assert (
@@ -271,7 +299,7 @@ def test_transform_not_null(fresh_db):
 
 
 def test_transform_remove_a_not_null(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, not_null={"age"}, pk="id")
     dogs.transform(not_null={"name": True, "age": False})
     assert (
@@ -282,7 +310,7 @@ def test_transform_remove_a_not_null(fresh_db):
 
 @pytest.mark.parametrize("not_null", [{"age"}, {"age": True}])
 def test_transform_add_not_null_with_rename(fresh_db, not_null):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
     dogs.transform(not_null=not_null, rename={"age": "dog_age"})
     assert (
@@ -292,7 +320,7 @@ def test_transform_add_not_null_with_rename(fresh_db, not_null):
 
 
 def test_transform_defaults(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
     dogs.transform(defaults={"age": 1})
     assert (
@@ -302,7 +330,7 @@ def test_transform_defaults(fresh_db):
 
 
 def test_transform_defaults_and_rename_column(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
     dogs.transform(rename={"age": "dog_age"}, defaults={"age": 1})
     assert (
@@ -312,7 +340,7 @@ def test_transform_defaults_and_rename_column(fresh_db):
 
 
 def test_remove_defaults(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo", "age": 5}, defaults={"age": 1}, pk="id")
     dogs.transform(defaults={"age": None})
     assert (
@@ -323,8 +351,8 @@ def test_remove_defaults(fresh_db):
 
 @pytest.fixture
 def authors_db(fresh_db):
-    books = fresh_db["books"]
-    authors = fresh_db["authors"]
+    books = fresh_db.table("books")
+    authors = fresh_db.table("authors")
     authors.insert({"id": 5, "name": "Jane McGonical"}, pk="id")
     books.insert(
         {"id": 2, "title": "Reality is Broken", "author_id": 5},
@@ -335,13 +363,13 @@ def authors_db(fresh_db):
 
 
 def test_transform_foreign_keys_persist(authors_db):
-    assert authors_db["books"].foreign_keys == [
+    assert authors_db.table("books").foreign_keys == [
         ForeignKey(
             table="books", column="author_id", other_table="authors", other_column="id"
         )
     ]
-    authors_db["books"].transform(rename={"title": "book_title"})
-    assert authors_db["books"].foreign_keys == [
+    authors_db.table("books").transform(rename={"title": "book_title"})
+    assert authors_db.table("books").foreign_keys == [
         ForeignKey(
             table="books", column="author_id", other_table="authors", other_column="id"
         )
@@ -354,8 +382,8 @@ def test_transform_foreign_keys_survive_renamed_column(
 ):
     if use_pragma_foreign_keys:
         authors_db.conn.execute("PRAGMA foreign_keys=ON")
-    authors_db["books"].transform(rename={"author_id": "author_id_2"})
-    assert authors_db["books"].foreign_keys == [
+    authors_db.table("books").transform(rename={"author_id": "author_id_2"})
+    assert authors_db.table("books").foreign_keys == [
         ForeignKey(
             table="books",
             column="author_id_2",
@@ -366,9 +394,9 @@ def test_transform_foreign_keys_survive_renamed_column(
 
 
 def _add_country_city_continent(db):
-    db["country"].insert({"id": 1, "name": "France"}, pk="id")
-    db["continent"].insert({"id": 2, "name": "Europe"}, pk="id")
-    db["city"].insert({"id": 24, "name": "Paris"}, pk="id")
+    db.table("country").insert({"id": 1, "name": "France"}, pk="id")
+    db.table("continent").insert({"id": 2, "name": "Europe"}, pk="id")
+    db.table("city").insert({"id": 24, "name": "Paris"}, pk="id")
 
 
 _CAVEAU = {
@@ -386,11 +414,11 @@ def test_transform_drop_foreign_keys(fresh_db, use_pragma_foreign_keys):
         fresh_db.conn.execute("PRAGMA foreign_keys=ON")
     # Create table with three foreign keys so we can drop two of them
     _add_country_city_continent(fresh_db)
-    fresh_db["places"].insert(
+    fresh_db.table("places").insert(
         _CAVEAU,
         foreign_keys=("country", "continent", "city"),
     )
-    assert fresh_db["places"].foreign_keys == [
+    assert fresh_db.table("places").foreign_keys == [
         ForeignKey(
             table="places", column="city", other_table="city", other_column="id"
         ),
@@ -405,9 +433,9 @@ def test_transform_drop_foreign_keys(fresh_db, use_pragma_foreign_keys):
         ),
     ]
     # Drop two of those foreign keys
-    fresh_db["places"].transform(drop_foreign_keys=("country", "continent"))
+    fresh_db.table("places").transform(drop_foreign_keys=("country", "continent"))
     # Should be only one foreign key now
-    assert fresh_db["places"].foreign_keys == [
+    assert fresh_db.table("places").foreign_keys == [
         ForeignKey(table="places", column="city", other_table="city", other_column="id")
     ]
     if use_pragma_foreign_keys:
@@ -416,17 +444,17 @@ def test_transform_drop_foreign_keys(fresh_db, use_pragma_foreign_keys):
 
 def test_transform_verify_foreign_keys(fresh_db):
     fresh_db.conn.execute("PRAGMA foreign_keys=ON")
-    fresh_db["authors"].insert({"id": 3, "name": "Tina"}, pk="id")
-    fresh_db["books"].insert(
+    fresh_db.table("authors").insert({"id": 3, "name": "Tina"}, pk="id")
+    fresh_db.table("books").insert(
         {"id": 1, "title": "Book", "author_id": 3}, pk="id", foreign_keys={"author_id"}
     )
     # Renaming the id column on authors should break everything
     with pytest.raises(OperationalError) as e:
-        fresh_db["authors"].transform(rename={"id": "id2"})
+        fresh_db.table("authors").transform(rename={"id": "id2"})
     assert e.value.args[0] == 'foreign key mismatch - "books" referencing "authors"'
     # This should have rolled us back
     assert (
-        fresh_db["authors"].schema
+        fresh_db.table("authors").schema
         == 'CREATE TABLE "authors" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT\n)'
     )
     assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
@@ -449,20 +477,22 @@ def test_transform_on_delete_cascade_does_not_delete_records(
             author_id INTEGER REFERENCES authors(id) ON DELETE CASCADE
         );
         """)
-    fresh_db["authors"].insert({"id": 1, "name": "Ursula K. Le Guin"})
-    fresh_db["books"].insert({"id": 1, "title": "The Dispossessed", "author_id": 1})
+    fresh_db.table("authors").insert({"id": 1, "name": "Ursula K. Le Guin"})
+    fresh_db.table("books").insert(
+        {"id": 1, "title": "The Dispossessed", "author_id": 1}
+    )
     # Transform the table on the other end of the cascading foreign key
-    fresh_db["authors"].transform(rename={"name": "author_name"})
-    assert list(fresh_db["authors"].rows) == [
+    fresh_db.table("authors").transform(rename={"name": "author_name"})
+    assert list(fresh_db.table("authors").rows) == [
         {"id": 1, "author_name": "Ursula K. Le Guin"}
     ]
-    assert list(fresh_db["books"].rows) == [
+    assert list(fresh_db.table("books").rows) == [
         {"id": 1, "title": "The Dispossessed", "author_id": 1}
     ]
     # Transforming the table with the cascading foreign key should not
     # delete its records either
-    fresh_db["books"].transform(rename={"title": "book_title"})
-    assert list(fresh_db["books"].rows) == [
+    fresh_db.table("books").transform(rename={"title": "book_title"})
+    assert list(fresh_db.table("books").rows) == [
         {"id": 1, "book_title": "The Dispossessed", "author_id": 1}
     ]
     if use_pragma_foreign_keys:
@@ -476,26 +506,27 @@ def test_transform_in_transaction_refuses_destructive_on_delete(fresh_db, on_del
     # keys inside an open transaction would fire those actions when the old
     # table is dropped - transform() should refuse instead
     fresh_db.conn.execute("PRAGMA foreign_keys=ON")
-    fresh_db.executescript("""
+    fresh_db.executescript(f"""
         CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT);
         CREATE TABLE books (
             id INTEGER PRIMARY KEY,
             title TEXT,
-            author_id INTEGER REFERENCES authors(id) ON DELETE {}
+            author_id INTEGER REFERENCES authors(id) ON DELETE {on_delete}
         );
-        """.format(on_delete))
-    fresh_db["authors"].insert({"id": 1, "name": "Ursula K. Le Guin"})
-    fresh_db["books"].insert({"id": 1, "title": "The Dispossessed", "author_id": 1})
-    previous_schema = fresh_db["authors"].schema
-    with fresh_db.atomic():
-        with pytest.raises(TransactionError) as excinfo:
-            fresh_db["authors"].transform(rename={"name": "author_name"})
+        """)
+    fresh_db.table("authors").insert({"id": 1, "name": "Ursula K. Le Guin"})
+    fresh_db.table("books").insert(
+        {"id": 1, "title": "The Dispossessed", "author_id": 1}
+    )
+    previous_schema = fresh_db.table("authors").schema
+    with fresh_db.atomic(), pytest.raises(TransactionError) as excinfo:
+        fresh_db.table("authors").transform(rename={"name": "author_name"})
     message = str(excinfo.value)
     assert "books" in message
-    assert "ON DELETE {}".format(on_delete.upper()) in message
+    assert f"ON DELETE {on_delete.upper()}" in message
     # Nothing should have changed
-    assert fresh_db["authors"].schema == previous_schema
-    assert list(fresh_db["books"].rows) == [
+    assert fresh_db.table("authors").schema == previous_schema
+    assert list(fresh_db.table("books").rows) == [
         {"id": 1, "title": "The Dispossessed", "author_id": 1}
     ]
     assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
@@ -512,17 +543,16 @@ def test_transform_in_transaction_refuses_self_referential_cascade(fresh_db):
             parent_id INTEGER REFERENCES categories(id) ON DELETE CASCADE
         );
         """)
-    fresh_db["categories"].insert_all(
+    fresh_db.table("categories").insert_all(
         [
             {"id": 1, "name": "Fiction", "parent_id": None},
             {"id": 2, "name": "Science Fiction", "parent_id": 1},
         ]
     )
-    with fresh_db.atomic():
-        with pytest.raises(TransactionError) as excinfo:
-            fresh_db["categories"].transform(rename={"name": "title"})
+    with fresh_db.atomic(), pytest.raises(TransactionError) as excinfo:
+        fresh_db.table("categories").transform(rename={"name": "title"})
     assert "categories" in str(excinfo.value)
-    assert fresh_db["categories"].count == 2
+    assert fresh_db.table("categories").count == 2
 
 
 def test_transform_in_transaction_allowed_with_no_action_foreign_key(fresh_db):
@@ -537,14 +567,16 @@ def test_transform_in_transaction_allowed_with_no_action_foreign_key(fresh_db):
             author_id INTEGER REFERENCES authors(id)
         );
         """)
-    fresh_db["authors"].insert({"id": 1, "name": "Ursula K. Le Guin"})
-    fresh_db["books"].insert({"id": 1, "title": "The Dispossessed", "author_id": 1})
+    fresh_db.table("authors").insert({"id": 1, "name": "Ursula K. Le Guin"})
+    fresh_db.table("books").insert(
+        {"id": 1, "title": "The Dispossessed", "author_id": 1}
+    )
     with fresh_db.atomic():
-        fresh_db["authors"].transform(rename={"name": "author_name"})
-    assert list(fresh_db["authors"].rows) == [
+        fresh_db.table("authors").transform(rename={"name": "author_name"})
+    assert list(fresh_db.table("authors").rows) == [
         {"id": 1, "author_name": "Ursula K. Le Guin"}
     ]
-    assert list(fresh_db["books"].rows) == [
+    assert list(fresh_db.table("books").rows) == [
         {"id": 1, "title": "The Dispossessed", "author_id": 1}
     ]
     assert fresh_db.conn.execute("PRAGMA foreign_keys").fetchone()[0]
@@ -562,11 +594,13 @@ def test_transform_in_transaction_allowed_for_child_table(fresh_db):
             author_id INTEGER REFERENCES authors(id) ON DELETE CASCADE
         );
         """)
-    fresh_db["authors"].insert({"id": 1, "name": "Ursula K. Le Guin"})
-    fresh_db["books"].insert({"id": 1, "title": "The Dispossessed", "author_id": 1})
+    fresh_db.table("authors").insert({"id": 1, "name": "Ursula K. Le Guin"})
+    fresh_db.table("books").insert(
+        {"id": 1, "title": "The Dispossessed", "author_id": 1}
+    )
     with fresh_db.atomic():
-        fresh_db["books"].transform(rename={"title": "book_title"})
-    assert list(fresh_db["books"].rows) == [
+        fresh_db.table("books").transform(rename={"title": "book_title"})
+    assert list(fresh_db.table("books").rows) == [
         {"id": 1, "book_title": "The Dispossessed", "author_id": 1}
     ]
 
@@ -582,24 +616,28 @@ def test_transform_in_transaction_allowed_with_foreign_keys_off(fresh_db):
             author_id INTEGER REFERENCES authors(id) ON DELETE CASCADE
         );
         """)
-    fresh_db["authors"].insert({"id": 1, "name": "Ursula K. Le Guin"})
-    fresh_db["books"].insert({"id": 1, "title": "The Dispossessed", "author_id": 1})
+    fresh_db.table("authors").insert({"id": 1, "name": "Ursula K. Le Guin"})
+    fresh_db.table("books").insert(
+        {"id": 1, "title": "The Dispossessed", "author_id": 1}
+    )
     with fresh_db.atomic():
-        fresh_db["authors"].transform(rename={"name": "author_name"})
-    assert list(fresh_db["books"].rows) == [
+        fresh_db.table("authors").transform(rename={"name": "author_name"})
+    assert list(fresh_db.table("books").rows) == [
         {"id": 1, "title": "The Dispossessed", "author_id": 1}
     ]
 
 
 def test_transform_add_foreign_keys_from_scratch(fresh_db):
     _add_country_city_continent(fresh_db)
-    fresh_db["places"].insert(_CAVEAU)
+    fresh_db.table("places").insert(_CAVEAU)
     # Should have no foreign keys
-    assert fresh_db["places"].foreign_keys == []
+    assert fresh_db.table("places").foreign_keys == []
     # Now add them using .transform()
-    fresh_db["places"].transform(add_foreign_keys=("country", "continent", "city"))
+    fresh_db.table("places").transform(
+        add_foreign_keys=("country", "continent", "city")
+    )
     # Should now have all three:
-    assert fresh_db["places"].foreign_keys == [
+    assert fresh_db.table("places").foreign_keys == [
         ForeignKey(
             table="places", column="city", other_table="city", other_column="id"
         ),
@@ -613,7 +651,7 @@ def test_transform_add_foreign_keys_from_scratch(fresh_db):
             table="places", column="country", other_table="country", other_column="id"
         ),
     ]
-    assert fresh_db["places"].schema == (
+    assert fresh_db.table("places").schema == (
         'CREATE TABLE "places" (\n'
         '   "id" INTEGER,\n'
         '   "name" TEXT,\n'
@@ -637,18 +675,18 @@ def test_transform_add_foreign_keys_from_scratch(fresh_db):
 )
 def test_transform_add_foreign_keys_from_partial(fresh_db, add_foreign_keys):
     _add_country_city_continent(fresh_db)
-    fresh_db["places"].insert(
+    fresh_db.table("places").insert(
         _CAVEAU,
         foreign_keys=("city",),
     )
     # Should have one foreign keys
-    assert fresh_db["places"].foreign_keys == [
+    assert fresh_db.table("places").foreign_keys == [
         ForeignKey(table="places", column="city", other_table="city", other_column="id")
     ]
     # Now add three more using .transform()
-    fresh_db["places"].transform(add_foreign_keys=add_foreign_keys)
+    fresh_db.table("places").transform(add_foreign_keys=add_foreign_keys)
     # Should now have all three:
-    assert fresh_db["places"].foreign_keys == [
+    assert fresh_db.table("places").foreign_keys == [
         ForeignKey(
             table="places", column="city", other_table="city", other_column="id"
         ),
@@ -677,14 +715,14 @@ def test_transform_add_foreign_keys_from_partial(fresh_db, add_foreign_keys):
 )
 def test_transform_replace_foreign_keys(fresh_db, foreign_keys):
     _add_country_city_continent(fresh_db)
-    fresh_db["places"].insert(
+    fresh_db.table("places").insert(
         _CAVEAU,
         foreign_keys=("city",),
     )
-    assert len(fresh_db["places"].foreign_keys) == 1
+    assert len(fresh_db.table("places").foreign_keys) == 1
     # Replace with two different ones
-    fresh_db["places"].transform(foreign_keys=foreign_keys)
-    assert fresh_db["places"].schema == (
+    fresh_db.table("places").transform(foreign_keys=foreign_keys)
+    assert fresh_db.table("places").schema == (
         'CREATE TABLE "places" (\n'
         '   "id" INTEGER,\n'
         '   "name" TEXT,\n'
@@ -704,7 +742,7 @@ def test_transform_preserves_rowids(fresh_db, table_type):
         pk = ("id", "name")
     elif table_type == "rowid":
         pk = None
-    fresh_db["places"].insert_all(
+    fresh_db.table("places").insert_all(
         [
             {"id": "1", "name": "Paris", "country": "France"},
             {"id": "2", "name": "London", "country": "UK"},
@@ -713,17 +751,17 @@ def test_transform_preserves_rowids(fresh_db, table_type):
         pk=pk,
     )
     # Now delete and insert a row to mix up the `rowid` sequence
-    fresh_db["places"].delete_where("id = ?", ["2"])
-    fresh_db["places"].insert({"id": "4", "name": "London", "country": "UK"})
-    previous_rows = list(
+    fresh_db.table("places").delete_where("id = ?", ["2"])
+    fresh_db.table("places").insert({"id": "4", "name": "London", "country": "UK"})
+    previous_rows = [
         tuple(row) for row in fresh_db.execute("select rowid, id, name from places")
-    )
+    ]
     # Transform it
-    fresh_db["places"].transform(column_order=("country", "name"))
+    fresh_db.table("places").transform(column_order=("country", "name"))
     # Should be the same
-    next_rows = list(
+    next_rows = [
         tuple(row) for row in fresh_db.execute("select rowid, id, name from places")
-    )
+    ]
     assert previous_rows == next_rows
 
 
@@ -749,7 +787,7 @@ def test_transform_strict(fresh_db, initial_strict, transform_strict, expected_s
 def test_transform_to_strict_with_invalid_data(fresh_db):
     if not fresh_db.supports_strict:
         pytest.skip("SQLite version does not support strict tables")
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.create({"id": int})
     dogs.insert({"id": "not-an-integer"})
 
@@ -776,7 +814,7 @@ def test_transform_strict_updates_default(fresh_db):
 
 @pytest.mark.parametrize("method_name", ("transform", "transform_sql"))
 def test_transform_to_strict_not_supported(fresh_db, method_name):
-    table = fresh_db["items"]
+    table = fresh_db.table("items")
     table.create({"id": int})
     fresh_db._supports_strict = False
 
@@ -784,6 +822,55 @@ def test_transform_to_strict_not_supported(fresh_db, method_name):
         getattr(table, method_name)(strict=True)
 
     assert table.strict is False
+
+
+def test_transform_preserves_any_column_in_strict_table(fresh_db):
+    if not fresh_db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    fresh_db.execute("create table items (id integer primary key, data any) strict")
+    fresh_db.conn.executemany(
+        "insert into items values (?, ?)",
+        [
+            (1, 42),
+            (2, "000123"),
+            (3, 3.14),
+            (4, b"bytes"),
+            (5, None),
+        ],
+    )
+    table = fresh_db["items"]
+
+    table.transform()
+
+    assert table.strict is True
+    assert table.columns_dict == {"id": int, "data": ANY}
+    assert fresh_db.execute(
+        "select typeof(data), data from items order by id"
+    ).fetchall() == [
+        ("integer", 42),
+        ("text", "000123"),
+        ("real", 3.14),
+        ("blob", b"bytes"),
+        ("null", None),
+    ]
+
+
+def test_transform_any_column_from_strict_to_non_strict(fresh_db):
+    if not fresh_db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    fresh_db.execute("create table items (data any) strict")
+    fresh_db.execute("insert into items values (?)", ("000123",))
+    table = fresh_db["items"]
+
+    table.transform(strict=False)
+
+    assert table.strict is False
+    assert table.columns_dict == {"data": ANY}
+    # Ordinary non-STRICT ANY columns apply NUMERIC affinity
+    assert fresh_db.execute("select typeof(data), data from items").fetchone() == (
+        "integer",
+        123,
+    )
 
 
 @pytest.mark.parametrize(
@@ -798,7 +885,7 @@ def test_transform_to_strict_not_supported(fresh_db, method_name):
 def test_transform_indexes(fresh_db, indexes, transform_params):
     # https://github.com/simonw/sqlite-utils/issues/633
     # New table should have same indexes as old table after transformation
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo", "age": 5, "breed": "Labrador"}, pk="id")
 
     for index in indexes:
@@ -824,13 +911,13 @@ def test_transform_indexes(fresh_db, indexes, transform_params):
     if "keep_table" in transform_params:
         assert all(
             index.origin == "pk"
-            for index in fresh_db[transform_params["keep_table"]].indexes
+            for index in fresh_db.table(transform_params["keep_table"]).indexes
         )
 
 
 def test_transform_retains_indexes_with_foreign_keys(fresh_db):
-    dogs = fresh_db["dogs"]
-    owners = fresh_db["owners"]
+    dogs = fresh_db.table("dogs")
+    owners = fresh_db.table("owners")
 
     dogs.insert({"id": 1, "name": "Cleo", "owner_id": 1}, pk="id")
     owners.insert({"id": 1, "name": "Alice"}, pk="id")
@@ -856,22 +943,15 @@ def test_transform_retains_indexes_with_foreign_keys(fresh_db):
     ), f"Indexes before transform: {indexes_before_transform}\nIndexes after transform: {dogs.indexes}"
 
 
-@pytest.mark.parametrize(
-    "transform_params",
-    [
-        {"rename": {"age": "dog_age"}},
-        {"drop": ["age"]},
-    ],
-)
-def test_transform_with_indexes_errors(fresh_db, transform_params):
-    # Should error with a compound (name, age) index if age is renamed or dropped
-    dogs = fresh_db["dogs"]
+def test_transform_with_indexes_errors(fresh_db):
+    # Should error with a compound (name, age) index if age is dropped
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
 
     dogs.create_index(["name", "age"])
 
     with pytest.raises(TransformError) as excinfo:
-        dogs.transform(**transform_params)
+        dogs.transform(drop=["age"])
 
     assert (
         "Index 'idx_dogs_name_age' column 'age' is not in updated table 'dogs'. "
@@ -880,8 +960,75 @@ def test_transform_with_indexes_errors(fresh_db, transform_params):
     )
 
 
+@pytest.mark.parametrize(
+    ("table_name", "index_name"),
+    (("name", "idx_name"), ("t", "name")),
+)
+def test_transform_rename_column_with_index(fresh_db, table_name, index_name):
+    # https://github.com/simonw/sqlite-utils/issues/822
+    # Use the same name for the table, column and index to ensure only the
+    # indexed column changes.
+    table = fresh_db.table(table_name)
+    table.insert({"id": 1, "name": "Cleo"}, pk="id")
+    table.create_index(["name"], index_name=index_name)
+
+    sqls = table.transform_sql(rename={"name": "full_name"}, tmp_suffix="suffix")
+    drop_index_sql = f'DROP INDEX IF EXISTS "{index_name}";'
+    assert drop_index_sql in sqls
+    assert sqls.index(drop_index_sql) < sqls.index(f'DROP TABLE "{table_name}";')
+
+    table.transform(rename={"name": "full_name"})
+
+    assert [column.name for column in table.columns] == ["id", "full_name"]
+    assert [(index.name, index.columns) for index in table.indexes] == [
+        (index_name, ["full_name"])
+    ]
+
+
+def test_transform_recreates_renamed_index_from_metadata(fresh_db):
+    table = fresh_db.table("t")
+    table.insert({"alpha": "one", "beta": "two"})
+    # Deliberately use unquoted SQL and index details that need to survive the
+    # reconstruction. Renaming both columns also guards against cascading
+    # string substitutions.
+    fresh_db.execute(
+        "CREATE UNIQUE INDEX swap_idx ON t(alpha COLLATE NOCASE DESC, beta)"
+    )
+
+    table.transform(rename={"alpha": "beta", "beta": "alpha"})
+
+    assert table.columns_dict == {"beta": str, "alpha": str}
+    assert [(index.name, index.unique, index.columns) for index in table.indexes] == [
+        ("swap_idx", 1, ["beta", "alpha"])
+    ]
+    key_columns = [column for column in table.xindexes[0].columns if column.key]
+    assert [(column.name, column.desc, column.coll) for column in key_columns] == [
+        ("beta", 1, "NOCASE"),
+        ("alpha", 0, "BINARY"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "index_sql",
+    (
+        "CREATE INDEX idx_t_name ON t(lower(name))",
+        "CREATE INDEX idx_t_name ON t(name) WHERE name IS NOT NULL",
+    ),
+)
+def test_transform_rename_complex_index_errors(fresh_db, index_sql):
+    table = fresh_db.table("t")
+    table.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute(index_sql)
+
+    with pytest.raises(TransformError, match="partial or expression index"):
+        table.transform(rename={"name": "full_name"})
+
+    assert table.columns_dict == {"id": int, "name": str}
+    assert [index.name for index in table.indexes] == ["idx_t_name"]
+
+
 def test_transform_with_unique_constraint_implicit_index(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     # Create a table with a UNIQUE constraint on 'name', which creates an implicit index
     fresh_db.execute("""
         CREATE TABLE dogs (
@@ -921,3 +1068,322 @@ def test_transform_empty_string_to_null_for_numeric_types(fresh_db, new_type):
     assert rows[1] in (42, 42.0)
     assert rows[2] is None
     assert rows[3] is None
+
+
+def test_transform_preserves_view(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/831
+    dogs = fresh_db.table("dogs")
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute("create view dogs_view as select id, name from dogs")
+    view_sql_before = fresh_db.execute(
+        "select sql from sqlite_master where name = 'dogs_view'"
+    ).fetchone()[0]
+    dogs.transform(rename={"name": "title"})
+    view_sql_after = fresh_db.execute(
+        "select sql from sqlite_master where name = 'dogs_view'"
+    ).fetchone()[0]
+    assert view_sql_before == view_sql_after
+
+
+@pytest.mark.parametrize(
+    "transform_params",
+    [
+        {"types": {"name": int}},
+        {"pk": "name"},
+        {"add_foreign_keys": [("other_id", "other", "id")]},
+        {"drop_foreign_keys": ["other_id"]},
+    ],
+)
+def test_transform_variants_preserve_view(fresh_db, transform_params):
+    # Covers retyping, changing primary key and foreign key modifications,
+    # with a view whose columns are untouched by the transform
+    fresh_db.table("other").insert({"id": 1}, pk="id")
+    dogs = fresh_db.table("dogs")
+    dogs.insert({"id": 1, "name": "Cleo", "other_id": 1}, pk="id")
+    if "drop_foreign_keys" in transform_params:
+        dogs.transform(add_foreign_keys=[("other_id", "other", "id")])
+    fresh_db.execute("create view dogs_view as select id, name from dogs")
+    view_sql_before = fresh_db.execute(
+        "select sql from sqlite_master where name = 'dogs_view'"
+    ).fetchone()[0]
+    dogs.transform(**transform_params)
+    view_sql_after = fresh_db.execute(
+        "select sql from sqlite_master where name = 'dogs_view'"
+    ).fetchone()[0]
+    assert view_sql_before == view_sql_after
+    assert list(fresh_db.view("dogs_view").rows) == [{"id": 1, "name": "Cleo"}]
+
+
+def test_transform_view_referencing_renamed_column(fresh_db):
+    # The view survives but querying it raises "no such column" - inherent
+    # to SQLite views, whose SQL is stored as text
+    dogs = fresh_db.table("dogs")
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute("create view dogs_view as select id, name from dogs")
+    dogs.transform(rename={"name": "title"})
+    with pytest.raises(OperationalError, match="no such column"):
+        fresh_db.execute("select * from dogs_view")
+
+
+def test_transform_view_on_view(fresh_db):
+    dogs = fresh_db.table("dogs")
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute("create view v1 as select id, name from dogs")
+    fresh_db.execute("create view v2 as select name from v1")
+    sqls_before = fresh_db.execute(
+        "select sql from sqlite_master where type = 'view' order by name"
+    ).fetchall()
+    dogs.transform(types={"id": str})
+    sqls_after = fresh_db.execute(
+        "select sql from sqlite_master where type = 'view' order by name"
+    ).fetchall()
+    assert sqls_before == sqls_after
+    assert list(fresh_db.view("v2").rows) == [{"name": "Cleo"}]
+
+
+def test_transform_keep_table_does_not_repoint_view(fresh_db):
+    # Without legacy_alter_table the ALTER TABLE dogs RENAME TO dogs_backup
+    # step would rewrite the view to select from "dogs_backup"
+    dogs = fresh_db.table("dogs")
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute("create view dogs_view as select id, name from dogs")
+    dogs.transform(types={"name": str}, keep_table="dogs_backup")
+    view_sql = fresh_db.execute(
+        "select sql from sqlite_master where name = 'dogs_view'"
+    ).fetchone()[0]
+    assert "dogs_backup" not in view_sql
+    # View reads from the live table, not the frozen backup
+    dogs.insert({"id": 2, "name": "Pancakes"})
+    assert list(fresh_db.view("dogs_view").rows) == [
+        {"id": 1, "name": "Cleo"},
+        {"id": 2, "name": "Pancakes"},
+    ]
+
+
+def test_transform_sql_standalone_statements_work_with_view(fresh_db):
+    # The documented "run these statements yourself" workflow should be
+    # standalone-correct, so the pragmas must come from transform_sql()
+    dogs = fresh_db.table("dogs")
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute("create view dogs_view as select id, name from dogs")
+    sqls = dogs.transform_sql(types={"name": str}, tmp_suffix="suffix")
+    assert sqls[-3] == "PRAGMA legacy_alter_table=ON;"
+    assert sqls[-2] == 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";'
+    assert sqls[-1] == "PRAGMA legacy_alter_table=OFF;"
+    for sql in sqls:
+        fresh_db.execute(sql)
+    assert list(fresh_db.view("dogs_view").rows) == [{"id": 1, "name": "Cleo"}]
+
+
+def test_transform_with_view_in_open_transaction(fresh_db):
+    fresh_db.conn.execute("PRAGMA foreign_keys=ON")
+    dogs = fresh_db.table("dogs")
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    fresh_db.execute("create view dogs_view as select id, name from dogs")
+    with fresh_db.conn:
+        fresh_db.execute("insert into dogs (id, name) values (2, 'Pancakes')")
+        dogs.transform(rename={"name": "title"})
+    assert dogs.columns_dict == {"id": int, "title": str}
+    view_sql = fresh_db.execute(
+        "select sql from sqlite_master where name = 'dogs_view'"
+    ).fetchone()[0]
+    assert view_sql == "CREATE VIEW dogs_view as select id, name from dogs"
+
+
+def test_transform_restores_legacy_alter_table_setting(fresh_db):
+    if sqlite3.sqlite_version_info < (3, 25, 0):
+        pytest.skip("legacy_alter_table pragma requires SQLite 3.25 or higher")
+    dogs = fresh_db.table("dogs")
+    dogs.insert({"id": 1, "name": "Cleo"}, pk="id")
+    # Default is OFF, reset to OFF afterwards
+    dogs.transform(types={"name": str})
+    assert fresh_db.execute("PRAGMA legacy_alter_table").fetchone()[0] == 0
+    # If the connection has it ON, it should be restored to ON
+    fresh_db.execute("PRAGMA legacy_alter_table=ON")
+    sqls = dogs.transform_sql(types={"name": str}, tmp_suffix="suffix")
+    assert sqls[-1] == "PRAGMA legacy_alter_table=ON;"
+    dogs.transform(types={"name": str})
+    assert fresh_db.execute("PRAGMA legacy_alter_table").fetchone()[0] == 1
+
+
+def test_transform_preserves_check_constraints(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE scores (
+            id INTEGER PRIMARY KEY,
+            score INTEGER CONSTRAINT valid_score CHECK(score BETWEEN 0 AND 100),
+            CONSTRAINT nonzero_id CHECK(id != 0)
+        )
+    """)
+    scores = fresh_db.table("scores")
+    scores.insert({"id": 1, "score": 50})
+    scores.transform()
+    assert scores.checks == [
+        Check("score BETWEEN 0 AND 100", name="valid_score", column="score"),
+        Check("id != 0", name="nonzero_id"),
+    ]
+    with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
+        scores.insert({"id": 2, "score": 101})
+
+
+def test_transform_preserves_check_ending_in_line_comment(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE inventory (
+            quantity INTEGER,
+            CHECK (
+                quantity >= 0 -- Quantity cannot be negative
+            )
+        )
+    """)
+    inventory = fresh_db.table("inventory")
+    inventory.transform(types={"quantity": float})
+    assert inventory.checks == [Check("quantity >= 0 -- Quantity cannot be negative")]
+    with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
+        inventory.insert({"quantity": -1})
+
+
+def test_transform_preserves_comments_owned_by_columns(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE people (
+            -- Primary identifier
+            id INTEGER PRIMARY KEY /* IDs are stable */,
+            /* Displayed to users */
+            name TEXT /* May contain spaces */,
+            -- Age in years
+            age INTEGER -- May be NULL
+        )
+    """)
+    people = fresh_db.table("people")
+    people.insert({"id": 1, "name": "Cleo", "age": 5})
+    people.transform(
+        rename={"name": "display_name"},
+        types={"age": float},
+        column_order=("age", "id", "name"),
+    )
+    assert people.get(1) == {"age": 5.0, "id": 1, "display_name": "Cleo"}
+    schema = people.schema
+    assert schema.index("-- Age in years") < schema.index('"age" REAL')
+    assert schema.index('"age" REAL') < schema.index("-- May be NULL")
+    assert schema.index("-- Primary identifier") < schema.index('"id" INTEGER')
+    assert schema.index('"id" INTEGER') < schema.index("/* IDs are stable */")
+    assert schema.index("/* Displayed to users */") < schema.index(
+        '"display_name" TEXT'
+    )
+    assert schema.index('"display_name" TEXT') < schema.index(
+        "/* May contain spaces */"
+    )
+
+
+def test_transform_drops_comments_owned_by_dropped_column(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE t (
+            /* Keep this explanation */
+            id INTEGER,
+            /* Drop this explanation */
+            obsolete TEXT /* Drop this too */
+        )
+    """)
+    fresh_db.table("t").transform(drop={"obsolete"})
+    schema = fresh_db.table("t").schema
+    assert "Keep this explanation" in schema
+    assert "Drop this explanation" not in schema
+    assert "Drop this too" not in schema
+
+
+def test_transform_renames_columns_inside_check_constraints(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE inventory (
+            quantity INTEGER CONSTRAINT positive
+                CHECK(quantity > 0 AND 'quantity' != ''),
+            maximum INTEGER,
+            CONSTRAINT within_maximum CHECK(quantity <= maximum)
+        )
+    """)
+    inventory = fresh_db.table("inventory")
+    inventory.insert({"quantity": 2, "maximum": 3})
+    inventory.transform(rename={"quantity": "amount"})
+    assert inventory.checks == [
+        Check(
+            "amount > 0 AND 'quantity' != ''",
+            name="positive",
+            column="amount",
+        ),
+        Check("amount <= maximum", name="within_maximum"),
+    ]
+    with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
+        inventory.insert({"amount": 4, "maximum": 3})
+
+
+def test_transform_check_rewrite_preserves_functions_and_quotes(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE items (
+            length TEXT,
+            "old name" TEXT,
+            CHECK(length("old name") > 0 AND length != '')
+        )
+    """)
+    items = fresh_db.table("items")
+    items.insert({"length": "label", "old name": "hello"})
+    items.transform(rename={"length": "description", "old name": "new name"})
+    assert items.checks == [Check("length(\"new name\") > 0 AND description != ''")]
+
+
+def test_transform_check_rewrite_quotes_keyword_column(fresh_db):
+    fresh_db.execute("CREATE TABLE t(old_name TEXT CHECK(old_name != ''))")
+    fresh_db.table("t").insert({"old_name": "value"})
+    fresh_db.table("t").transform(rename={"old_name": "select"})
+    assert fresh_db.table("t").checks == [Check("\"select\" != ''", column="select")]
+
+
+def test_transform_check_rewrite_does_not_rename_collations_or_cast_types(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE t (
+            nocase TEXT,
+            kind TEXT,
+            other TEXT,
+            CHECK(
+                other COLLATE nocase != ''
+                AND CAST(other AS kind) != ''
+                AND nocase != ''
+                AND kind != ''
+            )
+        )
+    """)
+    fresh_db.table("t").insert({"nocase": "n", "kind": "k", "other": "o"})
+    fresh_db.table("t").transform(rename={"nocase": "label", "kind": "category"})
+    check = fresh_db.table("t").checks[0].check
+    assert "COLLATE nocase" in check
+    assert "AS kind" in check
+    assert "AND label != ''" in check
+    assert "AND category != ''" in check
+
+
+def test_transform_drops_check_owned_by_dropped_column(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE t (
+            id INTEGER,
+            obsolete INTEGER CHECK(obsolete > 0),
+            CHECK(id > 0)
+        )
+    """)
+    fresh_db.table("t").insert({"id": 1, "obsolete": 2})
+    fresh_db.table("t").transform(drop={"obsolete"})
+    assert fresh_db.table("t").checks == [Check("id > 0")]
+
+
+def test_transform_refuses_to_drop_column_used_by_remaining_check(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE ranges (
+            minimum INTEGER,
+            maximum INTEGER,
+            CHECK(minimum <= maximum)
+        )
+    """)
+    ranges = fresh_db.table("ranges")
+    ranges.insert({"minimum": 1, "maximum": 2})
+    schema_before = ranges.schema
+    with pytest.raises(
+        TransformError,
+        match="Cannot drop column 'maximum'.*CHECK constraint",
+    ):
+        ranges.transform(drop={"maximum"})
+    assert ranges.schema == schema_before

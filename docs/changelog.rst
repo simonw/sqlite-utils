@@ -4,6 +4,33 @@
  Changelog
 ===========
 
+.. _unreleased:
+
+Unreleased
+----------
+
+- New ``table.checks``, ``table.column_checks`` and ``table.table_checks`` introspection properties expose column-level and table-level ``CHECK`` constraints. (:issue:`834`)
+- New ``sqlite_utils.ANY`` marker type for creating and introspecting SQLite ``ANY`` columns. The Python API and CLI can create, add and transform these columns, and ``table.transform()`` and ``table.extract()`` now preserve ``ANY`` columns and their values in ``STRICT`` tables. (:issue:`790`)
+- ``table.transform()`` now preserves ``CHECK`` constraints, including comments within their expressions. Renaming a column rewrites identifier references in checks without changing string literals or function names. Dropping a column drops a check owned by that column, and raises ``TransformError`` if a remaining check depends on it. (:issue:`762`)
+- ``table.transform()`` now preserves comments immediately before or after column definitions. These comments move with the column if it is renamed or reordered, and are removed if the column is dropped. (:issue:`762`)
+- ``table.transform(rename=...)`` now preserves explicit indexes on renamed columns by dropping and recreating those indexes against the new column names. Previously this raised a ``TransformError``. (:issue:`822`)
+- ``table.transform()`` now works for tables that are referenced by views. Previously the ``ALTER TABLE ... RENAME TO`` step raised ``no such table`` if a view referenced the table being transformed. View definitions are left unchanged - see :ref:`python_api_transform_views`. This also fixes a bug where ``transform(keep_table=...)`` silently rewrote dependent views to point at the frozen backup table instead of the live one. (:issue:`831`)
+- ``table.default_values`` now unescapes doubled single quotes in string defaults, so a default such as ``'O''Brien'`` is returned as ``"O'Brien"``. Thanks, `ikatyal2110 <https://github.com/ikatyal2110>`__. (`#811 <https://github.com/simonw/sqlite-utils/pull/811>`__)
+- ``table.default_values`` now decodes unquoted ``TRUE``, ``FALSE`` and ``NULL`` default literals as ``True``, ``False`` and ``None`` respectively. (:issue:`836`)
+- ``table.enable_fts(..., tokenize=...)`` and ``sqlite-utils enable-fts --tokenize`` now safely quote the tokenizer argument, preventing a crafted value from injecting additional SQL. Thanks, `Bunlong Heng <https://github.com/bunlongheng>`__. (`#828 <https://github.com/simonw/sqlite-utils/pull/828>`__)
+- ``rows_where()``, ``pks_and_rows_where()``, ``search()`` and ``search_sql()`` now support ``offset=`` without requiring ``limit=``. The ``sqlite-utils rows --offset`` option now works without ``--limit`` too. Thanks, `ethanhawkes-gif <https://github.com/ethanhawkes-gif>`__. (:issue:`816`, `#821 <https://github.com/simonw/sqlite-utils/pull/821>`__)
+- Empty or whitespace-only input passed to ``rows_from_file()`` is now handled as an empty CSV file instead of raising ``csv.Error``. Thanks, `Rami Abdelrazzaq <https://github.com/RamiNoodle733>`__. (:issue:`808`, `#837 <https://github.com/simonw/sqlite-utils/pull/837>`__)
+- ``sqlite-utils convert --dry-run`` now works for table and column names containing closing square brackets. (:issue:`829`)
+- ``table.indexes`` and ``table.xindexes`` now work for table, index and column names containing double quotes. This also fixes ``table.transform()`` for tables with those identifiers. Thanks, `nyxst4ck <https://github.com/nyxst4ck>`__. (:issue:`824`, `#825 <https://github.com/simonw/sqlite-utils/pull/825>`__)
+- Improved type annotations throughout the package and added Pyright regression checks to CI. (:issue:`833`)
+
+.. _v3_39_1:
+
+3.39.1 (2026-07-25)
+-------------------
+
+- Fixed a bug where ``table.delete_where()`` left the connection in an open transaction, causing deleted rows to be silently restored when the connection was closed. (:issue:`815`)
+
 .. _v4_1_1:
 
 4.1.1 (2026-07-12)
@@ -11,6 +38,7 @@
 
 - ``table.transform()`` now raises a ``TransactionError`` if called while a transaction is open with ``PRAGMA foreign_keys`` enabled and the table is referenced by foreign keys with destructive ``ON DELETE`` actions - ``CASCADE``, ``SET NULL`` or ``SET DEFAULT``. The pragma cannot be changed inside a transaction, so previously dropping the old table as part of the transform could fire those actions and silently delete or modify referencing rows. See :ref:`python_api_transform_foreign_keys_transactions` for details and workarounds. (:issue:`794`)
 - The :ref:`CLI <cli>` and :ref:`Python API <python_api>` documentation now cross-reference each other: CLI sections link to the equivalent Python API functionality and Python API sections link back to the corresponding CLI command. (:issue:`791`)
+
 .. _v4_1:
 
 4.1 (2026-07-11)

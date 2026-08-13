@@ -1,47 +1,48 @@
-from sqlite_utils.db import ForeignKey, NoObviousTable
 import pytest
+
+from sqlite_utils.db import ForeignKey, NoObviousTable
 
 
 def test_insert_m2m_single(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo"}, pk="id").m2m(
         "humans", {"id": 1, "name": "Natalie D"}, pk="id"
     )
     assert {"dogs_humans", "humans", "dogs"} == set(fresh_db.table_names())
-    humans = fresh_db["humans"]
-    dogs_humans = fresh_db["dogs_humans"]
+    humans = fresh_db.table("humans")
+    dogs_humans = fresh_db.table("dogs_humans")
     assert [{"id": 1, "name": "Natalie D"}] == list(humans.rows)
     assert [{"humans_id": 1, "dogs_id": 1}] == list(dogs_humans.rows)
 
 
 def test_insert_m2m_alter(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo"}, pk="id").m2m(
         "humans", {"id": 1, "name": "Natalie D"}, pk="id"
     )
     dogs.update(1).m2m(
         "humans", {"id": 2, "name": "Simon W", "nerd": True}, pk="id", alter=True
     )
-    assert list(fresh_db["humans"].rows) == [
+    assert list(fresh_db.table("humans").rows) == [
         {"id": 1, "name": "Natalie D", "nerd": None},
         {"id": 2, "name": "Simon W", "nerd": 1},
     ]
-    assert list(fresh_db["dogs_humans"].rows) == [
+    assert list(fresh_db.table("dogs_humans").rows) == [
         {"humans_id": 1, "dogs_id": 1},
         {"humans_id": 2, "dogs_id": 1},
     ]
 
 
 def test_insert_m2m_list(fresh_db):
-    dogs = fresh_db["dogs"]
+    dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo"}, pk="id").m2m(
         "humans",
         [{"id": 1, "name": "Natalie D"}, {"id": 2, "name": "Simon W"}],
         pk="id",
     )
     assert {"dogs", "humans", "dogs_humans"} == set(fresh_db.table_names())
-    humans = fresh_db["humans"]
-    dogs_humans = fresh_db["dogs_humans"]
+    humans = fresh_db.table("humans")
+    dogs_humans = fresh_db.table("dogs_humans")
     assert [{"humans_id": 1, "dogs_id": 1}, {"humans_id": 2, "dogs_id": 1}] == list(
         dogs_humans.rows
     )
@@ -65,10 +66,9 @@ def test_insert_m2m_iterable(fresh_db):
     iterable_records = ({"id": 1, "name": "Phineas"}, {"id": 2, "name": "Ferb"})
 
     def iterable():
-        for record in iterable_records:
-            yield record
+        yield from iterable_records
 
-    platypuses = fresh_db["platypuses"]
+    platypuses = fresh_db.table("platypuses")
     platypuses.insert({"id": 1, "name": "Perry"}, pk="id").m2m(
         "humans",
         iterable(),
@@ -76,8 +76,8 @@ def test_insert_m2m_iterable(fresh_db):
     )
 
     assert {"platypuses", "humans", "humans_platypuses"} == set(fresh_db.table_names())
-    humans = fresh_db["humans"]
-    humans_platypuses = fresh_db["humans_platypuses"]
+    humans = fresh_db.table("humans")
+    humans_platypuses = fresh_db.table("humans_platypuses")
     assert [
         {"humans_id": 1, "platypuses_id": 1},
         {"humans_id": 2, "platypuses_id": 1},
@@ -111,14 +111,14 @@ def test_m2m_with_table_objects(fresh_db):
     assert expected_tables == set(fresh_db.table_names())
     assert dogs.count == 1
     assert humans.count == 2
-    assert fresh_db["dogs_humans"].count == 2
+    assert fresh_db.table("dogs_humans").count == 2
 
 
 def test_m2m_lookup(fresh_db):
     people = fresh_db.table("people", pk="id")
     people.insert({"name": "Wahyu"}).m2m("tags", lookup={"tag": "Coworker"})
-    people_tags = fresh_db["people_tags"]
-    tags = fresh_db["tags"]
+    people_tags = fresh_db.table("people_tags")
+    tags = fresh_db.table("tags")
     assert people_tags.exists()
     assert tags.exists()
     assert [
@@ -150,9 +150,9 @@ def test_m2m_explicit_table_name_argument(fresh_db):
     people.insert({"name": "Wahyu"}).m2m(
         "tags", lookup={"tag": "Coworker"}, m2m_table="tagged"
     )
-    assert fresh_db["tags"].exists
-    assert fresh_db["tagged"].exists
-    assert not fresh_db["people_tags"].exists()
+    assert fresh_db.table("tags").exists
+    assert fresh_db.table("tagged").exists
+    assert not fresh_db.table("people_tags").exists()
 
 
 def test_m2m_table_candidates(fresh_db):
@@ -181,25 +181,25 @@ def test_uses_existing_m2m_table_if_exists(fresh_db):
     # Code should look for an existing table with fks to both tables
     # and use that if it exists.
     people = fresh_db.create_table("people", {"id": int, "name": str}, pk="id")
-    fresh_db["tags"].lookup({"tag": "Coworker"})
+    fresh_db.table("tags").lookup({"tag": "Coworker"})
     fresh_db.create_table(
         "tagged",
         {"people_id": int, "tags_id": int},
         foreign_keys=["people_id", "tags_id"],
     )
     people.insert({"name": "Wahyu"}).m2m("tags", lookup={"tag": "Coworker"})
-    assert fresh_db["tags"].exists()
-    assert fresh_db["tagged"].exists()
-    assert not fresh_db["people_tags"].exists()
-    assert not fresh_db["tags_people"].exists()
-    assert [{"people_id": 1, "tags_id": 1}] == list(fresh_db["tagged"].rows)
+    assert fresh_db.table("tags").exists()
+    assert fresh_db.table("tagged").exists()
+    assert not fresh_db.table("people_tags").exists()
+    assert not fresh_db.table("tags_people").exists()
+    assert [{"people_id": 1, "tags_id": 1}] == list(fresh_db.table("tagged").rows)
 
 
 def test_requires_explicit_m2m_table_if_multiple_options(fresh_db):
     # If the code scans for m2m tables and finds more than one candidate
     # it should require that the m2m_table=x argument is used
     people = fresh_db.create_table("people", {"id": int, "name": str}, pk="id")
-    fresh_db["tags"].lookup({"tag": "Coworker"})
+    fresh_db.table("tags").lookup({"tag": "Coworker"})
     fresh_db.create_table(
         "tagged",
         {"people_id": int, "tags_id": int},

@@ -1,4 +1,6 @@
 import pytest
+
+from sqlite_utils import ANY
 from sqlite_utils.utils import column_affinity
 
 EXAMPLES = [
@@ -25,6 +27,8 @@ EXAMPLES = [
     ("DOUBLE", float),
     ("DOUBLE PRECISION", float),
     ("FLOAT", float),
+    ("ANY", ANY),
+    ("any", ANY),
     # Numeric, treated as float:
     ("NUMERIC", float),
     ("DECIMAL(10,5)", float),
@@ -41,5 +45,5 @@ def test_column_affinity(column_def, expected_type):
 
 @pytest.mark.parametrize("column_def,expected_type", EXAMPLES)
 def test_columns_dict(fresh_db, column_def, expected_type):
-    fresh_db.execute("create table foo (col {})".format(column_def))
-    assert {"col": expected_type} == fresh_db["foo"].columns_dict
+    fresh_db.execute(f"create table foo (col {column_def})")
+    assert {"col": expected_type} == fresh_db.table("foo").columns_dict

@@ -828,6 +828,19 @@ You can pass ``strict=True`` to create a table in ``STRICT`` mode:
         "name": str,
     }, strict=True)
 
+SQLite ``STRICT`` tables can use the ``ANY`` column type for values that should retain their exact SQLite storage class without coercion. Use the ``sqlite_utils.ANY`` marker type:
+
+.. code-block:: python
+
+    import sqlite_utils
+
+    db.table("events").create({
+        "id": int,
+        "payload": sqlite_utils.ANY,
+    }, pk="id", strict=True)
+
+An ``ANY`` column can store integers, floating point values, text, binary data or ``None``. In a ``STRICT`` table a text value such as ``"000123"`` remains text with its leading zeroes intact. SQLite also accepts ``ANY`` columns in ordinary non-``STRICT`` tables, but those columns apply numeric affinity and would store that same value as the integer ``123``.
+
 .. note::
     In the CLI: :ref:`sqlite-utils create-table <cli_create_table>`
 
@@ -1569,7 +1582,7 @@ You can specify the ``col_type`` argument either using a SQLite type as a string
 
 The ``col_type`` is optional - if you omit it the type of ``TEXT`` will be used.
 
-SQLite types you can specify are ``"TEXT"``, ``"INTEGER"``, ``"FLOAT"``, ``"REAL"`` or ``"BLOB"``.
+SQLite types you can specify are ``"TEXT"``, ``"INTEGER"``, ``"FLOAT"``, ``"REAL"``, ``"BLOB"`` or ``"ANY"``. You can use the ``sqlite_utils.ANY`` marker instead of the ``"ANY"`` string.
 
 If you pass a Python type, it will be mapped to SQLite types as shown here::
 
@@ -1582,6 +1595,7 @@ If you pass a Python type, it will be mapped to SQLite types as shown here::
     datetime.date: "TEXT"
     datetime.time: "TEXT"
     datetime.timedelta: "TEXT"
+    sqlite_utils.ANY: "ANY"
 
     # If numpy is installed
     np.int8: "INTEGER"
@@ -1831,6 +1845,8 @@ Pass ``strict=False`` to convert a strict table back to a regular non-strict tab
 
     table.transform(strict=False)
 
+If the table has ``ANY`` columns, converting it to non-strict mode can coerce text values that look numeric. For example, SQLite converts ``"000123"`` to the integer ``123`` when copying it into an ordinary ``ANY`` column. This is SQLite's documented distinction between `STRICT and ordinary ANY columns <https://www.sqlite.org/stricttables.html#the_any_datatype>`__.
+
 The default is ``strict=None``, which preserves the table's existing strict mode.
 
 Passing ``strict=True`` raises ``sqlite_utils.db.TransformError`` if the available SQLite version does not support strict tables.
@@ -1985,6 +2001,28 @@ A bare column name drops any foreign key that column participates in, including 
     )
 
 Renaming a column with ``rename=`` updates any foreign keys that use it, and dropping a column with ``drop=`` also drops any foreign keys it participates in - for a compound foreign key this removes the whole constraint.
+
+.. _python_api_transform_check_constraints:
+
+CHECK constraints
+-----------------
+
+``.transform()`` preserves both column-level and table-level ``CHECK`` constraints. If a column is renamed, references to that column in the check expression are renamed too.
+
+A column-level check is removed if its owning column is dropped. Dropping a column referenced by any remaining check raises ``TransformError`` instead of creating an invalid or unexpectedly weakened schema.
+
+Comments immediately before or after a column definition are preserved too. They move with that column if it is renamed or reordered, and are removed if the column is dropped. A comment between two column definitions is treated as belonging to the following column.
+
+.. _python_api_transform_views:
+
+Tables referenced by views
+--------------------------
+
+Tables that are referenced by views can be safely transformed - the view definitions are left byte-for-byte unchanged, and views continue to read from the live table even when ``keep_table=`` is used to keep a copy of the original around.
+
+A view that references a column which the transform renamed or dropped will remain defined but will raise a ``no such column`` error when it is next queried. This is inherent to SQLite views, whose SQL is stored as text - if you rename or drop columns that a view depends on you should update that view definition yourself.
+
+To achieve this, the SQL produced by ``transform_sql()`` turns on ``PRAGMA legacy_alter_table`` for its ``ALTER TABLE ... RENAME TO`` statements, then restores the pragma to the value it had when the SQL was generated - without this, SQLite would attempt to rewrite references to the renamed table in every view definition, which fails when a view references the table that was just dropped.
 
 .. _python_api_transform_sql:
 
@@ -2436,6 +2474,11 @@ The ``.columns_dict`` property returns a dictionary version of the columns with 
     >>> db.table("PlantType").columns_dict
     {'id': <class 'int'>, 'value': <class 'str'>}
 
+SQLite ``ANY`` columns are represented by the ``sqlite_utils.ANY`` marker type::
+
+    >>> db.table("events").columns_dict
+    {'id': <class 'int'>, 'payload': <class 'sqlite_utils.utils.ANY'>}
+
 .. _python_api_introspection_default_values:
 
 .default_values
@@ -2468,6 +2511,43 @@ Almost all SQLite tables have a ``rowid`` column, but a table with no explicitly
     >>> db.table("PlantType").use_rowid
     False
 
+
+.. _python_api_introspection_checks:
+
+.checks
+-------
+
+The ``.checks`` property returns the column-level and table-level ``CHECK`` constraints defined on a table, as a list of ``Check`` objects. Each object has ``check`` (the expression inside ``CHECK (...)``), ``name``, ``column`` and ``options`` attributes. ``column`` is an empty string for a table-level check. ``options`` contains a list of values only when a column check consists entirely of ``column IN (literal, ...)``. The original constraint fragment is available as ``sql``; ``start`` and ``end`` are its offsets within ``table.schema``.
+
+.. code-block:: python
+
+    >>> db["scores"].checks
+    [Check(check='score > 0', name='positive', column='score', options=None),
+     Check(check='score <= maximum', name='within_maximum', column='', options=None)]
+
+.. _python_api_introspection_column_checks:
+
+.column_checks
+--------------
+
+The ``.column_checks`` property returns the column-level checks grouped by column name:
+
+.. code-block:: python
+
+    >>> db["scores"].column_checks
+    {'score': [Check(check='score > 0', name='positive', column='score', options=None)]}
+
+.. _python_api_introspection_table_checks:
+
+.table_checks
+-------------
+
+The ``.table_checks`` property returns only the table-level checks:
+
+.. code-block:: python
+
+    >>> db["scores"].table_checks
+    [Check(check='score <= maximum', name='within_maximum', column='', options=None)]
 
 .. _python_api_introspection_foreign_keys:
 

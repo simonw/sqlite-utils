@@ -1,7 +1,9 @@
-from sqlite_utils import utils
 import csv
 import io
+
 import pytest
+
+from sqlite_utils import utils
 
 
 @pytest.mark.parametrize(
@@ -57,7 +59,7 @@ def test_maximize_csv_field_size_limit():
     # Reset to default in case other tests have changed it
     csv.field_size_limit(utils.ORIGINAL_CSV_FIELD_SIZE_LIMIT)
     long_value = "a" * 131073
-    long_csv = "id,text\n1,{}".format(long_value)
+    long_csv = f"id,text\n1,{long_value}"
     fp = io.BytesIO(long_csv.encode("utf-8"))
     # Using rows_from_file should error
     with pytest.raises(csv.Error):

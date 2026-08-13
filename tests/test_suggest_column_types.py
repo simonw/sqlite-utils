@@ -1,5 +1,7 @@
-import pytest
 from collections import OrderedDict
+
+import pytest
+
 from sqlite_utils.utils import suggest_column_types
 
 

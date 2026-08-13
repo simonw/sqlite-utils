@@ -1390,7 +1390,14 @@ Use ``--type column-name type`` to override the type automatically chosen when t
 
 This is useful for values such as ZIP codes, which may look like integers but should be stored as ``TEXT`` to preserve leading zeros.
 
-The column type should be one of ``TEXT``, ``INTEGER``, ``FLOAT``, ``REAL`` or ``BLOB``. Column types are matched case-insensitively.
+The column type should be one of ``TEXT``, ``INTEGER``, ``FLOAT``, ``REAL``, ``BLOB`` or ``ANY``. Column types are matched case-insensitively.
+
+``ANY`` is especially useful with ``--strict``. An ``ANY`` column in a strict table preserves values without coercion, so text such as ``000123`` remains text instead of being converted to an integer:
+
+.. code-block:: bash
+
+    sqlite-utils insert events.db events events.csv --csv --strict \
+        --type payload any
 
 As with detected column types, ``--type`` only affects tables created by the command. If the table already exists, its existing column types are left unchanged.
 
@@ -2141,6 +2148,12 @@ You can create a table in `SQLite STRICT mode <https://www.sqlite.org/stricttabl
 
    sqlite-utils create-table mydb.db mytable id integer name text --strict
 
+Use the ``any`` type for a strict column that should accept integers, floating point values, text, binary data or null without coercion:
+
+.. code-block:: bash
+
+   sqlite-utils create-table events.db events id integer payload any --strict
+
 .. code-block:: bash
 
    sqlite-utils tables mydb.db --schema -t
@@ -2223,7 +2236,7 @@ The ``transform`` command allows you to apply complex transformations to a table
 Every option for this table (with the exception of ``--pk-none``) can be specified multiple times. The options are as follows:
 
 ``--type column-name new-type``
-    Change the type of the specified column. Valid types are ``integer``, ``text``, ``float``, ``blob``.
+    Change the type of the specified column. Valid types are ``integer``, ``text``, ``float``, ``real``, ``blob`` and ``any``.
 
 ``--drop column-name``
     Drop the specified column.
@@ -2288,7 +2301,11 @@ If you want to see the SQL that will be executed to make the change without actu
     INSERT INTO "roadside_attractions_new_4033a60276b9" ("longitude", "latitude", "id", "name")
        SELECT "longitude", "latitude", "pk", "name" FROM "roadside_attractions";
     DROP TABLE "roadside_attractions";
+    PRAGMA legacy_alter_table=ON;
     ALTER TABLE "roadside_attractions_new_4033a60276b9" RENAME TO "roadside_attractions";
+    PRAGMA legacy_alter_table=OFF;
+
+Tables that are referenced by views can be transformed - the view definitions are left unchanged, see :ref:`python_api_transform_views` for details.
 
 .. note::
     In Python: :ref:`table.transform() <python_api_transform>`  CLI reference: :ref:`sqlite-utils transform <cli_ref_transform>`

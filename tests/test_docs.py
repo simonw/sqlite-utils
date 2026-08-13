@@ -1,8 +1,10 @@
-from click.testing import CliRunner
-from sqlite_utils import cli, recipes
-from pathlib import Path
-import pytest
 import re
+from pathlib import Path
+
+import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import cli, recipes
 
 docs_path = Path(__file__).parent.parent / "docs"
 commands_re = re.compile(r"(?:\$ |    )sqlite-utils (\S+)")
@@ -34,7 +36,7 @@ def test_commands_are_documented(documented_commands, command):
 
 @pytest.mark.parametrize("command", cli.cli.commands.values())
 def test_commands_have_help(command):
-    assert command.help, "{} is missing its help".format(command)
+    assert command.help, f"{command} is missing its help"
 
 
 def test_convert_help():

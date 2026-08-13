@@ -31,10 +31,10 @@ EXAMPLES = [
 
 @pytest.mark.parametrize("column_def,initial_value,expected_value", EXAMPLES)
 def test_quote_default_value(fresh_db, column_def, initial_value, expected_value):
-    fresh_db.execute("create table foo (col {})".format(column_def))
-    assert initial_value == fresh_db["foo"].columns[0].default_value
+    fresh_db.execute(f"create table foo (col {column_def})")
+    assert initial_value == fresh_db.table("foo").columns[0].default_value
     assert expected_value == fresh_db.quote_default_value(
-        fresh_db["foo"].columns[0].default_value
+        fresh_db.table("foo").columns[0].default_value
     )
 
 
@@ -48,7 +48,7 @@ def test_insert_empty_record_uses_default_values(fresh_db):
         )
         """)
 
-    table = fresh_db["has_defaults"]
+    table = fresh_db.table("has_defaults")
     table.insert({})
 
     rows = list(table.rows)

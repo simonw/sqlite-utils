@@ -1,14 +1,16 @@
-from sqlite_utils import cli, Database
-from sqlite_utils.db import Index, ForeignKey
-from click.testing import CliRunner
-from pathlib import Path
-import subprocess
-import sqlite3
-import sys
 import json
 import os
-import pytest
+import sqlite3
+import subprocess
+import sys
 import textwrap
+from pathlib import Path
+
+import pytest
+from click.testing import CliRunner
+
+from sqlite_utils import ANY, Database, cli
+from sqlite_utils.db import ForeignKey, Index
 
 
 def write_json(file_path, data):
@@ -21,7 +23,7 @@ def _supports_pragma_function_list():
     try:
         db.execute("select * from pragma_function_list()")
         return True
-    except Exception:
+    except sqlite3.DatabaseError:
         return False
     finally:
         db.close()
@@ -70,13 +72,13 @@ def test_views(db_path):
 
 
 def test_tables_fts4(db_path):
-    Database(db_path)["Gosh"].enable_fts(["c2"], fts_version="FTS4")
+    Database(db_path).table("Gosh").enable_fts(["c2"], fts_version="FTS4")
     result = CliRunner().invoke(cli.cli, ["tables", "--fts4", db_path])
     assert '[{"table": "Gosh_fts"}]' == result.output.strip()
 
 
 def test_tables_fts5(db_path):
-    Database(db_path)["Gosh"].enable_fts(["c2"], fts_version="FTS5")
+    Database(db_path).table("Gosh").enable_fts(["c2"], fts_version="FTS5")
     result = CliRunner().invoke(cli.cli, ["tables", "--fts5", db_path])
     assert '[{"table": "Gosh_fts"}]' == result.output.strip()
 
@@ -84,7 +86,7 @@ def test_tables_fts5(db_path):
 def test_tables_counts_and_columns(db_path):
     db = Database(db_path)
     with db.conn:
-        db["lots"].insert_all([{"id": i, "age": i + 1} for i in range(30)])
+        db.table("lots").insert_all([{"id": i, "age": i + 1} for i in range(30)])
     result = CliRunner().invoke(cli.cli, ["tables", "--counts", "--columns", db_path])
     assert (
         '[{"table": "Gosh", "count": 0, "columns": ["c1", "c2", "c3"]},\n'
@@ -119,7 +121,7 @@ def test_tables_counts_and_columns(db_path):
 def test_tables_counts_and_columns_csv(db_path, format, expected):
     db = Database(db_path)
     with db.conn:
-        db["lots"].insert_all([{"id": i, "age": i + 1} for i in range(30)])
+        db.table("lots").insert_all([{"id": i, "age": i + 1} for i in range(30)])
     result = CliRunner().invoke(
         cli.cli, ["tables", "--counts", "--columns", format, db_path]
     )
@@ -129,7 +131,7 @@ def test_tables_counts_and_columns_csv(db_path, format, expected):
 def test_tables_schema(db_path):
     db = Database(db_path)
     with db.conn:
-        db["lots"].insert_all([{"id": i, "age": i + 1} for i in range(30)])
+        db.table("lots").insert_all([{"id": i, "age": i + 1} for i in range(30)])
     result = CliRunner().invoke(cli.cli, ["tables", "--schema", db_path])
     assert (
         '[{"table": "Gosh", "schema": "CREATE TABLE Gosh (c1 text, c2 text, c3 text)"},\n'
@@ -181,12 +183,12 @@ def test_tables_schema(db_path):
 def test_output_table(db_path, options, expected):
     db = Database(db_path)
     with db.conn:
-        db["rows"].insert_all(
+        db.table("rows").insert_all(
             [
                 {
-                    "c1": "verb{}".format(i),
-                    "c2": "noun{}".format(i),
-                    "c3": "adjective{}".format(i),
+                    "c1": f"verb{i}",
+                    "c2": f"noun{i}",
+                    "c3": f"adjective{i}",
                 }
                 for i in range(4)
             ]
@@ -205,7 +207,7 @@ def test_output_table_no_headers(db_path, fmt_option):
     # tabulate formats and the column names were always printed.
     db = Database(db_path)
     with db.conn:
-        db["dogs"].insert_all(
+        db.table("dogs").insert_all(
             [
                 {"id": 1, "name": "Cleo", "age": 4},
                 {"id": 2, "name": "Pancakes", "age": 2},
@@ -242,14 +244,14 @@ def test_output_table_no_headers(db_path, fmt_option):
 
 def test_create_index(db_path):
     db = Database(db_path)
-    assert [] == db["Gosh"].indexes
+    assert [] == db.table("Gosh").indexes
     result = CliRunner().invoke(cli.cli, ["create-index", db_path, "Gosh", "c1"])
     assert result.exit_code == 0
     assert [
         Index(
             seq=0, name="idx_Gosh_c1", unique=0, origin="c", partial=0, columns=["c1"]
         )
-    ] == db["Gosh"].indexes
+    ] == db.table("Gosh").indexes
     # Try with a custom name
     result = CliRunner().invoke(
         cli.cli, ["create-index", db_path, "Gosh", "c2", "--name", "blah"]
@@ -260,7 +262,7 @@ def test_create_index(db_path):
         Index(
             seq=1, name="idx_Gosh_c1", unique=0, origin="c", partial=0, columns=["c1"]
         ),
-    ] == db["Gosh"].indexes
+    ] == db.table("Gosh").indexes
     # Try a two-column unique index
     create_index_unique_args = [
         "create-index",
@@ -281,7 +283,7 @@ def test_create_index(db_path):
             partial=0,
             columns=["c1", "c2"],
         )
-    ] == db["Gosh2"].indexes
+    ] == db.table("Gosh2").indexes
     # Trying to create the same index should fail
     assert CliRunner().invoke(cli.cli, create_index_unique_args).exit_code != 0
     # ... unless we use --if-not-exists or --ignore
@@ -294,11 +296,11 @@ def test_create_index(db_path):
 
 def test_drop_index(db_path):
     db = Database(db_path)
-    db["Gosh"].create_index(["c1"])
-    assert [index.name for index in db["Gosh"].indexes] == ["idx_Gosh_c1"]
+    db.table("Gosh").create_index(["c1"])
+    assert [index.name for index in db.table("Gosh").indexes] == ["idx_Gosh_c1"]
     result = CliRunner().invoke(cli.cli, ["drop-index", db_path, "Gosh", "idx_Gosh_c1"])
     assert result.exit_code == 0
-    assert db["Gosh"].indexes == []
+    assert db.table("Gosh").indexes == []
 
     result = CliRunner().invoke(cli.cli, ["drop-index", db_path, "Gosh", "idx_Gosh_c1"])
     assert result.exit_code == 1
@@ -313,7 +315,7 @@ def test_drop_index(db_path):
 def test_create_index_analyze(db_path):
     db = Database(db_path)
     assert "sqlite_stat1" not in db.table_names()
-    assert [] == db["Gosh"].indexes
+    assert [] == db.table("Gosh").indexes
     result = CliRunner().invoke(
         cli.cli, ["create-index", db_path, "Gosh", "c1", "--analyze"]
     )
@@ -323,7 +325,7 @@ def test_create_index_analyze(db_path):
 
 def test_create_index_desc(db_path):
     db = Database(db_path)
-    assert [] == db["Gosh"].indexes
+    assert [] == db.table("Gosh").indexes
     result = CliRunner().invoke(cli.cli, ["create-index", db_path, "Gosh", "--", "-c1"])
     assert result.exit_code == 0
     assert (
@@ -353,18 +355,19 @@ def test_create_index_desc(db_path):
         ("blob", "BLOB", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
         ("blob", "bytes", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
         ("blob", "BYTES", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "blob" BLOB)'),
+        ("anything", "any", 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "anything" ANY)'),
         ("default", None, 'CREATE TABLE "dogs" (\n   "name" TEXT\n, "default" TEXT)'),
     ),
 )
 def test_add_column(db_path, col_name, col_type, expected_schema):
     db = Database(db_path)
     db.create_table("dogs", {"name": str})
-    assert db["dogs"].schema == 'CREATE TABLE "dogs" (\n   "name" TEXT\n)'
+    assert db.table("dogs").schema == 'CREATE TABLE "dogs" (\n   "name" TEXT\n)'
     args = ["add-column", db_path, "dogs", col_name]
     if col_type is not None:
         args.append(col_type)
     assert CliRunner().invoke(cli.cli, args).exit_code == 0
-    assert db["dogs"].schema == expected_schema
+    assert db.table("dogs").schema == expected_schema
 
 
 @pytest.mark.parametrize("ignore", (True, False))
@@ -383,7 +386,7 @@ def test_add_column_ignore(db_path, ignore):
 def test_add_column_not_null_default(db_path):
     db = Database(db_path)
     db.create_table("dogs", {"name": str})
-    assert db["dogs"].schema == 'CREATE TABLE "dogs" (\n   "name" TEXT\n)'
+    assert db.table("dogs").schema == 'CREATE TABLE "dogs" (\n   "name" TEXT\n)'
     args = [
         "add-column",
         db_path,
@@ -393,7 +396,7 @@ def test_add_column_not_null_default(db_path):
         "dogs'dawg",
     ]
     assert CliRunner().invoke(cli.cli, args).exit_code == 0
-    assert db["dogs"].schema == (
+    assert db.table("dogs").schema == (
         'CREATE TABLE "dogs" (\n'
         '   "name" TEXT\n'
         ", \"nickname\" TEXT NOT NULL DEFAULT 'dogs''dawg')"
@@ -413,10 +416,10 @@ def test_add_column_not_null_default(db_path):
 )
 def test_add_foreign_key(db_path, args, assert_message):
     db = Database(db_path)
-    db["authors"].insert_all(
+    db.table("authors").insert_all(
         [{"id": 1, "name": "Sally"}, {"id": 2, "name": "Asheesh"}], pk="id"
     )
-    db["books"].insert_all(
+    db.table("books").insert_all(
         [
             {"title": "Hedgehogs of the world", "author_id": 1},
             {"title": "How to train your wolf", "author_id": 2},
@@ -429,7 +432,7 @@ def test_add_foreign_key(db_path, args, assert_message):
         ForeignKey(
             table="books", column="author_id", other_table="authors", other_column="id"
         )
-    ] == db["books"].foreign_keys
+    ] == db.table("books").foreign_keys
 
     # Error if we try to add it twice:
     result = CliRunner().invoke(
@@ -458,14 +461,14 @@ def test_add_foreign_key(db_path, args, assert_message):
 
 def test_add_column_foreign_key(db_path):
     db = Database(db_path)
-    db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
-    db["books"].insert({"title": "Hedgehogs of the world"})
+    db.table("authors").insert({"id": 1, "name": "Sally"}, pk="id")
+    db.table("books").insert({"title": "Hedgehogs of the world"})
     # Add an author_id foreign key column to the books table
     result = CliRunner().invoke(
         cli.cli, ["add-column", db_path, "books", "author_id", "--fk", "authors"]
     )
     assert result.exit_code == 0, result.output
-    assert db["books"].schema == (
+    assert db.table("books").schema == (
         'CREATE TABLE "books" (\n'
         '   "title" TEXT,\n'
         '   "author_id" INTEGER REFERENCES "authors"("id")\n'
@@ -486,7 +489,7 @@ def test_add_column_foreign_key(db_path):
         ],
     )
     assert result.exit_code == 0, result.output
-    assert db["books"].schema == (
+    assert db.table("books").schema == (
         'CREATE TABLE "books" (\n'
         '   "title" TEXT,\n'
         '   "author_id" INTEGER REFERENCES "authors"("id"),\n'
@@ -503,7 +506,7 @@ def test_add_column_foreign_key(db_path):
 
 def test_suggest_alter_if_column_missing(db_path):
     db = Database(db_path)
-    db["authors"].insert({"id": 1, "name": "Sally"}, pk="id")
+    db.table("authors").insert({"id": 1, "name": "Sally"}, pk="id")
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "authors", "-"],
@@ -519,27 +522,27 @@ def test_suggest_alter_if_column_missing(db_path):
 def test_index_foreign_keys(db_path):
     test_add_column_foreign_key(db_path)
     db = Database(db_path)
-    assert [] == db["books"].indexes
+    assert [] == db.table("books").indexes
     result = CliRunner().invoke(cli.cli, ["index-foreign-keys", db_path])
     assert result.exit_code == 0
     assert [["author_id"], ["author_name_ref"]] == [
-        i.columns for i in db["books"].indexes
+        i.columns for i in db.table("books").indexes
     ]
 
 
 def test_enable_fts(db_path):
     db = Database(db_path)
-    assert db["Gosh"].detect_fts() is None
+    assert db.table("Gosh").detect_fts() is None
     result = CliRunner().invoke(
         cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"]
     )
     assert result.exit_code == 0
-    assert "Gosh_fts" == db["Gosh"].detect_fts()
+    assert "Gosh_fts" == db.table("Gosh").detect_fts()
 
     # Table names with restricted chars are handled correctly.
     # colons and dots are restricted characters for table names.
-    db["http://example.com"].create({"c1": str, "c2": str, "c3": str})
-    assert db["http://example.com"].detect_fts() is None
+    db.table("http://example.com").create({"c1": str, "c2": str, "c3": str})
+    assert db.table("http://example.com").detect_fts() is None
     result = CliRunner().invoke(
         cli.cli,
         [
@@ -553,7 +556,7 @@ def test_enable_fts(db_path):
         ],
     )
     assert result.exit_code == 0
-    assert "http://example.com_fts" == db["http://example.com"].detect_fts()
+    assert "http://example.com_fts" == db.table("http://example.com").detect_fts()
     # Check tokenize was set to porter
     assert (
         'CREATE VIRTUAL TABLE "http://example.com_fts" USING FTS4 (\n'
@@ -561,19 +564,19 @@ def test_enable_fts(db_path):
         "    tokenize='porter',\n"
         '    content="http://example.com"'
         "\n)"
-    ) == db["http://example.com_fts"].schema
-    db["http://example.com"].drop()
+    ) == db.table("http://example.com_fts").schema
+    db.table("http://example.com").drop()
 
 
 def test_enable_fts_replace(db_path):
     db = Database(db_path)
-    assert db["Gosh"].detect_fts() is None
+    assert db.table("Gosh").detect_fts() is None
     result = CliRunner().invoke(
         cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"]
     )
     assert result.exit_code == 0
-    assert "Gosh_fts" == db["Gosh"].detect_fts()
-    assert db["Gosh_fts"].columns_dict == {"c1": str}
+    assert "Gosh_fts" == db.table("Gosh").detect_fts()
+    assert db.table("Gosh_fts").columns_dict == {"c1": str}
 
     # This should throw an error
     result2 = CliRunner().invoke(
@@ -587,11 +590,11 @@ def test_enable_fts_replace(db_path):
         cli.cli, ["enable-fts", db_path, "Gosh", "c2", "--fts4", "--replace"]
     )
     assert result3.exit_code == 0
-    assert db["Gosh_fts"].columns_dict == {"c2": str}
+    assert db.table("Gosh_fts").columns_dict == {"c2": str}
 
 
 def test_enable_fts_with_triggers(db_path):
-    Database(db_path)["Gosh"].insert_all([{"c1": "baz"}])
+    Database(db_path).table("Gosh").insert_all([{"c1": "baz"}])
     exit_code = (
         CliRunner()
         .invoke(
@@ -610,12 +613,12 @@ def test_enable_fts_with_triggers(db_path):
         )
 
     assert [("baz",)] == search("baz")
-    Database(db_path)["Gosh"].insert_all([{"c1": "martha"}])
+    Database(db_path).table("Gosh").insert_all([{"c1": "martha"}])
     assert [("martha",)] == search("martha")
 
 
 def test_populate_fts(db_path):
-    Database(db_path)["Gosh"].insert_all([{"c1": "baz"}])
+    Database(db_path).table("Gosh").insert_all([{"c1": "baz"}])
     exit_code = (
         CliRunner()
         .invoke(cli.cli, ["enable-fts", db_path, "Gosh", "c1", "--fts4"])
@@ -631,7 +634,7 @@ def test_populate_fts(db_path):
         )
 
     assert [("baz",)] == search("baz")
-    Database(db_path)["Gosh"].insert_all([{"c1": "martha"}])
+    Database(db_path).table("Gosh").insert_all([{"c1": "martha"}])
     assert [] == search("martha")
     exit_code = (
         CliRunner().invoke(cli.cli, ["populate-fts", db_path, "Gosh", "c1"]).exit_code
@@ -643,7 +646,7 @@ def test_populate_fts(db_path):
 def test_disable_fts(db_path):
     db = Database(db_path)
     assert {"Gosh", "Gosh2"} == set(db.table_names())
-    db["Gosh"].enable_fts(["c1"], create_triggers=True)
+    db.table("Gosh").enable_fts(["c1"], create_triggers=True)
     assert {
         "Gosh_fts",
         "Gosh_fts_idx",
@@ -675,18 +678,18 @@ def test_optimize(db_path, tables):
     db = Database(db_path)
     with db.conn:
         for table in ("Gosh", "Gosh2"):
-            db[table].insert_all(
+            db.table(table).insert_all(
                 [
                     {
-                        "c1": "verb{}".format(i),
-                        "c2": "noun{}".format(i),
-                        "c3": "adjective{}".format(i),
+                        "c1": f"verb{i}",
+                        "c2": f"noun{i}",
+                        "c3": f"adjective{i}",
                     }
                     for i in range(10000)
                 ]
             )
-        db["Gosh"].enable_fts(["c1", "c2", "c3"], fts_version="FTS4")
-        db["Gosh2"].enable_fts(["c1", "c2", "c3"], fts_version="FTS5")
+        db.table("Gosh").enable_fts(["c1", "c2", "c3"], fts_version="FTS4")
+        db.table("Gosh2").enable_fts(["c1", "c2", "c3"], fts_version="FTS5")
     size_before_optimize = os.stat(db_path).st_size
     result = CliRunner().invoke(cli.cli, ["optimize", db_path] + tables)
     assert result.exit_code == 0
@@ -704,29 +707,29 @@ def test_rebuild_fts_fixes_docsize_error(db_path):
     db = Database(db_path, recursive_triggers=False)
     records = [
         {
-            "c1": "verb{}".format(i),
-            "c2": "noun{}".format(i),
-            "c3": "adjective{}".format(i),
+            "c1": f"verb{i}",
+            "c2": f"noun{i}",
+            "c3": f"adjective{i}",
         }
         for i in range(10000)
     ]
     with db.conn:
-        db["fts5_table"].insert_all(records, pk="c1")
-        db["fts5_table"].enable_fts(
+        db.table("fts5_table").insert_all(records, pk="c1")
+        db.table("fts5_table").enable_fts(
             ["c1", "c2", "c3"], fts_version="FTS5", create_triggers=True
         )
     # Search should work
-    assert list(db["fts5_table"].search("verb1"))
+    assert list(db.table("fts5_table").search("verb1"))
     # Replicate docsize error from this issue for FTS5
     # https://github.com/simonw/sqlite-utils/issues/149
-    assert db["fts5_table_fts_docsize"].count == 10000
-    db["fts5_table"].insert_all(records, replace=True)
-    assert db["fts5_table"].count == 10000
-    assert db["fts5_table_fts_docsize"].count == 20000
+    assert db.table("fts5_table_fts_docsize").count == 10000
+    db.table("fts5_table").insert_all(records, replace=True)
+    assert db.table("fts5_table").count == 10000
+    assert db.table("fts5_table_fts_docsize").count == 20000
     # Running rebuild-fts should fix this
     result = CliRunner().invoke(cli.cli, ["rebuild-fts", db_path, "fts5_table"])
     assert result.exit_code == 0
-    assert db["fts5_table_fts_docsize"].count == 10000
+    assert db.table("fts5_table_fts_docsize").count == 10000
 
 
 @pytest.mark.parametrize(
@@ -739,7 +742,7 @@ def test_rebuild_fts_fixes_docsize_error(db_path):
 def test_query_csv(db_path, format, expected):
     db = Database(db_path)
     with db.conn:
-        db["dogs"].insert_all(
+        db.table("dogs").insert_all(
             [
                 {"id": 1, "age": 4, "name": "Cleo"},
                 {"id": 2, "age": 2, "name": "Pancakes"},
@@ -791,7 +794,7 @@ _one_query = "select id, name, age from dogs where id = 1"
 def test_query_json(db_path, sql, args, expected):
     db = Database(db_path)
     with db.conn:
-        db["dogs"].insert_all(
+        db.table("dogs").insert_all(
             [
                 {"id": 1, "age": 4, "name": "Cleo"},
                 {"id": 2, "age": 2, "name": "Pancakes"},
@@ -805,7 +808,7 @@ def test_query_sql_from_stdin(db_path):
     # https://github.com/simonw/sqlite-utils/issues/765
     db = Database(db_path)
     with db.conn:
-        db["dogs"].insert_all(
+        db.table("dogs").insert_all(
             [
                 {"id": 1, "age": 4, "name": "Cleo"},
                 {"id": 2, "age": 2, "name": "Pancakes"},
@@ -1002,7 +1005,7 @@ LOREM_IPSUM_COMPRESSED = (
 def test_query_json_binary(db_path):
     db = Database(db_path)
     with db.conn:
-        db["files"].insert(
+        db.table("files").insert(
             {
                 "name": "lorem.txt",
                 "sz": 16984,
@@ -1019,16 +1022,14 @@ def test_query_json_binary(db_path):
             "data": {
                 "$base64": True,
                 "encoded": (
-                    (
-                        "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH"
-                        "8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+"
-                        "DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I"
-                        "/K+5Au3S/9lNQRh0k4Gq/RUz8GiKfsQm+7JLsJ6fTo5JhVG00ZU76kZZkxePx49uI"
-                        "jnpNoJyYlWUsoaSl/CcVATje/Kxu13RANnrHweaH3V5Jh4jvGyKCnxJLiXPKhmW3f"
-                        "iCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8"
-                        "IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984A"
-                        "Mf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9"
-                    )
+                    "eJzt0c1xAyEMBeC7q1ABHleR3HxNAQrIjmb4M0gelx+RTY7p4N2WBYT0vmufUknH"
+                    "8kq5lz5pqRFXsTOl3pYkE/NJnHXoStruJEVjc0mOCyTqq/ZMJnXEZW1Js2ZvRm5U+"
+                    "DPKk9hRWqjyvTFx0YfzhT6MpGmN2lR1fzxjyfVMD9dFrS+bnkleMpMam/ZGXgrX1I"
+                    "/K+5Au3S/9lNQRh0k4Gq/RUz8GiKfsQm+7JLsJ6fTo5JhVG00ZU76kZZkxePx49uI"
+                    "jnpNoJyYlWUsoaSl/CcVATje/Kxu13RANnrHweaH3V5Jh4jvGyKCnxJLiXPKhmW3f"
+                    "iCnG7Jql7RR3UvFo8jJ4z039dtOkTFmWzL1be9lt8A5II471m6vXy+l0BR/4wAc+8"
+                    "IEPfOADH/jABz7wgQ984AMf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984A"
+                    "Mf+MAHPvCBD3zgAx/4wAc+8IEPfOADH/jABz7wgQ984PuP7xubBoN9"
                 ),
             },
         }
@@ -1059,7 +1060,7 @@ def test_query_params(db_path, sql, params, expected):
 def test_query_json_with_json_cols(db_path):
     db = Database(db_path)
     with db.conn:
-        db["dogs"].insert(
+        db.table("dogs").insert(
             {
                 "id": 1,
                 "name": "Cleo",
@@ -1088,7 +1089,7 @@ def test_query_json_with_json_cols(db_path):
 def test_query_json_unicode_not_escaped_by_default(db_path):
     db = Database(db_path)
     with db.conn:
-        db["text"].insert({"id": 1, "text": "Japanese 日本語"}, pk="id")
+        db.table("text").insert({"id": 1, "text": "Japanese 日本語"}, pk="id")
     result = CliRunner().invoke(cli.cli, [db_path, "select id, text from text"])
     assert result.exit_code == 0
     assert result.output.strip() == '[{"id": 1, "text": "Japanese 日本語"}]'
@@ -1102,7 +1103,7 @@ def test_query_json_unicode_not_escaped_by_default(db_path):
 def test_query_json_ascii_option(db_path, command):
     db = Database(db_path)
     with db.conn:
-        db["text"].insert({"id": 1, "text": "Japanese 日本語"}, pk="id")
+        db.table("text").insert({"id": 1, "text": "Japanese 日本語"}, pk="id")
     if command == "query":
         args = [db_path, "select id, text from text", "--ascii"]
     else:
@@ -1118,7 +1119,7 @@ def test_query_json_ascii_option(db_path, command):
     [(b"\x00\x0fbinary", True), ("this is text", False), (1, False), (1.5, False)],
 )
 def test_query_raw(db_path, content, is_binary):
-    Database(db_path)["files"].insert({"content": content})
+    Database(db_path).table("files").insert({"content": content})
     result = CliRunner().invoke(
         cli.cli, [db_path, "select content from files", "--raw"]
     )
@@ -1133,7 +1134,7 @@ def test_query_raw(db_path, content, is_binary):
     [(b"\x00\x0fbinary", True), ("this is text", False), (1, False), (1.5, False)],
 )
 def test_query_raw_lines(db_path, content, is_binary):
-    Database(db_path)["files"].insert_all({"content": content} for _ in range(3))
+    Database(db_path).table("files").insert_all({"content": content} for _ in range(3))
     result = CliRunner().invoke(
         cli.cli, [db_path, "select content from files", "--raw-lines"]
     )
@@ -1183,6 +1184,11 @@ def test_query_memory_does_not_create_file(tmpdir):
             ["-c", "name", "--limit", "1", "--offset", "1"],
             '[{"name": "Pancakes"}]',
         ),
+        # --offset without --limit
+        (
+            ["-c", "name", "--offset", "1"],
+            '[{"name": "Pancakes"}]',
+        ),
         # --where
         (
             ["-c", "name", "--where", "id = 1"],
@@ -1210,12 +1216,12 @@ def test_query_memory_does_not_create_file(tmpdir):
 def test_rows(db_path, args, expected):
     db = Database(db_path)
     with db.conn:
-        db["dogs"].insert_all(
+        db.table("dogs").insert_all(
             [
                 {"id": 1, "age": 4, "name": "Cleo"},
                 {"id": 2, "age": 2, "name": "Pancakes"},
             ],
-            column_order=("id", "name", "age"),
+            column_order=["id", "name", "age"],
         )
     result = CliRunner().invoke(cli.cli, ["rows", db_path, "dogs"] + args)
     assert expected == result.output.strip()
@@ -1235,7 +1241,7 @@ def test_upsert(db_path, tmpdir):
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
-    assert 2 == db["dogs"].count
+    assert 2 == db.table("dogs").count
     # Now run the upsert to update just their ages
     upsert_dogs = [
         {"id": 1, "age": 5},
@@ -1290,8 +1296,8 @@ def test_upsert_pk_inferred_from_existing_table(db_path, tmpdir):
 
 def test_upsert_analyze(db_path, tmpdir):
     db = Database(db_path)
-    db["rows"].insert({"id": 1, "foo": "x", "n": 3}, pk="id")
-    db["rows"].create_index(["n"])
+    db.table("rows").insert({"id": 1, "foo": "x", "n": 3}, pk="id")
+    db.table("rows").create_index(["n"])
     assert "sqlite_stat1" not in db.table_names()
     result = CliRunner().invoke(
         cli.cli,
@@ -1305,7 +1311,7 @@ def test_upsert_analyze(db_path, tmpdir):
 def test_upsert_flatten(tmpdir):
     db_path = str(tmpdir / "flat.db")
     db = Database(db_path)
-    db["upsert_me"].insert({"id": 1, "name": "Example"}, pk="id")
+    db.table("upsert_me").insert({"id": 1, "name": "Example"}, pk="id")
     result = CliRunner().invoke(
         cli.cli,
         ["upsert", db_path, "upsert_me", "-", "--flatten", "--pk", "id", "--alter"],
@@ -1419,7 +1425,7 @@ def test_create_table(args, schema):
         )
         assert result.exit_code == 0
         db = Database("test.db")
-        assert schema == db["t"].schema
+        assert schema == db.table("t").schema
 
 
 def test_create_table_foreign_key():
@@ -1454,21 +1460,21 @@ def test_create_table_foreign_key():
             '   "id" INTEGER PRIMARY KEY,\n'
             '   "name" TEXT\n'
             ")"
-        ) == db["authors"].schema
+        ) == db.table("authors").schema
         assert (
             'CREATE TABLE "books" (\n'
             '   "id" INTEGER PRIMARY KEY,\n'
             '   "title" TEXT,\n'
             '   "author_id" INTEGER REFERENCES "authors"("id")\n'
             ")"
-        ) == db["books"].schema
+        ) == db.table("books").schema
 
 
 def test_create_table_error_if_table_exists():
     runner = CliRunner()
     with runner.isolated_filesystem():
         db = Database("test.db")
-        db["dogs"].insert({"name": "Cleo"})
+        db.table("dogs").insert({"name": "Cleo"})
         result = runner.invoke(
             cli.cli, ["create-table", "test.db", "dogs", "id", "integer"]
         )
@@ -1483,24 +1489,24 @@ def test_create_table_ignore():
     runner = CliRunner()
     with runner.isolated_filesystem():
         db = Database("test.db")
-        db["dogs"].insert({"name": "Cleo"})
+        db.table("dogs").insert({"name": "Cleo"})
         result = runner.invoke(
             cli.cli, ["create-table", "test.db", "dogs", "id", "integer", "--ignore"]
         )
         assert result.exit_code == 0
-        assert 'CREATE TABLE "dogs" (\n   "name" TEXT\n)' == db["dogs"].schema
+        assert 'CREATE TABLE "dogs" (\n   "name" TEXT\n)' == db.table("dogs").schema
 
 
 def test_create_table_replace():
     runner = CliRunner()
     with runner.isolated_filesystem():
         db = Database("test.db")
-        db["dogs"].insert({"name": "Cleo"})
+        db.table("dogs").insert({"name": "Cleo"})
         result = runner.invoke(
             cli.cli, ["create-table", "test.db", "dogs", "id", "integer", "--replace"]
         )
         assert result.exit_code == 0
-        assert 'CREATE TABLE "dogs" (\n   "id" INTEGER\n)' == db["dogs"].schema
+        assert 'CREATE TABLE "dogs" (\n   "id" INTEGER\n)' == db.table("dogs").schema
 
 
 def test_create_view():
@@ -1512,7 +1518,8 @@ def test_create_view():
         )
         assert result.exit_code == 0
         assert (
-            'CREATE VIEW "version" AS select sqlite_version()' == db["version"].schema
+            'CREATE VIEW "version" AS select sqlite_version()'
+            == db.view("version").schema
         )
 
 
@@ -1549,7 +1556,7 @@ def test_create_view_ignore():
         assert result.exit_code == 0
         assert (
             'CREATE VIEW "version" AS select sqlite_version() + 1'
-            == db["version"].schema
+            == db.view("version").schema
         )
 
 
@@ -1570,7 +1577,8 @@ def test_create_view_replace():
         )
         assert result.exit_code == 0
         assert (
-            'CREATE VIEW "version" AS select sqlite_version()' == db["version"].schema
+            'CREATE VIEW "version" AS select sqlite_version()'
+            == db.view("version").schema
         )
 
 
@@ -1578,7 +1586,7 @@ def test_drop_table():
     runner = CliRunner()
     with runner.isolated_filesystem():
         db = Database("test.db")
-        db["t"].create({"pk": int}, pk="pk")
+        db.table("t").create({"pk": int}, pk="pk")
         assert "t" in db.table_names()
         result = runner.invoke(
             cli.cli,
@@ -1596,7 +1604,7 @@ def test_drop_table_error():
     runner = CliRunner()
     with runner.isolated_filesystem():
         db = Database("test.db")
-        db["t"].create({"pk": int}, pk="pk")
+        db.table("t").create({"pk": int}, pk="pk")
         result = runner.invoke(
             cli.cli,
             [
@@ -1619,7 +1627,7 @@ def test_drop_table_on_view_errors():
     runner = CliRunner()
     with runner.isolated_filesystem():
         db = Database("test.db")
-        db["t"].insert({"id": 1})
+        db.table("t").insert({"id": 1})
         db.create_view("v", "select * from t")
         result = runner.invoke(cli.cli, ["drop-table", "test.db", "v"])
         assert result.exit_code == 1
@@ -1655,7 +1663,7 @@ def test_drop_view_on_table_errors():
     runner = CliRunner()
     with runner.isolated_filesystem():
         db = Database("test.db")
-        db["t"].insert({"id": 1})
+        db.table("t").insert({"id": 1})
         result = runner.invoke(cli.cli, ["drop-view", "test.db", "t"])
         assert result.exit_code == 1
         assert 'Error: "t" is a table, not a view - use drop-table to drop it' == (
@@ -1672,7 +1680,7 @@ def test_drop_view_error():
     runner = CliRunner()
     with runner.isolated_filesystem():
         db = Database("test.db")
-        db["t"].create({"pk": int}, pk="pk")
+        db.table("t").create({"pk": int}, pk="pk")
         result = runner.invoke(
             cli.cli,
             [
@@ -1697,7 +1705,7 @@ def test_enable_wal():
     with runner.isolated_filesystem():
         for dbname in dbs:
             db = Database(dbname)
-            db["t"].create({"pk": int}, pk="pk")
+            db.table("t").create({"pk": int}, pk="pk")
             assert db.journal_mode == "delete"
         result = runner.invoke(cli.cli, ["enable-wal"] + dbs, catch_exceptions=False)
         assert result.exit_code == 0
@@ -1712,7 +1720,7 @@ def test_disable_wal():
     with runner.isolated_filesystem():
         for dbname in dbs:
             db = Database(dbname)
-            db["t"].create({"pk": int}, pk="pk")
+            db.table("t").create({"pk": int}, pk="pk")
             db.enable_wal()
             assert db.journal_mode == "wal"
         result = runner.invoke(cli.cli, ["disable-wal"] + dbs)
@@ -1735,7 +1743,7 @@ def test_disable_wal():
 def test_query_update(db_path, args, expected):
     db = Database(db_path)
     with db.conn:
-        db["dogs"].insert_all(
+        db.table("dogs").insert_all(
             [
                 {"id": 1, "age": 4, "name": "Cleo"},
             ]
@@ -1751,11 +1759,13 @@ def test_query_update(db_path, args, expected):
 
 def test_add_foreign_keys(db_path):
     db = Database(db_path)
-    db["countries"].insert({"id": 7, "name": "Panama"}, pk="id")
-    db["authors"].insert({"id": 3, "name": "Matilda", "country_id": 7}, pk="id")
-    db["books"].insert({"id": 2, "title": "Wolf anatomy", "author_id": 3}, pk="id")
-    assert db["authors"].foreign_keys == []
-    assert db["books"].foreign_keys == []
+    db.table("countries").insert({"id": 7, "name": "Panama"}, pk="id")
+    db.table("authors").insert({"id": 3, "name": "Matilda", "country_id": 7}, pk="id")
+    db.table("books").insert(
+        {"id": 2, "title": "Wolf anatomy", "author_id": 3}, pk="id"
+    )
+    assert db.table("authors").foreign_keys == []
+    assert db.table("books").foreign_keys == []
     result = CliRunner().invoke(
         cli.cli,
         [
@@ -1772,7 +1782,7 @@ def test_add_foreign_keys(db_path):
         ],
     )
     assert result.exit_code == 0
-    assert db["authors"].foreign_keys == [
+    assert db.table("authors").foreign_keys == [
         ForeignKey(
             table="authors",
             column="country_id",
@@ -1780,7 +1790,7 @@ def test_add_foreign_keys(db_path):
             other_column="id",
         )
     ]
-    assert db["books"].foreign_keys == [
+    assert db.table("books").foreign_keys == [
         ForeignKey(
             table="books", column="author_id", other_table="authors", other_column="id"
         )
@@ -1904,7 +1914,7 @@ def test_add_foreign_keys(db_path):
 def test_transform(db_path, args, expected_schema):
     db = Database(db_path)
     with db.conn:
-        db["dogs"].insert(
+        db.table("dogs").insert(
             {"id": 1, "age": 4, "name": "Cleo"},
             not_null={"age"},
             defaults={"age": 1},
@@ -1913,20 +1923,20 @@ def test_transform(db_path, args, expected_schema):
     result = CliRunner().invoke(cli.cli, ["transform", db_path, "dogs"] + args)
     print(result.output)
     assert result.exit_code == 0
-    schema = db["dogs"].schema
+    schema = db.table("dogs").schema
     assert schema == expected_schema
 
 
 def test_transform_sql(db_path):
     db = Database(db_path)
     with db.conn:
-        db["dogs"].insert(
+        db.table("dogs").insert(
             {"id": 1, "age": 4, "name": "Cleo"},
             not_null={"age"},
             defaults={"age": 1},
             pk="id",
         )
-    original_schema = db["dogs"].schema
+    original_schema = db.table("dogs").schema
 
     result = CliRunner().invoke(
         cli.cli, ["transform", db_path, "dogs", "--drop", "name", "--sql"]
@@ -1937,7 +1947,7 @@ def test_transform_sql(db_path):
     assert '"age" INTEGER NOT NULL DEFAULT' in result.output
     assert 'DROP TABLE "dogs";' in result.output
     assert 'ALTER TABLE "dogs_new_' in result.output
-    assert db["dogs"].schema == original_schema
+    assert db.table("dogs").schema == original_schema
 
 
 @pytest.mark.parametrize(
@@ -1953,12 +1963,12 @@ def test_transform_strict_option(db_path, initial_strict, args, expected_strict)
     db = Database(db_path)
     if not db.supports_strict:
         pytest.skip("SQLite version does not support strict tables")
-    db["dogs"].create({"id": int}, strict=initial_strict)
+    db.table("dogs").create({"id": int}, strict=initial_strict)
 
     result = CliRunner().invoke(cli.cli, ["transform", db_path, "dogs"] + args)
 
     assert result.exit_code == 0, result.output
-    assert db["dogs"].strict is expected_strict
+    assert db.table("dogs").strict is expected_strict
 
 
 @pytest.mark.parametrize(
@@ -1972,20 +1982,20 @@ def test_transform_strict_option_sql(db_path, initial_strict, flag, sql_is_stric
     db = Database(db_path)
     if not db.supports_strict:
         pytest.skip("SQLite version does not support strict tables")
-    db["dogs"].create({"id": int}, strict=initial_strict)
+    db.table("dogs").create({"id": int}, strict=initial_strict)
 
     result = CliRunner().invoke(cli.cli, ["transform", db_path, "dogs", flag, "--sql"])
 
     assert result.exit_code == 0, result.output
     assert (") STRICT;" in result.output) is sql_is_strict
-    assert db["dogs"].strict is initial_strict
+    assert db.table("dogs").strict is initial_strict
 
 
 def test_transform_strict_option_with_invalid_data(db_path):
     db = Database(db_path)
     if not db.supports_strict:
         pytest.skip("SQLite version does not support strict tables")
-    dogs = db["dogs"]
+    dogs = db.table("dogs")
     dogs.create({"id": int})
     dogs.insert({"id": "not-an-integer"})
 
@@ -1996,6 +2006,25 @@ def test_transform_strict_option_with_invalid_data(db_path):
     assert dogs.strict is False
     assert list(dogs.rows) == [{"id": "not-an-integer"}]
     assert not any(name.startswith("dogs_new_") for name in db.table_names())
+
+
+def test_transform_column_to_any(db_path):
+    db = Database(db_path)
+    if not db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    db.table("items").create({"data": str}, strict=True)
+    db.table("items").insert({"data": "000123"})
+
+    result = CliRunner().invoke(
+        cli.cli, ["transform", db_path, "items", "--type", "data", "any"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert db.table("items").columns_dict == {"data": ANY}
+    assert db.execute("select typeof(data), data from items").fetchone() == (
+        "text",
+        "000123",
+    )
 
 
 @pytest.mark.parametrize(
@@ -2043,10 +2072,10 @@ def test_transform_add_or_drop_foreign_key(db_path, extra_args, expected_schema)
     db = Database(db_path)
     with db.conn:
         # Create table with three foreign keys so we can drop two of them
-        db["continent"].insert({"id": 1, "name": "Europe"}, pk="id")
-        db["country"].insert({"id": 1, "name": "France"}, pk="id")
-        db["city"].insert({"id": 24, "name": "Paris"}, pk="id")
-        db["places"].insert(
+        db.table("continent").insert({"id": 1, "name": "Europe"}, pk="id")
+        db.table("country").insert({"id": 1, "name": "France"}, pk="id")
+        db.table("city").insert({"id": 24, "name": "Paris"}, pk="id")
+        db.table("places").insert(
             {
                 "id": 32,
                 "name": "Caveau de la Huchette",
@@ -2067,7 +2096,7 @@ def test_transform_add_or_drop_foreign_key(db_path, extra_args, expected_schema)
         + extra_args,
     )
     assert result.exit_code == 0
-    schema = db["places"].schema
+    schema = db.table("places").schema
     assert schema == expected_schema
 
 
@@ -2114,11 +2143,13 @@ _common_other_schema = (
         ),
         (
             ["--rename", "name", "name2"],
-            'CREATE TABLE "trees" (\n'
-            '   "id" INTEGER PRIMARY KEY,\n'
-            '   "address" TEXT,\n'
-            '   "species_id" INTEGER REFERENCES "species"("id")\n'
-            ")",
+            (
+                'CREATE TABLE "trees" (\n'
+                '   "id" INTEGER PRIMARY KEY,\n'
+                '   "address" TEXT,\n'
+                '   "species_id" INTEGER REFERENCES "species"("id")\n'
+                ")"
+            ),
             'CREATE TABLE "species" (\n   "id" INTEGER PRIMARY KEY,\n   "species" TEXT\n)',
         ),
     ],
@@ -2126,7 +2157,7 @@ _common_other_schema = (
 def test_extract(db_path, args, expected_table_schema, expected_other_schema):
     db = Database(db_path)
     with db.conn:
-        db["trees"].insert(
+        db.table("trees").insert(
             {"id": 1, "address": "4 Park Ave", "species": "Palm"},
             pk="id",
         )
@@ -2135,11 +2166,11 @@ def test_extract(db_path, args, expected_table_schema, expected_other_schema):
     )
     print(result.output)
     assert result.exit_code == 0
-    schema = db["trees"].schema
+    schema = db.table("trees").schema
     assert schema == expected_table_schema
-    other_schema = [t for t in db.tables if t.name not in ("trees", "Gosh", "Gosh2")][
-        0
-    ].schema
+    other_schema = next(
+        t for t in db.tables if t.name not in ("trees", "Gosh", "Gosh2")
+    ).schema
     assert other_schema == expected_other_schema
 
 
@@ -2183,7 +2214,7 @@ def test_insert_encoding(tmpdir):
     )
     assert good_result.exit_code == 0
     db = Database(db_path)
-    assert list(db["places"].rows) == [
+    assert list(db.table("places").rows) == [
         {
             "date": "2020-01-01",
             "name": "Barra da Lagoa",
@@ -2219,7 +2250,7 @@ def test_insert_encoding(tmpdir):
 def test_search(tmpdir, fts, extra_arg, expected):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db["articles"].insert_all(
+    db.table("articles").insert_all(
         [
             {"id": 1, "title": "Title the first"},
             {"id": 2, "title": "Title the second"},
@@ -2227,7 +2258,7 @@ def test_search(tmpdir, fts, extra_arg, expected):
         ],
         pk="id",
     )
-    db["articles"].enable_fts(["title"], fts_version=fts)
+    db.table("articles").enable_fts(["title"], fts_version=fts)
     result = CliRunner().invoke(
         cli.cli,
         ["search", db_path, "articles", "second"] + ([extra_arg] if extra_arg else []),
@@ -2240,7 +2271,7 @@ def test_search(tmpdir, fts, extra_arg, expected):
 def test_search_quote(tmpdir):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db["creatures"].insert({"name": "dog."}).enable_fts(["name"])
+    db.table("creatures").insert({"name": "dog."}).enable_fts(["name"])
     # Without --quote should return an error
     error_result = CliRunner().invoke(cli.cli, ["search", db_path, "creatures", 'dog"'])
     assert error_result.exit_code == 1
@@ -2348,11 +2379,11 @@ _TRIGGERS_EXPECTED = (
 def test_triggers(tmpdir, extra_args, expected):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db["articles"].insert(
+    db.table("articles").insert(
         {"id": 1, "title": "Title the first"},
         pk="id",
     )
-    db["counter"].insert({"count": 1})
+    db.table("counter").insert({"count": 1})
     db.conn.execute(textwrap.dedent("""
         CREATE TRIGGER blah AFTER INSERT ON articles
         BEGIN
@@ -2413,9 +2444,9 @@ def test_triggers(tmpdir, extra_args, expected):
 def test_schema(tmpdir, options, expected):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db["dogs"].create({"id": int, "name": str})
-    db["chickens"].create({"id": int, "name": str, "breed": str})
-    db["chickens"].create_index(["breed"])
+    db.table("dogs").create({"id": int, "name": str})
+    db.table("chickens").create({"id": int, "name": str, "breed": str})
+    db.table("chickens").create_index(["breed"])
     result = CliRunner().invoke(
         cli.cli,
         ["schema", db_path] + options,
@@ -2431,7 +2462,7 @@ def test_long_csv_column_value(tmpdir):
     with open(csv_path, "w") as csv_file:
         long_string = "a" * 131073
         csv_file.write("id,text\n")
-        csv_file.write("1,{}\n".format(long_string))
+        csv_file.write(f"1,{long_string}\n")
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "bigtable", csv_path, "--csv"],
@@ -2439,7 +2470,7 @@ def test_long_csv_column_value(tmpdir):
     )
     assert result.exit_code == 0
     db = Database(db_path)
-    rows = list(db["bigtable"].rows)
+    rows = list(db.table("bigtable").rows)
     assert len(rows) == 1
     assert rows[0]["text"] == long_string
 
@@ -2457,8 +2488,8 @@ def test_import_no_headers(tmpdir, args, tsv):
     csv_path = str(tmpdir / "test.csv")
     with open(csv_path, "w") as csv_file:
         sep = "\t" if tsv else ","
-        csv_file.write("Cleo{sep}Dog{sep}5\n".format(sep=sep))
-        csv_file.write("Tracy{sep}Spider{sep}7\n".format(sep=sep))
+        csv_file.write(f"Cleo{sep}Dog{sep}5\n")
+        csv_file.write(f"Tracy{sep}Spider{sep}7\n")
     result = CliRunner().invoke(
         cli.cli,
         ["insert", db_path, "creatures", csv_path] + args + ["--no-detect-types"],
@@ -2466,7 +2497,7 @@ def test_import_no_headers(tmpdir, args, tsv):
     )
     assert result.exit_code == 0, result.output
     db = Database(db_path)
-    schema = db["creatures"].schema
+    schema = db.table("creatures").schema
     assert schema == (
         'CREATE TABLE "creatures" (\n'
         '   "untitled_1" TEXT,\n'
@@ -2474,7 +2505,7 @@ def test_import_no_headers(tmpdir, args, tsv):
         '   "untitled_3" TEXT\n'
         ")"
     )
-    rows = list(db["creatures"].rows)
+    rows = list(db.table("creatures").rows)
     assert rows == [
         {"untitled_1": "Cleo", "untitled_2": "Dog", "untitled_3": "5"},
         {"untitled_1": "Tracy", "untitled_2": "Spider", "untitled_3": "7"},
@@ -2486,10 +2517,10 @@ def test_attach(tmpdir):
     bar_path = str(tmpdir / "bar.db")
     db = Database(foo_path)
     with db.conn:
-        db["foo"].insert({"id": 1, "text": "foo"})
+        db.table("foo").insert({"id": 1, "text": "foo"})
     db2 = Database(bar_path)
     with db2.conn:
-        db2["bar"].insert({"id": 1, "text": "bar"})
+        db2.table("bar").insert({"id": 1, "text": "bar"})
     db.attach("bar", bar_path)
     sql = "select * from foo union all select * from bar.bar"
     result = CliRunner().invoke(
@@ -2550,7 +2581,7 @@ def test_insert_detect_types(tmpdir):
     )
     assert result.exit_code == 0
     db = Database(db_path)
-    assert list(db["creatures"].rows) == [
+    assert list(db.table("creatures").rows) == [
         {"name": "Cleo", "age": 6, "weight": 45.5},
         {"name": "Dori", "age": 1, "weight": 3.5},
     ]
@@ -2582,7 +2613,7 @@ def test_upsert_detect_types(tmpdir):
     )
     assert result.exit_code == 0
     db = Database(db_path)
-    assert list(db["creatures"].rows) == [
+    assert list(db.table("creatures").rows) == [
         {"id": 1, "name": "Cleo", "age": 6, "weight": 45.5},
         {"id": 2, "name": "Dori", "age": 1, "weight": 3.5},
     ]
@@ -2601,7 +2632,7 @@ def test_csv_detect_types_creates_real_columns(tmpdir):
     assert result.exit_code == 0
     db = Database(db_path)
     # Check that the schema uses REAL for the weight column
-    assert db["creatures"].schema == (
+    assert db.table("creatures").schema == (
         'CREATE TABLE "creatures" (\n'
         '   "name" TEXT,\n'
         '   "age" INTEGER,\n'
@@ -2623,11 +2654,11 @@ def test_insert_no_detect_types(tmpdir):
     assert result.exit_code == 0
     db = Database(db_path)
     # All columns should be TEXT when --no-detect-types is used
-    assert list(db["creatures"].rows) == [
+    assert list(db.table("creatures").rows) == [
         {"name": "Cleo", "age": "6", "weight": "45.5"},
         {"name": "Dori", "age": "1", "weight": "3.5"},
     ]
-    assert db["creatures"].schema == (
+    assert db.table("creatures").schema == (
         'CREATE TABLE "creatures" (\n'
         '   "name" TEXT,\n'
         '   "age" TEXT,\n'
@@ -2658,11 +2689,11 @@ def test_upsert_no_detect_types(tmpdir):
     assert result.exit_code == 0
     db = Database(db_path)
     # All columns should be TEXT when --no-detect-types is used
-    assert list(db["creatures"].rows) == [
+    assert list(db.table("creatures").rows) == [
         {"id": "1", "name": "Cleo", "age": "6", "weight": "45.5"},
         {"id": "2", "name": "Dori", "age": "1", "weight": "3.5"},
     ]
-    assert db["creatures"].schema == (
+    assert db.table("creatures").schema == (
         'CREATE TABLE "creatures" (\n'
         '   "id" TEXT PRIMARY KEY,\n'
         '   "name" TEXT,\n'
@@ -2690,7 +2721,9 @@ def test_integer_overflow_error(tmpdir):
 def test_python_dash_m():
     "Tool can be run using python -m sqlite_utils"
     result = subprocess.run(
-        [sys.executable, "-m", "sqlite_utils", "--help"], stdout=subprocess.PIPE
+        [sys.executable, "-m", "sqlite_utils", "--help"],
+        stdout=subprocess.PIPE,
+        check=False,
     )
     assert result.returncode == 0
     assert b"Commands for interacting with a SQLite database" in result.stdout
@@ -2742,20 +2775,20 @@ def test_create_database(tmpdir, enable_wal):
 def test_analyze(tmpdir, options, expected):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db["one_index"].insert({"id": 1, "name": "Cleo"}, pk="id")
-    db["one_index"].create_index(["name"])
-    db["two_indexes"].insert({"id": 1, "name": "Cleo", "species": "dog"}, pk="id")
-    db["two_indexes"].create_index(["name"])
-    db["two_indexes"].create_index(["species"])
+    db.table("one_index").insert({"id": 1, "name": "Cleo"}, pk="id")
+    db.table("one_index").create_index(["name"])
+    db.table("two_indexes").insert({"id": 1, "name": "Cleo", "species": "dog"}, pk="id")
+    db.table("two_indexes").create_index(["name"])
+    db.table("two_indexes").create_index(["species"])
     result = CliRunner().invoke(cli.cli, ["analyze", db_path] + options)
     assert result.exit_code == 0
-    assert list(db["sqlite_stat1"].rows) == expected
+    assert list(db.table("sqlite_stat1").rows) == expected
 
 
 def test_rename_table(tmpdir):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db["one"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    db.table("one").insert({"id": 1, "name": "Cleo"}, pk="id")
     # First try a non-existent table
     result_error = CliRunner().invoke(
         cli.cli,
@@ -2773,7 +2806,7 @@ def test_rename_table(tmpdir):
         catch_exceptions=False,
     )
     assert result_error2.exit_code == 0
-    previous_columns = db["one"].columns_dict
+    previous_columns = db.table("one").columns_dict
     # Now try for a table that exists
     result = CliRunner().invoke(
         cli.cli,
@@ -2781,13 +2814,13 @@ def test_rename_table(tmpdir):
         catch_exceptions=False,
     )
     assert result.exit_code == 0
-    assert db["two"].columns_dict == previous_columns
+    assert db.table("two").columns_dict == previous_columns
 
 
 def test_duplicate_table(tmpdir):
     db_path = str(tmpdir / "test.db")
     db = Database(db_path)
-    db["one"].insert({"id": 1, "name": "Cleo"}, pk="id")
+    db.table("one").insert({"id": 1, "name": "Cleo"}, pk="id")
     # First try a non-existent table
     result_error = CliRunner().invoke(
         cli.cli,
@@ -2810,8 +2843,8 @@ def test_duplicate_table(tmpdir):
         catch_exceptions=False,
     )
     assert result.exit_code == 0
-    assert db["one"].columns_dict == db["two"].columns_dict
-    assert list(db["one"].rows) == list(db["two"].rows)
+    assert db.table("one").columns_dict == db.table("two").columns_dict
+    assert list(db.table("one").rows) == list(db.table("two").rows)
 
 
 @pytest.mark.skipif(not _has_compiled_ext(), reason="Requires compiled ext.c")
@@ -2830,14 +2863,14 @@ def test_load_extension(entrypoint, should_pass, should_fail):
     for func in should_pass:
         result = CliRunner().invoke(
             cli.cli,
-            ["memory", "select {}()".format(func), "--load-extension", ext],
+            ["memory", f"select {func}()", "--load-extension", ext],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
     for func in should_fail:
         result = CliRunner().invoke(
             cli.cli,
-            ["memory", "select {}()".format(func), "--load-extension", ext],
+            ["memory", f"select {func}()", "--load-extension", ext],
             catch_exceptions=False,
         )
         assert result.exit_code == 1
@@ -2854,9 +2887,33 @@ def test_create_table_strict(strict):
             + (["--strict"] if strict else []),
         )
         assert result.exit_code == 0
-        assert db["items"].strict == strict or not db.supports_strict
+        assert db.table("items").strict == strict or not db.supports_strict
         # Should have a floating point column
-        assert db["items"].columns_dict == {"id": int, "w": float}
+        assert db.table("items").columns_dict == {"id": int, "w": float}
+
+
+def test_create_table_strict_any():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        if not db.supports_strict:
+            pytest.skip("SQLite version does not support strict tables")
+        result = runner.invoke(
+            cli.cli,
+            [
+                "create-table",
+                "test.db",
+                "items",
+                "id",
+                "integer",
+                "data",
+                "any",
+                "--strict",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert db.table("items").strict is True
+        assert db.table("items").columns_dict == {"id": int, "data": ANY}
 
 
 @pytest.mark.parametrize("method", ("insert", "upsert"))
@@ -2871,12 +2928,45 @@ def test_insert_upsert_strict(tmpdir, method, strict):
     )
     assert result.exit_code == 0
     db = Database(db_path)
-    assert db["items"].strict == strict or not db.supports_strict
+    assert db.table("items").strict == strict or not db.supports_strict
+
+
+@pytest.mark.parametrize("method", ("insert", "upsert"))
+def test_insert_upsert_strict_any(tmpdir, method):
+    db_path = str(tmpdir / "test.db")
+    db = Database(db_path)
+    if not db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    db.close()
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            method,
+            db_path,
+            "items",
+            "-",
+            "--csv",
+            "--pk",
+            "id",
+            "--type",
+            "data",
+            "any",
+            "--strict",
+        ],
+        input="id,data\n1,000123",
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    assert db.table("items").columns_dict == {"id": int, "data": ANY}
+    assert db.execute("select typeof(data), data from items").fetchone() == (
+        "text",
+        "000123",
+    )
 
 
 def test_extract_bad_column_clean_error(db_path):
     db = Database(db_path)
-    db["trees"].insert({"id": 1, "species": "Palm"}, pk="id")
+    db.table("trees").insert({"id": 1, "species": "Palm"}, pk="id")
     result = CliRunner().invoke(cli.cli, ["extract", db_path, "trees", "nope"])
     assert result.exit_code == 1
     assert result.exception is None or isinstance(result.exception, SystemExit)
@@ -2885,7 +2975,7 @@ def test_extract_bad_column_clean_error(db_path):
 
 def test_extract_view_clean_error(db_path):
     db = Database(db_path)
-    db["trees"].insert({"id": 1, "species": "Palm"}, pk="id")
+    db.table("trees").insert({"id": 1, "species": "Palm"}, pk="id")
     db.create_view("v", "select * from trees")
     result = CliRunner().invoke(cli.cli, ["extract", db_path, "v", "species"])
     assert result.exit_code == 1
