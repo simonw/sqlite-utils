@@ -1,4 +1,4 @@
-"""Helpers for parsing CHECK constraints from SQLite CREATE TABLE SQL.
+"""Helpers for parsing constraints from SQLite CREATE TABLE SQL.
 
 SQLite does not expose CHECK constraints through a pragma, so preserving them
 across a table rebuild requires reading ``sqlite_schema.sql``.  This module is
@@ -562,6 +562,34 @@ def parse_checks(create_sql: str) -> list[Check]:
             _column_checks(item, item_tokens, column, body_start + item_start)
         )
     return checks
+
+
+def parse_autoincrement(create_sql: str) -> str | None:
+    """Return the AUTOINCREMENT column from a valid CREATE TABLE statement."""
+    body_info = _table_body(create_sql)
+    if body_info is None:
+        return None
+    body, _ = body_info
+    for item, _, _ in _split_spans(body, _lex(body)):
+        item_tokens = _meaningful(_lex(item))
+        if not item_tokens:
+            continue
+        head = item_tokens[0]
+        if (
+            head.kind == "word" and head.text.upper() in _TABLE_CONSTRAINT_KEYWORDS
+        ) or head.is_keyword("CONSTRAINT"):
+            continue
+        column = _unquote(head.text)
+        index = 1
+        while index < len(item_tokens):
+            token = item_tokens[index]
+            if token.text == "(":
+                index = _matching_paren(item_tokens, index) + 1
+                continue
+            if token.is_keyword("AUTOINCREMENT"):
+                return column
+            index += 1
+    return None
 
 
 def parse_column_comments(create_sql: str) -> dict[str, ColumnComments]:

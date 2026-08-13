@@ -33,6 +33,7 @@ from .create_table_parser import (
     ColumnComments,
     ParseError,
     check_references_identifier,
+    parse_autoincrement,
     parse_checks,
     parse_column_comments,
     rewrite_check_expression,
@@ -1422,6 +1423,7 @@ class Database:
         strict: bool = False,
         _checks: Iterable[Check] | None = None,
         _column_comments: Mapping[str, ColumnComments] | None = None,
+        _autoincrement: str | None = None,
     ) -> str:
         """
         Returns the SQL ``CREATE TABLE`` statement for creating the specified table.
@@ -1525,10 +1527,22 @@ class Database:
                 column_items.insert(0, (pk, int))
         elif pk:
             pk = [resolve_casing(p, [c[0] for c in column_items]) for p in pk]
+        if _autoincrement is not None:
+            _autoincrement = resolve_casing(
+                _autoincrement, [c[0] for c in column_items]
+            )
+            if _autoincrement != single_pk:
+                raise ValueError("AUTOINCREMENT requires a single-column primary key")
         for column_name, column_type in column_items:
             column_extras = []
             if column_name == single_pk:
                 column_extras.append("PRIMARY KEY")
+                if column_name == _autoincrement:
+                    if COLUMN_TYPE_MAPPING[column_type] != "INTEGER":
+                        raise ValueError(
+                            "AUTOINCREMENT requires an INTEGER PRIMARY KEY column"
+                        )
+                    column_extras.append("AUTOINCREMENT")
             if column_name in not_null:
                 column_extras.append("NOT NULL")
             if column_name in defaults and defaults[column_name] is not None:
@@ -2748,6 +2762,7 @@ class Table(Queryable):
         try:
             existing_checks = self.checks
             existing_column_comments = parse_column_comments(self.schema)
+            existing_autoincrement = parse_autoincrement(self.schema)
         except ParseError as ex:
             raise TransformError(
                 f"Could not parse table schema for table {self.name!r}: {ex}"
@@ -2870,6 +2885,11 @@ class Table(Queryable):
             new_column_pairs.append((new_name, type_))
             copy_from_to[name] = new_name
 
+        if existing_autoincrement:
+            existing_autoincrement = resolve_casing(
+                existing_autoincrement, existing_columns
+            )
+
         if pk is DEFAULT:
             pks_renamed = tuple(
                 rename.get(pk_name) or pk_name
@@ -2879,6 +2899,28 @@ class Table(Queryable):
                 pk = pks_renamed[0]
             else:
                 pk = pks_renamed
+
+        create_table_autoincrement = None
+        if existing_autoincrement and existing_autoincrement not in drop:
+            renamed_autoincrement = (
+                rename.get(existing_autoincrement) or existing_autoincrement
+            )
+            single_pk = pk[0] if isinstance(pk, (list, tuple)) and len(pk) == 1 else pk
+            new_column_types = dict(new_column_pairs)
+            if (
+                single_pk == renamed_autoincrement
+                and COLUMN_TYPE_MAPPING.get(new_column_types.get(renamed_autoincrement))
+                == "INTEGER"
+            ):
+                create_table_autoincrement = renamed_autoincrement
+
+        autoincrement_sequence = None
+        if create_table_autoincrement:
+            sequence_row = self.db.execute(
+                "SELECT seq FROM sqlite_sequence WHERE name = ?", [self.name]
+            ).fetchone()
+            if sequence_row is not None:
+                autoincrement_sequence = sequence_row[0]
 
         # not_null may be a set or dict, need to convert to a set
         create_table_not_null = {
@@ -2931,6 +2973,7 @@ class Table(Queryable):
                 strict=self.strict if strict is None else strict,
                 _checks=create_table_checks,
                 _column_comments=create_table_column_comments,
+                _autoincrement=create_table_autoincrement,
             ).strip()
         )
 
@@ -3053,6 +3096,23 @@ class Table(Queryable):
                 "ON" if legacy_alter_table_was_on else "OFF"
             )
         )
+        if autoincrement_sequence is not None:
+            table_name_literal = self.db.quote(self.name)
+            sqls.extend(
+                (
+                    "UPDATE sqlite_sequence SET seq = MAX(seq, {sequence}) "
+                    "WHERE name = {table_name};".format(
+                        sequence=autoincrement_sequence,
+                        table_name=table_name_literal,
+                    ),
+                    "INSERT INTO sqlite_sequence (name, seq) "
+                    "SELECT {table_name}, {sequence} WHERE NOT EXISTS "
+                    "(SELECT 1 FROM sqlite_sequence WHERE name = {table_name});".format(
+                        sequence=autoincrement_sequence,
+                        table_name=table_name_literal,
+                    ),
+                )
+            )
         # Re-add existing indexes
         sqls.extend(index_create_sqls)
         return sqls

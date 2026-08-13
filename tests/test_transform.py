@@ -1053,6 +1053,24 @@ def test_transform_with_unique_constraint_implicit_index(fresh_db):
     )
 
 
+def test_transform_preserves_autoincrement_and_sequence(fresh_db):
+    fresh_db.execute(
+        "CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, value TEXT)"
+    )
+    entries = fresh_db.table("entries")
+    entries.insert_all(({"value": "one"}, {"value": "two"}))
+    entries.delete(2)
+
+    entries.transform(rename={"value": "label"})
+
+    assert "PRIMARY KEY AUTOINCREMENT" in entries.schema
+    entries.insert({"label": "three"})
+    assert list(entries.rows) == [
+        {"id": 1, "label": "one"},
+        {"id": 3, "label": "three"},
+    ]
+
+
 def test_transform_preserves_view(fresh_db):
     # https://github.com/simonw/sqlite-utils/issues/831
     dogs = fresh_db.table("dogs")

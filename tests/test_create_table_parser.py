@@ -8,6 +8,7 @@ from sqlite_utils.create_table_parser import (
     Check,
     ColumnComments,
     ParseError,
+    parse_autoincrement,
     parse_checks,
     parse_column_comments,
 )
@@ -115,6 +116,36 @@ def test_virtual_table_has_no_checks():
     assert (
         parse_checks("CREATE /* comment */ VIRTUAL TABLE search USING fts5(text)") == []
     )
+
+
+@pytest.mark.parametrize(
+    "sql,expected",
+    [
+        (
+            "CREATE TABLE t(id INTEGER PRIMARY KEY AUTOINCREMENT, value TEXT)",
+            "id",
+        ),
+        (
+            'CREATE TABLE t("quoted id" INTEGER PRIMARY KEY AUTOINCREMENT)',
+            "quoted id",
+        ),
+        (
+            'CREATE TABLE t("autoincrement" INTEGER PRIMARY KEY, value TEXT)',
+            None,
+        ),
+        (
+            "CREATE TABLE t(id INTEGER PRIMARY KEY /* AUTOINCREMENT */, value TEXT)",
+            None,
+        ),
+        (
+            "CREATE TABLE t(id INTEGER PRIMARY KEY, value TEXT CHECK(value != 'AUTOINCREMENT'))",
+            None,
+        ),
+    ],
+)
+def test_parse_autoincrement(sql, expected):
+    sqlite3.connect(":memory:").execute(sql)
+    assert parse_autoincrement(sql) == expected
 
 
 comment_or_space = st.sampled_from(

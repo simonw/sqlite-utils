@@ -9,6 +9,7 @@
 Unreleased
 ----------
 
+- ``table.transform()`` now preserves ``AUTOINCREMENT`` primary keys and their sequence high-water marks. Previously a transform removed ``AUTOINCREMENT`` and could reuse deleted row IDs. (:issue:`602`)
 - New ``table.checks``, ``table.column_checks`` and ``table.table_checks`` introspection properties expose column-level and table-level ``CHECK`` constraints. (:issue:`834`)
 - New ``sqlite_utils.ANY`` marker type for creating and introspecting SQLite ``ANY`` columns. The Python API and CLI can create, add and transform these columns, and ``table.transform()`` and ``table.extract()`` now preserve ``ANY`` columns and their values in ``STRICT`` tables. (:issue:`790`)
 - ``table.transform()`` now preserves ``CHECK`` constraints, including comments within their expressions. Renaming a column rewrites identifier references in checks without changing string literals or function names. Dropping a column drops a check owned by that column, and raises ``TransformError`` if a remaining check depends on it. (:issue:`762`)
