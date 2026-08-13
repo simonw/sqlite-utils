@@ -27,7 +27,7 @@ from sqlite_utils.utils import OperationalError
             {"types": {"age": int}},
             [
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "age" INTEGER\n);',
-                'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
+                'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", NULLIF("age", \'\') FROM "dogs";',
                 'DROP TABLE "dogs";',
                 "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
@@ -63,7 +63,7 @@ from sqlite_utils.utils import OperationalError
             {"types": {"age": int}, "rename": {"age": "dog_age"}},
             [
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "dog_age" INTEGER\n);',
-                'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "dog_age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
+                'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "dog_age")\n   SELECT "rowid", "id", "name", NULLIF("age", \'\') FROM "dogs";',
                 'DROP TABLE "dogs";',
                 "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
@@ -168,7 +168,7 @@ def test_transform_sql_table_with_primary_key(
             {"types": {"age": int}},
             [
                 'CREATE TABLE "dogs_new_suffix" (\n   "id" INTEGER,\n   "name" TEXT,\n   "age" INTEGER\n);',
-                'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", "age" FROM "dogs";',
+                'INSERT INTO "dogs_new_suffix" ("rowid", "id", "name", "age")\n   SELECT "rowid", "id", "name", NULLIF("age", \'\') FROM "dogs";',
                 'DROP TABLE "dogs";',
                 "PRAGMA legacy_alter_table=ON;",
                 'ALTER TABLE "dogs_new_suffix" RENAME TO "dogs";',
@@ -1123,6 +1123,36 @@ def test_transform_preserves_autoincrement_and_sequence(fresh_db):
         {"id": 1, "label": "one"},
         {"id": 3, "label": "three"},
     ]
+
+
+@pytest.mark.parametrize(
+    "new_type,expected_value,expected_type",
+    [
+        (int, 42, int),
+        (float, 42.0, float),
+        ("integer", 42, int),
+        ("float", 42.0, float),
+        ("REAL", 42.0, float),
+    ],
+)
+def test_transform_empty_string_to_null_for_numeric_types(
+    fresh_db, new_type, expected_value, expected_type
+):
+    fresh_db["test"].insert_all(
+        [
+            {"id": 1, "value": "42"},
+            {"id": 2, "value": ""},
+            {"id": 3, "value": None},
+            {"id": 4, "value": " "},
+        ]
+    )
+    fresh_db["test"].transform(types={"value": new_type})
+    rows = {r["id"]: r["value"] for r in fresh_db["test"].rows}
+    assert rows[1] == expected_value
+    assert type(rows[1]) is expected_type
+    assert rows[2] is None
+    assert rows[3] is None
+    assert rows[4] == " "
 
 
 def test_transform_preserves_view(fresh_db):
