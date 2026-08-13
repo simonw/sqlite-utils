@@ -4,6 +4,13 @@
  Changelog
 ===========
 
+.. _v4_2_1:
+
+4.2.1 (2026-08-13)
+------------------
+
+- Fix for ``No module named 'typing_extensions'`` crashing bug accidentally shipped in version 4.2. (:issue:`842`)
+
 .. _v4_2:
 
 4.2 (2026-08-13)
