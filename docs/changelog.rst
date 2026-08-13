@@ -23,6 +23,7 @@ Unreleased
 - ``sqlite-utils convert --dry-run`` now works for table and column names containing closing square brackets. (:issue:`829`)
 - ``table.indexes`` and ``table.xindexes`` now work for table, index and column names containing double quotes. This also fixes ``table.transform()`` for tables with those identifiers. Thanks, `nyxst4ck <https://github.com/nyxst4ck>`__. (:issue:`824`, `#825 <https://github.com/simonw/sqlite-utils/pull/825>`__)
 - Improved type annotations throughout the package and added Pyright regression checks to CI. (:issue:`833`)
+- Changing a ``TEXT`` column to ``INTEGER``, ``FLOAT`` or ``REAL`` using ``table.transform()`` or ``sqlite-utils transform`` now converts exact empty strings to ``NULL``. Previously they remained empty strings in the numeric column. Thanks, `ikatyal2110 <https://github.com/ikatyal2110>`__. (:issue:`488`, `#805 <https://github.com/simonw/sqlite-utils/pull/805>`__)
 
 .. _v3_39_1:
 

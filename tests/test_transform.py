@@ -1053,21 +1053,34 @@ def test_transform_with_unique_constraint_implicit_index(fresh_db):
     )
 
 
-@pytest.mark.parametrize("new_type", [int, float, "integer", "float", "REAL"])
-def test_transform_empty_string_to_null_for_numeric_types(fresh_db, new_type):
-    # Empty strings in TEXT columns should become NULL when transforming to numeric types
+@pytest.mark.parametrize(
+    "new_type,expected_value,expected_type",
+    [
+        (int, 42, int),
+        (float, 42.0, float),
+        ("integer", 42, int),
+        ("float", 42.0, float),
+        ("REAL", 42.0, float),
+    ],
+)
+def test_transform_empty_string_to_null_for_numeric_types(
+    fresh_db, new_type, expected_value, expected_type
+):
     fresh_db["test"].insert_all(
         [
             {"id": 1, "value": "42"},
             {"id": 2, "value": ""},
             {"id": 3, "value": None},
+            {"id": 4, "value": " "},
         ]
     )
     fresh_db["test"].transform(types={"value": new_type})
     rows = {r["id"]: r["value"] for r in fresh_db["test"].rows}
-    assert rows[1] in (42, 42.0)
+    assert rows[1] == expected_value
+    assert type(rows[1]) is expected_type
     assert rows[2] is None
     assert rows[3] is None
+    assert rows[4] == " "
 
 
 def test_transform_preserves_view(fresh_db):

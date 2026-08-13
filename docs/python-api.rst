@@ -1826,6 +1826,8 @@ To alter the type of a column, use the ``types=`` argument:
     # Convert the 'age' column to an integer, and 'weight' to a float
     table.transform(types={"age": int, "weight": float})
 
+When a ``TEXT`` column is changed to ``INTEGER``, ``FLOAT`` or ``REAL``, exact empty-string values are stored as ``NULL``. Other values, including whitespace-only strings, are copied normally.
+
 See :ref:`python_api_add_column` for a list of available types.
 
 .. _python_api_transform_strict:

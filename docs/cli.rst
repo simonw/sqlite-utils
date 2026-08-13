@@ -2236,7 +2236,7 @@ The ``transform`` command allows you to apply complex transformations to a table
 Every option for this table (with the exception of ``--pk-none``) can be specified multiple times. The options are as follows:
 
 ``--type column-name new-type``
-    Change the type of the specified column. Valid types are ``integer``, ``text``, ``float``, ``real``, ``blob`` and ``any``.
+    Change the type of the specified column. Valid types are ``integer``, ``text``, ``float``, ``real``, ``blob`` and ``any``. Changing a ``TEXT`` column to ``INTEGER``, ``FLOAT`` or ``REAL`` converts exact empty-string values to ``NULL``.
 
 ``--drop column-name``
     Drop the specified column.
