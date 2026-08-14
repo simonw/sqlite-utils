@@ -2,8 +2,11 @@
 @default: test lint
 
 # Run pytest with supplied options
-@test *options:
+@test *options: test-no-dev-dependencies
   uv run pytest {{options}}
+
+@test-no-dev-dependencies:
+  uv run --isolated --no-default-groups sqlite-utils --help > /dev/null
 
 @run *options:
   uv run -- {{options}}
