@@ -952,7 +952,7 @@ See :ref:`cli_create_table`.
 
 ::
 
-    Usage: sqlite-utils create-table [OPTIONS] PATH TABLE COLUMNS...
+    Usage: sqlite-utils create-table [OPTIONS] PATH TABLE [COLUMNS]...
 
       Add a table with the specified columns. Columns should be specified using
       name, type pairs, for example:
@@ -965,7 +965,13 @@ See :ref:`cli_create_table`.
 
       Valid column types are text, integer, real, float, blob and any.
 
+      Use --sql to create the table from the results of a SQL query instead:
+
+          sqlite-utils create-table my.db tall_people \
+              --sql "select * from people where height > 180"
+
     Options:
+      --sql TEXT                Create the table using the results of this SQL query
       --pk TEXT                 Column to use as primary key
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column
