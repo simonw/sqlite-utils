@@ -311,6 +311,7 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column
       --type <TEXT CHOICE>...   Column types to use when creating the table
+      -o, --column-order TEXT   Columns that should come first in the created table
       --no-detect-types         Treat all CSV/TSV columns as TEXT
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
@@ -375,6 +376,7 @@ See :ref:`cli_upsert`.
       --not-null TEXT           Columns that should be created as NOT NULL
       --default <TEXT TEXT>...  Default value that should be set for a column
       --type <TEXT CHOICE>...   Column types to use when creating the table
+      -o, --column-order TEXT   Columns that should come first in the created table
       --no-detect-types         Treat all CSV/TSV columns as TEXT
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint

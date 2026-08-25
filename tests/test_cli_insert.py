@@ -79,6 +79,27 @@ def test_insert_json_flatten_nl(tmpdir):
     ]
 
 
+@pytest.mark.parametrize("command", ("insert", "upsert"))
+@pytest.mark.parametrize(
+    "args,expected_columns",
+    (
+        ([], ["id", "name", "age"]),
+        (["-o", "name"], ["name", "id", "age"]),
+        (["--column-order", "age", "-o", "name"], ["age", "name", "id"]),
+    ),
+)
+def test_insert_column_order(db_path, tmpdir, command, args, expected_columns):
+    json_path = str(tmpdir / "dog.json")
+    with open(json_path, "w") as fp:
+        fp.write(json.dumps({"id": 1, "name": "Cleo", "age": 4}))
+    result = CliRunner().invoke(
+        cli.cli, [command, db_path, "dogs", json_path, "--pk", "id"] + args
+    )
+    assert result.exit_code == 0
+    columns = [c.name for c in Database(db_path).table("dogs").columns]
+    assert columns == expected_columns
+
+
 @pytest.mark.parametrize(
     "args,expected_pks",
     (
