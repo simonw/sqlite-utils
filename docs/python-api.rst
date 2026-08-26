@@ -185,7 +185,7 @@ You can attach an additional database using the ``.attach()`` method, providing 
 You can reference tables in the attached database using the alias value you passed to ``db.attach(alias, filepath)`` as a prefix, for example the ``second.table_in_second`` reference in the SQL query above.
 
 .. note::
-    In the CLI: :ref:`sqlite-utils --attach <cli_query_attach>`
+    In the CLI: :ref:`sqlite-utils <cli_query_attach>` ``--attach``
 
 .. _python_api_tracing:
 
@@ -1025,7 +1025,7 @@ Here's an example that uses these features:
 
 
 .. note::
-    In the CLI: :ref:`sqlite-utils insert --not-null and --default <cli_defaults_not_null>`
+    In the CLI: :ref:`sqlite-utils insert <cli_defaults_not_null>` ``--not-null`` and ``--default``
 
 .. _python_api_rename_table:
 
@@ -1188,7 +1188,7 @@ To replace any existing records that have a matching primary key, use the ``repl
     Prior to sqlite-utils 2.0 the ``.upsert()`` and ``.upsert_all()`` methods worked the same way as ``.insert(replace=True)`` does today. See :ref:`python_api_upsert` for the new behaviour of those methods introduced in 2.0.
 
 .. note::
-    In the CLI: :ref:`sqlite-utils insert --replace <cli_insert_replace>`
+    In the CLI: :ref:`sqlite-utils insert <cli_insert_replace>` ``--replace``
 
 .. _python_api_update:
 
@@ -1657,7 +1657,7 @@ You can insert or update data that includes new columns and have the table autom
     new_table.insert({"name": "Gareth", "age": 32, "shoe_size": 11})
 
 .. note::
-    In the CLI: :ref:`sqlite-utils insert --alter <cli_add_column_alter>`
+    In the CLI: :ref:`sqlite-utils insert <cli_add_column_alter>` ``--alter``
 
 .. _python_api_add_foreign_key:
 
@@ -3360,7 +3360,7 @@ You can cause ``sqlite3`` to return more useful errors, including the traceback 
     sqlite3.enable_callback_tracebacks(True)
 
 .. note::
-    In the CLI: :ref:`sqlite-utils query --functions <cli_query_functions>`
+    In the CLI: :ref:`sqlite-utils query <cli_query_functions>` ``--functions``
 
 .. _python_api_quote:
 
@@ -3495,7 +3495,7 @@ Initialize SpatiaLite
    :noindex:
 
 .. note::
-    In the CLI: :ref:`sqlite-utils create-database --init-spatialite <cli_create_database>`
+    In the CLI: :ref:`sqlite-utils create-database <cli_create_database>` ``--init-spatialite``
 
 .. _python_api_gis_find_spatialite:
 
