@@ -2160,7 +2160,7 @@ class Queryable:
         :param offset: Integer for SQL offset
         """
         if not self.exists():
-            return
+            raise NoTable(f"Table {self.name} does not exist")
         sql = f"select {select} from {quote_identifier(self.name)}"
         if where is not None:
             sql += " where " + where
@@ -4105,7 +4105,7 @@ class Table(Queryable):
         :param analyze: Set to ``True`` to run ``ANALYZE`` after the rows have been deleted.
         """
         if not self.exists():
-            return self
+            raise NoTable(f"Table {self.name} does not exist")
         sql = f"delete from {quote_identifier(self.name)}"
         if where is not None:
             sql += " where " + where
