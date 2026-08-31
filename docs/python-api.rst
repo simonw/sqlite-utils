@@ -2031,7 +2031,7 @@ To achieve this, the SQL produced by ``transform_sql()`` turns on ``PRAGMA legac
 Custom transformations with .transform_sql()
 --------------------------------------------
 
-The ``.transform()`` method can handle most cases, but it does not automatically upgrade indexes, views or triggers associated with the table that is being transformed.
+The ``.transform()`` method preserves and recreates indexes where possible, and tables referenced by views can be safely transformed (see :ref:`python_api_transform_views`). However, view definitions and triggers are not automatically rewritten when their referenced columns change, so those definitions may need to be updated manually.
 
 If you want to do something more advanced, you can call the ``table.transform_sql(...)`` method with the same arguments that you would have passed to ``table.transform(...)``.
 
