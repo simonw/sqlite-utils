@@ -140,6 +140,57 @@ def test_tables_schema(db_path):
     ) == result.output.strip()
 
 
+def test_tables_specific_names(db_path):
+    result = CliRunner().invoke(
+        cli.cli, ["tables", db_path, "Gosh2"], catch_exceptions=False
+    )
+    assert '[{"table": "Gosh2"}]' == result.output.strip()
+
+
+def test_tables_specific_names_preserve_argument_order(db_path):
+    result = CliRunner().invoke(
+        cli.cli, ["tables", db_path, "Gosh2", "Gosh"], catch_exceptions=False
+    )
+    assert '[{"table": "Gosh2"},\n {"table": "Gosh"}]' == result.output.strip()
+
+
+def test_tables_specific_names_with_counts(db_path):
+    result = CliRunner().invoke(
+        cli.cli, ["tables", db_path, "Gosh", "--counts"], catch_exceptions=False
+    )
+    assert '[{"table": "Gosh", "count": 0}]' == result.output.strip()
+
+
+def test_tables_missing_name_errors(db_path):
+    result = CliRunner().invoke(cli.cli, ["tables", db_path, "Gosh", "nope"])
+    assert result.exit_code == 1
+    assert "The following table does not exist: nope" in result.output
+
+
+def test_tables_multiple_missing_names_errors(db_path):
+    result = CliRunner().invoke(cli.cli, ["tables", db_path, "nope", "nope2"])
+    assert result.exit_code == 1
+    assert "The following tables do not exist: nope, nope2" in result.output
+
+
+def test_views_specific_names(db_path):
+    db = Database(db_path)
+    db.create_view("v1", "select 1")
+    db.create_view("v2", "select 2")
+    result = CliRunner().invoke(
+        cli.cli, ["views", db_path, "v2"], catch_exceptions=False
+    )
+    assert '[{"view": "v2"}]' == result.output.strip()
+
+
+def test_views_missing_name_errors(db_path):
+    db = Database(db_path)
+    db.create_view("v1", "select 1")
+    result = CliRunner().invoke(cli.cli, ["views", db_path, "nope"])
+    assert result.exit_code == 1
+    assert "The following view does not exist: nope" in result.output
+
+
 @pytest.mark.parametrize(
     "options,expected",
     [
