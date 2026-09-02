@@ -20,7 +20,7 @@ jobs:
         cache: pip
         cache-dependency-path: pyproject.toml
     - name: Install SpatiaLite
-      run: sudo apt-get install libsqlite3-mod-spatialite
+      run: sudo apt-get update && sudo apt-get install -y libsqlite3-mod-spatialite
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
