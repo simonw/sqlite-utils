@@ -2167,6 +2167,15 @@ Use the ``any`` type for a strict column that should accept integers, floating p
                "name" TEXT
             ) STRICT
 
+Instead of listing columns you can populate a new table from the results of a SQL query using ``--sql``. This is a shortcut for ``CREATE TABLE name AS ...``:
+
+.. code-block:: bash
+
+    sqlite-utils create-table mydb.db tall_people \
+        --sql "select * from people where height > 180"
+
+The new table takes its columns from the query, so ``--sql`` cannot be combined with column definitions or with the ``--pk``, ``--not-null``, ``--default``, ``--fk``, ``--transform`` and ``--strict`` options. It does work with ``--ignore`` and ``--replace``.
+
 If a table with the same name already exists, you will get an error. You can choose to silently ignore this error with ``--ignore``, or you can replace the existing table with a new, empty table using ``--replace``.
 
 You can also pass ``--transform`` to transform the existing table to match the new schema. See :ref:`python_api_explicit_create` in the Python library documentation for details of how this option works.

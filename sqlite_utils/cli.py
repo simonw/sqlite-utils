@@ -1703,7 +1703,11 @@ def create_database(path, enable_wal, init_spatialite, load_extension):
     required=True,
 )
 @click.argument("table")
-@click.argument("columns", nargs=-1, required=True)
+@click.argument("columns", nargs=-1)
+@click.option(
+    "--sql",
+    help="Create the table using the results of this SQL query",
+)
 @click.option("pks", "--pk", help="Column to use as primary key", multiple=True)
 @click.option(
     "--not-null",
@@ -1747,6 +1751,7 @@ def create_table(
     path,
     table,
     columns,
+    sql,
     pks,
     not_null,
     default,
@@ -1769,10 +1774,52 @@ def create_table(
             photo blob --pk id
 
     Valid column types are text, integer, real, float, blob and any.
+
+    Use --sql to create the table from the results of a SQL query instead:
+
+    \b
+        sqlite-utils create-table my.db tall_people \\
+            --sql "select * from people where height > 180"
     """
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
+    if sql is not None:
+        if columns:
+            raise click.ClickException("Cannot use columns with --sql")
+        incompatible = [
+            option
+            for option, value in (
+                ("--pk", pks),
+                ("--not-null", not_null),
+                ("--default", default),
+                ("--fk", fk),
+                ("--transform", transform),
+                ("--strict", strict),
+            )
+            if value
+        ]
+        if incompatible:
+            raise click.ClickException(
+                "Cannot use {} with --sql".format(", ".join(incompatible))
+            )
+        if table in db.table_names():
+            if ignore:
+                return
+            elif replace:
+                db[table].drop()
+            else:
+                raise click.ClickException(
+                    f'Table "{table}" already exists. Use --replace to delete and replace it.'
+                )
+        db.execute(
+            "CREATE TABLE {table} AS {sql}".format(
+                table=quote_identifier(table), sql=sql
+            )
+        )
+        return
+    if not columns:
+        raise click.ClickException("Provide columns or use --sql")
     if len(columns) % 2 == 1:
         raise click.ClickException(
             "columns must be an even number of 'name' 'type' pairs"
