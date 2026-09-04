@@ -1,0 +1,66 @@
+name: Update Stable Docs
+
+on:
+  release:
+    types: [published]
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  update_stable_docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Git user
+        run: |
+          git config user.name "Automated"
+          git config user.email "actions@users.noreply.github.com"
+      - name: Create stable branch if it does not yet exist
+        if: github.event_name != 'release' || !github.event.release.prerelease
+        run: |
+          if ! git ls-remote --exit-code --heads origin stable; then
+            git checkout -b stable
+            LATEST_RELEASE=$(git tag | sort -Vr | head -n1)
+            if [ -n "$LATEST_RELEASE" ]; then
+              rm -rf docs/
+              git checkout "$LATEST_RELEASE" -- docs/
+            fi
+            git add docs/
+            git commit -m "Populate docs/ from $LATEST_RELEASE" || echo "No changes"
+            git push -u origin stable
+          fi
+      - name: Handle release
+        if: github.event_name == 'release' && !github.event.release.prerelease
+        run: |
+          git fetch --all
+          git checkout -B stable origin/stable
+          git reset --hard "${GITHUB_REF#refs/tags/}"
+          git push origin stable --force
+      - name: Handle commit to main
+        if: contains(github.event.head_commit.message, '!stable-docs')
+        run: |
+          git fetch origin stable
+          git checkout -B stable origin/stable
+          CHANGED_DOCS="${RUNNER_TEMP}/changed-docs"
+          git diff-tree --no-commit-id --name-only -r -z "${{ github.sha }}" -- docs/ > "$CHANGED_DOCS"
+          if [[ -s "$CHANGED_DOCS" ]]; then
+            while IFS= read -r -d '' FILE; do
+              if git cat-file -e "${{ github.sha }}:$FILE" 2>/dev/null; then
+                git checkout "${{ github.sha }}" -- "$FILE"
+              else
+                git rm --ignore-unmatch -- "$FILE"
+              fi
+            done < "$CHANGED_DOCS"
+            git add docs/
+            git commit -m "Doc changes from ${{ github.sha }}"
+            git push origin stable
+          else
+            echo "No changes to docs/ in this commit."
+          fi
