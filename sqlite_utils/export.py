@@ -1,5 +1,5 @@
 import csv
-from typing import Any, Iterable, Optional, Sequence, TextIO, Union
+from typing import Any, Sequence, TextIO, Union
 
 
 CsvDialect = Union[str, csv.Dialect]
@@ -21,16 +21,11 @@ def rows_to_csv_file(
 
     Additional keyword arguments are forwarded to ``csv.writer``.
     """
+    description: Union[Sequence[Sequence[Any]], None] = cursor.description
+    if description is None:
+        raise ValueError("Cursor does not have result columns")
+
     writer = csv.writer(file, dialect=dialect, **writer_kwargs)
     if header:
-        description: Optional[Sequence[Sequence[Any]]] = cursor.description
-        if description is None:
-            raise ValueError("Cursor does not have result columns")
         writer.writerow([column[0] for column in description])
-    writer.writerows(_rows(cursor))
-
-
-def _rows(cursor: Iterable[Sequence[Any]]) -> Iterable[Sequence[Any]]:
-    """Keep row iteration lazy so large query results are streamed."""
-    for row in cursor:
-        yield row
+    writer.writerows(cursor)

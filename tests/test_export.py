@@ -40,10 +40,12 @@ def test_rows_to_csv_file_tsv():
     db.close()
 
 
-def test_rows_to_csv_file_requires_result_columns_for_header():
+@pytest.mark.parametrize("header", (True, False))
+def test_rows_to_csv_file_requires_result_columns(header):
     db = sqlite3.connect(":memory:")
     cursor = db.execute("create table creatures (id integer)")
     output = io.StringIO(newline="")
     with pytest.raises(ValueError, match="Cursor does not have result columns"):
-        rows_to_csv_file(cursor, output)
+        rows_to_csv_file(cursor, output, header=header)
+    assert output.getvalue() == ""
     db.close()
