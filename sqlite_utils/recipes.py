@@ -31,7 +31,7 @@ def parsedate(
             .date()
             .isoformat()
         )
-    except parser.ParserError:
+    except (parser.ParserError, OverflowError):
         if errors is IGNORE:
             return value
         elif errors is SET_NULL:
@@ -58,7 +58,7 @@ def parsedatetime(
         return value
     try:
         return parser.parse(value, dayfirst=dayfirst, yearfirst=yearfirst).isoformat()
-    except parser.ParserError:
+    except (parser.ParserError, OverflowError):
         if errors is IGNORE:
             return value
         elif errors is SET_NULL:
