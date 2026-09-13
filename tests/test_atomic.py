@@ -1,6 +1,6 @@
 import pytest
 
-from sqlite_utils.db import Database, _iter_complete_sql_statements
+from sqlite_utils.db import Database, TransactionError, _iter_complete_sql_statements
 from sqlite_utils.utils import sqlite3
 
 
@@ -381,3 +381,18 @@ def test_atomic_preserves_error_from_insert_or_rollback(fresh_db):
     with pytest.raises(sqlite3.IntegrityError), fresh_db.atomic():
         fresh_db.execute("insert or rollback into t (id) values (1)")
     assert not fresh_db.conn.in_transaction
+
+
+def test_vacuum_raises_transaction_error_inside_atomic(fresh_db):
+    """Test that vacuum() raises TransactionError when called inside atomic()"""
+    fresh_db.table("t").insert({"id": 1}, pk="id")
+    with pytest.raises(TransactionError, match="vacuum\\(\\)"):
+        with fresh_db.atomic():
+            fresh_db.vacuum()
+
+
+def test_vacuum_works_outside_atomic(fresh_db):
+    """Test that vacuum() works when called outside a transaction"""
+    fresh_db.table("t").insert({"id": 1}, pk="id")
+    fresh_db.vacuum()
+    assert list(fresh_db.table("t").rows) == [{"id": 1}]
