@@ -102,3 +102,18 @@ def test_flatten(input, expected):
 )
 def test_dedupe_keys(input, expected):
     assert utils.dedupe_keys(input) == expected
+
+
+def test_spatialite_paths_include_common_locations():
+    """Verify SPATIALITE_PATHS covers common installation locations"""
+    paths = utils.SPATIALITE_PATHS
+    # Debian/Ubuntu
+    assert "/usr/lib/x86_64-linux-gnu/mod_spatialite.so" in paths
+    assert "/usr/lib/aarch64-linux-gnu/mod_spatialite.so" in paths
+    # Fedora/RHEL/CentOS
+    assert "/usr/lib64/mod_spatialite.so" in paths
+    # Generic Linux
+    assert "/usr/lib/mod_spatialite.so" in paths
+    # macOS Homebrew
+    assert "/usr/local/lib/mod_spatialite.dylib" in paths
+    assert "/opt/homebrew/lib/mod_spatialite.dylib" in paths
