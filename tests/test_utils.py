@@ -102,3 +102,12 @@ def test_flatten(input, expected):
 )
 def test_dedupe_keys(input, expected):
     assert utils.dedupe_keys(input) == expected
+
+
+def test_types_for_column_types_set_maps_to_str():
+    """set and frozenset should be mapped to str for JSON storage, like list/tuple/dict"""
+    result = utils.types_for_column_types({"tags": {set}})
+    assert result["tags"] is str
+
+    result = utils.types_for_column_types({"tags": {frozenset}})
+    assert result["tags"] is str
