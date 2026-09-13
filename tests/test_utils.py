@@ -102,3 +102,22 @@ def test_flatten(input, expected):
 )
 def test_dedupe_keys(input, expected):
     assert utils.dedupe_keys(input) == expected
+
+
+@pytest.mark.parametrize(
+    "column_type,expected",
+    (
+        ("BOOLEAN", int),
+        ("BOOL", int),
+        ("INTEGER", int),
+        ("TEXT", str),
+        ("REAL", float),
+        ("BLOB", bytes),
+        ("VARCHAR(255)", str),
+        ("DOUBLE PRECISION", float),
+        ("NUMERIC", float),
+        ("", str),
+    ),
+)
+def test_column_affinity(column_type, expected):
+    assert utils.column_affinity(column_type) is expected
