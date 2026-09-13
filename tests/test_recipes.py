@@ -99,6 +99,42 @@ def test_dateparse_errors_handled(fresh_db, fn, errors):
     assert rows == expected
 
 
+@pytest.mark.parametrize("fn", ("parsedate", "parsedatetime"))
+@pytest.mark.parametrize("errors", (recipes.SET_NULL, recipes.IGNORE))
+def test_dateparse_overflow_handled(fresh_db, fn, errors):
+    """Test error handling modes for overflowing date values"""
+    fresh_db.table("example").insert_all(
+        [
+            {"id": 1, "dt": "999999999999999999-01-01"},
+        ],
+        pk="id",
+    )
+    fresh_db.table("example").convert(
+        "dt", lambda value: getattr(recipes, fn)(value, errors=errors)
+    )
+    rows = list(fresh_db.table("example").rows)
+    expected = [
+        {"id": 1, "dt": None if errors is recipes.SET_NULL else "999999999999999999-01-01"}
+    ]
+    assert rows == expected
+
+
+@pytest.mark.parametrize("fn", ("parsedate", "parsedatetime"))
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")
+def test_dateparse_overflow_raises(fresh_db, fn):
+    """Test that overflowing date values raise errors when errors=None"""
+    fresh_db.table("example").insert_all(
+        [
+            {"id": 1, "dt": "999999999999999999-01-01"},
+        ],
+        pk="id",
+    )
+    with pytest.raises(sqlite3.DataError):
+        fresh_db.table("example").convert(
+            "dt", lambda value: getattr(recipes, fn)(value)
+        )
+
+
 @pytest.mark.parametrize("delimiter", [None, ";", "-"])
 def test_jsonsplit(fresh_db, delimiter):
     fresh_db.table("example").insert_all(
