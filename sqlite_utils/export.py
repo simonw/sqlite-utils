@@ -1,7 +1,6 @@
 import csv
 from typing import Any, Sequence, TextIO, Union
 
-
 CsvDialect = Union[str, csv.Dialect]
 
 
