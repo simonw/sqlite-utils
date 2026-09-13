@@ -2024,8 +2024,15 @@ class Database:
                     existing_indexes.add(fk_columns)
 
     def vacuum(self) -> None:
-        "Run a SQLite ``VACUUM`` against the database."
-        self.execute("VACUUM;")
+        """
+        Run a SQLite ``VACUUM`` against the database.
+
+        :raises TransactionError: if called while a transaction is open - VACUUM
+          cannot run inside a transaction
+        """
+        self._ensure_no_open_transaction("vacuum()")
+        with self.ensure_autocommit_on():
+            self.execute("VACUUM;")
 
     def analyze(self, name: str | None = None) -> None:
         """
