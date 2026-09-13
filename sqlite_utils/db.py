@@ -468,6 +468,10 @@ class TransactionError(Exception):
     "Operation cannot be performed while a transaction is open"
 
 
+class UpdateError(Exception):
+    "Update did not affect exactly one row"
+
+
 class DescIndex(str):
     pass
 
@@ -4169,8 +4173,11 @@ class Table(Queryable):
                 else:
                     raise
 
-            # TODO: Test this works (rolls back) - use better exception:
-            assert rowcount == 1
+            # If rowcount is not exactly 1, the row was not found or multiple rows matched:
+            if rowcount != 1:
+                raise UpdateError(
+                    f"Expected to update 1 row, but updated {rowcount}"
+                )
         self.last_pk = pk_values[0] if len(pks) == 1 else pk_values
         return self
 
