@@ -150,9 +150,9 @@ def types_for_column_types(
             t = str
         elif len(types) == 1:
             t = next(iter(types))
-            # But if it's a subclass of list / tuple / dict, use str
+            # But if it's a subclass of list / tuple / dict / set, use str
             # instead as we will be storing it as JSON in the table
-            for superclass in (list, tuple, dict):
+            for superclass in (list, tuple, dict, set, frozenset):
                 if issubclass(t, superclass):
                     t = str
         elif {int, bool}.issuperset(types):
