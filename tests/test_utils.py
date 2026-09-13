@@ -102,3 +102,27 @@ def test_flatten(input, expected):
 )
 def test_dedupe_keys(input, expected):
     assert utils.dedupe_keys(input) == expected
+
+
+def test_value_tracker_evaluates_falsy_zero():
+    """ValueTracker should evaluate 0 and narrow to integer"""
+    vt = utils.ValueTracker()
+    vt.evaluate(0)
+    vt.evaluate(0)
+    assert vt.guessed_type == "integer"
+
+
+def test_value_tracker_evaluates_falsy_empty_string():
+    """ValueTracker should evaluate empty strings and narrow to text"""
+    vt = utils.ValueTracker()
+    vt.evaluate("")
+    vt.evaluate("")
+    assert vt.guessed_type == "text"
+
+
+def test_value_tracker_evaluates_falsy_false():
+    """ValueTracker should evaluate False and narrow to integer (bool is subclass of int)"""
+    vt = utils.ValueTracker()
+    vt.evaluate(False)
+    vt.evaluate(False)
+    assert vt.guessed_type == "integer"
