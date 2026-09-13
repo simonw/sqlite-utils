@@ -41,6 +41,16 @@ def test_chunks(size, expected):
     assert chunks == expected
 
 
+def test_chunks_size_zero_raises():
+    with pytest.raises(ValueError, match="chunk size must be at least 1"):
+        list(utils.chunks([1, 2, 3], 0))
+
+
+def test_chunks_negative_size_raises():
+    with pytest.raises(ValueError, match="chunk size must be at least 1"):
+        list(utils.chunks([1, 2, 3], -1))
+
+
 def test_hash_record():
     expected = "d383e7c0ba88f5ffcdd09be660de164b3847401a"
     assert utils.hash_record({"name": "Cleo", "twitter": "CleoPaws"}) == expected

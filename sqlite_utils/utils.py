@@ -577,6 +577,8 @@ def chunks(sequence: Iterable[T], size: int) -> Iterable[Iterable[T]]:
     :param sequence: Any Python iterator
     :param size: The size of each chunk
     """
+    if size < 1:
+        raise ValueError(f"chunk size must be at least 1, got {size}")
     iterator = iter(sequence)
     for item in iterator:
         yield itertools.chain([item], itertools.islice(iterator, size - 1))
