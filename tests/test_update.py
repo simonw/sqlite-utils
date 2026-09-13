@@ -111,3 +111,10 @@ def test_update_dictionaries_and_lists_as_json(fresh_db, data_structure):
     row = fresh_db.execute("select id, data from test").fetchone()
     assert row[0] == 1
     assert data_structure == json.loads(row[1])
+
+
+def test_update_error_class_exists():
+    """Verify UpdateError is defined and can be raised"""
+    from sqlite_utils.db import UpdateError
+    with pytest.raises(UpdateError, match="Expected to update 1 row"):
+        raise UpdateError("Expected to update 1 row, but updated 0")
