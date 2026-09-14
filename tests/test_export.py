@@ -61,16 +61,32 @@ def test_rows_to_csv_file_with_mapping_row_factory():
     )
 
     def dict_factory(cursor, row):
-        return {
-            column[0]: value
-            for column, value in zip(cursor.description, row)
-        }
+        return {column[0]: value for column, value in zip(cursor.description, row)}
 
     db.row_factory = dict_factory
     cursor = db.execute("select id, name from creatures order by id")
     output = io.StringIO(newline="")
     rows_to_csv_file(cursor, output, lineterminator="\n")
     assert output.getvalue() == 'id,name\n1,Cleo\n2,"Cardi, Jr."\n'
+    db.close()
+
+
+def test_rows_to_csv_file_rejects_duplicate_mapping_columns():
+    db = sqlite3.connect(":memory:")
+    db.execute("create table creatures (id integer, name text)")
+    db.execute("insert into creatures (id, name) values (1, 'Cleo')")
+
+    def dict_factory(cursor, row):
+        return {column[0]: value for column, value in zip(cursor.description, row)}
+
+    db.row_factory = dict_factory
+    cursor = db.execute("select id as value, name as value from creatures")
+    output = io.StringIO(newline="")
+    with pytest.raises(
+        ValueError, match="Mapping rows cannot represent duplicate column names"
+    ):
+        rows_to_csv_file(cursor, output, lineterminator="\n")
+    assert output.getvalue() == ""
     db.close()
 
 

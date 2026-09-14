@@ -1,4 +1,5 @@
 import csv
+import itertools
 from collections.abc import Mapping
 from typing import Any, Sequence, TextIO, Type, Union
 
@@ -26,15 +27,22 @@ def rows_to_csv_file(
         raise ValueError("Cursor does not have result columns")
 
     columns = [column[0] for column in description]
+    row_iterator = iter(cursor)
+    sentinel = object()
+    first_row = next(row_iterator, sentinel)
+    if isinstance(first_row, Mapping) and len(set(columns)) != len(columns):
+        raise ValueError("Mapping rows cannot represent duplicate column names")
+
     writer = csv.writer(file, dialect=dialect, **writer_kwargs)
     if header:
         writer.writerow(columns)
 
-    def rows():
-        for row in cursor:
-            if isinstance(row, Mapping):
-                yield [row[column] for column in columns]
-            else:
-                yield row
+    def normalize_row(row):
+        if isinstance(row, Mapping):
+            return [row[column] for column in columns]
+        return row
 
-    writer.writerows(rows())
+    if first_row is not sentinel:
+        writer.writerows(
+            normalize_row(row) for row in itertools.chain((first_row,), row_iterator)
+        )
