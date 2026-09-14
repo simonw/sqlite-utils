@@ -1,4 +1,5 @@
 import csv
+from collections.abc import Mapping
 from typing import Any, Sequence, TextIO, Type, Union
 
 CsvDialect = Union[str, csv.Dialect, Type[csv.Dialect]]
@@ -24,7 +25,16 @@ def rows_to_csv_file(
     if description is None:
         raise ValueError("Cursor does not have result columns")
 
+    columns = [column[0] for column in description]
     writer = csv.writer(file, dialect=dialect, **writer_kwargs)
     if header:
-        writer.writerow([column[0] for column in description])
-    writer.writerows(cursor)
+        writer.writerow(columns)
+
+    def rows():
+        for row in cursor:
+            if isinstance(row, Mapping):
+                yield [row[column] for column in columns]
+            else:
+                yield row
+
+    writer.writerows(rows())
