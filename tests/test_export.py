@@ -52,6 +52,28 @@ def test_rows_to_csv_file_accepts_dialect_class():
     db.close()
 
 
+def test_rows_to_csv_file_with_mapping_row_factory():
+    db = sqlite3.connect(":memory:")
+    db.execute("create table creatures (id integer, name text)")
+    db.executemany(
+        "insert into creatures (id, name) values (?, ?)",
+        ((1, "Cleo"), (2, "Cardi, Jr.")),
+    )
+
+    def dict_factory(cursor, row):
+        return {
+            column[0]: value
+            for column, value in zip(cursor.description, row)
+        }
+
+    db.row_factory = dict_factory
+    cursor = db.execute("select id, name from creatures order by id")
+    output = io.StringIO(newline="")
+    rows_to_csv_file(cursor, output, lineterminator="\n")
+    assert output.getvalue() == 'id,name\n1,Cleo\n2,"Cardi, Jr."\n'
+    db.close()
+
+
 @pytest.mark.parametrize("header", (True, False))
 def test_rows_to_csv_file_requires_result_columns(header):
     db = sqlite3.connect(":memory:")
