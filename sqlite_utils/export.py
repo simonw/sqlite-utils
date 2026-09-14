@@ -1,7 +1,7 @@
 import csv
-from typing import Any, Sequence, TextIO, Union
+from typing import Any, Sequence, TextIO, Type, Union
 
-CsvDialect = Union[str, csv.Dialect]
+CsvDialect = Union[str, csv.Dialect, Type[csv.Dialect]]
 
 
 def rows_to_csv_file(

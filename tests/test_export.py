@@ -1,3 +1,4 @@
+import csv
 import io
 import sqlite3
 
@@ -37,6 +38,17 @@ def test_rows_to_csv_file_tsv():
     output = io.StringIO(newline="")
     rows_to_csv_file(cursor, output, dialect="excel-tab", lineterminator="\n")
     assert output.getvalue() == "id\tname\n1\tCleo\n2\tCardi, Jr.\n"
+    db.close()
+
+
+def test_rows_to_csv_file_accepts_dialect_class():
+    class PipeDialect(csv.excel):
+        delimiter = "|"
+
+    db, cursor = _cursor()
+    output = io.StringIO(newline="")
+    rows_to_csv_file(cursor, output, dialect=PipeDialect, lineterminator="\n")
+    assert output.getvalue() == "id|name\n1|Cleo\n2|Cardi, Jr.\n"
     db.close()
 
 
