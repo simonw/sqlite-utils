@@ -4887,22 +4887,43 @@ class Table(Queryable):
 
             first = False
 
-            result = self.insert_chunk(
-                alter,
-                extracts,
-                chunk,
-                all_columns,
-                hash_id,
-                hash_id_columns,
-                upsert,
-                pk,
-                not_null,
-                conversions,
-                num_records_processed,
-                replace,
-                ignore,
-                list_mode,
-            )
+            if upsert and not replace and not list_mode:
+                # Only adjacent records with the same fields can share an
+                # upsert statement. Missing fields must not become NULL updates,
+                # and grouping non-adjacent records would change update order.
+                insert_groups = [
+                    (
+                        list(group),
+                        [c for c in all_columns if c in keys or c == hash_id],
+                    )
+                    for keys, group in itertools.groupby(chunk, key=frozenset)
+                ]
+            else:
+                insert_groups = [(chunk, all_columns)]
+
+            split_upsert = len(insert_groups) > 1
+            with self.db.atomic() if split_upsert else contextlib.nullcontext():
+                if split_upsert and alter:
+                    # Keep type inference over the original batch: a later
+                    # group may require TEXT where the first suggests INTEGER.
+                    self.add_missing_columns(cast(list[dict[str, Any]], chunk))
+                for group, group_columns in insert_groups:
+                    result = self.insert_chunk(
+                        alter,
+                        extracts,
+                        group,
+                        group_columns,
+                        hash_id,
+                        hash_id_columns,
+                        upsert,
+                        pk,
+                        not_null,
+                        conversions,
+                        num_records_processed,
+                        replace,
+                        ignore,
+                        list_mode,
+                    )
 
         # If we only handled a single row populate self.last_pk
         if num_records_processed == 1:
