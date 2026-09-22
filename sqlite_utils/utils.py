@@ -380,10 +380,14 @@ def rows_from_file(
                 "rows_from_file() requires a file-like object that supports peek(), such as io.BytesIO"
             )
         if not first_bytes:
+            buffered.close()
             return (), Format.CSV
         if first_bytes.startswith((b"[", b"{")):
+            # JSON is read eagerly, so the detection wrapper can close now,
+            # including when parsing raises an error.
             # TODO: Detect newline-JSON
-            return rows_from_file(buffered, format=Format.JSON)
+            with buffered:
+                return rows_from_file(buffered, format=Format.JSON)
         else:
             dialect = csv.Sniffer().sniff(
                 first_bytes.decode(encoding or "utf-8-sig", "ignore")
