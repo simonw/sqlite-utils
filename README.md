@@ -8,6 +8,8 @@
 [![codecov](https://codecov.io/gh/simonw/sqlite-utils/branch/main/graph/badge.svg)](https://codecov.io/gh/simonw/sqlite-utils)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/simonw/sqlite-utils/blob/main/LICENSE)
 [![discord](https://img.shields.io/discord/823971286308356157?label=discord)](https://discord.gg/Ass7bCAMDw)
+[![Tutorial](https://marimo.io/shield.svg)](https://marimo.app/github.com/simonw/sqlite-utils/blob/main/docs/tutorial.ipynb)
+
 
 Python CLI utility and library for manipulating SQLite databases.
 
