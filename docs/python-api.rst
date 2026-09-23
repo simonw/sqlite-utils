@@ -1938,7 +1938,7 @@ The ``column_order=`` parameter can be used to change the order of the columns. 
 .. code-block:: python
 
     # Change column order
-    table.transform(column_order=("name", "age", "id")
+    table.transform(column_order=("name", "age", "id"))
 
 .. _python_api_transform_add_foreign_key_constraints:
 
