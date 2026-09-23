@@ -1739,3 +1739,42 @@ def test_chained_create_sets_pks(fresh_db):
         {"id": int, "name": str, "color": str}
     )
     assert table.pks == ["id"]
+
+
+def test_insert_raw_numpy_scalars(fresh_db):
+    # https://github.com/simonw/sqlite-utils/issues/876
+    np = pytest.importorskip("numpy")
+    row = {
+        "int8": np.int8(-8),
+        "int64": np.int64(5),
+        "uint64": np.uint64(64),
+        "float16": np.float16(16.5),
+        "float32": np.float32(32.5),
+        "float64": np.float64(64.5),
+    }
+    table = fresh_db.table("t")
+    table.insert(row)
+    table.insert_all([row])
+    assert table.columns_dict == {
+        "int8": int,
+        "int64": int,
+        "uint64": int,
+        "float16": float,
+        "float32": float,
+        "float64": float,
+    }
+    expected = {
+        "int8": -8,
+        "int64": 5,
+        "uint64": 64,
+        "float16": 16.5,
+        "float32": 32.5,
+        "float64": 64.5,
+    }
+    assert list(table.rows) == [expected, expected]
+    assert fresh_db.execute(
+        "select typeof(int64), typeof(float32) from t"
+    ).fetchall() == [
+        ("integer", "real"),
+        ("integer", "real"),
+    ]
