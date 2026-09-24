@@ -389,14 +389,24 @@ def rows_from_file(
             with buffered:
                 return rows_from_file(buffered, format=Format.JSON)
         else:
-            dialect = csv.Sniffer().sniff(
-                first_bytes.decode(encoding or "utf-8-sig", "ignore")
-            )
+            try:
+                dialect = csv.Sniffer().sniff(
+                    first_bytes.decode(encoding or "utf-8-sig", "ignore")
+                )
+            except csv.Error:
+                # Single-column files have no delimiter to sniff (e.g. a bare
+                # "id\n1\n2\n" list). Fall back to the default CSV dialect so
+                # DictReader still loads them as a single column.
+                dialect = None
             rows, _ = rows_from_file(
                 buffered, format=Format.CSV, dialect=dialect, encoding=encoding
             )
             # Make sure we return the format we detected
-            detected_format = Format.TSV if dialect.delimiter == "\t" else Format.CSV
+            detected_format = (
+                Format.TSV
+                if dialect is not None and dialect.delimiter == "\t"
+                else Format.CSV
+            )
             return (
                 _extra_key_strategy(
                     cast(Iterable[dict[str | None, object]], rows),

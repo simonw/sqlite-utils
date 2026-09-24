@@ -55,6 +55,21 @@ def test_hash_record():
     )
 
 
+@pytest.mark.parametrize(
+    "content,expected",
+    (
+        (b"apple\nbanana\ncherry\n", [{"apple": "banana"}, {"apple": "cherry"}]),
+        (b"id\n1\n2\n", [{"id": "1"}, {"id": "2"}]),
+    ),
+)
+def test_rows_from_file_detects_single_column_csv(content, expected):
+    # A single-column file has no delimiter for csv.Sniffer to detect; it
+    # used to raise csv.Error("Could not determine delimiter").
+    rows, format_ = utils.rows_from_file(io.BytesIO(content))
+    assert format_ == utils.Format.CSV
+    assert list(rows) == expected
+
+
 def test_maximize_csv_field_size_limit():
     # Reset to default in case other tests have changed it
     csv.field_size_limit(utils.ORIGINAL_CSV_FIELD_SIZE_LIMIT)
