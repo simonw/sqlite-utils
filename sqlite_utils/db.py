@@ -2998,6 +2998,26 @@ class Table(Queryable):
             new_column_pairs.append((new_name, type_))
             copy_from_to[name] = new_name
 
+        duplicate_columns = sorted(
+            {
+                column_name
+                for column_name, _ in new_column_pairs
+                if sum(
+                    1 for other_name, _ in new_column_pairs if other_name == column_name
+                )
+                > 1
+            }
+        )
+        if duplicate_columns:
+            raise TransformError(
+                "Cannot transform table '{}': renaming or retyping columns would result "
+                "in duplicate column name{} '{}'. No changes have been applied to this table.".format(
+                    self.name,
+                    "s" if len(duplicate_columns) > 1 else "",
+                    "', '".join(duplicate_columns),
+                )
+            )
+
         if existing_autoincrement:
             existing_autoincrement = resolve_casing(
                 existing_autoincrement, existing_columns

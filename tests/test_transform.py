@@ -254,6 +254,34 @@ def test_transform_rename_pk(fresh_db):
     )
 
 
+def test_transform_rename_cannot_lose_data_by_colliding_columns(fresh_db):
+    # Renaming one column onto the name of another used to silently collapse
+    # the two columns into one, discarding the source column's data entirely.
+    table = fresh_db.table("items")
+    table.insert({"a": 1, "b": 2})
+    with pytest.raises(TransformError, match="duplicate column name"):
+        table.transform(rename={"b": "a"})
+    # The failed transform must leave the table and its data untouched.
+    assert table.count == 1
+    assert [(r["a"], r["b"]) for r in table.rows_where(order_by="rowid")] == [(1, 2)]
+    assert '"b"' in table.schema
+
+
+def test_transform_rename_two_columns_to_same_name_errors(fresh_db):
+    table = fresh_db.table("items")
+    table.insert({"a": 1, "b": 2, "c": 3})
+    with pytest.raises(TransformError, match="duplicate column name 'x'"):
+        table.transform(rename={"b": "x", "c": "x"})
+
+
+def test_transform_can_swap_two_column_names(fresh_db):
+    # A straight swap a<->b is legal and must not be blocked.
+    table = fresh_db.table("items")
+    table.insert({"a": 1, "b": 2})
+    table.transform(rename={"a": "b", "b": "a"})
+    assert [(r["a"], r["b"]) for r in table.rows_where(order_by="rowid")] == [(2, 1)]
+
+
 def test_transform_preserves_keyword_literal_defaults(fresh_db):
     # transform() used to requote keyword-literal defaults (DEFAULT TRUE became
     # DEFAULT 'TRUE'), so a default insert stored the text 'TRUE' instead of the
