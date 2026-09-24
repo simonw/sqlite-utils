@@ -1074,6 +1074,10 @@ class Database:
         ):
             return value
 
+        if str(value).upper().startswith("X'") and str(value).endswith("'"):
+            # Blob literal, e.g. X'FF'
+            return value
+
         if str(value).upper() in ("CURRENT_TIME", "CURRENT_DATE", "CURRENT_TIMESTAMP"):
             return value
 
@@ -1083,10 +1087,45 @@ class Database:
             return value
 
         if str(value).endswith(")"):
-            # Expr
+            # Expr - already parenthesized values pass through unchanged
+            if str(value).startswith("("):
+                return value
             return f"({value})"
 
         return self.quote(value)
+
+    def transform_default_fragment(self, value: str) -> str:
+        """Return a re-emittable DEFAULT fragment for a PRAGMA-returned value.
+
+        PRAGMA strips the parentheses from an expression default (``DEFAULT
+        (1+2)`` is reported as ``1+2``), so expressions must be wrapped again
+        or SQLite would treat them as string literals. Literals and keywords
+        are passed through unchanged.
+        """
+        s = str(value)
+        if s.startswith("'") and s.endswith("'"):
+            # A single quoted string literal
+            if "''" not in s[1:-1] and "'" not in s[1:-1]:
+                return s
+        if s.upper().startswith("X'") and s.endswith("'"):
+            # Blob literal, e.g. X'FF'
+            return s
+        if s.upper() in (
+            "TRUE",
+            "FALSE",
+            "NULL",
+            "CURRENT_TIME",
+            "CURRENT_DATE",
+            "CURRENT_TIMESTAMP",
+        ):
+            return s
+        try:
+            float(s)
+            return s
+        except ValueError:
+            pass
+        # Anything else was a parenthesized expression, e.g. "1+2" or "'a'||'b'"
+        return f"({s})"
 
     def table_names(self, fts4: bool = False, fts5: bool = False) -> list[str]:
         """
@@ -3061,7 +3100,9 @@ class Table(Queryable):
             )
         # defaults=
         create_table_defaults = {
-            (rename.get(c.name) or c.name): c.default_value
+            (rename.get(c.name) or c.name): self.db.transform_default_fragment(
+                c.default_value
+            )
             for c in self.columns
             if c.default_value is not None and c.name not in drop
         }

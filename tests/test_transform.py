@@ -288,6 +288,35 @@ def test_transform_preserves_keyword_literal_defaults(fresh_db):
     assert after == (1, 0, None)
 
 
+def test_transform_preserves_expression_defaults(fresh_db):
+    # PRAGMA strips the parentheses from expression defaults, so transform()
+    # used to re-emit them as string literals: DEFAULT (1+2) became DEFAULT
+    # '1+2' and every new row silently got the text '1+2' instead of 3.
+    fresh_db.execute(
+        "CREATE TABLE t ("
+        " a TEXT,"
+        " b INTEGER DEFAULT (1+2),"
+        " c BLOB DEFAULT (X'ff'),"
+        " d TEXT DEFAULT ('x' || 'y')"
+        ")"
+    )
+    table = fresh_db.table("t")
+    table.insert({"a": "first"})
+
+    # Rebuild via an unrelated change.
+    table.transform(rename={"a": "aa"})
+
+    schema = table.schema
+    assert "DEFAULT (1+2)" in schema
+    assert "DEFAULT X'ff'" in schema
+    assert "DEFAULT ('x' || 'y')" in schema
+
+    table.insert({"aa": "second"})
+    assert fresh_db.execute(
+        "SELECT b, c, d FROM t WHERE aa = 'second'"
+    ).fetchone() == (3, b"\xff", "xy")
+
+
 def test_transform_not_null(fresh_db):
     dogs = fresh_db.table("dogs")
     dogs.insert({"id": 1, "name": "Cleo", "age": "5"}, pk="id")
