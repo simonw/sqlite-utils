@@ -4353,16 +4353,32 @@ class Table(Queryable):
         if list_mode:
             # In list mode, records are already lists of values
             num_columns = len(all_columns)
+            # With hash_id, all_columns has the hash column prepended, but the
+            # records themselves only carry the user-declared columns.
+            user_columns = all_columns[1:] if hash_id else all_columns
+            user_num_columns = len(user_columns)
             has_extracts = bool(extracts)
             for record in chunk:
                 # Pad short records with None, truncate long ones
                 record_len = len(record)
-                if record_len < num_columns:
+                if record_len < user_num_columns:
                     record_values = [jsonify_if_needed(v) for v in record] + [None] * (
-                        num_columns - record_len
+                        user_num_columns - record_len
                     )
                 else:
-                    record_values = [jsonify_if_needed(v) for v in record[:num_columns]]
+                    record_values = [
+                        jsonify_if_needed(v) for v in record[:user_num_columns]
+                    ]
+                if hash_id:
+                    # Compute the hash from the user-declared values so the
+                    # hash_id column gets the right key instead of shifting
+                    # every value one column over.
+                    record_values.insert(
+                        0,
+                        hash_record(
+                            dict(zip(user_columns, record_values)), hash_id_columns
+                        ),
+                    )
                 # Only process extracts if there are any
                 if has_extracts:
                     for i, key in enumerate(all_columns):

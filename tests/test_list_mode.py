@@ -5,6 +5,7 @@ Tests for list-based iteration in insert_all and upsert_all
 import pytest
 
 from sqlite_utils import Database
+from sqlite_utils.utils import hash_record
 
 
 def test_insert_all_list_mode_basic():
@@ -287,3 +288,39 @@ def test_list_mode_single_record_upsert_last_pk():
 
     # Verify last_pk is populated correctly
     assert table.last_pk == 1
+
+
+def test_insert_all_list_mode_with_hash_id_aligns_values():
+    """hash_id in list mode must hash user values, not shift every column left."""
+    db = Database(memory=True)
+    table = db.table("items")
+    table.insert_all([["a", "b"], [1, "x"], [2, "y"]], hash_id="id")
+
+    rows = list(table.rows)
+    assert '"a" INTEGER' in table.schema
+    assert '"b" TEXT' in table.schema
+    assert rows[0] == {"id": hash_record({"a": 1, "b": "x"}), "a": 1, "b": "x"}
+    assert rows[1] == {"id": hash_record({"a": 2, "b": "y"}), "a": 2, "b": "y"}
+
+
+def test_insert_all_list_mode_with_hash_id_pads_and_truncates():
+    """Short rows are padded and long rows truncated before hashing."""
+    db = Database(memory=True)
+    table = db.table("items")
+    table.insert_all([["c1", "c2"], [5], [6, 7, 999]], hash_id="id")
+
+    rows = list(table.rows)
+    assert rows[0] == {"id": hash_record({"c1": 5, "c2": None}), "c1": 5, "c2": None}
+    assert rows[1] == {"id": hash_record({"c1": 6, "c2": 7}), "c1": 6, "c2": 7}
+
+
+def test_upsert_all_list_mode_with_hash_id():
+    db = Database(memory=True)
+    table = db.table("data")
+    table.upsert_all([["k", "v"], [1, "a"], [1, "b"]], hash_id="id")
+
+    rows = list(table.rows)
+    assert rows[0]["id"] == hash_record({"k": 1, "v": "a"})
+    assert rows[0]["k"] == 1 and rows[0]["v"] == "a"
+    assert rows[1]["id"] == hash_record({"k": 1, "v": "b"})
+    assert rows[1]["k"] == 1 and rows[1]["v"] == "b"
