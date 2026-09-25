@@ -185,3 +185,90 @@ def test_upsert_compound_primary_key(fresh_db):
     # .upsert_all() with a single item should set .last_pk
     table.upsert_all([{"species": "cat", "id": 1, "age": 5}], pk=("species", "id"))
     assert ("cat", 1) == table.last_pk
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert_omitted_not_null_column_on_existing_row(use_old_upsert):
+    # https://github.com/simonw/sqlite-utils/issues/878
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db.table("dogs")
+    table.insert(
+        {"id": 1, "name": "Cleo", "color": "brown"},
+        pk="id",
+        not_null={"name"},
+    )
+
+    # Upserting with omitted NOT NULL column on an existing row must succeed
+    table.upsert({"id": 1, "color": "black"})
+    assert table.get(1) == {"id": 1, "name": "Cleo", "color": "black"}
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+@pytest.mark.parametrize("batch_size", (1, 2))
+def test_upsert_all_omitted_not_null_compound_pk(use_old_upsert, batch_size):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db.table("pets")
+    table.insert_all(
+        [
+            {"species": "dog", "id": 1, "name": "Cleo", "breed": "Lab", "age": 4},
+            {"species": "cat", "id": 1, "name": "Nixie", "breed": "Siamese", "age": 5},
+        ],
+        pk=("species", "id"),
+        not_null={"name", "breed"},
+    )
+
+    table.upsert_all(
+        [
+            {"species": "dog", "id": 1, "age": 5},
+            {"species": "cat", "id": 1, "age": 6},
+        ],
+        batch_size=batch_size,
+    )
+
+    assert table.get(("dog", 1)) == {
+        "species": "dog",
+        "id": 1,
+        "name": "Cleo",
+        "breed": "Lab",
+        "age": 5,
+    }
+    assert table.get(("cat", 1)) == {
+        "species": "cat",
+        "id": 1,
+        "name": "Nixie",
+        "breed": "Siamese",
+        "age": 6,
+    }
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert_omitted_not_null_with_conversions_and_explicit_not_null(use_old_upsert):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db.table("dogs")
+    table.insert(
+        {"id": 1, "name": "Cleo", "color": "brown"},
+        pk="id",
+    )
+    # Upsert with explicit not_null argument and conversion
+    table.upsert(
+        {"id": 1, "color": "black"},
+        not_null=["name"],
+        conversions={"color": "upper(?)"},
+    )
+    assert table.get(1) == {"id": 1, "name": "Cleo", "color": "BLACK"}
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert_omitted_not_null_with_check_constraint(use_old_upsert):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    db.execute("""
+        CREATE TABLE dogs (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL CHECK(length(name) >= 3),
+            color TEXT
+        )
+    """)
+    table = db.table("dogs")
+    table.insert({"id": 1, "name": "Cleo", "color": "brown"})
+    table.upsert({"id": 1, "color": "black"})
+    assert table.get(1) == {"id": 1, "name": "Cleo", "color": "black"}
