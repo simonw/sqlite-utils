@@ -3598,6 +3598,20 @@ def migrate(db_path, migrations, stop_before, list_, verbose):
                     ", ".join(unknown)
                 )
             )
+        for migration_set in migration_sets:
+            matches = _stop_before_for_migration_set(stop_before, migration_set.name)
+            if hasattr(migration_set, "applied"):
+                applied_names = {m.name for m in migration_set.applied(db)}
+                already_applied = set(matches).intersection(applied_names)
+                if already_applied:
+                    raise click.ClickException(
+                        "Cannot stop before migration{} {} in set '{}' - already "
+                        "been applied".format(
+                            "s" if len(already_applied) > 1 else "",
+                            ", ".join(sorted(already_applied)),
+                            migration_set.name,
+                        )
+                    )
     for migration_set in migration_sets:
         matches = _stop_before_for_migration_set(stop_before, migration_set.name)
         if isinstance(migration_set, sqlite_utils.Migrations):
