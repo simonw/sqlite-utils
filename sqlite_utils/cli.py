@@ -1312,7 +1312,19 @@ def insert_upsert_implementation(
                             "--convert must return dict or iterator"
                         )
             else:
-                docs = (fn(doc) or doc for doc in docs)
+
+                def convert_doc(doc, fn=fn):
+                    # A --convert expression that is a statement returns
+                    # None, and means "modify doc in place", so None is
+                    # the one falsy result that falls back to the
+                    # original row. Any other falsy result is a value
+                    # the caller returned deliberately and has to be
+                    # validated like --lines already does, rather than
+                    # silently inserting the row unconverted.
+                    result = fn(doc)
+                    return doc if result is None else result
+
+                docs = (convert_doc(doc) for doc in docs)
 
         _insert_docs(docs, tracker=tracker)
 
