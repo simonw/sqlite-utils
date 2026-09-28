@@ -208,15 +208,39 @@ class UpdateWrapper:
     def __init__(self, wrapped: io.IOBase, update: Callable[[int], None]) -> None:
         self._wrapped = wrapped
         self._update = update
+        try:
+            self._position: int | None = wrapped.tell()
+        except (AttributeError, OSError):
+            self._position = None
+
+    def _update_progress(self, fallback_length: int) -> None:
+        if self._position is None:
+            self._update(fallback_length)
+            return
+        try:
+            position = self._wrapped.tell()
+        except (AttributeError, OSError):
+            self._position = None
+            self._update(fallback_length)
+            return
+        delta = position - self._position
+        self._update(delta if delta >= 0 else fallback_length)
+        self._position = position
 
     def __iter__(self) -> Iterator[bytes]:
-        for line in self._wrapped:
-            self._update(len(line))
+        # readline() keeps TextIOWrapper.tell() available, unlike iterating the
+        # TextIOWrapper directly. Its position is in the underlying file's
+        # bytes, so multibyte encodings advance the progress bar correctly.
+        while True:
+            line = self._wrapped.readline()
+            if not line:
+                break
+            self._update_progress(len(line))
             yield line
 
     def read(self, size: int = -1) -> bytes:
         data = self._wrapped.read(size)
-        self._update(len(data))
+        self._update_progress(len(data))
         return data
 
 
