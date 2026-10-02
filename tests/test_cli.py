@@ -2981,3 +2981,94 @@ def test_extract_view_clean_error(db_path):
     assert result.exit_code == 1
     assert result.exception is None or isinstance(result.exception, SystemExit)
     assert result.output.startswith("Error:")
+
+
+@pytest.mark.parametrize("command", ("create-table", "insert", "upsert"))
+def test_cli_autoincrement_creation(tmp_path, command):
+    path = str(tmp_path / "autoincrement.db")
+    args = [command, path, "entries"]
+    if command == "create-table":
+        args += ["id", "integer", "value", "text"]
+    else:
+        args += ["-"]
+    records = [{"value": "one"}, {"value": "two"}]
+    if command == "upsert":
+        records = [{"id": i, **record} for i, record in enumerate(records, 1)]
+    result = CliRunner().invoke(
+        cli.cli, args + ["--pk", "id", "--autoincrement"], input=json.dumps(records)
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(path)
+    table = db.table("entries")
+    if command == "create-table":
+        table.insert_all([{"value": "one"}, {"value": "two"}])
+    assert "INTEGER PRIMARY KEY AUTOINCREMENT" in table.schema
+    table.delete(2)
+    db.close()
+    result = CliRunner().invoke(
+        cli.cli, ["transform", path, "entries", "--rename", "value", "label"]
+    )
+    assert result.exit_code == 0, result.output
+    result = CliRunner().invoke(
+        cli.cli, ["insert", path, "entries", "-"], input='{"label":"three"}'
+    )
+    assert result.exit_code == 0, result.output
+    assert list(Database(path).table("entries").rows) == [
+        {"id": 1, "label": "one"},
+        {"id": 3, "label": "three"},
+    ]
+
+
+def test_cli_autoincrement_transform_preview_and_toggle(tmp_path):
+    path = str(tmp_path / "toggle.db")
+    db = Database(path)
+    db.table("entries").insert({"id": 5, "value": "keep"}, pk="id")
+    schema = db.table("entries").schema
+    db.close()
+    args = ["transform", path, "entries", "--autoincrement"]
+    result = CliRunner().invoke(cli.cli, args + ["--sql"])
+    assert result.exit_code == 0, result.output
+    assert "INTEGER PRIMARY KEY AUTOINCREMENT" in result.output
+    assert Database(path).table("entries").schema == schema
+    result = CliRunner().invoke(cli.cli, args)
+    assert result.exit_code == 0, result.output
+    result = CliRunner().invoke(
+        cli.cli, ["insert", path, "entries", "-"], input='{"value":"new"}'
+    )
+    assert result.exit_code == 0, result.output
+    assert list(Database(path).table("entries").rows)[-1]["id"] == 6
+    result = CliRunner().invoke(
+        cli.cli, ["transform", path, "entries", "--no-autoincrement"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "AUTOINCREMENT" not in Database(path).table("entries").schema
+
+
+@pytest.mark.parametrize("mode", ("--replace", "--transform"))
+def test_cli_autoincrement_invalid_create_preserves_table(tmp_path, mode):
+    path = str(tmp_path / "keep.db")
+    db = Database(path)
+    table = db.table("entries").insert({"id": 1, "value": "keep"}, pk="id")
+    schema = table.schema
+    db.close()
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "create-table",
+            path,
+            "entries",
+            "id",
+            "text",
+            "added",
+            "integer",
+            "--pk",
+            "id",
+            "--autoincrement",
+            mode,
+        ],
+    )
+    assert result.exit_code != 0
+    assert "AUTOINCREMENT" in str(result.exception)
+    table = Database(path).table("entries")
+    assert table.schema == schema
+    assert list(table.rows) == [{"id": 1, "value": "keep"}]

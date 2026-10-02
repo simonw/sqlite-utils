@@ -19,6 +19,7 @@ from sqlite_utils.db import (
     NoTable,
     NoView,
     OperationalError,
+    PrimaryKeyRequired,
     Table,
     View,
 )
@@ -1739,3 +1740,221 @@ def test_chained_create_sets_pks(fresh_db):
         {"id": int, "name": str, "color": str}
     )
     assert table.pks == ["id"]
+
+
+@pytest.mark.parametrize(
+    "api",
+    (
+        "sql",
+        "database",
+        "table",
+        "configured",
+        "insert",
+        "insert_all",
+        "upsert",
+        "upsert_all",
+        "lookup",
+    ),
+)
+def test_autoincrement_public_creation(fresh_db, api):
+    columns = {"id": int, "value": str}
+    records = [{"value": "one"}, {"value": "two"}]
+    if api in ("upsert", "upsert_all"):
+        records = [{"id": i, **record} for i, record in enumerate(records, 1)]
+    if api == "sql":
+        fresh_db.execute(
+            fresh_db.create_table_sql("entries", columns, pk="id", autoincrement=True)
+        )
+        table = fresh_db["entries"].insert_all(records)
+    elif api == "database":
+        table = fresh_db.create_table(
+            "entries", columns, pk="id", autoincrement=True
+        ).insert_all(records)
+    elif api == "table":
+        table = (
+            fresh_db["entries"]
+            .create(columns, pk="id", autoincrement=True)
+            .insert_all(records)
+        )
+    elif api == "configured":
+        table = fresh_db.table("entries", pk="id", autoincrement=True).insert_all(
+            records
+        )
+    elif api == "lookup":
+        table = fresh_db["entries"]
+        assert table.lookup(records[0], autoincrement=True) == 1
+        assert table.lookup(records[1], autoincrement=True) == 2
+    elif api in ("insert", "upsert"):
+        table = fresh_db["entries"]
+        getattr(table, api)(records[0], pk="id", autoincrement=True)
+        getattr(table, api)(records[1], pk="id", autoincrement=True)
+    else:
+        table = getattr(fresh_db["entries"], api)(records, pk="id", autoincrement=True)
+    assert "INTEGER PRIMARY KEY AUTOINCREMENT" in table.schema
+    assert list(table.rows) == [{"id": 1, "value": "one"}, {"id": 2, "value": "two"}]
+    table.delete(2)
+    table.transform(rename={"value": "label"})
+    table.insert({"label": "three"})
+    assert list(table.rows) == [{"id": 1, "label": "one"}, {"id": 3, "label": "three"}]
+
+
+@pytest.mark.parametrize("enabled", (None, False, True))
+def test_autoincrement_default_and_explicit_modes(fresh_db, enabled):
+    kwargs = {} if enabled is None else {"autoincrement": enabled}
+    table = fresh_db["entries"].create({"id": int, "value": str}, pk="id", **kwargs)
+    table.insert_all([{"value": "one"}, {"value": "two"}])
+    table.delete(2)
+    table.insert({"value": "three"})
+    assert table.last_pk == (3 if enabled else 2)
+    assert ("AUTOINCREMENT" in table.schema) is bool(enabled)
+
+
+@pytest.mark.parametrize("pk", ("ID", ["id"], ("id",)))
+@pytest.mark.parametrize("strict", (False, True))
+def test_autoincrement_single_pk_variants(fresh_db, pk, strict):
+    table = fresh_db["entries"].create(
+        {"id": "integer", "value": str}, pk=pk, strict=strict, autoincrement=True
+    )
+    table.insert({"value": "one"})
+    assert list(table.rows) == [{"id": 1, "value": "one"}]
+    assert "INTEGER PRIMARY KEY AUTOINCREMENT" in table.schema
+
+
+def test_autoincrement_inferred_quoted_pk(fresh_db):
+    table = fresh_db["entries"].insert(
+        {"value": "one"}, pk='key"name', autoincrement=True
+    )
+    assert list(table.rows) == [{'key"name': 1, "value": "one"}]
+    table.delete(1)
+    table.insert({"value": "two"})
+    assert list(table.rows) == [{'key"name': 2, "value": "two"}]
+
+
+@pytest.mark.parametrize("api", ("database", "table"))
+@pytest.mark.parametrize("mode", ("replace", "transform"))
+@pytest.mark.parametrize(
+    "columns, options",
+    [
+        ({"id": int, "value": str, "added": str}, {"pk": None}),
+        ({"id": str, "value": str, "added": str}, {"pk": "id"}),
+        ({"id": int, "value": str, "added": str}, {"pk": ("id", "value")}),
+        ({"id": int, "value": str, "added": str}, {"hash_id": "hash"}),
+    ],
+)
+def test_autoincrement_invalid_create_preserves_table(
+    fresh_db, api, mode, columns, options
+):
+    table = fresh_db["entries"].insert({"id": 1, "value": "keep"}, pk="id")
+    schema = table.schema
+    with pytest.raises(ValueError, match="AUTOINCREMENT"):
+        if api == "database":
+            fresh_db.create_table(
+                "entries", columns, autoincrement=True, **{mode: True}, **options
+            )
+        else:
+            fresh_db["entries"].create(
+                columns, autoincrement=True, **{mode: True}, **options
+            )
+    assert table.schema == schema
+    assert list(table.rows) == [{"id": 1, "value": "keep"}]
+
+
+@pytest.mark.parametrize("records", ([], [[]], [["value"]]))
+def test_autoincrement_empty_input_no_table(fresh_db, records):
+    fresh_db["entries"].insert_all(records, pk="id", autoincrement=True)
+    assert not fresh_db["entries"].exists()
+
+
+@pytest.mark.parametrize("operation", ("insert", "lookup"))
+def test_autoincrement_existing_mismatch_preserves_data(fresh_db, operation):
+    table = fresh_db["entries"].insert({"id": 1, "value": "keep"}, pk="id")
+    schema = table.schema
+    with pytest.raises(ValueError, match="AUTOINCREMENT does not match"):
+        if operation == "insert":
+            table.insert_all(
+                [{"value": "new", "added": 1}],
+                pk="id",
+                autoincrement=True,
+                truncate=True,
+                alter=True,
+            )
+        else:
+            table.lookup(
+                {"value": "new"}, extra_values={"added": 1}, autoincrement=True
+            )
+    assert table.schema == schema
+    assert list(table.rows) == [{"id": 1, "value": "keep"}]
+
+
+def test_autoincrement_create_ignore_and_if_not_exists(fresh_db):
+    table = fresh_db["entries"].create(
+        {"id": int, "value": str}, pk="id", autoincrement=True
+    )
+    table.insert({"value": "keep"})
+    schema = table.schema
+    fresh_db.create_table(
+        "entries", {"id": int}, pk="id", autoincrement=True, if_not_exists=True
+    )
+    fresh_db["entries"].create({"id": str}, autoincrement=True, ignore=True)
+    assert table.schema == schema
+    assert list(table.rows) == [{"id": 1, "value": "keep"}]
+
+
+def test_autoincrement_does_not_change_upsert_pk_requirement(fresh_db):
+    with pytest.raises(
+        PrimaryKeyRequired, match="requires a value for the primary key"
+    ):
+        fresh_db["entries"].upsert({"value": "one"}, pk="id", autoincrement=True)
+    assert fresh_db["entries"].count == 0
+
+
+@pytest.mark.parametrize("api", ("sql", "database", "table"))
+@pytest.mark.parametrize(
+    "options",
+    ({"pk": None}, {"pk": ("name", "other")}, {"pk": "name"}, {"hash_id": "hash"}),
+)
+def test_autoincrement_invalid_extracts_create_nothing(fresh_db, api, options):
+    columns = {"name": str, "other": str}
+    with pytest.raises(ValueError, match="AUTOINCREMENT"):
+        if api == "sql":
+            fresh_db.create_table_sql(
+                "entries",
+                columns,
+                extracts={"other": "lookup"},
+                autoincrement=True,
+                **options,
+            )
+        elif api == "database":
+            fresh_db.create_table(
+                "entries",
+                columns,
+                extracts={"other": "lookup"},
+                autoincrement=True,
+                **options,
+            )
+        else:
+            fresh_db.table("entries").create(
+                columns, extracts={"other": "lookup"}, autoincrement=True, **options
+            )
+    assert fresh_db.table_names() == []
+
+
+def test_autoincrement_extracted_integer_primary_key(fresh_db):
+    sql = fresh_db.create_table_sql(
+        "entries",
+        {"name": str},
+        pk="name",
+        extracts={"name": "lookup"},
+        autoincrement=True,
+    )
+    fresh_db.execute(sql)
+    assert "INTEGER PRIMARY KEY AUTOINCREMENT" in fresh_db.table("entries").schema
+    assert set(fresh_db.table_names()) == {"entries", "lookup", "sqlite_sequence"}
+
+
+def test_autoincrement_ignored_create_preserves_defaults(fresh_db):
+    table = fresh_db.table("entries", pk="id").create({"id": int, "value": str})
+    table.create({"id": str}, ignore=True, autoincrement=True)
+    table.insert({"value": "one"})
+    assert "AUTOINCREMENT" not in table.schema
+    assert list(table.rows) == [{"id": 1, "value": "one"}]

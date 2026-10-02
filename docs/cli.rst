@@ -2079,6 +2079,22 @@ You can pass as many column-name column-type pairs as you like. Valid types are 
 
 Pass ``--pk`` more than once for a compound primary key that covers multiple columns.
 
+For a single integer primary key, add ``--autoincrement`` to prevent reuse of deleted IDs:
+
+.. code-block:: bash
+
+    sqlite-utils create-table events.db events id integer name text --pk id --autoincrement
+
+The option also works when ``insert`` or ``upsert`` creates a new table:
+
+.. code-block:: bash
+
+    echo '{"name": "first event"}' | sqlite-utils insert events.db events - --pk id --autoincrement
+
+An omitted primary key column is created as an integer column. ``upsert`` still requires primary key values in the input. Compound and non-integer primary keys cannot use this option. Ordinary integer primary keys already generate missing IDs; ``AUTOINCREMENT`` prevents their reuse and does not guarantee consecutive values. Use ``--no-autoincrement`` to explicitly create a table without it.
+
+Insert options do not change the mode of an existing table. A conflicting explicit mode is rejected; use ``transform --autoincrement`` or ``transform --no-autoincrement`` to change it. ``create-table --transform`` also applies an explicit mode change.
+
 You can specify columns that should be NOT NULL using ``--not-null colname``. You can specify default values for columns using ``--default colname defaultvalue``.
 
 .. code-block:: bash
@@ -2270,6 +2286,9 @@ Every option for this table (with the exception of ``--pk-none``) can be specifi
 
 ``--add-foreign-key column other_table other_column``
     Add a foreign key constraint to ``column`` pointing to ``other_table.other_column``.
+
+``--autoincrement`` / ``--no-autoincrement``
+    Enable or disable ``AUTOINCREMENT`` for a single integer primary key. If neither option is supplied the current mode is preserved. Enabling it tracks the current IDs, but cannot recover IDs deleted before it was enabled. ``--sql`` previews the same change without applying it.
 
 ``--strict``
     Convert the table to a `SQLite STRICT table <https://www.sqlite.org/stricttables.html>`__. The command fails if the available SQLite version does not support strict tables. If existing rows contain values that are incompatible with their declared column types the transformation fails and the original table is left unchanged.

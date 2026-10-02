@@ -1050,6 +1050,11 @@ def insert_upsert_options(*, require_pk=False):
                     default=False,
                     help="Apply STRICT mode to created table",
                 ),
+                click.option(
+                    "--autoincrement/--no-autoincrement",
+                    default=None,
+                    help="Use AUTOINCREMENT for the INTEGER PRIMARY KEY when creating the table",
+                ),
             )
         ):
             fn = decorator(fn)
@@ -1095,6 +1100,7 @@ def insert_upsert_implementation(
     functions=None,
     strict=False,
     code=None,
+    autoincrement=None,
 ):
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
@@ -1109,6 +1115,7 @@ def insert_upsert_implementation(
             "truncate": truncate,
             "analyze": analyze,
             "strict": strict,
+            "autoincrement": autoincrement,
         }
         if not_null:
             extra_kwargs["not_null"] = set(not_null)
@@ -1386,6 +1393,7 @@ def insert(
     default,
     types,
     strict,
+    autoincrement,
 ):
     """
     Insert records from FILE into a table, creating the table if it
@@ -1480,6 +1488,7 @@ def insert(
             default=default,
             types=types,
             strict=strict,
+            autoincrement=autoincrement,
             code=code,
         )
     except UnicodeDecodeError as ex:
@@ -1519,6 +1528,7 @@ def upsert(
     load_extension,
     silent,
     strict,
+    autoincrement,
 ):
     """
     Upsert records based on their primary key. Works like 'insert' but if
@@ -1570,6 +1580,7 @@ def upsert(
             load_extension=load_extension,
             silent=silent,
             strict=strict,
+            autoincrement=autoincrement,
             code=code,
         )
     except UnicodeDecodeError as ex:
@@ -1743,6 +1754,11 @@ def create_database(path, enable_wal, init_spatialite, load_extension):
     is_flag=True,
     help="Apply STRICT mode to created table",
 )
+@click.option(
+    "--autoincrement/--no-autoincrement",
+    default=None,
+    help="Use AUTOINCREMENT for the INTEGER PRIMARY KEY",
+)
 def create_table(
     path,
     table,
@@ -1756,6 +1772,7 @@ def create_table(
     transform,
     load_extension,
     strict,
+    autoincrement,
 ):
     """
     Add a table with the specified columns. Columns should be specified using
@@ -1802,6 +1819,7 @@ def create_table(
         replace=replace,
         transform=transform,
         strict=strict,
+        autoincrement=autoincrement,
     )
 
 
@@ -2724,6 +2742,11 @@ def schema(
     default=None,
     help="Enable or disable STRICT mode (default: preserve current mode)",
 )
+@click.option(
+    "--autoincrement/--no-autoincrement",
+    default=None,
+    help="Enable or disable AUTOINCREMENT (default: preserve current mode)",
+)
 @click.option("--sql", is_flag=True, help="Output SQL without executing it")
 @load_extension_option
 def transform(
@@ -2744,6 +2767,7 @@ def transform(
     strict,
     sql,
     load_extension,
+    autoincrement,
 ):
     """Transform a table beyond the capabilities of ALTER TABLE
 
@@ -2804,6 +2828,7 @@ def transform(
             drop_foreign_keys=drop_foreign_keys_value,
             add_foreign_keys=add_foreign_keys_value,
             strict=strict,
+            autoincrement=autoincrement,
         ):
             click.echo(line)
     else:
@@ -2818,6 +2843,7 @@ def transform(
             drop_foreign_keys=drop_foreign_keys_value,
             add_foreign_keys=add_foreign_keys_value,
             strict=strict,
+            autoincrement=autoincrement,
         )
 
 

@@ -844,6 +844,33 @@ An ``ANY`` column can store integers, floating point values, text, binary data o
 .. note::
     In the CLI: :ref:`sqlite-utils create-table <cli_create_table>`
 
+.. _python_api_autoincrement:
+
+Preventing reuse of deleted IDs
+-------------------------------
+
+An ``INTEGER PRIMARY KEY`` already generates an ID when an inserted record omits that column. Pass ``autoincrement=True`` to prevent SQLite from reusing IDs of deleted rows:
+
+.. code-block:: python
+
+    table = db["events"].create({"id": int, "name": str}, pk="id", autoincrement=True)
+    table.insert({"name": "first event"})
+
+This option also works with ``db.create_table()``, ``db.create_table_sql()``, ``insert()``, ``insert_all()``, ``upsert()``, ``upsert_all()`` and ``lookup()``. To create the table on the first insert:
+
+.. code-block:: python
+
+    db["events"].insert({"name": "first event"}, pk="id", autoincrement=True)
+
+You can configure it as a table default using ``db.table("events", pk="id", autoincrement=True)``. The primary key must be a single ``INTEGER`` column; compound, text and hash primary keys cannot use this option. A primary key omitted from the column definitions is created as an integer column. ``upsert()`` still requires primary key values in every record.
+
+The default ``None`` keeps the usual ID allocation when creating a new table. An explicit ``False`` creates a table without ``AUTOINCREMENT``. An explicit option that conflicts with an existing table is rejected by inserts and lookups; use ``table.transform(autoincrement=True)`` or ``table.transform(autoincrement=False)`` to change the mode. ``create(..., transform=True)`` also applies an explicit mode change. Ordinary transformations preserve the existing mode and its sequence.
+
+Enabling the mode on an existing table starts tracking its current IDs. It cannot recover the history of IDs deleted before it was enabled. IDs need not be consecutive. SQLite documents the additional cost of this mode in `its AUTOINCREMENT documentation <https://www.sqlite.org/autoinc.html>`__.
+
+.. note::
+    In the CLI: :ref:`sqlite-utils create-table <cli_create_table>` and :ref:`sqlite-utils transform <cli_transform_table>`.
+
 .. _python_api_compound_primary_keys:
 
 Compound primary keys
