@@ -2022,7 +2022,7 @@ Tables referenced by views
 
 Tables that are referenced by views can be safely transformed - the view definitions are left byte-for-byte unchanged, and views continue to read from the live table even when ``keep_table=`` is used to keep a copy of the original around.
 
-A view that references a column which the transform renamed or dropped will remain defined but will raise a ``no such column`` error when it is next queried. This is inherent to SQLite views, whose SQL is stored as text - if you rename or drop columns that a view depends on you should update that view definition yourself.
+A view that references a column which the transform renamed or dropped will remain defined but will raise a ``no such column`` error when it is next queried. If you rename or drop columns that a view depends on you should update that view definition yourself.
 
 To achieve this, the SQL produced by ``transform_sql()`` turns on ``PRAGMA legacy_alter_table`` for its ``ALTER TABLE ... RENAME TO`` statements, then restores the pragma to the value it had when the SQL was generated - without this, SQLite would attempt to rewrite references to the renamed table in every view definition, which fails when a view references the table that was just dropped.
 
@@ -2031,11 +2031,17 @@ To achieve this, the SQL produced by ``transform_sql()`` turns on ``PRAGMA legac
 Custom transformations with .transform_sql()
 --------------------------------------------
 
-The ``.transform()`` method can handle most cases, but it does not automatically upgrade indexes, views or triggers associated with the table that is being transformed.
+The ``.transform()`` method rebuilds the table, including when called with ``rename=``. This has different effects on indexes, views and triggers:
+
+* Explicit indexes are recreated. Simple indexes are updated to refer to renamed columns. Dropping a column used by an explicit index raises ``TransformError``, as does renaming or dropping any column on a table with a partial or expression index. Drop these indexes before calling ``.transform()`` or ``.transform_sql()``, then recreate them with the required changes after executing the transformation.
+* View definitions are left unchanged. See :ref:`python_api_transform_views` for what happens when a view references a renamed or dropped column.
+* Triggers attached to the table are dropped with the original table and are not recreated. With ``keep_table=``, they remain attached to the retained original table, not the transformed table. Triggers attached to other tables are left unchanged, so references in their bodies to renamed or dropped columns need to be updated manually.
 
 If you want to do something more advanced, you can call the ``table.transform_sql(...)`` method with the same arguments that you would have passed to ``table.transform(...)``.
 
 This method will return a list of SQL statements that should be executed to implement the change. You can then make modifications to that SQL - or add additional SQL statements - before executing it yourself.
+
+When renaming a column without ``keep_table=``, restore triggers that were attached to the original table by appending ``CREATE TRIGGER`` statements using the new column name.
 
 .. _python_api_transform_foreign_keys_transactions:
 
