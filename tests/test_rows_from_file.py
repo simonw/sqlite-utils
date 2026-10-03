@@ -131,3 +131,31 @@ def test_detect_format_keeps_streaming_reader_open(
     assert not buffered_readers[0].closed
     assert len(list(rows)) == 2000
     assert buffered_readers[0].closed
+
+
+@pytest.mark.parametrize(
+    "file_bytes,expected_format,expected_rows",
+    [
+        (
+            b'id,v\r\n1,"line1\r\nline2"\r\n',
+            Format.CSV,
+            [{"id": "1", "v": "line1\r\nline2"}],
+        ),
+        (
+            b'id\tv\r\n1\t"tab1\r\ntab2"\r\n',
+            Format.TSV,
+            [{"id": "1", "v": "tab1\r\ntab2"}],
+        ),
+        (
+            b'id,v\r\n1,"isolated\rreturn"\r\n',
+            Format.CSV,
+            [{"id": "1", "v": "isolated\rreturn"}],
+        ),
+    ],
+)
+def test_rows_from_file_preserves_carriage_returns_in_quoted_fields(
+    file_bytes, expected_format, expected_rows
+):
+    rows, detected_format = rows_from_file(BytesIO(file_bytes), format=expected_format)
+    assert detected_format == expected_format
+    assert list(rows) == expected_rows
