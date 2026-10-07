@@ -1739,3 +1739,146 @@ def test_chained_create_sets_pks(fresh_db):
         {"id": int, "name": str, "color": str}
     )
     assert table.pks == ["id"]
+
+
+def test_create_table_with_unique(fresh_db):
+    table = fresh_db.create_table(
+        "users", {"id": int, "email": str}, pk="id", unique=["email"]
+    )
+    assert (
+        'CREATE TABLE "users" (\n   "id" INTEGER PRIMARY KEY,\n   "email" TEXT,\n   UNIQUE ("email")\n)'
+        == table.schema
+    )
+    assert [("email",)] == [tuple(c.name for c in u.columns) for u in table.uniques]
+
+
+def test_create_table_with_multiple_unique_columns(fresh_db):
+    table = fresh_db.create_table(
+        "users",
+        {"id": int, "email": str, "username": str},
+        pk="id",
+        unique=["email", "username"],
+    )
+    assert (
+        'CREATE TABLE "users" (\n   "id" INTEGER PRIMARY KEY,\n   "email" TEXT,\n'
+        '   "username" TEXT,\n   UNIQUE ("email"),\n   UNIQUE ("username")\n)'
+        == table.schema
+    )
+
+
+def test_create_table_with_compound_unique(fresh_db):
+    table = fresh_db.create_table(
+        "memberships",
+        {"account_id": int, "email": str},
+        unique=[("account_id", "email")],
+    )
+    assert (
+        'CREATE TABLE "memberships" (\n   "account_id" INTEGER,\n   "email" TEXT,\n'
+        '   UNIQUE ("account_id", "email")\n)' == table.schema
+    )
+    assert [("account_id", "email")] == [
+        tuple(c.name for c in u.columns) for u in table.uniques
+    ]
+
+
+def test_create_table_with_mixed_unique(fresh_db):
+    table = fresh_db.create_table(
+        "t", {"a": str, "b": str, "c": int}, unique=["a", ("b", "c")]
+    )
+    assert (
+        'CREATE TABLE "t" (\n   "a" TEXT,\n   "b" TEXT,\n   "c" INTEGER,\n'
+        '   UNIQUE ("a"),\n   UNIQUE ("b", "c")\n)' == table.schema
+    )
+
+
+def test_create_table_with_unique_bad_column(fresh_db):
+    with pytest.raises(AlterError):
+        fresh_db.create_table("users", {"id": int}, pk="id", unique=["nope"])
+
+
+def test_create_table_with_unique_enforced(fresh_db):
+    table = fresh_db.create_table(
+        "users", {"id": int, "email": str}, pk="id", unique=["email"]
+    )
+    table.insert({"id": 1, "email": "one@example.com"})
+    with pytest.raises(sqlite3.IntegrityError):
+        table.insert({"id": 2, "email": "one@example.com"})
+
+
+def test_create_table_with_compound_unique_enforced(fresh_db):
+    table = fresh_db.create_table(
+        "memberships",
+        {"account_id": int, "email": str},
+        unique=[("account_id", "email")],
+    )
+    table.insert({"account_id": 1, "email": "one@example.com"})
+    # Different account_id, same email: allowed for a compound constraint
+    table.insert({"account_id": 2, "email": "one@example.com"})
+    with pytest.raises(sqlite3.IntegrityError):
+        table.insert({"account_id": 1, "email": "one@example.com"})
+
+
+def test_unique_persists_after_create_655(fresh_db):
+    """When unique is passed to create(), it should be stored in _defaults."""
+    table = fresh_db.table("users")
+    table.create({"id": int, "email": str}, pk="id", unique=["email"])
+    assert table._defaults["unique"] == ["email"]
+
+
+def test_transform_add_unique(fresh_db):
+    table = fresh_db.create_table("users", {"id": int, "email": str}, pk="id")
+    assert "UNIQUE" not in table.schema
+    table.transform(unique=["email"])
+    assert 'UNIQUE ("email")' in table.schema
+    # Applying the same constraint again should not duplicate it
+    table.transform(unique=["email"])
+    assert table.schema.count("UNIQUE") == 1
+
+
+def test_transform_add_compound_unique(fresh_db):
+    table = fresh_db.create_table("t", {"a": str, "b": str, "c": int})
+    table.transform(unique=[("a", "b")])
+    assert 'UNIQUE ("a", "b")' in table.schema
+
+
+def test_transform_add_unique_renamed_column(fresh_db):
+    table = fresh_db.create_table("t", {"a": str, "b": str})
+    table.transform(rename={"a": "x"}, unique=["x"])
+    assert 'UNIQUE ("x")' in table.schema
+
+
+def test_create_transform_true_applies_unique(fresh_db):
+    fresh_db.create_table("users", {"id": int, "email": str}, pk="id")
+    table = fresh_db.create_table(
+        "users", {"id": int, "email": str}, pk="id", unique=["email"], transform=True
+    )
+    assert 'UNIQUE ("email")' in table.schema
+
+
+def test_insert_with_unique(fresh_db):
+    table = fresh_db["users"].insert(
+        {"id": 1, "email": "one@example.com"}, pk="id", unique=["email"]
+    )
+    assert 'UNIQUE ("email")' in table.schema
+
+
+def test_insert_all_with_unique(fresh_db):
+    table = fresh_db["users"].insert_all(
+        [{"id": 1, "email": "one@example.com"}], pk="id", unique=["email"]
+    )
+    assert 'UNIQUE ("email")' in table.schema
+    with pytest.raises(sqlite3.IntegrityError):
+        table.insert({"id": 2, "email": "one@example.com"})
+
+
+def test_upsert_with_unique(fresh_db):
+    table = fresh_db["users"].upsert(
+        {"id": 1, "email": "one@example.com"}, pk="id", unique=["email"]
+    )
+    assert 'UNIQUE ("email")' in table.schema
+
+
+def test_unique_via_table_defaults(fresh_db):
+    table = fresh_db.table("users", unique=["email"])
+    table.insert({"id": 1, "email": "one@example.com"}, pk="id")
+    assert 'UNIQUE ("email")' in table.schema

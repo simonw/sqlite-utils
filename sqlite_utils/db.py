@@ -1434,6 +1434,7 @@ class Database:
         foreign_keys: ForeignKeysType | None = None,
         column_order: list[str] | None = None,
         not_null: Iterable[str] | None = None,
+        unique: Iterable[str] | Iterable[Iterable[str]] | None = None,
         defaults: dict[str, Any] | None = None,
         hash_id: str | None = None,
         hash_id_columns: Iterable[str] | None = None,
@@ -1454,6 +1455,7 @@ class Database:
         :param foreign_keys: List of foreign key definitions for this table
         :param column_order: List specifying which columns should come first
         :param not_null: List of columns that should be created as ``NOT NULL``
+        :param unique: Columns to constrain as ``UNIQUE``. Use a string for a single column or a tuple for a compound constraint
         :param defaults: Dictionary specifying default values for columns
         :param hash_id: Name of column to be used as a primary key containing a hash of the other columns
         :param hash_id_columns: List of columns to be used when calculating the hash ID for a row
@@ -1508,7 +1510,12 @@ class Database:
                 table_checks.append(check)
         uniques_by_column: dict[str, list[Unique]] = {}
         table_uniques: list[Unique] = []
-        for unique in _uniques or ():
+        all_uniques: list[Unique] = list(_uniques or ())
+        all_uniques.extend(
+            Unique(tuple(UniqueColumn(column) for column in columns_tuple))
+            for columns_tuple in resolve_uniques(unique)
+        )
+        for unique_constraint in all_uniques:
             resolved_unique = Unique(
                 tuple(
                     UniqueColumn(
@@ -1516,13 +1523,15 @@ class Database:
                         collation=column.collation,
                         order=column.order,
                     )
-                    for column in unique.columns
+                    for column in unique_constraint.columns
                 ),
-                name=unique.name,
+                name=unique_constraint.name,
                 column=(
-                    resolve_casing(unique.column, columns) if unique.column else ""
+                    resolve_casing(unique_constraint.column, columns)
+                    if unique_constraint.column
+                    else ""
                 ),
-                conflict=unique.conflict,
+                conflict=unique_constraint.conflict,
             )
             missing = [
                 column.name
@@ -1705,6 +1714,7 @@ class Database:
         foreign_keys: ForeignKeysType | None = None,
         column_order: list[str] | None = None,
         not_null: Iterable[str] | None = None,
+        unique: Iterable[str] | Iterable[Iterable[str]] | None = None,
         defaults: dict[str, Any] | None = None,
         hash_id: str | None = None,
         hash_id_columns: Iterable[str] | None = None,
@@ -1726,6 +1736,7 @@ class Database:
         :param foreign_keys: List of foreign key definitions for this table
         :param column_order: List specifying which columns should come first
         :param not_null: List of columns that should be created as ``NOT NULL``
+        :param unique: Columns to constrain as ``UNIQUE``. Use a string for a single column or a tuple for a compound constraint
         :param defaults: Dictionary specifying default values for columns
         :param hash_id: Name of column to be used as a primary key containing a hash of the other columns
         :param hash_id_columns: List of columns to be used when calculating the hash ID for a row
@@ -1789,6 +1800,24 @@ class Database:
             )
             if current_not_null != desired_not_null:
                 should_transform = True
+            # Any unique changes?
+            if unique:
+                existing_unique_columns = {
+                    tuple(
+                        resolve_casing(column.name, existing_columns)
+                        for column in unique_constraint.columns
+                    )
+                    for unique_constraint in table.uniques
+                }
+                for columns_tuple in resolve_uniques(unique):
+                    if (
+                        tuple(
+                            resolve_casing(c, existing_columns) for c in columns_tuple
+                        )
+                        not in existing_unique_columns
+                    ):
+                        should_transform = True
+                        break
             # How about defaults?
             if (
                 defaults
@@ -1805,6 +1834,7 @@ class Database:
                     drop=columns_to_drop,
                     column_order=column_order,
                     not_null=not_null,
+                    unique=unique,
                     defaults=defaults,
                     pk=pk,
                 )
@@ -1816,6 +1846,7 @@ class Database:
             foreign_keys=foreign_keys,
             column_order=column_order,
             not_null=not_null,
+            unique=unique,
             defaults=defaults,
             hash_id=hash_id,
             hash_id_columns=hash_id_columns,
@@ -1830,6 +1861,7 @@ class Database:
             foreign_keys=foreign_keys,
             column_order=column_order,
             not_null=not_null,
+            unique=unique,
             defaults=defaults,
             hash_id=hash_id,
             hash_id_columns=hash_id_columns,
@@ -2290,6 +2322,7 @@ class Table(Queryable):
         foreign_keys: ForeignKeysType | None = None,
         column_order: list[str] | None = None,
         not_null: Iterable[str] | None = None,
+        unique: Iterable[str] | Iterable[Iterable[str]] | None = None,
         defaults: dict[str, Any] | None = None,
         batch_size: int = 100,
         hash_id: str | None = None,
@@ -2308,6 +2341,7 @@ class Table(Queryable):
             "foreign_keys": foreign_keys,
             "column_order": column_order,
             "not_null": not_null,
+            "unique": unique,
             "defaults": defaults,
             "batch_size": batch_size,
             "hash_id": hash_id,
@@ -2386,6 +2420,13 @@ class Table(Queryable):
     def table_checks(self) -> list[Check]:
         "Table-level CHECK constraints on this table."
         return [check for check in self.checks if not check.column]
+
+    @property
+    def uniques(self) -> list[Unique]:
+        "List of column-level and table-level UNIQUE constraints on this table."
+        if not self.exists() or self.virtual_table_using is not None:
+            return []
+        return parse_uniques(self.schema)
 
     def get(self, pk_values: list | tuple | str | int) -> dict:
         """
@@ -2544,6 +2585,7 @@ class Table(Queryable):
         foreign_keys: ForeignKeysType | None | Default = DEFAULT,
         column_order: list[str] | None | Default = DEFAULT,
         not_null: Iterable[str] | None | Default = DEFAULT,
+        unique: Iterable[str] | Iterable[Iterable[str]] | None | Default = DEFAULT,
         defaults: dict[str, Any] | None | Default = DEFAULT,
         hash_id: str | None | Default = DEFAULT,
         hash_id_columns: Iterable[str] | None | Default = DEFAULT,
@@ -2564,6 +2606,7 @@ class Table(Queryable):
         :param foreign_keys: List of foreign key definitions for this table
         :param column_order: List specifying which columns should come first
         :param not_null: List of columns that should be created as ``NOT NULL``
+        :param unique: Columns to constrain as ``UNIQUE``. Use a string for a single column or a tuple for a compound constraint
         :param defaults: Dictionary specifying default values for columns
         :param hash_id: Name of column to be used as a primary key containing a hash of the other columns
         :param hash_id_columns: List of columns to be used when calculating the hash ID for a row
@@ -2579,6 +2622,7 @@ class Table(Queryable):
         foreign_keys = self.value_or_default("foreign_keys", foreign_keys)
         column_order = self.value_or_default("column_order", column_order)
         not_null = self.value_or_default("not_null", not_null)
+        unique = self.value_or_default("unique", unique)
         defaults = self.value_or_default("defaults", defaults)
         hash_id = self.value_or_default("hash_id", hash_id)
         hash_id_columns = self.value_or_default("hash_id_columns", hash_id_columns)
@@ -2595,6 +2639,8 @@ class Table(Queryable):
             self._defaults["column_order"] = column_order
         if not_null is not None:
             self._defaults["not_null"] = not_null
+        if unique is not None:
+            self._defaults["unique"] = unique
         if defaults is not None:
             self._defaults["defaults"] = defaults
         if hash_id is not None:
@@ -2615,6 +2661,7 @@ class Table(Queryable):
                 foreign_keys=foreign_keys,  # type: ignore[arg-type]
                 column_order=column_order,  # type: ignore[arg-type]
                 not_null=not_null,  # type: ignore[arg-type]
+                unique=unique,  # type: ignore[arg-type]
                 defaults=defaults,  # type: ignore[arg-type]
                 hash_id=hash_id,  # type: ignore[arg-type]
                 hash_id_columns=hash_id_columns,  # type: ignore[arg-type]
@@ -2648,6 +2695,7 @@ class Table(Queryable):
         drop: Iterable | None = None,
         pk: Any | None = DEFAULT,
         not_null: Iterable[str] | None = None,
+        unique: Iterable[str] | Iterable[Iterable[str]] | None = None,
         defaults: dict[str, Any] | None = None,
         drop_foreign_keys: Iterable[str] | None = None,
         add_foreign_keys: ForeignKeysType | None = None,
@@ -2672,6 +2720,7 @@ class Table(Queryable):
         :param drop: Columns to drop
         :param pk: New primary key for the table
         :param not_null: Columns to set as ``NOT NULL``
+        :param unique: Columns to constrain as ``UNIQUE``. Use a string for a single column or a tuple for a compound constraint
         :param defaults: Default values for columns
         :param drop_foreign_keys: Foreign key constraints to remove - a column name
           drops any foreign key that column participates in, a tuple of column names
@@ -2693,6 +2742,7 @@ class Table(Queryable):
             drop=drop,
             pk=pk,
             not_null=not_null,
+            unique=unique,
             defaults=defaults,
             drop_foreign_keys=drop_foreign_keys,
             add_foreign_keys=add_foreign_keys,
@@ -2778,6 +2828,7 @@ class Table(Queryable):
         drop: Iterable | None = None,
         pk: Any | None = DEFAULT,
         not_null: Iterable[str] | None = None,
+        unique: Iterable[str] | Iterable[Iterable[str]] | None = None,
         defaults: dict[str, Any] | None = None,
         drop_foreign_keys: Iterable | None = None,
         add_foreign_keys: ForeignKeysType | None = None,
@@ -2795,6 +2846,7 @@ class Table(Queryable):
         :param drop: Columns to drop
         :param pk: New primary key for the table
         :param not_null: Columns to set as ``NOT NULL``
+        :param unique: Columns to constrain as ``UNIQUE``. Use a string for a single column or a tuple for a compound constraint
         :param defaults: Default values for columns
         :param drop_foreign_keys: Foreign key constraints to remove - a column name
           drops any foreign key that column participates in, a tuple of column names
@@ -2833,6 +2885,11 @@ class Table(Queryable):
             }
         elif isinstance(not_null, set):
             not_null = {resolve_casing(c, existing_columns) for c in not_null}
+        if unique is not None:
+            unique = [
+                tuple(resolve_casing(c, existing_columns) for c in columns_tuple)
+                for columns_tuple in resolve_uniques(unique)
+            ]
         if defaults is not None:
             defaults = {
                 resolve_casing(c, existing_columns): v for c, v in defaults.items()
@@ -2872,19 +2929,21 @@ class Table(Queryable):
             )
 
         create_table_uniques: list[Unique] = []
-        for unique in existing_uniques:
+        for unique_constraint in existing_uniques:
             columns = tuple(
                 UniqueColumn(
                     resolve_casing(column.name, existing_columns),
                     collation=column.collation,
                     order=column.order,
                 )
-                for column in unique.columns
+                for column in unique_constraint.columns
             )
             if any(column.name in drop for column in columns):
                 continue
             owner = (
-                resolve_casing(unique.column, existing_columns) if unique.column else ""
+                resolve_casing(unique_constraint.column, existing_columns)
+                if unique_constraint.column
+                else ""
             )
             create_table_uniques.append(
                 Unique(
@@ -2896,11 +2955,26 @@ class Table(Queryable):
                         )
                         for column in columns
                     ),
-                    name=unique.name,
+                    name=unique_constraint.name,
                     column=rename.get(owner) or owner,
-                    conflict=unique.conflict,
+                    conflict=unique_constraint.conflict,
                 )
             )
+        if unique is not None:
+            existing_unique_columns = {
+                tuple(column.name for column in unique_constraint.columns)
+                for unique_constraint in create_table_uniques
+            }
+            for columns_tuple in unique:
+                renamed_columns = tuple(
+                    rename.get(column) or column for column in columns_tuple
+                )
+                if renamed_columns in existing_unique_columns:
+                    continue
+                create_table_uniques.append(
+                    Unique(tuple(UniqueColumn(column) for column in renamed_columns))
+                )
+                existing_unique_columns.add(renamed_columns)
 
         create_table_column_comments: dict[str, ColumnComments] = {}
         for column, comments in existing_column_comments.items():
@@ -4608,6 +4682,7 @@ class Table(Queryable):
         foreign_keys: ForeignKeysType | Default | None = DEFAULT,
         column_order: list[str] | Default | None = DEFAULT,
         not_null: Iterable[str] | Default | None = DEFAULT,
+        unique: Iterable[str] | Iterable[Iterable[str]] | Default | None = DEFAULT,
         defaults: dict[str, Any] | Default | None = DEFAULT,
         hash_id: str | Default | None = DEFAULT,
         hash_id_columns: Iterable[str] | Default | None = DEFAULT,
@@ -4637,6 +4712,7 @@ class Table(Queryable):
         :param column_order: List of strings specifying a full or partial column order
           to use when creating the table.
         :param not_null: Set of strings specifying columns that should be ``NOT NULL``.
+        :param unique: Columns to constrain as ``UNIQUE``. Use a string for a single column or a tuple for a compound constraint
         :param defaults: Dictionary specifying default values for specific columns.
         :param hash_id: Name of a column to create and use as a primary key, where the
           value of that primary key will be derived as a SHA1 hash of the other column values
@@ -4658,6 +4734,7 @@ class Table(Queryable):
             foreign_keys=foreign_keys,
             column_order=column_order,
             not_null=not_null,
+            unique=unique,
             defaults=defaults,
             hash_id=hash_id,
             hash_id_columns=hash_id_columns,
@@ -4677,6 +4754,7 @@ class Table(Queryable):
         foreign_keys: ForeignKeysType | Default | None = DEFAULT,
         column_order: list[str] | Default | None = DEFAULT,
         not_null: Iterable[str] | Default | None = DEFAULT,
+        unique: Iterable[str] | Iterable[Iterable[str]] | Default | None = DEFAULT,
         defaults: dict[str, Any] | Default | None = DEFAULT,
         batch_size: int | Default = DEFAULT,
         hash_id: str | Default | None = DEFAULT,
@@ -4702,6 +4780,7 @@ class Table(Queryable):
         foreign_keys = self.value_or_default("foreign_keys", foreign_keys)
         column_order = self.value_or_default("column_order", column_order)
         not_null = self.value_or_default("not_null", not_null)
+        unique = self.value_or_default("unique", unique)
         defaults = self.value_or_default("defaults", defaults)
         batch_size = self.value_or_default("batch_size", batch_size)
         hash_id = self.value_or_default("hash_id", hash_id)
@@ -4850,6 +4929,7 @@ class Table(Queryable):
                         foreign_keys,
                         column_order=column_order,
                         not_null=not_null,
+                        unique=unique,
                         defaults=defaults,
                         hash_id=hash_id,
                         hash_id_columns=hash_id_columns,
@@ -5035,6 +5115,7 @@ class Table(Queryable):
         foreign_keys: ForeignKeysType | Default | None = DEFAULT,
         column_order: list[str] | Default | None = DEFAULT,
         not_null: Iterable[str] | Default | None = DEFAULT,
+        unique: Iterable[str] | Iterable[Iterable[str]] | Default | None = DEFAULT,
         defaults: dict[str, Any] | Default | None = DEFAULT,
         hash_id: str | Default | None = DEFAULT,
         hash_id_columns: Iterable[str] | Default | None = DEFAULT,
@@ -5056,6 +5137,7 @@ class Table(Queryable):
             foreign_keys=foreign_keys,
             column_order=column_order,
             not_null=not_null,
+            unique=unique,
             defaults=defaults,
             hash_id=hash_id,
             hash_id_columns=hash_id_columns,
@@ -5073,6 +5155,7 @@ class Table(Queryable):
         foreign_keys: ForeignKeysType | Default | None = DEFAULT,
         column_order: list[str] | Default | None = DEFAULT,
         not_null: Iterable[str] | Default | None = DEFAULT,
+        unique: Iterable[str] | Iterable[Iterable[str]] | Default | None = DEFAULT,
         defaults: dict[str, Any] | Default | None = DEFAULT,
         batch_size: int | Default = DEFAULT,
         hash_id: str | Default | None = DEFAULT,
@@ -5093,6 +5176,7 @@ class Table(Queryable):
             foreign_keys=foreign_keys,
             column_order=column_order,
             not_null=not_null,
+            unique=unique,
             defaults=defaults,
             batch_size=batch_size,
             hash_id=hash_id,
@@ -5519,6 +5603,31 @@ def resolve_extracts(
     if isinstance(extracts, (list, tuple)):
         extracts = {item: item for item in extracts}
     return extracts
+
+
+def resolve_uniques(
+    unique: "Iterable[str] | Iterable[Iterable[str]] | None",
+) -> list[tuple[str, ...]]:
+    """Normalize a ``unique=`` argument into a list of column tuples.
+
+    Each item describes one ``UNIQUE`` constraint. A plain string names a
+    single column, while a list or tuple names a compound constraint across
+    several columns::
+
+        unique=["email"]                     # one single-column constraint
+        unique=["email", "username"]         # two single-column constraints
+        unique=[("a", "b")]                  # one compound constraint
+        unique=["email", ("a", "b")]         # one of each
+    """
+    if unique is None:
+        return []
+    resolved: list[tuple[str, ...]] = []
+    for item in unique:
+        if isinstance(item, str):
+            resolved.append((item,))
+        else:
+            resolved.append(tuple(item))
+    return resolved
 
 
 def _decode_default_value(value: str) -> object:
