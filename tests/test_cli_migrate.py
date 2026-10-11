@@ -506,3 +506,38 @@ def test_list_with_legacy_class_is_read_only(tmpdir):
     db2 = sqlite_utils.Database(db_path)
     assert "_sqlite_migrations" not in db2.table_names()
     db2.close()
+
+
+def test_stop_before_applied_migration_multiple_sets_does_not_apply_earlier(tmpdir):
+    root = pathlib.Path(tmpdir)
+    for name in ("a", "b"):
+        (root / f"{name}.py").write_text(
+            "from sqlite_utils import Migrations\n"
+            f'migrations = Migrations("{name}")\n'
+            "@migrations()\n"
+            "def first(db):\n"
+            f'    db.table("{name}").insert({{"value": 1}})\n',
+            "utf-8",
+        )
+    db_path = str(root / "test.db")
+    runner = CliRunner()
+    # Apply set b first
+    seed = runner.invoke(sqlite_utils.cli.cli, ["migrate", db_path, str(root / "b.py")])
+    assert seed.exit_code == 0
+    # Now migrate both a and b with --stop-before b:first (which is already applied).
+    # This must error and must NOT apply set a.
+    result = runner.invoke(
+        sqlite_utils.cli.cli,
+        [
+            "migrate",
+            db_path,
+            str(root / "a.py"),
+            str(root / "b.py"),
+            "--stop-before",
+            "b:first",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "already been applied" in result.output
+    db = sqlite_utils.Database(db_path)
+    assert not db.table("a").exists()
