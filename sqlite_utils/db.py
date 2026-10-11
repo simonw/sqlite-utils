@@ -5501,6 +5501,9 @@ class View(Queryable):
 def jsonify_if_needed(value: object) -> object:
     if isinstance(value, decimal.Decimal):
         return float(value)
+    if np is not None and isinstance(value, (np.integer, np.floating)):
+        # sqlite3 would otherwise store the raw buffer as a BLOB
+        return cast(Any, value).item()
     if isinstance(value, (dict, list, tuple)):
         return json.dumps(value, default=repr, ensure_ascii=False)
     elif isinstance(value, (datetime.time, datetime.date, datetime.datetime)):
