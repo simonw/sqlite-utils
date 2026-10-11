@@ -531,6 +531,73 @@ def test_insert_convert_row_modifying_in_place(db_path):
 
 
 @pytest.mark.parametrize(
+    "convert,expected_value",
+    (
+        ("0", "0"),
+        ('""', "''"),
+        ("[]", "[]"),
+        ("False", "False"),
+    ),
+)
+def test_insert_convert_falsy_result_is_rejected(db_path, convert, expected_value):
+    # A --convert expression that is a statement returns None and is
+    # documented to modify row in place. Every other falsy value used to
+    # be treated the same way, so the row was inserted unconverted.
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "rows", "-", "--convert", convert],
+        input='{"name": "Azi"}',
+    )
+    assert result.exit_code == 1
+    assert result.output == (
+        f"Error: Rows must all be dictionaries, got: {expected_value}\n"
+    )
+
+
+def test_insert_convert_returning_none_still_inserts_the_row(db_path):
+    # None stays the in-place signal: a --convert that is a bare
+    # statement returns it, and the row is inserted as it arrived.
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "rows", "-", "--convert", "None"],
+        input='{"name": "Azi"}',
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    assert list(db.query("select * from rows")) == [{"name": "Azi"}]
+
+
+def test_insert_convert_returning_empty_dict_does_not_insert_the_original(db_path):
+    # {} is a dict, so it is accepted - but it used to be discarded as
+    # falsy and the unconverted row inserted in its place.
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "rows", "-", "--convert", 'row if row["id"] else {}'],
+        input='[{"id": 1, "name": "Azi"}, {"id": 0, "name": "Not me"}]',
+    )
+    assert result.exit_code == 0, result.output
+    db = Database(db_path)
+    # no ORDER BY: the empty row sorts first under "order by id"
+    assert list(db.query("select * from rows")) == [
+        {"id": 1, "name": "Azi"},
+        {"id": None, "name": None},
+    ]
+
+
+@pytest.mark.parametrize("convert", ("0", "{}"))
+def test_lines_and_json_convert_reject_the_same_falsy_result(db_path, convert):
+    # The two input formats run different expressions, so the same
+    # --convert code has to behave the same way in both
+    for options in ([], ["--lines"]):
+        result = CliRunner().invoke(
+            cli.cli,
+            ["insert", db_path, "rows", "-", *options, "--convert", convert],
+            input='{"name": "Azi"}',
+        )
+        assert result.exit_code == 1, (options, convert, result.output)
+
+
+@pytest.mark.parametrize(
     "options,expected_error",
     (
         (
