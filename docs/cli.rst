@@ -747,6 +747,19 @@ You can list the names of tables in a database using the ``tables`` command:
      {"table": "cats"},
      {"table": "chickens"}]
 
+Pass one or more table names to restrict the output to just those tables. This is useful with ``--counts`` against a database that has a large table you want to skip:
+
+.. code-block:: bash
+
+    sqlite-utils tables mydb.db dogs cats --counts
+
+.. code-block:: output
+
+    [{"table": "dogs", "count": 12},
+     {"table": "cats", "count": 332}]
+
+The tables are listed in the order you name them. An error is raised, and a non-zero exit code returned, if any of the named tables do not exist.
+
 You can output this list in CSV using the ``--csv`` or ``--tsv`` options:
 
 .. code-block:: bash
@@ -842,6 +855,8 @@ It takes the same options as the ``tables`` command:
 * ``--csv``
 * ``--tsv``
 * ``--table``
+
+As with ``tables``, you can pass one or more view names to restrict the output to just those views.
 
 .. note::
     In Python: :ref:`db.views or db.view_names() <python_api_views>`  CLI reference: :ref:`sqlite-utils views <cli_ref_views>`

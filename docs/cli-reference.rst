@@ -711,13 +711,17 @@ See :ref:`cli_tables`.
 
 ::
 
-    Usage: sqlite-utils tables [OPTIONS] PATH
+    Usage: sqlite-utils tables [OPTIONS] PATH [NAMES]...
 
       List the tables in the database
 
       Example:
 
           sqlite-utils tables trees.db
+
+      Pass one or more table names to restrict the output to just those tables:
+
+          sqlite-utils tables trees.db plants seeds
 
     Options:
       --fts4                 Just show FTS4 enabled tables
@@ -756,13 +760,17 @@ See :ref:`cli_views`.
 
 ::
 
-    Usage: sqlite-utils views [OPTIONS] PATH
+    Usage: sqlite-utils views [OPTIONS] PATH [NAMES]...
 
       List the views in the database
 
       Example:
 
           sqlite-utils views trees.db
+
+      Pass one or more view names to restrict the output to just those views:
+
+          sqlite-utils views trees.db recent_plants
 
     Options:
       --counts               Include row counts per view

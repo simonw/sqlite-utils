@@ -187,6 +187,7 @@ def cli():
     type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
+@click.argument("names", nargs=-1)
 @click.option(
     "--fts4", help="Just show FTS4 enabled tables", default=False, is_flag=True
 )
@@ -212,6 +213,7 @@ def cli():
 @load_extension_option
 def tables(
     path,
+    names,
     fts4,
     fts5,
     counts,
@@ -235,6 +237,11 @@ def tables(
 
     \b
         sqlite-utils tables trees.db
+
+    Pass one or more table names to restrict the output to just those tables:
+
+    \b
+        sqlite-utils tables trees.db plants seeds
     """
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
@@ -249,8 +256,25 @@ def tables(
 
     method = db.view if views else db.table
 
+    if names:
+        existing = set(db.view_names() if views else db.table_names())
+        missing = [name for name in names if name not in existing]
+        if missing:
+            label = "view" if views else "table"
+            if len(missing) == 1:
+                message = "The following {} does not exist: {}".format(
+                    label, missing[0]
+                )
+            else:
+                message = "The following {}s do not exist: {}".format(
+                    label, ", ".join(missing)
+                )
+            raise click.ClickException(message)
+
     def _iter():
-        if views:
+        if names:
+            items = list(names)
+        elif views:
             items = db.view_names()
         else:
             items = db.table_names(fts4=fts4, fts5=fts5)
@@ -293,6 +317,7 @@ def tables(
     type=click.Path(exists=True, file_okay=True, dir_okay=False, allow_dash=False),
     required=True,
 )
+@click.argument("names", nargs=-1)
 @click.option(
     "--counts", help="Include row counts per view", default=False, is_flag=True
 )
@@ -312,6 +337,7 @@ def tables(
 @load_extension_option
 def views(
     path,
+    names,
     counts,
     nl,
     arrays,
@@ -332,10 +358,16 @@ def views(
 
     \b
         sqlite-utils views trees.db
+
+    Pass one or more view names to restrict the output to just those views:
+
+    \b
+        sqlite-utils views trees.db recent_plants
     """
     assert tables.callback is not None
     tables.callback(
         path=path,
+        names=names,
         fts4=False,
         fts5=False,
         counts=counts,
