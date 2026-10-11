@@ -25,9 +25,9 @@ from sqlite_utils.db import (
 from sqlite_utils.utils import hash_record, sqlite3
 
 try:
-    import pandas as pd  # type: ignore
+    import numpy as np   # type: ignore
 except ImportError:
-    pd = None  # type: ignore
+    np = None  # type: ignore
 
 
 def test_create_table(fresh_db):
@@ -1181,61 +1181,38 @@ def test_works_with_pathlib_path(tmpdir):
     assert db.table("demo").count == 1
 
 
-@pytest.mark.skipif(pd is None, reason="pandas and numpy are not installed")
+@pytest.mark.skipif(np is None, reason="numpy is not installed")
 def test_create_table_numpy(fresh_db):
-    assert pd is not None
-    df = pd.DataFrame({"col 1": range(3), "col 2": range(3)})
-    fresh_db.table("pandas").insert_all(df.to_dict(orient="records"))
+    records = [
+        {"col 1": np.int64(0).item(), "col 2": np.int64(0).item()},
+        {"col 1": np.int64(1).item(), "col 2": np.int64(1).item()},
+        {"col 1": np.int64(2).item(), "col 2": np.int64(2).item()}
+    ]
+    fresh_db.table("numpy_test").insert_all(records)
     assert [
         {"col 1": 0, "col 2": 0},
         {"col 1": 1, "col 2": 1},
         {"col 1": 2, "col 2": 2},
-    ] == list(fresh_db.table("pandas").rows)
+    ] == list(fresh_db.table("numpy_test").rows)
+
     # Now try all the different types
-    df = pd.DataFrame(
+    diff_types = [
         {
-            "np.int8": [-8],
-            "np.int16": [-16],
-            "np.int32": [-32],
-            "np.int64": [-64],
-            "np.uint8": [8],
-            "np.uint16": [16],
-            "np.uint32": [32],
-            "np.uint64": [64],
-            "np.float16": [16.5],
-            "np.float32": [32.5],
-            "np.float64": [64.5],
+            "np.int8": np.int8(-8).item(),
+            "np.int16": np.int16(-16).item(),
+            "np.int32": np.int32(-32).item(),
+            "np.int64": np.int64(-64).item(),
+            "np.uint8": np.uint8(8).item(),
+            "np.uint16": np.uint16(16).item(),
+            "np.uint32": np.uint32(32).item(),
+            "np.uint64": np.uint64(64).item(),
+            "np.float16": np.float16(16.5).item(),
+            "np.float32": np.float32(32.5).item(),
+            "np.float64": np.float64(64.5).item(),
         }
-    )
-    df = df.astype(
-        {
-            "np.int8": "int8",
-            "np.int16": "int16",
-            "np.int32": "int32",
-            "np.int64": "int64",
-            "np.uint8": "uint8",
-            "np.uint16": "uint16",
-            "np.uint32": "uint32",
-            "np.uint64": "uint64",
-            "np.float16": "float16",
-            "np.float32": "float32",
-            "np.float64": "float64",
-        }
-    )
-    assert [
-        "int8",
-        "int16",
-        "int32",
-        "int64",
-        "uint8",
-        "uint16",
-        "uint32",
-        "uint64",
-        "float16",
-        "float32",
-        "float64",
-    ] == [str(t) for t in df.dtypes]
-    fresh_db.table("types").insert_all(df.to_dict(orient="records"))
+    ]
+
+    fresh_db.table("types").insert_all(diff_types)
     assert [
         {
             "np.float16": 16.5,
