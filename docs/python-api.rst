@@ -2026,14 +2026,32 @@ A view that references a column which the transform renamed or dropped will rema
 
 To achieve this, the SQL produced by ``transform_sql()`` turns on ``PRAGMA legacy_alter_table`` for its ``ALTER TABLE ... RENAME TO`` statements, then restores the pragma to the value it had when the SQL was generated - without this, SQLite would attempt to rewrite references to the renamed table in every view definition, which fails when a view references the table that was just dropped.
 
+.. _python_api_transform_indexes_triggers:
+
+Indexes and triggers
+--------------------
+
+Indexes on the transformed table are recreated. ``transform_sql()`` captures each index before the old table is dropped and reissues its ``CREATE INDEX`` afterwards, so an index survives the transformation. An index on a renamed column is recreated against the new name, and an index on a dropped column is dropped with it.
+
+An index that SQLite does not expose a ``CREATE INDEX`` statement for - one created implicitly by a ``UNIQUE`` constraint - is not reissued. ``UNIQUE`` constraints are reproduced in the new ``CREATE TABLE`` instead, so the constraint is kept. Any other index without stored SQL raises ``TransformError`` asking you to drop and recreate it yourself.
+
+**Triggers on the transformed table are dropped, not recreated.** SQLite deletes a table's triggers when the table is dropped, and ``transform_sql()`` does not capture them, so any trigger on the table is gone after the transformation. Read them from ``table.triggers_dict`` first if you need to recreate them:
+
+.. code-block:: python
+
+    triggers = table.triggers_dict
+    table.transform(rename={"old_name": "new_name"})
+    for sql in triggers.values():
+        db.execute(sql)
+
+Note that a captured trigger body still references the old column names, so a trigger that mentions a renamed or dropped column needs editing before it is reissued.
+
 .. _python_api_transform_sql:
 
 Custom transformations with .transform_sql()
 --------------------------------------------
 
-The ``.transform()`` method can handle most cases, but it does not automatically upgrade indexes, views or triggers associated with the table that is being transformed.
-
-If you want to do something more advanced, you can call the ``table.transform_sql(...)`` method with the same arguments that you would have passed to ``table.transform(...)``.
+The ``.transform()`` method can handle most cases. If you want to do something more advanced - reissuing triggers, or adding statements of your own - you can call the ``table.transform_sql(...)`` method with the same arguments that you would have passed to ``table.transform(...)``.
 
 This method will return a list of SQL statements that should be executed to implement the change. You can then make modifications to that SQL - or add additional SQL statements - before executing it yourself.
 
