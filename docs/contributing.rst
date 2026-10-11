@@ -38,7 +38,7 @@ Building the documentation
 
 To build the documentation run this command::
 
-    uv run make livehtml --directory docs
+    uv run --group docs make livehtml --directory docs
 
 This will start a server on port 8000 that will serve the documentation and live-reload any time you make an edit to a ``.rst`` file.
 
