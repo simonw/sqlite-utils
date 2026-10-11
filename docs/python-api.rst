@@ -3189,6 +3189,31 @@ You can optimize your database by running VACUUM against it like so:
 .. note::
     In the CLI: :ref:`sqlite-utils vacuum <cli_vacuum>`
 
+Temporary storage for large databases
+-------------------------------------
+
+If a large operation fails with ``OperationalError: database or disk is full``, check free space on both the database filesystem and SQLite's temporary filesystem. SQLite may use a separate temporary directory even when the database filesystem has room. ``VACUUM`` can require free disk space up to twice the original database size; see `SQLite's VACUUM documentation <https://www.sqlite.org/lang_vacuum.html#how_vacuum_works>`__.
+
+If sufficient RAM is available, you can request memory storage for temporary tables and indices using ``PRAGMA temp_store`` on the connection that will run the operation:
+
+.. code-block:: python
+
+    from sqlite_utils import Database
+
+    db = Database("my_database.db")
+    db.execute("PRAGMA temp_store = MEMORY")
+    db.vacuum()
+
+Set this immediately after opening the connection: changing ``temp_store`` deletes existing temporary tables, indices, triggers, and views. SQLite's compile-time settings can override the request, and rollback journals and WAL files still need disk space. See the `temp_store reference <https://www.sqlite.org/pragma.html#pragma_temp_store>`__.
+
+On Unix-like systems, another option is to select a writable temporary directory with enough free space before starting the process:
+
+.. code-block:: bash
+
+    SQLITE_TMPDIR=/path/to/large/temp sqlite-utils vacuum my_database.db
+
+The directory must already exist. See SQLite's `temporary file storage locations <https://www.sqlite.org/tempfiles.html#temporary_file_storage_locations>`__ for platform-specific rules. Avoid ``PRAGMA temp_store_directory``, which SQLite deprecates.
+
 .. _python_api_wal:
 
 WAL mode
