@@ -5,6 +5,129 @@ from sqlite_utils.db import PrimaryKeyRequired
 
 
 @pytest.mark.parametrize("use_old_upsert", (False, True))
+@pytest.mark.parametrize("batch_size", (1, 2, 100))
+def test_upsert_all_preserves_omitted_fields(use_old_upsert, batch_size):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db.table("dogs")
+    table.insert_all(
+        [{"id": 1, "name": "Cleo", "age": 5}, {"id": 2, "name": "Nixie", "age": 6}],
+        pk="id",
+    )
+    table.upsert_all(
+        iter([{"id": 1, "age": 7}, {"id": 2, "name": "Nixie II"}]),
+        batch_size=batch_size,
+    )
+    assert list(table.rows_where(order_by="id")) == [
+        {"id": 1, "name": "Cleo", "age": 7},
+        {"id": 2, "name": "Nixie II", "age": 6},
+    ]
+    assert table.last_pk is None
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert_all_preserves_mixed_field_record_order(use_old_upsert):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db.table("dogs")
+    table.insert({"id": 1, "name": "Cleo", "age": 5}, pk="id")
+    db.executescript("""
+        create table audit (age integer);
+        create trigger record_age after update on dogs begin
+            insert into audit (age) values (new.age);
+        end;
+        """)
+    table.upsert_all(
+        [{"id": 1, "age": 7}, {"id": 1, "name": "Cleo II"}, {"id": 1, "age": 8}]
+    )
+    assert table.get(1) == {"id": 1, "name": "Cleo II", "age": 8}
+    assert list(db["audit"].rows) == [{"age": 7}, {"age": 7}, {"age": 8}]
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert_all_omission_differs_from_explicit_null(use_old_upsert):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db.table("dogs")
+    table.create(
+        {"id": int, "name": str, "age": int}, pk="id", defaults={"name": "Unknown"}
+    )
+    table.insert({"id": 1, "name": "Cleo", "age": 5})
+    table.upsert_all([{"id": 1, "name": None}, {"id": 2, "age": 6}])
+    assert list(table.rows_where(order_by="id")) == [
+        {"id": 1, "name": None, "age": 5},
+        {"id": 2, "name": "Unknown", "age": 6},
+    ]
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert_all_mixed_fields_invalid_pk_rolls_back_batch(use_old_upsert):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db.table("dogs")
+    original = {"id": 1, "name": "Cleo", "age": 5}
+    table.insert(original, pk="id")
+    with pytest.raises(PrimaryKeyRequired):
+        table.upsert_all([{"id": 1, "age": 7}, {"name": "Invalid"}])
+    assert list(table.rows) == [original]
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert_all_mixed_fields_hash_id(use_old_upsert):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db.table("dogs")
+    table.upsert_all(
+        [{"name": "Cleo", "age": 5, "color": "black"}], hash_id_columns=["name"]
+    )
+    original_id = table.last_pk
+    table.upsert_all(
+        [{"name": "Cleo", "age": 7}, {"name": "Cleo", "color": "brown"}],
+        hash_id_columns=["name"],
+    )
+    assert list(table.rows) == [
+        {"id": original_id, "name": "Cleo", "age": 7, "color": "brown"}
+    ]
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert_all_mixed_fields_alter_infers_types_from_whole_batch(use_old_upsert):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db.table("items").create({"id": int}, pk="id")
+    table.upsert_all(
+        [{"id": 1, "code": 1}, {"id": 2, "code": "001", "note": "leading zeros"}],
+        alter=True,
+    )
+    assert table.columns_dict["code"] is str
+    assert list(table.rows_where(order_by="id")) == [
+        {"id": 1, "code": "1", "note": None},
+        {"id": 2, "code": "001", "note": "leading zeros"},
+    ]
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
+def test_upsert_all_mixed_fields_compound_pk_and_conversions(use_old_upsert):
+    db = Database(memory=True, use_old_upsert=use_old_upsert)
+    table = db.table("pets")
+    table.insert_all(
+        [
+            {"species": "dog", "id": 1, "name": "Cleo", "age": 5},
+            {"species": "cat", "id": 1, "name": "Nixie", "age": 6},
+        ],
+        pk=("species", "id"),
+    )
+    table.upsert_all(
+        [
+            {"species": "dog", "id": 1, "age": 7},
+            {"species": "cat", "id": 1, "name": "new"},
+        ],
+        conversions={"name": "upper(?)"},
+    )
+    assert table.get(("dog", 1)) == {
+        "species": "dog",
+        "id": 1,
+        "name": "Cleo",
+        "age": 7,
+    }
+    assert table.get(("cat", 1)) == {"species": "cat", "id": 1, "name": "NEW", "age": 6}
+
+
+@pytest.mark.parametrize("use_old_upsert", (False, True))
 def test_upsert(use_old_upsert):
     db = Database(memory=True, use_old_upsert=use_old_upsert)
     table = db.table("table")
