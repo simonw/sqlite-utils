@@ -1509,6 +1509,113 @@ def test_create_table_replace():
         assert 'CREATE TABLE "dogs" (\n   "id" INTEGER\n)' == db.table("dogs").schema
 
 
+def test_create_table_sql():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["people"].insert_all(
+            [
+                {"id": 1, "name": "Ann", "height": 190},
+                {"id": 2, "name": "Bob", "height": 150},
+            ],
+            pk="id",
+        )
+        result = runner.invoke(
+            cli.cli,
+            [
+                "create-table",
+                "test.db",
+                "tall",
+                "--sql",
+                "select id, name from people where height > 180",
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        assert "CREATE TABLE tall(id INT,name TEXT)" == db["tall"].schema
+        assert [{"id": 1, "name": "Ann"}] == list(db["tall"].rows)
+
+
+def test_create_table_sql_error_if_table_exists():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["dogs"].insert({"name": "Cleo"})
+        result = runner.invoke(
+            cli.cli, ["create-table", "test.db", "dogs", "--sql", "select 1"]
+        )
+        assert result.exit_code == 1
+        assert (
+            'Error: Table "dogs" already exists. Use --replace to delete and replace it.'
+            == result.output.strip()
+        )
+
+
+def test_create_table_sql_ignore():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["dogs"].insert({"name": "Cleo"})
+        result = runner.invoke(
+            cli.cli,
+            ["create-table", "test.db", "dogs", "--sql", "select 1 as id", "--ignore"],
+        )
+        assert result.exit_code == 0
+        assert 'CREATE TABLE "dogs" (\n   "name" TEXT\n)' == db["dogs"].schema
+
+
+def test_create_table_sql_replace():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        db = Database("test.db")
+        db["dogs"].insert({"name": "Cleo"})
+        result = runner.invoke(
+            cli.cli,
+            ["create-table", "test.db", "dogs", "--sql", "select 1 as id", "--replace"],
+        )
+        assert result.exit_code == 0
+        assert "CREATE TABLE dogs(id)" == db["dogs"].schema
+
+
+def test_create_table_sql_requires_columns_or_sql():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(cli.cli, ["create-table", "test.db", "t"])
+        assert result.exit_code == 1
+        assert "Error: Provide columns or use --sql" == result.output.strip()
+
+
+def test_create_table_sql_conflicts_with_columns():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli.cli,
+            ["create-table", "test.db", "t", "id", "integer", "--sql", "select 1"],
+        )
+        assert result.exit_code == 1
+        assert "Error: Cannot use columns with --sql" == result.output.strip()
+
+
+@pytest.mark.parametrize(
+    "extra_args,expected",
+    [
+        (["--pk", "id"], "Error: Cannot use --pk with --sql"),
+        (["--not-null", "id"], "Error: Cannot use --not-null with --sql"),
+        (["--default", "id", "1"], "Error: Cannot use --default with --sql"),
+        (["--strict"], "Error: Cannot use --strict with --sql"),
+    ],
+)
+def test_create_table_sql_conflicts_with_options(extra_args, expected):
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli.cli,
+            ["create-table", "test.db", "t", "--sql", "select 1 as id"] + extra_args,
+        )
+        assert result.exit_code == 1
+        assert expected == result.output.strip()
+
+
 def test_create_view():
     runner = CliRunner()
     with runner.isolated_filesystem():
