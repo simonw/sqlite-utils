@@ -5323,12 +5323,21 @@ class Table(Queryable):
             total_rows = db[table].count
 
         def truncate(value):
+            if value is None:
+                return None
             if value_truncate is None or isinstance(value, (float, int)):
                 return value
             value = str(value)
             if len(value) > value_truncate:
                 value = value[:value_truncate] + "..."
             return value
+
+        def sort_key(pair):
+            # Counts are the primary key. Ties are broken on the value
+            # itself, so keep nulls out of the comparison - None cannot be
+            # ordered against a string or a number - and sort them last.
+            value = pair[0]
+            return (pair[1], value is not None, "" if value is None else value)
 
         table_quoted = quote_identifier(table)
         column_quoted = quote_identifier(column)
@@ -5343,7 +5352,8 @@ class Table(Queryable):
         ).fetchone()[0]
         most_common_results = None
         least_common_results = None
-        if num_distinct == 1:
+        if num_distinct == 1 and not num_null:
+            # Every row holds that one value, so skip the group by
             value = db.execute(
                 f"select {column_quoted} from {table_quoted} limit 1"
             ).fetchone()[0]
@@ -5363,7 +5373,7 @@ class Table(Queryable):
                             f"limit {common_limit}"
                         ).fetchall()
                     ]
-                    most_common_results.sort(key=lambda p: (p[1], p[0]), reverse=True)
+                    most_common_results.sort(key=sort_key, reverse=True)
             if least_common:
                 if num_distinct <= common_limit:
                     # No need to run the query if it will just return the results in reverse order
@@ -5378,7 +5388,7 @@ class Table(Queryable):
                             f"limit {common_limit}"
                         ).fetchall()
                     ]
-                    least_common_results.sort(key=lambda p: (p[1], p[0]))
+                    least_common_results.sort(key=sort_key)
         return ColumnDetails(
             self.name,
             column,
