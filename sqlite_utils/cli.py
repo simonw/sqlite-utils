@@ -1226,11 +1226,14 @@ def insert_upsert_implementation(
     # The --sniff option needs us to buffer the file to peek ahead
     sniff_buffer = None
     decoded_buffer = None
+    newline = "" if (csv or tsv) else None
     if sniff:
         sniff_buffer = io.BufferedReader(file, buffer_size=4096)
-        decoded_buffer = io.TextIOWrapper(sniff_buffer, encoding=encoding)
+        decoded_buffer = io.TextIOWrapper(
+            sniff_buffer, encoding=encoding, newline=newline
+        )
     else:
-        decoded_buffer = io.TextIOWrapper(file, encoding=encoding)
+        decoded_buffer = io.TextIOWrapper(file, encoding=encoding, newline=newline)
 
     tracker = None
     with file_progress(decoded_buffer, silent=silent) as decoded:

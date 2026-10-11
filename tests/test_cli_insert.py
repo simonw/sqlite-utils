@@ -235,6 +235,21 @@ def test_insert_csv_tsv(content, options, db_path, tmpdir):
     assert [{"foo": "1", "bar": "2", "baz": "cat,dog"}] == list(db.table("data").rows)
 
 
+@pytest.mark.parametrize("fmt_opt", (["--csv"], ["--tsv"]))
+def test_insert_csv_tsv_preserves_carriage_returns_in_quoted_fields(fmt_opt, db_path):
+    delimiter = "\t" if "--tsv" in fmt_opt else ","
+    content = f'id{delimiter}v\r\n1{delimiter}"line1\r\nline2"\r\n'
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "data", "-"] + fmt_opt + ["--no-detect-types"],
+        catch_exceptions=False,
+        input=content.encode("utf-8"),
+    )
+    assert result.exit_code == 0
+    db = Database(db_path)
+    assert list(db.table("data").rows) == [{"id": "1", "v": "line1\r\nline2"}]
+
+
 @pytest.mark.parametrize("empty_null", (True, False))
 def test_insert_csv_empty_null(db_path, empty_null):
     options = ["--csv", "--no-detect-types"]
