@@ -785,7 +785,7 @@ You can directly create a new table without inserting any data into it using the
 
 The first argument here is a dictionary specifying the columns you would like to create. Each column is paired with a Python type indicating the type of column. See :ref:`python_api_add_column` for full details on how these types work.
 
-This method takes optional arguments ``pk=``, ``column_order=``, ``foreign_keys=``, ``not_null=set()`` and ``defaults=dict()`` - explained below.
+This method takes optional arguments ``pk=``, ``column_order=``, ``foreign_keys=``, ``not_null=set()``, ``unique=[]`` and ``defaults=dict()`` - explained below.
 
 A ``sqlite_utils.utils.sqlite3.OperationalError`` will be raised if a table of that name already exists.
 
@@ -816,6 +816,7 @@ The ``transform=True`` option will update the table schema if any of the followi
 - The specified primary key
 - The order of the columns, defined using ``column_order=``
 - The ``not_null=`` or ``defaults=`` arguments
+- The ``unique=`` argument
 
 Changes to ``foreign_keys=`` are not currently detected and applied by ``transform=True``.
 
@@ -843,6 +844,61 @@ An ``ANY`` column can store integers, floating point values, text, binary data o
 
 .. note::
     In the CLI: :ref:`sqlite-utils create-table <cli_create_table>`
+
+.. _python_api_unique_constraints:
+
+Unique constraints
+------------------
+
+Pass ``unique=`` to add ``UNIQUE`` constraints to a table created with ``.create()``. Each item in the list describes one constraint. A string names a single column, while a tuple of strings names a compound constraint spanning several columns:
+
+.. code-block:: python
+
+    db.table("users").create({
+        "id": int,
+        "email": str,
+        "username": str,
+    }, pk="id", unique=["email"])
+
+This produces:
+
+.. code-block:: sql
+
+    CREATE TABLE "users" (
+       "id" INTEGER PRIMARY KEY,
+       "email" TEXT,
+       "username" TEXT,
+       UNIQUE ("email")
+    )
+
+Pass multiple strings to add a separate constraint for each column, or a tuple for a compound constraint. These can be combined:
+
+.. code-block:: python
+
+    db.table("memberships").create({
+        "account_id": int,
+        "email": str,
+        "role": str,
+    }, unique=["role", ("account_id", "email")])
+
+The ``unique=`` argument is also accepted by ``.transform()``, so you can add a unique constraint to an existing table. Repeating a constraint that is already present is a no-op:
+
+.. code-block:: python
+
+    db.table("users").transform(unique=["email"])
+
+The methods that create a table on demand - ``.insert()``, ``.insert_all()``, ``.upsert()`` and ``.upsert_all()`` - accept ``unique=`` as well, applied when they create the table:
+
+.. code-block:: python
+
+    db["users"].insert({"id": 1, "email": "one@example.com"}, pk="id", unique=["email"])
+
+The ``.uniques`` property returns the ``UNIQUE`` constraints on a table:
+
+.. code-block:: python
+
+    for constraint in db.table("users").uniques:
+        print([column.name for column in constraint.columns])
 
 .. _python_api_compound_primary_keys:
 
@@ -979,7 +1035,7 @@ You can set default values for these methods by accessing the table through the 
     # Now you can call .insert() like so:
     table.insert({"id": 1, "name": "Tracy", "score": 5})
 
-The configuration options that can be specified in this way are ``pk``, ``foreign_keys``, ``column_order``, ``not_null``, ``defaults``, ``batch_size``, ``hash_id``, ``hash_id_columns``, ``alter``, ``ignore``, ``replace``, ``extracts``, ``conversions``, ``columns``, ``strict``. These are all documented below.
+The configuration options that can be specified in this way are ``pk``, ``foreign_keys``, ``column_order``, ``not_null``, ``unique``, ``defaults``, ``batch_size``, ``hash_id``, ``hash_id_columns``, ``alter``, ``ignore``, ``replace``, ``extracts``, ``conversions``, ``columns``, ``strict``. These are all documented below.
 
 .. _python_api_defaults_not_null:
 
