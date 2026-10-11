@@ -51,6 +51,19 @@ def test_enable_fts(fresh_db):
     assert [] == list(table.search("bar"))
 
 
+@pytest.mark.parametrize("create_triggers", [True, False])
+def test_enable_fts_columns_iterator(fresh_db, create_triggers):
+    # columns is typed Iterable[str], so a one-shot iterator has to work
+    table = fresh_db.table("searchable")
+    table.insert_all(search_records)
+    table.enable_fts(iter(["text", "country"]), create_triggers=create_triggers)
+    assert [row["rowid"] for row in table.search("tanuki")] == [1]
+    assert [row["rowid"] for row in table.search("usa")] == [2]
+    if create_triggers:
+        table.insert({"text": "kitsune", "country": "Japan", "not_searchable": "x"})
+        assert [row["rowid"] for row in table.search("kitsune")] == [3]
+
+
 def test_enable_fts_escape_table_names(fresh_db):
     # Table names with restricted chars are handled correctly.
     # colons and dots are restricted characters for table names.
