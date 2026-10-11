@@ -131,3 +131,48 @@ def test_detect_format_keeps_streaming_reader_open(
     assert not buffered_readers[0].closed
     assert len(list(rows)) == 2000
     assert buffered_readers[0].closed
+
+
+@pytest.mark.parametrize(
+    "input,expected_format,expected",
+    (
+        # csv.Sniffer raises "Could not determine delimiter" on a single-column
+        # file, so it could not be loaded at all
+        (b"name\nalpha\nbeta", Format.CSV, [{"name": "alpha"}, {"name": "beta"}]),
+        # On ragged input the sniffer does not raise, it reports "a" as the
+        # delimiter, which turned the header into a single column called "id,n"
+        (
+            b"id,name\n1,Cleo\nextra",
+            Format.CSV,
+            [{"id": "1", "name": "Cleo"}, {"id": "extra", "name": None}],
+        ),
+        # The same, for a tab-separated file
+        (
+            b"id\tname\n1\tCleo\nextra",
+            Format.TSV,
+            [{"id": "1", "name": "Cleo"}, {"id": "extra", "name": None}],
+        ),
+    ),
+)
+def test_rows_from_file_falls_back_when_sniffing_fails(
+    input, expected_format, expected
+):
+    # csv.Sniffer either raises "Could not determine delimiter" (single-column) or
+    # returns a nonsense alphanumeric delimiter (ragged), which mangled the column
+    # names of every file that was not perfectly rectangular.
+    rows, format = rows_from_file(BytesIO(input))
+    assert format == expected_format
+    assert list(rows) == expected
+
+
+def test_rows_from_file_single_column_format_is_csv():
+    _rows, format = rows_from_file(BytesIO(b"name\nalpha"))
+    assert format == Format.CSV
+
+
+def test_rows_from_file_ragged_rows_raise_row_error_in_autodetect():
+    # The documented behaviour for rows with more values than headings still holds
+    # once the delimiter is detected correctly.
+    with pytest.raises(RowError):
+        rows, _ = rows_from_file(BytesIO(b"id,name\n1,Cleo,oops"))
+        list(rows)

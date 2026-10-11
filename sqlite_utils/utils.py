@@ -285,6 +285,20 @@ def _extra_key_strategy(
             yield row_out
 
 
+def _fallback_dialect(sample: str) -> type[csv.Dialect]:
+    """Return comma or tab for a sample that could not be sniffed.
+
+    Whichever appears on the most non-blank lines wins. Comma is used when the
+    sample contains neither, which is what a single-column file looks like.
+    """
+    lines = [line for line in sample.splitlines() if line.strip()]
+    if not lines:
+        return csv.excel
+    commas = sum(1 for line in lines if "," in line)
+    tabs = sum(1 for line in lines if "\t" in line)
+    return csv.excel_tab if tabs > commas else csv.excel
+
+
 def rows_from_file(
     fp: BinaryIO,
     format: Format | None = None,
@@ -389,9 +403,21 @@ def rows_from_file(
             with buffered:
                 return rows_from_file(buffered, format=Format.JSON)
         else:
-            dialect = csv.Sniffer().sniff(
-                first_bytes.decode(encoding or "utf-8-sig", "ignore")
-            )
+            sample = first_bytes.decode(encoding or "utf-8-sig", "ignore")
+            try:
+                dialect = csv.Sniffer().sniff(sample)
+            except csv.Error:
+                # Sniffing needs a consistent structure, so it fails on
+                # single-column and on ragged files.
+                dialect = _fallback_dialect(sample)
+            else:
+                # For ragged input the sniffer does not fail, it returns a
+                # nonsense delimiter: it reports "a" as the delimiter of
+                # "id,name\n1,Cleo,extra", which silently mangles the column
+                # names. A delimiter is punctuation, never a letter or digit, so
+                # treat an alphanumeric answer as a failed sniff.
+                if dialect.delimiter.isalnum():
+                    dialect = _fallback_dialect(sample)
             rows, _ = rows_from_file(
                 buffered, format=Format.CSV, dialect=dialect, encoding=encoding
             )
