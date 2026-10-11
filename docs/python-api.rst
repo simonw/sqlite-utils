@@ -1092,6 +1092,25 @@ Use it like this:
 
 The column types used in the ``CREATE TABLE`` statement are automatically derived from the types of data in that first batch of rows. Any additional columns in subsequent batches will cause a ``sqlite3.OperationalError`` exception to be raised unless the ``alter=True`` argument is supplied, in which case the new columns will be created.
 
+SQLite applies a column's type affinity when values are inserted. This means that a later string value can be converted if the first batch caused the column to be created with a numeric type. For example, this stores ``007`` as the integer ``7`` because the first batch inferred an ``INTEGER`` column:
+
+.. code-block:: python
+
+    db.table("locations").insert_all(
+        [{"zip_code": 1}] * 100 + [{"zip_code": "007"}]
+    )
+
+If values such as ZIP codes, phone numbers or identifiers must remain text, specify the column type explicitly when creating the table:
+
+.. code-block:: python
+
+    db.table("locations").insert_all(
+        [{"zip_code": 1}] * 100 + [{"zip_code": "007"}],
+        columns={"zip_code": str},
+    )
+
+For an existing table, its current schema determines how inserted values are converted.
+
 The function can accept an iterator or generator of rows and will commit them according to the batch size. The default batch size is 100, but you can specify a different size using the ``batch_size`` parameter:
 
 .. code-block:: python
