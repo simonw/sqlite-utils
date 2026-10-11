@@ -1,4 +1,6 @@
+import pytest
 import sqlite_utils
+from sqlite_utils.db import NoTable
 
 
 def test_delete_rowid_table(fresh_db):
@@ -62,3 +64,8 @@ def test_delete_where_analyze(fresh_db):
     assert list(fresh_db.table("sqlite_stat1").rows) == [
         {"tbl": "table", "idx": "idx_table_i", "stat": "6 1"}
     ]
+
+
+def test_delete_where_nonexistent_table(fresh_db):
+    with pytest.raises(NoTable):
+        fresh_db.table("does_not_exist").delete_where()

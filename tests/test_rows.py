@@ -147,3 +147,9 @@ def test_pks_and_rows_where_compound_pk_declaration_order(fresh_db):
     fresh_db.table("t").insert({"a": "A", "b": "B"})
     pks_and_rows = list(fresh_db.table("t").pks_and_rows_where())
     assert pks_and_rows == [(("A", "B"), {"b": "B", "a": "A"})]
+
+
+def test_rows_where_nonexistent_table_raises(fresh_db):
+    from sqlite_utils.db import NoTable
+    with pytest.raises(NoTable):
+        list(fresh_db.table("does_not_exist").rows_where())
