@@ -1174,6 +1174,17 @@ def test_vacuum(fresh_db):
     fresh_db.vacuum()
 
 
+def test_vacuum_commits_open_transaction(fresh_db):
+    fresh_db["data"].insert({"foo": "foo"})
+    fresh_db.begin()
+    fresh_db.execute("insert into data (foo) values ('bar')")
+
+    fresh_db.vacuum()
+
+    assert not fresh_db.conn.in_transaction
+    assert [row["foo"] for row in fresh_db["data"].rows] == ["foo", "bar"]
+
+
 def test_works_with_pathlib_path(tmpdir):
     path = pathlib.Path(tmpdir / "test.db")
     db = Database(path)
