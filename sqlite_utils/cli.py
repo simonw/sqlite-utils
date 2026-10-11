@@ -1033,6 +1033,13 @@ def insert_upsert_options(*, require_pk=False):
                     help="Column types to use when creating the table",
                 ),
                 click.option(
+                    "-o",
+                    "--column-order",
+                    type=str,
+                    multiple=True,
+                    help="Columns that should come first in the created table",
+                ),
+                click.option(
                     "--no-detect-types",
                     is_flag=True,
                     help="Treat all CSV/TSV columns as TEXT",
@@ -1087,6 +1094,7 @@ def insert_upsert_implementation(
     not_null=None,
     default=None,
     types=None,
+    column_order=None,
     no_detect_types=False,
     analyze=False,
     load_extension=None,
@@ -1116,6 +1124,8 @@ def insert_upsert_implementation(
             extra_kwargs["defaults"] = dict(default)
         if column_type_overrides:
             extra_kwargs["columns"] = column_type_overrides
+        if column_order:
+            extra_kwargs["column_order"] = list(column_order)
         if upsert:
             extra_kwargs["upsert"] = upsert
 
@@ -1385,6 +1395,7 @@ def insert(
     not_null,
     default,
     types,
+    column_order,
     strict,
 ):
     """
@@ -1479,6 +1490,7 @@ def insert(
             not_null=not_null,
             default=default,
             types=types,
+            column_order=column_order,
             strict=strict,
             code=code,
         )
@@ -1514,6 +1526,7 @@ def upsert(
     not_null,
     default,
     types,
+    column_order,
     no_detect_types,
     analyze,
     load_extension,
@@ -1565,6 +1578,7 @@ def upsert(
             not_null=not_null,
             default=default,
             types=types,
+            column_order=column_order,
             no_detect_types=no_detect_types,
             analyze=analyze,
             load_extension=load_extension,

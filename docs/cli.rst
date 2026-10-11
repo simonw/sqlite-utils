@@ -1423,6 +1423,19 @@ To import them as ``NULL`` values instead, use the ``--empty-null`` option:
 
     sqlite-utils insert creatures.db creatures creatures.csv --csv --empty-null
 
+.. _cli_insert_column_order:
+
+Setting the column order
+------------------------
+
+When ``insert`` or ``upsert`` creates a new table the columns are ordered based on the incoming data. Use ``-o`` (or ``--column-order``) one or more times to say which columns should come first:
+
+.. code-block:: bash
+
+    sqlite-utils insert dogs.db dogs dogs.csv --csv -o name -o age
+
+Any columns that are not listed keep their original order after the ones you specify. This only affects tables created by the command - the order of columns in an existing table is left unchanged.
+
 .. _cli_insert_csv_tsv_delimiter:
 
 Alternative delimiters and quote characters
