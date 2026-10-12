@@ -2750,7 +2750,7 @@ To set a custom FTS tokenizer, e.g. to enable Porter stemming, use ``--tokenize=
 
 .. code-block:: bash
 
-    sqlite-utils populate-fts mydb.db documents title summary --tokenize=porter
+    sqlite-utils enable-fts mydb.db documents title summary --tokenize=porter
 
 To remove the FTS tables and triggers you created, use ``disable-fts``:
 
