@@ -1444,6 +1444,7 @@ class Database:
         _column_comments: Mapping[str, ColumnComments] | None = None,
         _autoincrement: str | None = None,
         _uniques: Iterable[Unique] | None = None,
+        autoincrement: bool | None = None,
     ) -> str:
         """
         Returns the SQL ``CREATE TABLE`` statement for creating the specified table.
@@ -1460,7 +1461,12 @@ class Database:
         :param extracts: List or dictionary of columns to be extracted during inserts, see :ref:`python_api_extracts`
         :param if_not_exists: Use ``CREATE TABLE IF NOT EXISTS``
         :param strict: Apply STRICT mode to table
+        :param autoincrement: Use AUTOINCREMENT for the single INTEGER PRIMARY KEY.
         """
+        if autoincrement:
+            _validate_autoincrement_columns(
+                pk, columns, hash_id, hash_id_columns, extracts
+            )
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
         resolved_fks: list[ForeignKey] = [
@@ -1601,6 +1607,10 @@ class Database:
                 column_items.insert(0, (pk, int))
         elif pk:
             pk = [resolve_casing(p, [c[0] for c in column_items]) for p in pk]
+        if autoincrement is not None:
+            if autoincrement and single_pk is None:
+                raise ValueError("AUTOINCREMENT requires a single-column primary key")
+            _autoincrement = single_pk if autoincrement else None
         if _autoincrement is not None:
             _autoincrement = resolve_casing(
                 _autoincrement, [c[0] for c in column_items]
@@ -1714,6 +1724,7 @@ class Database:
         ignore: bool = False,
         transform: bool = False,
         strict: bool = False,
+        autoincrement: bool | None = None,
     ) -> "Table":
         """
         Create a table with the specified name and the specified ``{column_name: type}`` columns.
@@ -1735,16 +1746,25 @@ class Database:
         :param ignore: Silently do nothing if table already exists
         :param transform: If table already exists transform it to fit the specified schema
         :param strict: Apply STRICT mode to table
+        :param autoincrement: Use AUTOINCREMENT for the single INTEGER PRIMARY KEY.
         """
         # Transform table to match the new definition if table already exists:
         if self[name].exists():
             if ignore:
                 return self.table(name)
-            elif replace:
-                self[name].drop()
+        if autoincrement:
+            _validate_autoincrement_columns(
+                pk, columns, hash_id, hash_id_columns, extracts
+            )
+        if replace and self[name].exists():
+            self[name].drop()
         if transform and self[name].exists():
             table = self.table(name)
             should_transform = False
+            if autoincrement is not None:
+                should_transform = (
+                    bool(parse_autoincrement(table.schema)) != autoincrement
+                )
             # First add missing columns and figure out columns to drop
             existing_columns = table.columns_dict
             # Match existing columns case-insensitively, the way SQLite does
@@ -1807,6 +1827,7 @@ class Database:
                     not_null=not_null,
                     defaults=defaults,
                     pk=pk,
+                    autoincrement=autoincrement,
                 )
             return table
         sql = self.create_table_sql(
@@ -1822,6 +1843,7 @@ class Database:
             extracts=extracts,
             if_not_exists=if_not_exists,
             strict=strict,
+            autoincrement=autoincrement,
         )
         self.execute(sql)
         return self.table(
@@ -1833,6 +1855,7 @@ class Database:
             defaults=defaults,
             hash_id=hash_id,
             hash_id_columns=hash_id_columns,
+            autoincrement=autoincrement,
         )
 
     def rename_table(self, name: str, new_name: str) -> None:
@@ -2301,6 +2324,7 @@ class Table(Queryable):
         conversions: dict | None = None,
         columns: dict[str, Any] | None = None,
         strict: bool = False,
+        autoincrement: bool | None = None,
     ):
         super().__init__(db, name)
         self._defaults = {
@@ -2319,6 +2343,7 @@ class Table(Queryable):
             "conversions": conversions or {},
             "columns": columns,
             "strict": strict,
+            "autoincrement": autoincrement,
         }
 
     def __repr__(self) -> str:
@@ -2553,6 +2578,7 @@ class Table(Queryable):
         ignore: bool = False,
         transform: bool = False,
         strict: bool | Default | None = DEFAULT,
+        autoincrement: bool | Default | None = DEFAULT,
     ) -> "Table":
         """
         Create a table with the specified columns.
@@ -2573,6 +2599,7 @@ class Table(Queryable):
         :param ignore: Silently do nothing if table already exists
         :param transform: If table already exists transform it to fit the specified schema
         :param strict: Apply STRICT mode to table
+        :param autoincrement: Use AUTOINCREMENT for the single INTEGER PRIMARY KEY.
         """
         # Resolve defaults from _defaults (issue #655)
         pk = self.value_or_default("pk", pk)
@@ -2584,6 +2611,7 @@ class Table(Queryable):
         hash_id_columns = self.value_or_default("hash_id_columns", hash_id_columns)
         extracts = self.value_or_default("extracts", extracts)
         strict = self.value_or_default("strict", strict)
+        autoincrement = self.value_or_default("autoincrement", autoincrement)
 
         # Store configuration in _defaults for subsequent operations (issue #655)
         # Don't store pk if hash_id is set, since pk is derived from hash_id in that case
@@ -2605,6 +2633,8 @@ class Table(Queryable):
             self._defaults["extracts"] = extracts
         if strict:
             self._defaults["strict"] = strict
+        if autoincrement is not None and not (ignore and self.exists()):
+            self._defaults["autoincrement"] = autoincrement
 
         columns = {name: value for (name, value) in columns.items()}
         with self.db.atomic():
@@ -2624,6 +2654,7 @@ class Table(Queryable):
                 ignore=ignore,
                 transform=transform,
                 strict=cast(bool, strict),
+                autoincrement=autoincrement,
             )
         return self
 
@@ -2655,6 +2686,7 @@ class Table(Queryable):
         column_order: list[str] | None = None,
         keep_table: str | None = None,
         strict: bool | None = None,
+        autoincrement: bool | None = None,
     ) -> "Table":
         """
         Apply an advanced alter table, including operations that are not supported by
@@ -2684,6 +2716,8 @@ class Table(Queryable):
           dropped
         :param strict: Set to ``True`` to make the table strict or ``False`` to make it
           non-strict. Defaults to ``None``, which preserves the existing strict mode.
+        :param autoincrement: Use AUTOINCREMENT for the single INTEGER PRIMARY KEY.
+          Set to False to disable it; None preserves the existing mode.
         """
         if not self.exists():
             raise ValueError("Cannot transform a table that doesn't exist yet")
@@ -2700,6 +2734,7 @@ class Table(Queryable):
             column_order=column_order,
             keep_table=keep_table,
             strict=strict,
+            autoincrement=autoincrement,
         )
         pragma_foreign_keys_was_on = bool(
             self.db.execute("PRAGMA foreign_keys").fetchone()[0]
@@ -2768,6 +2803,8 @@ class Table(Queryable):
                 self.db.execute("PRAGMA foreign_keys=1;")
         if strict is not None:
             self._defaults["strict"] = strict
+        if autoincrement is not None:
+            self._defaults["autoincrement"] = autoincrement
         return self
 
     def transform_sql(
@@ -2786,6 +2823,7 @@ class Table(Queryable):
         tmp_suffix: str | None = None,
         keep_table: str | None = None,
         strict: bool | None = None,
+        autoincrement: bool | None = None,
     ) -> list[str]:
         """
         Return a list of SQL statements that should be executed in order to apply this transformation.
@@ -2808,6 +2846,8 @@ class Table(Queryable):
           dropped
         :param strict: Set to ``True`` to make the table strict or ``False`` to make it
           non-strict. Defaults to ``None``, which preserves the existing strict mode.
+        :param autoincrement: Use AUTOINCREMENT for the single INTEGER PRIMARY KEY.
+          Set to False to disable it; None preserves the existing mode.
         """
         if strict is True and not self.db.supports_strict:
             raise TransformError("SQLite does not support STRICT tables")
@@ -3027,8 +3067,18 @@ class Table(Queryable):
             ):
                 create_table_autoincrement = renamed_autoincrement
 
+        if autoincrement is not None:
+            single_pk = pk[0] if isinstance(pk, (list, tuple)) and len(pk) == 1 else pk
+            create_table_autoincrement = (
+                resolve_casing(single_pk, dict(new_column_pairs))
+                if autoincrement and isinstance(single_pk, str)
+                else None
+            )
+
         autoincrement_sequence = None
-        if create_table_autoincrement:
+        if existing_autoincrement and create_table_autoincrement == (
+            rename.get(existing_autoincrement) or existing_autoincrement
+        ):
             sequence_row = self.db.execute(
                 "SELECT seq FROM sqlite_sequence WHERE name = ?", [self.name]
             ).fetchone()
@@ -3088,6 +3138,7 @@ class Table(Queryable):
                 _column_comments=create_table_column_comments,
                 _autoincrement=create_table_autoincrement,
                 _uniques=create_table_uniques,
+                autoincrement=autoincrement,
             ).strip()
         )
 
@@ -4601,6 +4652,27 @@ class Table(Queryable):
                         raise
         return result
 
+    def _validate_autoincrement(
+        self, autoincrement: bool | None, pk: PrimaryKey | None
+    ) -> None:
+        if autoincrement is None or not self.exists():
+            return
+        existing_autoincrement = parse_autoincrement(self.schema)
+        if bool(existing_autoincrement) != autoincrement:
+            raise ValueError(
+                "AUTOINCREMENT does not match the existing table; use transform() to change it"
+            )
+        if autoincrement and pk:
+            single_pk = pk[0] if isinstance(pk, (list, tuple)) and len(pk) == 1 else pk
+            if (
+                not isinstance(single_pk, str)
+                or resolve_casing(single_pk, self.columns_dict)
+                != existing_autoincrement
+            ):
+                raise ValueError(
+                    "AUTOINCREMENT requires the table's INTEGER PRIMARY KEY"
+                )
+
     def insert(
         self,
         record: dict[str, Any],
@@ -4618,6 +4690,7 @@ class Table(Queryable):
         conversions: dict[str, str] | Default | None = DEFAULT,
         columns: dict[str, Any] | Default | None = DEFAULT,
         strict: bool | Default | None = DEFAULT,
+        autoincrement: bool | Default | None = DEFAULT,
     ) -> "Table":
         """
         Insert a single record into the table. The table will be created with a schema that matches
@@ -4651,6 +4724,7 @@ class Table(Queryable):
         :param columns: Dictionary over-riding the detected types used for the columns, for example
           ``{"age": int, "weight": float}``.
         :param strict: Boolean, apply STRICT mode if creating the table.
+        :param autoincrement: Use AUTOINCREMENT for the single INTEGER PRIMARY KEY.
         """
         return self.insert_all(
             [record],
@@ -4668,6 +4742,7 @@ class Table(Queryable):
             conversions=conversions,
             columns=columns,
             strict=strict,
+            autoincrement=autoincrement,
         )
 
     def insert_all(
@@ -4691,6 +4766,7 @@ class Table(Queryable):
         upsert: bool = False,
         analyze: bool = False,
         strict: bool | Default | None = DEFAULT,
+        autoincrement: bool | Default | None = DEFAULT,
     ) -> "Table":
         """
         Like ``.insert()`` but takes a list of records and ensures that the table
@@ -4713,6 +4789,7 @@ class Table(Queryable):
         conversions = self.value_or_default("conversions", conversions) or {}
         columns = self.value_or_default("columns", columns)
         strict = self.value_or_default("strict", strict)
+        autoincrement = self.value_or_default("autoincrement", autoincrement)
 
         if hash_id_columns and hash_id is None:
             hash_id = "id"
@@ -4818,6 +4895,7 @@ class Table(Queryable):
             if num_columns == 0
             else max(1, min(batch_size, SQLITE_MAX_VARS // num_columns))
         )
+        self._validate_autoincrement(autoincrement, pk)
         self.last_rowid = None
         self.last_pk = None
         if truncate and self.exists():
@@ -4855,6 +4933,7 @@ class Table(Queryable):
                         hash_id_columns=hash_id_columns,
                         extracts=extracts,
                         strict=strict,
+                        autoincrement=autoincrement,
                     )
                 if list_mode:
                     # In list mode, columns are already known
@@ -5043,6 +5122,7 @@ class Table(Queryable):
         conversions: dict[str, str] | Default | None = DEFAULT,
         columns: dict[str, Any] | Default | None = DEFAULT,
         strict: bool | Default | None = DEFAULT,
+        autoincrement: bool | Default | None = DEFAULT,
     ) -> "Table":
         """
         Like ``.insert()`` but performs an ``UPSERT``, where records are inserted if they do
@@ -5064,6 +5144,7 @@ class Table(Queryable):
             conversions=conversions,
             columns=columns,
             strict=strict,
+            autoincrement=autoincrement,
         )
 
     def upsert_all(
@@ -5083,6 +5164,7 @@ class Table(Queryable):
         columns: dict[str, Any] | Default | None = DEFAULT,
         analyze: bool = False,
         strict: bool | Default | None = DEFAULT,
+        autoincrement: bool | Default | None = DEFAULT,
     ) -> "Table":
         """
         Like ``.upsert()`` but can be applied to a list of records.
@@ -5104,6 +5186,7 @@ class Table(Queryable):
             upsert=True,
             analyze=analyze,
             strict=strict,
+            autoincrement=autoincrement,
         )
 
     def add_missing_columns(self, records: Iterable[dict[str, Any]]) -> "Table":
@@ -5127,6 +5210,7 @@ class Table(Queryable):
         conversions: dict[str, str] | None = None,
         columns: dict[str, Any] | None = None,
         strict: bool | None = False,
+        autoincrement: bool | Default | None = DEFAULT,
     ):
         """
         Create or populate a lookup table with the specified values.
@@ -5150,6 +5234,7 @@ class Table(Queryable):
         :param lookup_values: Dictionary specifying column names and values to use for the lookup
         :param extra_values: Additional column values to be used only if creating a new record
         :param strict: Boolean, apply STRICT mode if creating the table.
+        :param autoincrement: Use AUTOINCREMENT for the single INTEGER PRIMARY KEY.
         """
         if not isinstance(lookup_values, dict):
             raise ValueError("lookup_values must be a dictionary")  # noqa: TRY004
@@ -5157,6 +5242,8 @@ class Table(Queryable):
             raise ValueError("pk cannot be None")
         if extra_values is not None and not isinstance(extra_values, dict):
             raise ValueError("extra_values must be a dictionary")
+        autoincrement = self.value_or_default("autoincrement", autoincrement)
+        self._validate_autoincrement(autoincrement, pk)
         combined_values = dict(lookup_values)
         if extra_values is not None:
             combined_values.update(extra_values)
@@ -5190,6 +5277,7 @@ class Table(Queryable):
                     conversions=conversions,
                     columns=columns,
                     strict=strict,
+                    autoincrement=autoincrement,
                 ).last_pk
         else:
             pk = self.insert(
@@ -5203,6 +5291,7 @@ class Table(Queryable):
                 conversions=conversions,
                 columns=columns,
                 strict=strict,
+                autoincrement=autoincrement,
             ).last_pk
             self.create_index(lookup_values.keys(), unique=True)
             return pk
@@ -5496,6 +5585,26 @@ class View(Queryable):
         except sqlite3.OperationalError:
             if not ignore:
                 raise
+
+
+def _validate_autoincrement_columns(
+    pk: Any | None,
+    columns: dict[str, Any],
+    hash_id: str | None,
+    hash_id_columns: Iterable[str] | None,
+    extracts: dict[str, str] | list[str] | None,
+) -> None:
+    single_pk = pk[0] if isinstance(pk, (list, tuple)) and len(pk) == 1 else pk
+    if not isinstance(single_pk, str):
+        raise ValueError("AUTOINCREMENT requires a single-column primary key")
+    if hash_id or hash_id_columns:
+        raise ValueError("AUTOINCREMENT requires an INTEGER PRIMARY KEY column")
+    effective_columns = dict(columns)
+    for column in resolve_extracts(extracts):
+        effective_columns[column] = int
+    single_pk = resolve_casing(single_pk, effective_columns)
+    if COLUMN_TYPE_MAPPING.get(effective_columns.get(single_pk, int)) != "INTEGER":
+        raise ValueError("AUTOINCREMENT requires an INTEGER PRIMARY KEY column")
 
 
 def jsonify_if_needed(value: object) -> object:

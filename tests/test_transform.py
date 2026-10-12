@@ -1472,3 +1472,47 @@ def test_transform_refuses_to_drop_column_used_by_remaining_check(fresh_db):
     ):
         ranges.transform(drop={"maximum"})
     assert ranges.schema == schema_before
+
+
+@pytest.mark.parametrize("api", ("transform", "create"))
+def test_autoincrement_toggle_refreshes_defaults(fresh_db, api):
+    table = fresh_db.table("entries", pk="id", autoincrement=False).create(
+        {"id": int, "value": str}
+    )
+    table.insert({"value": "one"})
+    if api == "transform":
+        preview = table.transform_sql(autoincrement=True)
+        assert "AUTOINCREMENT" in preview[0]
+        assert "AUTOINCREMENT" not in table.schema
+        table.transform(autoincrement=True)
+    else:
+        table.create(
+            {"id": int, "value": str}, pk="id", transform=True, autoincrement=True
+        )
+    table.insert({"value": "two"})
+    table.delete(2)
+    table.transform(rename={"value": "label"}, autoincrement=True)
+    table.insert({"label": "three"})
+    assert table.last_pk == 3
+    if api == "transform":
+        table.transform(autoincrement=False)
+    else:
+        table.create(
+            {"id": int, "label": str}, pk="id", transform=True, autoincrement=False
+        )
+    assert "AUTOINCREMENT" not in table.schema
+    table.delete(3)
+    table.insert({"label": "four"})
+    assert table.last_pk == 2
+
+
+@pytest.mark.parametrize(
+    "options", ({"pk": None}, {"pk": ("id", "value")}, {"types": {"id": str}})
+)
+def test_autoincrement_invalid_transform_preserves_table(fresh_db, options):
+    table = fresh_db["entries"].insert({"id": 1, "value": "keep"}, pk="id")
+    schema = table.schema
+    with pytest.raises(ValueError, match="AUTOINCREMENT"):
+        table.transform(autoincrement=True, **options)
+    assert table.schema == schema
+    assert list(table.rows) == [{"id": 1, "value": "keep"}]

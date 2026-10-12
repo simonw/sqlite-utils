@@ -4,6 +4,11 @@
  Changelog
 ===========
 
+Unreleased
+----------
+
+- The Python table creation, insert, upsert and lookup APIs now accept ``autoincrement=`` for single integer primary keys. The ``create-table``, ``insert``, ``upsert`` and ``transform`` commands accept ``--autoincrement`` and ``--no-autoincrement``. Existing table mode changes can be applied or previewed with ``transform()`` and ``transform_sql()``. (:issue:`664`)
+
 .. _v4_2_1:
 
 4.2.1 (2026-08-13)

@@ -287,40 +287,47 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
           ' --pk id
 
     Options:
-      --pk TEXT                 Columns to use as the primary key, e.g. id
-      --code TEXT               Python code defining a rows() function or iterable
-                                of rows to insert
-      --flatten                 Flatten nested JSON objects, so {"a": {"b": 1}}
-                                becomes {"a_b": 1}
-      --nl                      Expect newline-delimited JSON
-      -c, --csv                 Expect CSV input
-      --tsv                     Expect TSV input
-      --empty-null              Treat empty strings as NULL
-      --lines                   Treat each line as a single value called 'line'
-      --text                    Treat input as a single value called 'text'
-      --convert TEXT            Python code to convert each item
-      --import TEXT             Python modules to import
-      --delimiter TEXT          Delimiter to use for CSV files
-      --quotechar TEXT          Quote character to use for CSV/TSV
-      --sniff                   Detect delimiter and quote character
-      --no-headers              CSV file has no header row
-      --encoding TEXT           Character encoding for input, defaults to utf-8
-      --batch-size INTEGER      Commit every X records
-      --stop-after INTEGER      Stop after X records
-      --alter                   Alter existing table to add any missing columns
-      --not-null TEXT           Columns that should be created as NOT NULL
-      --default <TEXT TEXT>...  Default value that should be set for a column
-      --type <TEXT CHOICE>...   Column types to use when creating the table
-      --no-detect-types         Treat all CSV/TSV columns as TEXT
-      --analyze                 Run ANALYZE at the end of this operation
-      --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
-      --silent                  Do not show progress bar
-      --strict                  Apply STRICT mode to created table
-      --ignore                  Ignore records if pk already exists
-      --replace                 Replace records if pk already exists
-      --truncate                Truncate table before inserting records, if table
-                                already exists
-      -h, --help                Show this message and exit.
+      --pk TEXT                       Columns to use as the primary key, e.g. id
+      --code TEXT                     Python code defining a rows() function or
+                                      iterable of rows to insert
+      --flatten                       Flatten nested JSON objects, so {"a": {"b":
+                                      1}} becomes {"a_b": 1}
+      --nl                            Expect newline-delimited JSON
+      -c, --csv                       Expect CSV input
+      --tsv                           Expect TSV input
+      --empty-null                    Treat empty strings as NULL
+      --lines                         Treat each line as a single value called
+                                      'line'
+      --text                          Treat input as a single value called 'text'
+      --convert TEXT                  Python code to convert each item
+      --import TEXT                   Python modules to import
+      --delimiter TEXT                Delimiter to use for CSV files
+      --quotechar TEXT                Quote character to use for CSV/TSV
+      --sniff                         Detect delimiter and quote character
+      --no-headers                    CSV file has no header row
+      --encoding TEXT                 Character encoding for input, defaults to
+                                      utf-8
+      --batch-size INTEGER            Commit every X records
+      --stop-after INTEGER            Stop after X records
+      --alter                         Alter existing table to add any missing
+                                      columns
+      --not-null TEXT                 Columns that should be created as NOT NULL
+      --default <TEXT TEXT>...        Default value that should be set for a column
+      --type <TEXT CHOICE>...         Column types to use when creating the table
+      --no-detect-types               Treat all CSV/TSV columns as TEXT
+      --analyze                       Run ANALYZE at the end of this operation
+      --load-extension TEXT           Path to SQLite extension, with optional
+                                      :entrypoint
+      --silent                        Do not show progress bar
+      --strict                        Apply STRICT mode to created table
+      --autoincrement / --no-autoincrement
+                                      Use AUTOINCREMENT for the INTEGER PRIMARY KEY
+                                      when creating the table
+      --ignore                        Ignore records if pk already exists
+      --replace                       Replace records if pk already exists
+      --truncate                      Truncate table before inserting records, if
+                                      table already exists
+      -h, --help                      Show this message and exit.
 
 
 .. _cli_ref_upsert:
@@ -351,36 +358,43 @@ See :ref:`cli_upsert`.
           ]' | sqlite-utils upsert data.db chickens - --pk id
 
     Options:
-      --pk TEXT                 Columns to use as the primary key, e.g. id
-      --code TEXT               Python code defining a rows() function or iterable
-                                of rows to insert
-      --flatten                 Flatten nested JSON objects, so {"a": {"b": 1}}
-                                becomes {"a_b": 1}
-      --nl                      Expect newline-delimited JSON
-      -c, --csv                 Expect CSV input
-      --tsv                     Expect TSV input
-      --empty-null              Treat empty strings as NULL
-      --lines                   Treat each line as a single value called 'line'
-      --text                    Treat input as a single value called 'text'
-      --convert TEXT            Python code to convert each item
-      --import TEXT             Python modules to import
-      --delimiter TEXT          Delimiter to use for CSV files
-      --quotechar TEXT          Quote character to use for CSV/TSV
-      --sniff                   Detect delimiter and quote character
-      --no-headers              CSV file has no header row
-      --encoding TEXT           Character encoding for input, defaults to utf-8
-      --batch-size INTEGER      Commit every X records
-      --stop-after INTEGER      Stop after X records
-      --alter                   Alter existing table to add any missing columns
-      --not-null TEXT           Columns that should be created as NOT NULL
-      --default <TEXT TEXT>...  Default value that should be set for a column
-      --type <TEXT CHOICE>...   Column types to use when creating the table
-      --no-detect-types         Treat all CSV/TSV columns as TEXT
-      --analyze                 Run ANALYZE at the end of this operation
-      --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
-      --silent                  Do not show progress bar
-      --strict                  Apply STRICT mode to created table
-      -h, --help                Show this message and exit.
+      --pk TEXT                       Columns to use as the primary key, e.g. id
+      --code TEXT                     Python code defining a rows() function or
+                                      iterable of rows to insert
+      --flatten                       Flatten nested JSON objects, so {"a": {"b":
+                                      1}} becomes {"a_b": 1}
+      --nl                            Expect newline-delimited JSON
+      -c, --csv                       Expect CSV input
+      --tsv                           Expect TSV input
+      --empty-null                    Treat empty strings as NULL
+      --lines                         Treat each line as a single value called
+                                      'line'
+      --text                          Treat input as a single value called 'text'
+      --convert TEXT                  Python code to convert each item
+      --import TEXT                   Python modules to import
+      --delimiter TEXT                Delimiter to use for CSV files
+      --quotechar TEXT                Quote character to use for CSV/TSV
+      --sniff                         Detect delimiter and quote character
+      --no-headers                    CSV file has no header row
+      --encoding TEXT                 Character encoding for input, defaults to
+                                      utf-8
+      --batch-size INTEGER            Commit every X records
+      --stop-after INTEGER            Stop after X records
+      --alter                         Alter existing table to add any missing
+                                      columns
+      --not-null TEXT                 Columns that should be created as NOT NULL
+      --default <TEXT TEXT>...        Default value that should be set for a column
+      --type <TEXT CHOICE>...         Column types to use when creating the table
+      --no-detect-types               Treat all CSV/TSV columns as TEXT
+      --analyze                       Run ANALYZE at the end of this operation
+      --load-extension TEXT           Path to SQLite extension, with optional
+                                      :entrypoint
+      --silent                        Do not show progress bar
+      --strict                        Apply STRICT mode to created table
+      --autoincrement / --no-autoincrement
+                                      Use AUTOINCREMENT for the INTEGER PRIMARY KEY
+                                      when creating the table
+      -h, --help                      Show this message and exit.
 
 
 .. _cli_ref_bulk:
@@ -509,6 +523,9 @@ See :ref:`cli_transform_table`.
                                       another table with another column
       --drop-foreign-key TEXT         Drop foreign key constraint for this column
       --strict / --no-strict          Enable or disable STRICT mode (default:
+                                      preserve current mode)
+      --autoincrement / --no-autoincrement
+                                      Enable or disable AUTOINCREMENT (default:
                                       preserve current mode)
       --sql                           Output SQL without executing it
       --load-extension TEXT           Path to SQLite extension, with optional
@@ -966,17 +983,21 @@ See :ref:`cli_create_table`.
       Valid column types are text, integer, real, float, blob and any.
 
     Options:
-      --pk TEXT                 Column to use as primary key
-      --not-null TEXT           Columns that should be created as NOT NULL
-      --default <TEXT TEXT>...  Default value that should be set for a column
-      --fk <TEXT TEXT TEXT>...  Column, other table, other column to set as a
-                                foreign key
-      --ignore                  If table already exists, do nothing
-      --replace                 If table already exists, replace it
-      --transform               If table already exists, try to transform the schema
-      --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
-      --strict                  Apply STRICT mode to created table
-      -h, --help                Show this message and exit.
+      --pk TEXT                       Column to use as primary key
+      --not-null TEXT                 Columns that should be created as NOT NULL
+      --default <TEXT TEXT>...        Default value that should be set for a column
+      --fk <TEXT TEXT TEXT>...        Column, other table, other column to set as a
+                                      foreign key
+      --ignore                        If table already exists, do nothing
+      --replace                       If table already exists, replace it
+      --transform                     If table already exists, try to transform the
+                                      schema
+      --load-extension TEXT           Path to SQLite extension, with optional
+                                      :entrypoint
+      --strict                        Apply STRICT mode to created table
+      --autoincrement / --no-autoincrement
+                                      Use AUTOINCREMENT for the INTEGER PRIMARY KEY
+      -h, --help                      Show this message and exit.
 
 
 .. _cli_ref_create_index:
