@@ -3347,6 +3347,28 @@ If you want to deliberately replace the registered function with a new implement
     def reverse_string(s):
         return s[::-1]
 
+To deregister a callable registered through this ``Database`` instance, pass it to ``db.register_function()`` with ``deregister=True``:
+
+.. code-block:: python
+
+    db.register_function(reverse_string, deregister=True)
+
+This stops SQL from invoking the original Python callable for that name and number of arguments, and clears the tracked registration from the ``Database`` instance. You can register it again without ``replace=True``:
+
+.. code-block:: python
+
+    db.register_function(reverse_string)
+
+If the function was registered with ``name=``, use that same SQL name when removing it. SQL function names are case-insensitive for ASCII letters. Other names and overloads with a different number of arguments are left in place:
+
+.. code-block:: python
+
+    db.register_function(reverse_string, name="rev", deregister=True)
+
+Deregistering a name and number of arguments that this ``Database`` instance does not track has no effect. Built-in SQL functions and functions registered directly on the connection are left alone. Deregistration does not restore any earlier function that was replaced. The ``deterministic`` and ``replace`` options are ignored when ``deregister=True``.
+
+Deregistration uses the connection's ``create_function(name, arity, None)`` API. Some Python ``sqlite3`` bindings retain a ``None`` callback placeholder instead of deleting the SQL function entry. Invoking that placeholder raises ``OperationalError: user-defined function raised exception`` and can report an unraisable ``TypeError`` if callback tracebacks are enabled. Other bindings may report ``no such function``. The original Python callable is no longer invoked in either case, but the SQL name may still appear in ``pragma_function_list``; this API does not promise to remove that catalog entry.
+
 Exceptions that occur inside a user-defined function default to returning the following error::
 
     Unexpected error: user-defined function raised exception
