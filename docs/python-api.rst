@@ -3347,6 +3347,26 @@ If you want to deliberately replace the registered function with a new implement
     def reverse_string(s):
         return s[::-1]
 
+To remove a registered function, pass the callable to ``db.register_function()`` with ``deregister=True``:
+
+.. code-block:: python
+
+    db.register_function(reverse_string, deregister=True)
+
+This removes the SQL function with the callable's name and number of arguments, and clears its registration from the ``Database`` instance. You can register it again without ``replace=True``:
+
+.. code-block:: python
+
+    db.register_function(reverse_string)
+
+If the function was registered with ``name=``, use that same SQL name when removing it. SQL function names are case-insensitive for ASCII letters. Other names and overloads with a different number of arguments are left in place:
+
+.. code-block:: python
+
+    db.register_function(reverse_string, name="rev", deregister=True)
+
+Removing a function that is not registered has no effect. Deregistration does not restore any earlier function that was replaced. SQLite raises an ``OperationalError`` if you try to invoke the removed function; the error message can differ between SQLite implementations.
+
 Exceptions that occur inside a user-defined function default to returning the following error::
 
     Unexpected error: user-defined function raised exception

@@ -796,6 +796,7 @@ class Database:
         deterministic: bool = False,
         replace: bool = False,
         name: str | None = None,
+        deregister: bool = False,
     ) -> Callable[[Callable], Callable] | None:
         """
         ``fn`` will be made available as a function within SQL, with the same name and number
@@ -817,11 +818,28 @@ class Database:
         :param deterministic: set ``True`` for functions that always returns the same output for a given input
         :param replace: set ``True`` to replace an existing function with the same name - otherwise throw an error
         :param name: name of the SQLite function - if not specified, the Python function name will be used
+        :param deregister: set ``True`` to remove the function with this name and number of arguments
         """
 
         def register(fn: Callable) -> Callable:
             fn_name = name or fn.__name__  # type: ignore
             arity = len(inspect.signature(fn).parameters)
+            if deregister:
+                self.conn.create_function(fn_name, arity, None)
+                # SQLite function names are case-insensitive for ASCII letters.
+                fold_ascii = str.maketrans(
+                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"
+                )
+                self._registered_functions.difference_update(
+                    (registered_name, registered_arity)
+                    for registered_name, registered_arity in tuple(
+                        self._registered_functions
+                    )
+                    if registered_arity == arity
+                    and registered_name.translate(fold_ascii)
+                    == fn_name.translate(fold_ascii)
+                )
+                return fn
             if not replace and (fn_name, arity) in self._registered_functions:
                 return fn
             kwargs: dict[str, bool] = {}
