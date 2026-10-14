@@ -3014,6 +3014,28 @@ Eight (case-insensitive) types are allowed:
 .. note::
     In Python: :ref:`table.add_geometry_column() <python_api_gis_add_geometry_column>`  CLI reference: :ref:`sqlite-utils add-geometry-column <cli_ref_add_geometry_column>`
 
+.. _cli_spatialite_populate_points:
+
+Populating points from latitude and longitude
+---------------------------------------------
+
+For an existing ``locations`` table with numeric ``longitude`` and ``latitude`` columns in WGS84 degrees, add a point column and populate it with ``MakePoint``:
+
+.. code-block:: bash
+
+    sqlite-utils add-geometry-column locations.db locations geometry --type POINT --srid 4326
+    sqlite-utils locations.db 'update locations set geometry = MakePoint(longitude, latitude, 4326)' --load-extension=spatialite
+
+Add the geometry column only once. Run the ``UPDATE`` again to refresh it after coordinates change or new rows are inserted. ``MakePoint`` takes longitude first, and the SRID must match the column. It does not reproject coordinates.
+
+Load SpatiaLite for each query that uses its functions, for example to check the stored points:
+
+.. code-block:: bash
+
+    sqlite-utils locations.db 'select AsText(geometry) as point, SRID(geometry) as srid from locations' --load-extension=spatialite
+
+See :ref:`python_api_gis_populate_points` for a complete Python example and handling of missing coordinates.
+
 .. _cli_spatialite_indexes:
 
 Adding spatial indexes

@@ -3515,6 +3515,50 @@ Adding geometry columns
 .. note::
     In the CLI: :ref:`sqlite-utils add-geometry-column <cli_spatialite>`
 
+.. _python_api_gis_populate_points:
+
+Populating points from latitude and longitude
+---------------------------------------------
+
+Adding a geometry column does not populate it from existing coordinate columns. Use SpatiaLite's ``MakePoint(longitude, latitude, srid)`` function to fill it. For example, starting with a new ``locations.db`` file:
+
+.. code-block:: python
+
+    from sqlite_utils import Database
+
+    with Database("locations.db") as db:
+        db.init_spatialite()
+        locations = db.table("locations")
+        locations.insert_all([
+            {"id": 1, "name": "London", "latitude": 51.509865, "longitude": -0.118092},
+            {"id": 2, "name": "Paris", "latitude": 48.8566, "longitude": 2.3522},
+        ], pk="id")
+        locations.add_geometry_column("geometry", "POINT", srid=4326)
+        db.execute("""
+            update locations
+            set geometry = MakePoint(longitude, latitude, 4326)
+        """)
+        print(list(db.query("""
+            select name, AsText(geometry) as point, SRID(geometry) as srid
+            from locations order by id
+        """)))
+
+This prints:
+
+.. code-block:: python
+
+    [{'name': 'London', 'point': 'POINT(-0.118092 51.509865)', 'srid': 4326},
+     {'name': 'Paris', 'point': 'POINT(2.3522 48.8566)', 'srid': 4326}]
+
+``MakePoint`` takes **longitude first**, then latitude. The example assumes the coordinates are already in WGS84 longitude/latitude degrees (SRID 4326). The SRID must match the geometry column; specifying it labels the coordinates and does not transform them from another coordinate system.
+
+The ``UPDATE`` fills or replaces the geometry for every row. It is a one-time conversion, not an automatic link between the columns: run it again after changing coordinates or inserting more rows. Missing coordinates produce a ``NULL`` geometry in this nullable column. Validate coordinate values before converting them.
+
+For an existing database, load the extension on each new connection with ``db.init_spatialite()``. Add the geometry column only once. You can then run the ``UPDATE`` and query above, and optionally :ref:`create a spatial index <python_api_gis_create_spatial_index>`. For inserting geometry from a single WKT value, see :ref:`python_api_conversions`.
+
+.. note::
+    In the CLI: :ref:`cli_spatialite_populate_points`
+
 .. _python_api_gis_create_spatial_index:
 
 Creating a spatial index
