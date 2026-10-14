@@ -818,27 +818,33 @@ class Database:
         :param deterministic: set ``True`` for functions that always returns the same output for a given input
         :param replace: set ``True`` to replace an existing function with the same name - otherwise throw an error
         :param name: name of the SQLite function - if not specified, the Python function name will be used
-        :param deregister: set ``True`` to remove the function with this name and number of arguments
+        :param deregister: set ``True`` to deregister a callable tracked by this instance with this name and number of arguments.
+          ``deterministic`` and ``replace`` are ignored. Python's sqlite3 binding may retain an error-raising SQL placeholder
+          after the original callback is cleared.
         """
 
         def register(fn: Callable) -> Callable:
             fn_name = name or fn.__name__  # type: ignore
             arity = len(inspect.signature(fn).parameters)
             if deregister:
-                self.conn.create_function(fn_name, arity, None)
                 # SQLite function names are case-insensitive for ASCII letters.
+                # The existing registration cache uses exact-case names.
                 fold_ascii = str.maketrans(
                     "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"
                 )
-                self._registered_functions.difference_update(
+                registrations = {
                     (registered_name, registered_arity)
-                    for registered_name, registered_arity in tuple(
-                        self._registered_functions
-                    )
+                    for registered_name, registered_arity in self._registered_functions
                     if registered_arity == arity
                     and registered_name.translate(fold_ascii)
                     == fn_name.translate(fold_ascii)
-                )
+                }
+                if not registrations:
+                    # Do not shadow built-ins or functions registered directly
+                    # on the connection with the driver's None placeholder.
+                    return fn
+                self.conn.create_function(fn_name, arity, None)
+                self._registered_functions.difference_update(registrations)
                 return fn
             if not replace and (fn_name, arity) in self._registered_functions:
                 return fn

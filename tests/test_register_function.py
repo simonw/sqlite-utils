@@ -5,6 +5,22 @@ from unittest.mock import MagicMock, call
 from sqlite_utils.utils import sqlite3
 
 
+def assert_deregistered(db, sql, monkeypatch):
+    # Some sqlite3 bindings keep a None callback placeholder. Capture and
+    # validate its expected unraisable error without leaking a pytest warning.
+    errors = []
+    with monkeypatch.context() as context:
+        context.setattr(sys, "unraisablehook", errors.append)
+        with pytest.raises(
+            sqlite3.OperationalError,
+            match="no such function|user-defined function raised exception",
+        ):
+            db.execute(sql).fetchone()
+    for error in errors:
+        assert error.exc_type is TypeError
+        assert str(error.exc_value) == "'NoneType' object is not callable"
+
+
 def test_register_function(fresh_db):
     @fresh_db.register_function
     def reverse_string(s):
@@ -107,7 +123,7 @@ def test_register_function_replace(fresh_db):
 
 
 @pytest.mark.parametrize("deterministic", (False, True))
-def test_deregister_function(fresh_db, deterministic):
+def test_deregister_function(fresh_db, deterministic, monkeypatch):
     calls = []
 
     def temporary(value):
@@ -117,8 +133,7 @@ def test_deregister_function(fresh_db, deterministic):
     fresh_db.register_function(temporary, deterministic=deterministic)
     assert fresh_db.execute("select temporary(3)").fetchone()[0] == 6
     assert fresh_db.register_function(temporary, deregister=True) is None
-    with pytest.raises(sqlite3.OperationalError):
-        fresh_db.execute("select temporary(4)").fetchone()
+    assert_deregistered(fresh_db, "select temporary(4)", monkeypatch)
     assert calls == [3]
 
     fresh_db.register_function(temporary)
@@ -127,21 +142,20 @@ def test_deregister_function(fresh_db, deterministic):
 
 
 @pytest.mark.parametrize("removal_name", ("custom_name", "CUSTOM_NAME"))
-def test_deregister_function_custom_name(fresh_db, removal_name):
+def test_deregister_function_custom_name(fresh_db, removal_name, monkeypatch):
     def temporary(value):
         return value * 2
 
     fresh_db.register_function(temporary)
     fresh_db.register_function(temporary, name="custom_name")
     fresh_db.register_function(temporary, name=removal_name, deregister=True)
-    with pytest.raises(sqlite3.OperationalError):
-        fresh_db.execute("select custom_name(3)").fetchone()
+    assert_deregistered(fresh_db, "select custom_name(3)", monkeypatch)
     assert fresh_db.execute("select temporary(3)").fetchone()[0] == 6
     fresh_db.register_function(temporary, name="custom_name")
     assert fresh_db.execute("select custom_name(4)").fetchone()[0] == 8
 
 
-def test_deregister_function_preserves_other_arity(fresh_db):
+def test_deregister_function_preserves_other_arity(fresh_db, monkeypatch):
     def one_arg(value):
         return value + 1
 
@@ -151,20 +165,18 @@ def test_deregister_function_preserves_other_arity(fresh_db):
     fresh_db.register_function(one_arg, name="temporary")
     fresh_db.register_function(two_args, name="temporary")
     fresh_db.register_function(one_arg, name="temporary", deregister=True)
-    with pytest.raises(sqlite3.OperationalError):
-        fresh_db.execute("select temporary(1)").fetchone()
+    assert_deregistered(fresh_db, "select temporary(1)", monkeypatch)
     assert fresh_db.execute("select temporary(1, 2)").fetchone()[0] == 3
 
 
-def test_deregister_function_preserves_non_ascii_names(fresh_db):
+def test_deregister_function_preserves_non_ascii_names(fresh_db, monkeypatch):
     def temporary(value):
         return value * 2
 
     fresh_db.register_function(temporary, name="FÜ")
     fresh_db.register_function(temporary, name="fü")
     fresh_db.register_function(temporary, name="fÜ", deregister=True)
-    with pytest.raises(sqlite3.OperationalError):
-        fresh_db.execute('select "FÜ"(1)').fetchone()
+    assert_deregistered(fresh_db, 'select "FÜ"(1)', monkeypatch)
     assert fresh_db.execute('select "fü"(2)').fetchone()[0] == 4
     # A surviving registration must still suppress replacement by default.
     fresh_db.register_function(lambda value: 0, name="fü")
@@ -182,6 +194,25 @@ def test_deregister_function_idempotent(fresh_db):
     fresh_db.register_function(temporary, deregister=True)
     fresh_db.register_function(temporary)
     assert fresh_db.execute("select temporary()").fetchone()[0] == 1
+
+
+@pytest.mark.parametrize("name", ("upper", "UPPER"))
+def test_deregister_unregistered_preserves_builtin(fresh_db, name):
+    def upper(value):
+        return value
+
+    assert fresh_db.execute("select upper('hello')").fetchone()[0] == "HELLO"
+    fresh_db.register_function(upper, name=name, deregister=True)
+    assert fresh_db.execute("select upper('hello')").fetchone()[0] == "HELLO"
+
+
+def test_deregister_untracked_preserves_connection_function(fresh_db):
+    def temporary(value):
+        return value * 2
+
+    fresh_db.conn.create_function("temporary", 1, temporary)
+    fresh_db.register_function(temporary, deregister=True)
+    assert fresh_db.execute("select temporary(3)").fetchone()[0] == 6
 
 
 def test_deregister_function_failure_preserves_cache(fresh_db):
@@ -202,13 +233,12 @@ def test_deregister_function_failure_preserves_cache(fresh_db):
     assert fresh_db.execute("select temporary(3)").fetchone()[0] == 6
 
 
-def test_deregister_function_decorator(fresh_db):
+def test_deregister_function_decorator(fresh_db, monkeypatch):
     def temporary():
         return 1
 
     fresh_db.register_function(temporary)
     assert fresh_db.register_function(deregister=True)(temporary) is temporary
-    with pytest.raises(sqlite3.OperationalError):
-        fresh_db.execute("select temporary()").fetchone()
+    assert_deregistered(fresh_db, "select temporary()", monkeypatch)
     fresh_db.register_function()(temporary)
     assert fresh_db.execute("select temporary()").fetchone()[0] == 1
