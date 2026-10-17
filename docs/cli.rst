@@ -1312,6 +1312,33 @@ With the ``--flatten`` option columns will be created using ``topkey_nextkey`` c
        "labels_service" TEXT
     );
 
+.. _cli_insert_extract:
+
+Extracting values during an import
+==================================
+
+Use ``--extract COLUMN`` with ``insert`` or ``upsert`` to move repeated values into a lookup table as records are imported:
+
+.. code-block:: bash
+
+    echo '[{"id": 1, "species": "oak"}, {"id": 2, "species": "oak"}]' \
+      | sqlite-utils insert trees.db trees - --pk id --extract species
+
+This creates a ``species`` table with ``id`` and ``value`` columns and a unique index on ``value``. Both input records reference the same lookup row. In a newly created ``trees`` table, the ``species`` column is an integer foreign key referencing ``species.id``. Extracted ``null`` values stay ``null`` and do not create lookup rows.
+
+Repeat the option to extract multiple columns into separate lookup tables:
+
+.. code-block:: bash
+
+    sqlite-utils insert trees.db trees trees.csv --csv \
+      --extract species --extract country
+
+The option also works with TSV, newline-delimited JSON, converted rows and ``--code``. CSV/TSV type detection still applies to other columns; extracted columns in a newly created table keep their integer foreign key type. Subsequent imports and upserts reuse existing lookup rows.
+
+This uses the Python API's :ref:`extracts= mechanism <python_api_extracts>` and keeps its behavior for existing tables: it does not change an existing column's type or add a foreign key constraint to that column. Start with a new table to create the foreign key schema, or use :ref:`sqlite-utils extract <cli_extract>` to normalize values already stored in a table.
+
+Without ``--extract``, imported values are stored directly as before.
+
 .. _cli_insert_csv_tsv:
 
 Inserting CSV or TSV data

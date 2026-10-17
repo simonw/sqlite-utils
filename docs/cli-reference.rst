@@ -315,6 +315,7 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       --silent                  Do not show progress bar
+      --extract TEXT            Columns to extract to same-name lookup tables
       --strict                  Apply STRICT mode to created table
       --ignore                  Ignore records if pk already exists
       --replace                 Replace records if pk already exists
@@ -379,6 +380,7 @@ See :ref:`cli_upsert`.
       --analyze                 Run ANALYZE at the end of this operation
       --load-extension TEXT     Path to SQLite extension, with optional :entrypoint
       --silent                  Do not show progress bar
+      --extract TEXT            Columns to extract to same-name lookup tables
       --strict                  Apply STRICT mode to created table
       -h, --help                Show this message and exit.
 

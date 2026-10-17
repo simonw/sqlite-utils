@@ -1045,6 +1045,12 @@ def insert_upsert_options(*, require_pk=False):
                 load_extension_option,
                 click.option("--silent", is_flag=True, help="Do not show progress bar"),
                 click.option(
+                    "--extract",
+                    "extracts",
+                    multiple=True,
+                    help="Columns to extract to same-name lookup tables",
+                ),
+                click.option(
                     "--strict",
                     is_flag=True,
                     default=False,
@@ -1095,6 +1101,7 @@ def insert_upsert_implementation(
     functions=None,
     strict=False,
     code=None,
+    extracts=None,
 ):
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
@@ -1118,6 +1125,8 @@ def insert_upsert_implementation(
             extra_kwargs["columns"] = column_type_overrides
         if upsert:
             extra_kwargs["upsert"] = upsert
+        if extracts:
+            extra_kwargs["extracts"] = extracts
 
         # docs should all be dictionaries
         docs = (verify_is_dict(doc) for doc in docs)
@@ -1176,6 +1185,9 @@ def insert_upsert_implementation(
         ):
             detected_types = tracker.types
             detected_types.update(column_type_overrides)
+            # Extracted values have been replaced by integer foreign keys.
+            for column in extracts or ():
+                detected_types.pop(column, None)
             db.table(table).transform(types=detected_types)
 
     if code is not None:
@@ -1386,6 +1398,7 @@ def insert(
     default,
     types,
     strict,
+    extracts,
 ):
     """
     Insert records from FILE into a table, creating the table if it
@@ -1481,6 +1494,7 @@ def insert(
             types=types,
             strict=strict,
             code=code,
+            extracts=extracts,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
@@ -1519,6 +1533,7 @@ def upsert(
     load_extension,
     silent,
     strict,
+    extracts,
 ):
     """
     Upsert records based on their primary key. Works like 'insert' but if
@@ -1571,6 +1586,7 @@ def upsert(
             silent=silent,
             strict=strict,
             code=code,
+            extracts=extracts,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
