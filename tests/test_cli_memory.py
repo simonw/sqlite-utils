@@ -157,6 +157,17 @@ def test_memory_csv_encoding(tmpdir, use_stdin):
     }
 
 
+def test_memory_csv_single_column(tmpdir):
+    csv_path = str(tmpdir / "names.csv")
+    with open(csv_path, "w") as fp:
+        fp.write("name\nAnn\nBob\n")
+    result = CliRunner().invoke(
+        cli.cli, ["memory", csv_path, "select * from names", "--nl"]
+    )
+    assert result.exit_code == 0, result.output
+    assert result.output.strip() == '{"name": "Ann"}\n{"name": "Bob"}'
+
+
 def test_memory_csv_headers_only(tmpdir):
     csv_path = str(tmpdir / "headers_only.csv")
     with open(csv_path, "w") as fp:

@@ -285,6 +285,20 @@ def _extra_key_strategy(
             yield row_out
 
 
+# Delimiters rows_from_file() looks for when it detects the format. Without a list
+# csv.Sniffer takes any character that repeats on the sampled lines, so a single-column
+# file was split on a letter, or raised "Could not determine delimiter".
+_SNIFF_DELIMITERS = ",;\t|"
+
+
+def _sniff_csv_dialect(sample: str) -> type[csv.Dialect]:
+    try:
+        return csv.Sniffer().sniff(sample, delimiters=_SNIFF_DELIMITERS)
+    except csv.Error:
+        # None of them: a single-column file, read as plain CSV
+        return csv.excel
+
+
 def rows_from_file(
     fp: BinaryIO,
     format: Format | None = None,
@@ -389,7 +403,7 @@ def rows_from_file(
             with buffered:
                 return rows_from_file(buffered, format=Format.JSON)
         else:
-            dialect = csv.Sniffer().sniff(
+            dialect = _sniff_csv_dialect(
                 first_bytes.decode(encoding or "utf-8-sig", "ignore")
             )
             rows, _ = rows_from_file(

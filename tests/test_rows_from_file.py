@@ -11,6 +11,7 @@ from sqlite_utils.utils import Format, RowError, rows_from_file
     "input,expected_format",
     (
         (b"id,name\n1,Cleo", Format.CSV),
+        (b"id;name\n1;Cleo", Format.CSV),
         (b"id\tname\n1\tCleo", Format.TSV),
         (b'[{"id": "1", "name": "Cleo"}]', Format.JSON),
     ),
@@ -20,6 +21,24 @@ def test_rows_from_file_detect_format(input, expected_format):
     assert format == expected_format
     rows_list = list(rows)
     assert rows_list == [{"id": "1", "name": "Cleo"}]
+
+
+@pytest.mark.parametrize(
+    "input,expected",
+    (
+        # csv.Sniffer could not determine a delimiter for this one
+        (b"name\nAnn\nBob\n", [{"name": "Ann"}, {"name": "Bob"}]),
+        # and took "l", which every line holds twice, for this one
+        (
+            b"url\nhttps://example.com/a\nhttps://example.org/b\n",
+            [{"url": "https://example.com/a"}, {"url": "https://example.org/b"}],
+        ),
+    ),
+)
+def test_rows_from_file_detect_format_single_column(input, expected):
+    rows, format = rows_from_file(BytesIO(input))
+    assert format == Format.CSV
+    assert list(rows) == expected
 
 
 @pytest.mark.parametrize("input", (b"", b" \n\t"))
