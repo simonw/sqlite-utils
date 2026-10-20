@@ -1,3 +1,5 @@
+import functools
+
 import pytest
 
 from sqlite_utils.db import BadMultiValues
@@ -158,3 +160,20 @@ def test_convert_repeated(fresh_db):
     table.convert(col, lambda x: x * 2)
     table.convert(col, lambda _x: 0)
     assert table.get(1) == {col: 0}
+
+
+def test_convert_repeated_callables_with_same_name(fresh_db):
+    # Different callables can share a name: bound methods such as dict.get,
+    # or functools.partial objects, which have no __name__ at all
+    table = fresh_db.table("places")
+    table.insert({"id": 1, "state": "CA", "country": "US"}, pk="id")
+    table.convert("state", {"CA": "California"}.get)
+    table.convert("country", {"US": "United States"}.get)
+    assert table.get(1) == {"id": 1, "state": "California", "country": "United States"}
+    table.convert("state", functools.partial("{}!".format))
+    table.convert("country", functools.partial("{}?".format))
+    assert table.get(1) == {
+        "id": 1,
+        "state": "California!",
+        "country": "United States?",
+    }
