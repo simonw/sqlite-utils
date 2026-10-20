@@ -652,6 +652,13 @@ If the table has a compound primary key you can pass in the primary key values a
 
     >>> db.table("compound_dogs").get(("mixed", 3))
 
+You can also look a record up by one or more column values, passed as keyword arguments. This returns the first matching row, which is useful for fetching a record by a column with a unique constraint rather than by its primary key::
+
+    >>> db.table("dogs").get(name="Cleo")
+    {'id': 1, 'age': 4, 'name': 'Cleo'}
+
+Passing more than one keyword argument matches rows against all of them. You cannot combine a primary key value with keyword arguments in the same call.
+
 If the record does not exist a ``NotFoundError`` will be raised:
 
 .. code-block:: python

@@ -2387,14 +2387,44 @@ class Table(Queryable):
         "Table-level CHECK constraints on this table."
         return [check for check in self.checks if not check.column]
 
-    def get(self, pk_values: list | tuple | str | int) -> dict:
+    def get(self, pk_values: list | tuple | str | int = DEFAULT, **kwargs) -> dict:
         """
         Return row (as dictionary) for the specified primary key.
+
+        Alternatively, pass one or more ``column=value`` keyword arguments to
+        return the first row that matches those columns. This is convenient for
+        looking a row up by a column with a unique constraint rather than by its
+        primary key::
+
+            row = table.get(name="Cleo")
 
         Raises ``sqlite_utils.db.NotFoundError`` if a matching row cannot be found.
 
         :param pk_values: A single value, or a tuple of values for tables that have a compound primary key
+        :param kwargs: Alternatively, ``column=value`` pairs to look the row up by
         """
+        if kwargs:
+            if pk_values is not DEFAULT:
+                raise ValueError(
+                    "get() accepts either pk_values or column keyword "
+                    "arguments, not both"
+                )
+            wheres = [f"{quote_identifier(column)} = ?" for column in kwargs]
+            rows = self.rows_where(" and ".join(wheres), list(kwargs.values()), limit=1)
+            try:
+                row = next(iter(rows))
+            except StopIteration:
+                raise NotFoundError
+            pks = self.pks
+            if all(pk in row for pk in pks):
+                self.last_pk = (
+                    row[pks[0]] if len(pks) == 1 else tuple(row[pk] for pk in pks)
+                )
+            return row
+        if pk_values is DEFAULT:
+            raise TypeError(
+                "get() requires pk_values or one or more column keyword arguments"
+            )
         if not isinstance(pk_values, (list, tuple)):
             pk_values = [pk_values]
         pks = self.pks
