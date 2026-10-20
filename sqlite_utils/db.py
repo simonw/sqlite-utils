@@ -4235,7 +4235,10 @@ class Table(Queryable):
             fn_name = getattr(fn, "__name__", "fn")
             if fn_name == "<lambda>":
                 fn_name = f"lambda_{abs(hash(fn))}"
-            self.db.register_function(convert_value, name=fn_name)
+            # replace=True: a previous .convert() may have registered a
+            # different callable under the same name, e.g. two bound methods
+            # called "get" or two functools.partial objects
+            self.db.register_function(convert_value, name=fn_name, replace=True)
             sql = "update {} set {sets}{where};".format(
                 quote_identifier(self.name),
                 sets=", ".join(
