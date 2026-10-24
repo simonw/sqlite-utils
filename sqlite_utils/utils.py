@@ -634,14 +634,18 @@ def dedupe_keys(keys: Iterable[str]) -> list[str]:
         # No duplicates - the common case
         return keys
     seen: set = set()
+    # Cache the next suffix to try for each original base key. This avoids
+    # repeatedly searching from suffix 2 when a key occurs many times.
+    next_suffix: dict[str, int] = {}
     result = []
     for key in keys:
         if key in seen:
-            new_key = key
-            suffix = 2
+            suffix = next_suffix.get(key, 2)
+            new_key = f"{key}_{suffix}"
             while new_key in seen or new_key in taken:
-                new_key = f"{key}_{suffix}"
                 suffix += 1
+                new_key = f"{key}_{suffix}"
+            next_suffix[key] = suffix + 1
             key = new_key
         seen.add(key)
         result.append(key)

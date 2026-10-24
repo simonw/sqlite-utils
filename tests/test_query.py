@@ -274,6 +274,17 @@ def test_query_deduped_column_avoids_existing_names(fresh_db):
     assert rows == [{"id": 1, "id_3": 2, "id_2": 3}]
 
 
+def test_query_dedupes_duplicate_aliased_columns(fresh_db):
+    rows = list(
+        fresh_db.query(
+            "select 1 as id, 2 as id, 3 as id_2, 4 as id_2, 5 as value, 6 as value"
+        )
+    )
+    assert rows == [
+        {"id": 1, "id_3": 2, "id_2": 3, "id_2_2": 4, "value": 5, "value_2": 6}
+    ]
+
+
 def test_execute_returning_dicts(fresh_db):
     # Like db.query() but returns a list, included for backwards compatibility
     # see https://github.com/simonw/sqlite-utils/issues/290

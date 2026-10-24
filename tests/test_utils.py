@@ -102,3 +102,40 @@ def test_flatten(input, expected):
 )
 def test_dedupe_keys(input, expected):
     assert utils.dedupe_keys(input) == expected
+
+
+def test_dedupe_keys_accepts_generator_input():
+    assert utils.dedupe_keys(key for key in ["id", "id", "id_2"]) == [
+        "id",
+        "id_3",
+        "id_2",
+    ]
+
+
+def test_dedupe_keys_handles_repeated_suffix_bases():
+    assert utils.dedupe_keys(["id", "id", "id_2", "id_2", "id_2_2", "id_2_2"]) == [
+        "id",
+        "id_3",
+        "id_2",
+        "id_2_3",
+        "id_2_2",
+        "id_2_2_2",
+    ]
+
+
+def test_dedupe_keys_scales_without_reformatting_all_suffixes():
+    class CountingStr(str):
+        calls = 0
+
+        def __format__(self, format_spec):
+            type(self).calls += 1
+            return super().__format__(format_spec)
+
+    keys = [CountingStr("id") for _ in range(2000)]
+    result = utils.dedupe_keys(keys)
+
+    assert len(result) == 2000
+    assert len(set(result)) == 2000
+    assert result[0] == "id"
+    assert result[-1] == "id_2000"
+    assert CountingStr.calls <= 2000
