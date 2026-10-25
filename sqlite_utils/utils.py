@@ -346,7 +346,7 @@ def rows_from_file(
         return (json.loads(line) for line in fp if line.strip()), Format.NL
     elif format == Format.CSV:
         use_encoding: str = encoding or "utf-8-sig"
-        decoded_fp = io.TextIOWrapper(fp, encoding=use_encoding)
+        decoded_fp = io.TextIOWrapper(fp, encoding=use_encoding, newline="")
         if dialect is not None:
             reader = csv.DictReader(decoded_fp, dialect=dialect)
         else:
