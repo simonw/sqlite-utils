@@ -1410,25 +1410,26 @@ def test_upsert_alter(db_path, tmpdir):
         ),
     ],
 )
-def test_create_table(args, schema):
+def test_create_table(args, schema, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        result = runner.invoke(
-            cli.cli,
-            [
-                "create-table",
-                "test.db",
-                "t",
-            ]
-            + args,
-            catch_exceptions=False,
-        )
-        assert result.exit_code == 0
-        db = Database("test.db")
-        assert schema == db.table("t").schema
+    result = runner.invoke(
+        cli.cli,
+        [
+            "create-table",
+            "test.db",
+            "t",
+        ]
+        + args,
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    db = Database("test.db")
+    assert schema == db.table("t").schema
 
 
-def test_create_table_foreign_key():
+def test_create_table_foreign_key(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     creates = (
         ["authors", "id", "integer", "name", "text", "--pk", "id"],
@@ -1448,286 +1449,283 @@ def test_create_table_foreign_key():
             "id",
         ],
     )
-    with runner.isolated_filesystem():
-        for args in creates:
-            result = runner.invoke(
-                cli.cli, ["create-table", "books.db"] + args, catch_exceptions=False
-            )
-            assert result.exit_code == 0
-        db = Database("books.db")
-        assert (
-            'CREATE TABLE "authors" (\n'
-            '   "id" INTEGER PRIMARY KEY,\n'
-            '   "name" TEXT\n'
-            ")"
-        ) == db.table("authors").schema
-        assert (
-            'CREATE TABLE "books" (\n'
-            '   "id" INTEGER PRIMARY KEY,\n'
-            '   "title" TEXT,\n'
-            '   "author_id" INTEGER REFERENCES "authors"("id")\n'
-            ")"
-        ) == db.table("books").schema
-
-
-def test_create_table_error_if_table_exists():
-    runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        db.table("dogs").insert({"name": "Cleo"})
+    for args in creates:
         result = runner.invoke(
-            cli.cli, ["create-table", "test.db", "dogs", "id", "integer"]
-        )
-        assert result.exit_code == 1
-        assert (
-            'Error: Table "dogs" already exists. Use --replace to delete and replace it.'
-            == result.output.strip()
-        )
-
-
-def test_create_table_ignore():
-    runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        db.table("dogs").insert({"name": "Cleo"})
-        result = runner.invoke(
-            cli.cli, ["create-table", "test.db", "dogs", "id", "integer", "--ignore"]
+            cli.cli, ["create-table", "books.db"] + args, catch_exceptions=False
         )
         assert result.exit_code == 0
-        assert 'CREATE TABLE "dogs" (\n   "name" TEXT\n)' == db.table("dogs").schema
+    db = Database("books.db")
+    assert (
+        'CREATE TABLE "authors" (\n'
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "name" TEXT\n'
+        ")"
+    ) == db.table("authors").schema
+    assert (
+        'CREATE TABLE "books" (\n'
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "title" TEXT,\n'
+        '   "author_id" INTEGER REFERENCES "authors"("id")\n'
+        ")"
+    ) == db.table("books").schema
 
 
-def test_create_table_replace():
+def test_create_table_error_if_table_exists(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        db.table("dogs").insert({"name": "Cleo"})
-        result = runner.invoke(
-            cli.cli, ["create-table", "test.db", "dogs", "id", "integer", "--replace"]
-        )
-        assert result.exit_code == 0
-        assert 'CREATE TABLE "dogs" (\n   "id" INTEGER\n)' == db.table("dogs").schema
+    db = Database("test.db")
+    db.table("dogs").insert({"name": "Cleo"})
+    result = runner.invoke(
+        cli.cli, ["create-table", "test.db", "dogs", "id", "integer"]
+    )
+    assert result.exit_code == 1
+    assert (
+        'Error: Table "dogs" already exists. Use --replace to delete and replace it.'
+        == result.output.strip()
+    )
 
 
-def test_create_view():
+def test_create_table_ignore(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        result = runner.invoke(
-            cli.cli, ["create-view", "test.db", "version", "select sqlite_version()"]
-        )
-        assert result.exit_code == 0
-        assert (
-            'CREATE VIEW "version" AS select sqlite_version()'
-            == db.view("version").schema
-        )
+    db = Database("test.db")
+    db.table("dogs").insert({"name": "Cleo"})
+    result = runner.invoke(
+        cli.cli, ["create-table", "test.db", "dogs", "id", "integer", "--ignore"]
+    )
+    assert result.exit_code == 0
+    assert 'CREATE TABLE "dogs" (\n   "name" TEXT\n)' == db.table("dogs").schema
 
 
-def test_create_view_error_if_view_exists():
+def test_create_table_replace(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        db.create_view("version", "select sqlite_version() + 1")
-        result = runner.invoke(
-            cli.cli, ["create-view", "test.db", "version", "select sqlite_version()"]
-        )
-        assert result.exit_code == 1
-        assert (
-            'Error: View "version" already exists. Use --replace to delete and replace it.'
-            == result.output.strip()
-        )
+    db = Database("test.db")
+    db.table("dogs").insert({"name": "Cleo"})
+    result = runner.invoke(
+        cli.cli, ["create-table", "test.db", "dogs", "id", "integer", "--replace"]
+    )
+    assert result.exit_code == 0
+    assert 'CREATE TABLE "dogs" (\n   "id" INTEGER\n)' == db.table("dogs").schema
 
 
-def test_create_view_ignore():
+def test_create_view(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        db.create_view("version", "select sqlite_version() + 1")
-        result = runner.invoke(
-            cli.cli,
-            [
-                "create-view",
-                "test.db",
-                "version",
-                "select sqlite_version()",
-                "--ignore",
-            ],
-        )
-        assert result.exit_code == 0
-        assert (
-            'CREATE VIEW "version" AS select sqlite_version() + 1'
-            == db.view("version").schema
-        )
+    db = Database("test.db")
+    result = runner.invoke(
+        cli.cli, ["create-view", "test.db", "version", "select sqlite_version()"]
+    )
+    assert result.exit_code == 0
+    assert (
+        'CREATE VIEW "version" AS select sqlite_version()' == db.view("version").schema
+    )
 
 
-def test_create_view_replace():
+def test_create_view_error_if_view_exists(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        db.create_view("version", "select sqlite_version() + 1")
-        result = runner.invoke(
-            cli.cli,
-            [
-                "create-view",
-                "test.db",
-                "version",
-                "select sqlite_version()",
-                "--replace",
-            ],
-        )
-        assert result.exit_code == 0
-        assert (
-            'CREATE VIEW "version" AS select sqlite_version()'
-            == db.view("version").schema
-        )
+    db = Database("test.db")
+    db.create_view("version", "select sqlite_version() + 1")
+    result = runner.invoke(
+        cli.cli, ["create-view", "test.db", "version", "select sqlite_version()"]
+    )
+    assert result.exit_code == 1
+    assert (
+        'Error: View "version" already exists. Use --replace to delete and replace it.'
+        == result.output.strip()
+    )
 
 
-def test_drop_table():
+def test_create_view_ignore(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        db.table("t").create({"pk": int}, pk="pk")
-        assert "t" in db.table_names()
-        result = runner.invoke(
-            cli.cli,
-            [
-                "drop-table",
-                "test.db",
-                "t",
-            ],
-        )
-        assert result.exit_code == 0
-        assert "t" not in db.table_names()
+    db = Database("test.db")
+    db.create_view("version", "select sqlite_version() + 1")
+    result = runner.invoke(
+        cli.cli,
+        [
+            "create-view",
+            "test.db",
+            "version",
+            "select sqlite_version()",
+            "--ignore",
+        ],
+    )
+    assert result.exit_code == 0
+    assert (
+        'CREATE VIEW "version" AS select sqlite_version() + 1'
+        == db.view("version").schema
+    )
 
 
-def test_drop_table_error():
+def test_create_view_replace(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        db.table("t").create({"pk": int}, pk="pk")
-        result = runner.invoke(
-            cli.cli,
-            [
-                "drop-table",
-                "test.db",
-                "t2",
-            ],
-        )
-        assert result.exit_code == 1
-        assert 'Error: Table "t2" does not exist' == result.output.strip()
-        # Using --ignore suppresses that error
-        result = runner.invoke(
-            cli.cli,
-            ["drop-table", "test.db", "t2", "--ignore"],
-        )
-        assert result.exit_code == 0
+    db = Database("test.db")
+    db.create_view("version", "select sqlite_version() + 1")
+    result = runner.invoke(
+        cli.cli,
+        [
+            "create-view",
+            "test.db",
+            "version",
+            "select sqlite_version()",
+            "--replace",
+        ],
+    )
+    assert result.exit_code == 0
+    assert (
+        'CREATE VIEW "version" AS select sqlite_version()' == db.view("version").schema
+    )
 
 
-def test_drop_table_on_view_errors():
+def test_drop_table(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        db.table("t").insert({"id": 1})
-        db.create_view("v", "select * from t")
-        result = runner.invoke(cli.cli, ["drop-table", "test.db", "v"])
-        assert result.exit_code == 1
-        assert 'Error: "v" is a view, not a table - use drop-view to drop it' == (
-            result.output.strip()
-        )
-        assert "v" in db.view_names()
-        # --ignore exits cleanly but must still not drop the view
-        result = runner.invoke(cli.cli, ["drop-table", "test.db", "v", "--ignore"])
-        assert result.exit_code == 0
-        assert "v" in db.view_names()
+    db = Database("test.db")
+    db.table("t").create({"pk": int}, pk="pk")
+    assert "t" in db.table_names()
+    result = runner.invoke(
+        cli.cli,
+        [
+            "drop-table",
+            "test.db",
+            "t",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "t" not in db.table_names()
 
 
-def test_drop_view():
+def test_drop_table_error(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        db.create_view("hello", "select 1")
-        assert "hello" in db.view_names()
-        result = runner.invoke(
-            cli.cli,
-            [
-                "drop-view",
-                "test.db",
-                "hello",
-            ],
-        )
-        assert result.exit_code == 0
-        assert "hello" not in db.view_names()
+    db = Database("test.db")
+    db.table("t").create({"pk": int}, pk="pk")
+    result = runner.invoke(
+        cli.cli,
+        [
+            "drop-table",
+            "test.db",
+            "t2",
+        ],
+    )
+    assert result.exit_code == 1
+    assert 'Error: Table "t2" does not exist' == result.output.strip()
+    # Using --ignore suppresses that error
+    result = runner.invoke(
+        cli.cli,
+        ["drop-table", "test.db", "t2", "--ignore"],
+    )
+    assert result.exit_code == 0
 
 
-def test_drop_view_on_table_errors():
+def test_drop_table_on_view_errors(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        db.table("t").insert({"id": 1})
-        result = runner.invoke(cli.cli, ["drop-view", "test.db", "t"])
-        assert result.exit_code == 1
-        assert 'Error: "t" is a table, not a view - use drop-table to drop it' == (
-            result.output.strip()
-        )
-        assert "t" in db.table_names()
-        # --ignore exits cleanly but must still not drop the table
-        result = runner.invoke(cli.cli, ["drop-view", "test.db", "t", "--ignore"])
-        assert result.exit_code == 0
-        assert "t" in db.table_names()
+    db = Database("test.db")
+    db.table("t").insert({"id": 1})
+    db.create_view("v", "select * from t")
+    result = runner.invoke(cli.cli, ["drop-table", "test.db", "v"])
+    assert result.exit_code == 1
+    assert 'Error: "v" is a view, not a table - use drop-view to drop it' == (
+        result.output.strip()
+    )
+    assert "v" in db.view_names()
+    # --ignore exits cleanly but must still not drop the view
+    result = runner.invoke(cli.cli, ["drop-table", "test.db", "v", "--ignore"])
+    assert result.exit_code == 0
+    assert "v" in db.view_names()
 
 
-def test_drop_view_error():
+def test_drop_view(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        db.table("t").create({"pk": int}, pk="pk")
-        result = runner.invoke(
-            cli.cli,
-            [
-                "drop-view",
-                "test.db",
-                "t2",
-            ],
-        )
-        assert result.exit_code == 1
-        assert 'Error: View "t2" does not exist' == result.output.strip()
-        # Using --ignore suppresses that error
-        result = runner.invoke(
-            cli.cli,
-            ["drop-view", "test.db", "t2", "--ignore"],
-        )
-        assert result.exit_code == 0
+    db = Database("test.db")
+    db.create_view("hello", "select 1")
+    assert "hello" in db.view_names()
+    result = runner.invoke(
+        cli.cli,
+        [
+            "drop-view",
+            "test.db",
+            "hello",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "hello" not in db.view_names()
 
 
-def test_enable_wal():
+def test_drop_view_on_table_errors(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    db = Database("test.db")
+    db.table("t").insert({"id": 1})
+    result = runner.invoke(cli.cli, ["drop-view", "test.db", "t"])
+    assert result.exit_code == 1
+    assert 'Error: "t" is a table, not a view - use drop-table to drop it' == (
+        result.output.strip()
+    )
+    assert "t" in db.table_names()
+    # --ignore exits cleanly but must still not drop the table
+    result = runner.invoke(cli.cli, ["drop-view", "test.db", "t", "--ignore"])
+    assert result.exit_code == 0
+    assert "t" in db.table_names()
+
+
+def test_drop_view_error(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    db = Database("test.db")
+    db.table("t").create({"pk": int}, pk="pk")
+    result = runner.invoke(
+        cli.cli,
+        [
+            "drop-view",
+            "test.db",
+            "t2",
+        ],
+    )
+    assert result.exit_code == 1
+    assert 'Error: View "t2" does not exist' == result.output.strip()
+    # Using --ignore suppresses that error
+    result = runner.invoke(
+        cli.cli,
+        ["drop-view", "test.db", "t2", "--ignore"],
+    )
+    assert result.exit_code == 0
+
+
+def test_enable_wal(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     dbs = ["test.db", "test2.db"]
-    with runner.isolated_filesystem():
-        for dbname in dbs:
-            db = Database(dbname)
-            db.table("t").create({"pk": int}, pk="pk")
-            assert db.journal_mode == "delete"
-        result = runner.invoke(cli.cli, ["enable-wal"] + dbs, catch_exceptions=False)
-        assert result.exit_code == 0
-        for dbname in dbs:
-            db = Database(dbname)
-            assert db.journal_mode == "wal"
+    for dbname in dbs:
+        db = Database(dbname)
+        db.table("t").create({"pk": int}, pk="pk")
+        assert db.journal_mode == "delete"
+    result = runner.invoke(cli.cli, ["enable-wal"] + dbs, catch_exceptions=False)
+    assert result.exit_code == 0
+    for dbname in dbs:
+        db = Database(dbname)
+        assert db.journal_mode == "wal"
 
 
-def test_disable_wal():
+def test_disable_wal(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     dbs = ["test.db", "test2.db"]
-    with runner.isolated_filesystem():
-        for dbname in dbs:
-            db = Database(dbname)
-            db.table("t").create({"pk": int}, pk="pk")
-            db.enable_wal()
-            assert db.journal_mode == "wal"
-        result = runner.invoke(cli.cli, ["disable-wal"] + dbs)
-        assert result.exit_code == 0
-        for dbname in dbs:
-            db = Database(dbname)
-            assert db.journal_mode == "delete"
+    for dbname in dbs:
+        db = Database(dbname)
+        db.table("t").create({"pk": int}, pk="pk")
+        db.enable_wal()
+        assert db.journal_mode == "wal"
+    result = runner.invoke(cli.cli, ["disable-wal"] + dbs)
+    assert result.exit_code == 0
+    for dbname in dbs:
+        db = Database(dbname)
+        assert db.journal_mode == "delete"
 
 
 @pytest.mark.parametrize(
@@ -2877,43 +2875,43 @@ def test_load_extension(entrypoint, should_pass, should_fail):
 
 
 @pytest.mark.parametrize("strict", (False, True))
-def test_create_table_strict(strict):
+def test_create_table_strict(strict, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        result = runner.invoke(
-            cli.cli,
-            ["create-table", "test.db", "items", "id", "integer", "w", "float"]
-            + (["--strict"] if strict else []),
-        )
-        assert result.exit_code == 0
-        assert db.table("items").strict == strict or not db.supports_strict
-        # Should have a floating point column
-        assert db.table("items").columns_dict == {"id": int, "w": float}
+    db = Database("test.db")
+    result = runner.invoke(
+        cli.cli,
+        ["create-table", "test.db", "items", "id", "integer", "w", "float"]
+        + (["--strict"] if strict else []),
+    )
+    assert result.exit_code == 0
+    assert db.table("items").strict == strict or not db.supports_strict
+    # Should have a floating point column
+    assert db.table("items").columns_dict == {"id": int, "w": float}
 
 
-def test_create_table_strict_any():
+def test_create_table_strict_any(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        db = Database("test.db")
-        if not db.supports_strict:
-            pytest.skip("SQLite version does not support strict tables")
-        result = runner.invoke(
-            cli.cli,
-            [
-                "create-table",
-                "test.db",
-                "items",
-                "id",
-                "integer",
-                "data",
-                "any",
-                "--strict",
-            ],
-        )
-        assert result.exit_code == 0, result.output
-        assert db.table("items").strict is True
-        assert db.table("items").columns_dict == {"id": int, "data": ANY}
+    db = Database("test.db")
+    if not db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    result = runner.invoke(
+        cli.cli,
+        [
+            "create-table",
+            "test.db",
+            "items",
+            "id",
+            "integer",
+            "data",
+            "any",
+            "--strict",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert db.table("items").strict is True
+    assert db.table("items").columns_dict == {"id": int, "data": ANY}
 
 
 @pytest.mark.parametrize("method", ("insert", "upsert"))
