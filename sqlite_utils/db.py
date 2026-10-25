@@ -4460,8 +4460,59 @@ class Table(Queryable):
                 # All columns are in the PK – nothing to update.
                 do_clause = "DO NOTHING"
 
+            # Detect omitted columns with NOT NULL constraints and no defaults.
+            # SQLite validates NOT NULL constraints during the INSERT evaluation
+            # before ON CONFLICT triggers. Supplying a correlated scalar subquery
+            # pulls the existing value so the constraint passes on existing rows,
+            # while still failing with IntegrityError if the row does not exist.
+            omitted_not_null_cols: list[str] = []
+            if self.exists():
+                lower_all_columns = {c.lower() for c in all_columns}
+                for col in self.columns:
+                    if col.notnull and col.default_value is None and not col.is_pk:
+                        if col.name.lower() not in lower_all_columns:
+                            omitted_not_null_cols.append(col.name)
+            if not_null:
+                lower_all_columns = {c.lower() for c in all_columns}
+                lower_omitted = {c.lower() for c in omitted_not_null_cols}
+                for nn in not_null:
+                    if (
+                        nn.lower() not in lower_all_columns
+                        and nn.lower() not in lower_omitted
+                    ):
+                        omitted_not_null_cols.append(nn)
+
+            if omitted_not_null_cols:
+                all_insert_cols = list(all_columns) + omitted_not_null_cols
+                insert_columns_sql = ", ".join(
+                    quote_identifier(c) for c in all_insert_cols
+                )
+                where_pk_sql = " AND ".join(
+                    f"{quote_identifier(pk)} = ?" for pk in pk_cols
+                )
+                subqueries = [
+                    f"(SELECT {quote_identifier(c)} FROM {quote_identifier(self.name)} WHERE {where_pk_sql})"
+                    for c in omitted_not_null_cols
+                ]
+                row_placeholder_parts = [
+                    conversions.get(c, "?") for c in all_columns
+                ] + subqueries
+                single_row_placeholder = f"({', '.join(row_placeholder_parts)})"
+                row_placeholders_sql = ", ".join(single_row_placeholder for _ in values)
+
+                pk_indexes = [all_columns.index(c) for c in pk_cols]
+                all_flat_params: list[Any] = []
+                for record_values in values:
+                    all_flat_params.extend(record_values)
+                    row_pk_params = [record_values[i] for i in pk_indexes]
+                    for _ in omitted_not_null_cols:
+                        all_flat_params.extend(row_pk_params)
+                flat_params = all_flat_params
+            else:
+                insert_columns_sql = columns_sql
+
             sql = (
-                f"INSERT INTO {quote_identifier(self.name)} ({columns_sql}) "
+                f"INSERT INTO {quote_identifier(self.name)} ({insert_columns_sql}) "
                 f"VALUES {row_placeholders_sql} "
                 f"ON CONFLICT({conflict_sql}) {do_clause}"
             )
