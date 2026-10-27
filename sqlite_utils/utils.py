@@ -389,9 +389,16 @@ def rows_from_file(
             with buffered:
                 return rows_from_file(buffered, format=Format.JSON)
         else:
-            dialect = csv.Sniffer().sniff(
-                first_bytes.decode(encoding or "utf-8-sig", "ignore")
-            )
+            # Only sniff for delimiters a CSV file is realistically written
+            # with. Without this the sniffer treats any character as a
+            # candidate, so a single-column file either raises csv.Error or
+            # gets split on a letter that happens to repeat on every line.
+            sample = first_bytes.decode(encoding or "utf-8-sig", "ignore")
+            try:
+                dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
+            except csv.Error:
+                # No realistic delimiter found: read as a single column.
+                dialect = csv.excel
             rows, _ = rows_from_file(
                 buffered, format=Format.CSV, dialect=dialect, encoding=encoding
             )

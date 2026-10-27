@@ -105,6 +105,25 @@ def test_detect_format_closes_eager_reader(
         assert buffered_readers[0].closed
 
 
+@pytest.mark.parametrize(
+    "content, expected_rows",
+    [
+        (b"name\nAnn\nBob\n", [{"name": "Ann"}, {"name": "Bob"}]),
+        (
+            b"url\nhttps://example.com/a\nhttps://example.org/b\n",
+            [{"url": "https://example.com/a"}, {"url": "https://example.org/b"}],
+        ),
+    ],
+)
+def test_detect_format_single_column_csv(content, expected_rows):
+    # Regression for #907: format detection must not sniff on arbitrary
+    # characters (raising csv.Error or splitting a lone column on a
+    # letter), it should fall back to a single column.
+    rows, detected = rows_from_file(BytesIO(content))
+    assert detected == Format.CSV
+    assert list(rows) == expected_rows
+
+
 @pytest.mark.parametrize("content", [b"[", b'{"id":'])
 def test_detect_format_closes_reader_on_invalid_json(
     tmp_path, buffered_readers, content

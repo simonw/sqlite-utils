@@ -4,6 +4,11 @@
  Changelog
 ===========
 
+Unreleased
+----------
+
+- ``rows_from_file()`` format detection now only sniffs for ``,`` ``;`` tab and ``|`` delimiters, and reads the file as a single column when none of them is found. Previously a single-column CSV file either raised ``csv.Error: Could not determine delimiter`` or was split on a letter repeating on every line. (:issue:`907`)
+
 .. _v4_2_1:
 
 4.2.1 (2026-08-13)
