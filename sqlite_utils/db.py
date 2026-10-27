@@ -3770,6 +3770,7 @@ class Table(Queryable):
         :param tokenize: Custom SQLite tokenizer to use, for example ``"porter"`` to enable Porter stemming.
         :param replace: Should any existing FTS index for this table be replaced by the new one?
         """
+        columns = list(columns)
         create_fts_sql = (
             textwrap.dedent("""
             CREATE VIRTUAL TABLE {table_fts} USING {fts_version} (
