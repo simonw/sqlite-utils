@@ -102,3 +102,9 @@ def test_flatten(input, expected):
 )
 def test_dedupe_keys(input, expected):
     assert utils.dedupe_keys(input) == expected
+
+
+def test_dedupe_keys_many_duplicates():
+    input_keys = ["col"] * 1000
+    expected = ["col"] + [f"col_{i}" for i in range(2, 1001)]
+    assert utils.dedupe_keys(input_keys) == expected
