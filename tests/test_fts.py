@@ -51,6 +51,21 @@ def test_enable_fts(fresh_db):
     assert [] == list(table.search("bar"))
 
 
+def test_enable_fts_accepts_iterator_columns(fresh_db):
+    # One-shot iterables should work the same as lists - see issue #902
+    table = fresh_db.table("searchable")
+    table.insert_all(search_records)
+    table.enable_fts(iter(["text", "country"]), fts_version="FTS4")
+    assert [
+        {
+            "rowid": 1,
+            "text": "tanuki are running tricksters",
+            "country": "Japan",
+            "not_searchable": "foo",
+        }
+    ] == list(table.search("tanuki"))
+
+
 def test_enable_fts_escape_table_names(fresh_db):
     # Table names with restricted chars are handled correctly.
     # colons and dots are restricted characters for table names.
