@@ -131,3 +131,24 @@ def test_detect_format_keeps_streaming_reader_open(
     assert not buffered_readers[0].closed
     assert len(list(rows)) == 2000
     assert buffered_readers[0].closed
+
+
+@pytest.mark.parametrize(
+    "input,expected",
+    (
+        (b"name\nAnn\nBob\n", [{"name": "Ann"}, {"name": "Bob"}]),
+        (
+            b"url\nhttps://example.com/a\nhttps://example.org/b\n",
+            [
+                {"url": "https://example.com/a"},
+                {"url": "https://example.org/b"},
+            ],
+        ),
+    ),
+)
+def test_rows_from_file_single_column(input, expected):
+    # https://github.com/simonw/sqlite-utils/issues/907 — the sniffer must
+    # not invent a delimiter out of ordinary letters.
+    rows, format = rows_from_file(BytesIO(input))
+    assert format == Format.CSV
+    assert list(rows) == expected
