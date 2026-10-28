@@ -5163,12 +5163,15 @@ class Table(Queryable):
         if self.exists():
             self.add_missing_columns([combined_values])
             unique_column_sets = [
-                {fold_identifier_case(c) for c in i.columns} for i in self.indexes
+                {fold_identifier_case(c) for c in i.columns}
+                for i in self.indexes
+                if i.unique and not i.partial and all(c is not None for c in i.columns)
             ]
-            if {
-                fold_identifier_case(c) for c in lookup_values
-            } not in unique_column_sets:
-                self.create_index(lookup_values.keys(), unique=True)
+            lookup_column_set = {fold_identifier_case(c) for c in lookup_values}
+            if lookup_column_set not in unique_column_sets:
+                self.create_index(
+                    lookup_values.keys(), unique=True, find_unique_name=True
+                )
             # IS rather than = so that null values are matched correctly
             wheres = [f"{quote_identifier(column)} IS ?" for column in lookup_values]
             rows = list(

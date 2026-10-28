@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 
 from sqlite_utils.db import Index
@@ -182,3 +184,88 @@ def test_lookup_compound_key_with_null_idempotent(fresh_db):
         {"id": palm_id, "name": "Palm", "type": None},
         {"id": oak_id, "name": "Oak", "type": "Tree"},
     ]
+
+
+@pytest.mark.parametrize("index_name", ["custom_species_name", None])
+def test_lookup_adds_full_unique_index_when_only_ordinary_index_exists(
+    fresh_db, index_name
+):
+    species = fresh_db.table("species", pk="id")
+    species.insert({"id": 1, "name": "Palm"})
+    if index_name is None:
+        species.create_index(["name"])
+        ordinary_index_name = "idx_species_name"
+    else:
+        species.create_index(["name"], index_name=index_name)
+        ordinary_index_name = index_name
+
+    species.lookup({"name": "Palm"})
+
+    indexes = species.indexes
+    assert any(
+        index.unique == 1 and index.partial == 0 and index.columns == ["name"]
+        for index in indexes
+    )
+    assert any(index.name == ordinary_index_name for index in indexes)
+    assert len([index for index in indexes if index.columns == ["name"]]) == 2
+
+    with pytest.raises(sqlite3.IntegrityError):
+        species.insert({"id": 2, "name": "Palm"})
+
+
+def test_lookup_rejects_ambiguous_rows_with_ordinary_index(fresh_db):
+    species = fresh_db.table("species", pk="id")
+    species.insert_all([{"id": 1, "name": "Palm"}, {"id": 2, "name": "Palm"}])
+    species.create_index(["name"], index_name="idx_species_name")
+    original_rows = list(species.rows)
+
+    with pytest.raises(sqlite3.IntegrityError):
+        species.lookup({"name": "Palm"})
+
+    assert list(species.rows) == original_rows
+
+
+def test_partial_unique_index_does_not_count_as_full_lookup_constraint(fresh_db):
+    species = fresh_db.table("species", pk="id")
+    species.insert({"id": 1, "name": "Palm"})
+    species.db.execute(
+        'CREATE UNIQUE INDEX "idx_species_name_partial" '
+        'ON "species" ("name") WHERE "name" = \'Palm\''
+    )
+
+    species.lookup({"name": "Oak"})
+
+    assert any(
+        index.unique == 1 and index.partial == 0 and index.columns == ["name"]
+        for index in species.indexes
+    )
+
+
+def test_lookup_reuses_existing_full_unique_index(fresh_db):
+    species = fresh_db.table("species", pk="id")
+    species.insert({"id": 1, "name": "Palm"})
+    species.create_index(["name"], index_name="existing_unique_name", unique=True)
+    original_indexes = species.indexes
+
+    species.lookup({"name": "Palm"})
+
+    assert species.indexes == original_indexes
+
+
+@pytest.mark.parametrize("index_columns", ["lower(name)", "name, lower(category)"])
+def test_lookup_skips_unique_expression_indexes(fresh_db, index_columns):
+    species = fresh_db.table("species", pk="id")
+    species.insert({"id": 1, "name": "Palm", "category": "Tree"})
+    species.db.execute(
+        f'CREATE UNIQUE INDEX "species_expression" ON "species" ({index_columns})'
+    )
+
+    assert species.lookup({"name": "Palm"}) == 1
+    assert species.lookup({"name": "Oak"}) == species.lookup({"name": "Oak"})
+    assert any(index.name == "species_expression" for index in species.indexes)
+    assert any(
+        index.unique == 1 and index.partial == 0 and index.columns == ["name"]
+        for index in species.indexes
+    )
+    with pytest.raises(sqlite3.IntegrityError):
+        species.insert({"id": 3, "name": "Palm", "category": "Different"})
