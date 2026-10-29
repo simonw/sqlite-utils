@@ -3794,10 +3794,18 @@ class Table(Queryable):
             fts_schema = self.db[f"{self.name}_fts"].schema
             if fts_schema != create_fts_sql:
                 should_recreate = True
-            expected_triggers = {self.name + suffix for suffix in ("_ai", "_ad", "_au")}
+            trigger_suffixes = ["_ai", "_ad", "_au"]
+            if fts_version.upper() == "FTS4":
+                trigger_suffixes.append("_bu")
+            expected_triggers = {self.name + suffix for suffix in trigger_suffixes}
+            known_triggers = {
+                self.name + suffix for suffix in ("_ai", "_ad", "_au", "_bu")
+            }
             existing_triggers = {t.name for t in self.triggers}
             has_triggers = existing_triggers.issuperset(expected_triggers)
-            if has_triggers != create_triggers:
+            if (create_triggers and not has_triggers) or (
+                not create_triggers and bool(existing_triggers & known_triggers)
+            ):
                 should_recreate = True
             if not should_recreate:
                 # Table with correct configuration already exists
@@ -3815,31 +3823,62 @@ class Table(Queryable):
             columns_quoted = ", ".join(quote_identifier(c) for c in columns)
             table = quote_identifier(self.name)
             table_fts = quote_identifier(self.name + "_fts")
-            triggers = (
-                textwrap.dedent("""
-                CREATE TRIGGER {table_ai} AFTER INSERT ON {table} BEGIN
-                  INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
-                END;
-                CREATE TRIGGER {table_ad} AFTER DELETE ON {table} BEGIN
-                  INSERT INTO {table_fts} ({table_fts}, rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
-                END;
-                CREATE TRIGGER {table_au} AFTER UPDATE ON {table} BEGIN
-                  INSERT INTO {table_fts} ({table_fts}, rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
-                  INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
-                END;
-            """)
-                .strip()
-                .format(
-                    table=table,
-                    table_fts=table_fts,
-                    table_ai=quote_identifier(self.name + "_ai"),
-                    table_ad=quote_identifier(self.name + "_ad"),
-                    table_au=quote_identifier(self.name + "_au"),
-                    columns=columns_quoted,
-                    old_cols=old_cols,
-                    new_cols=new_cols,
+            if fts_version.upper() == "FTS4":
+                # FTS4 reads old values from the content table while deleting
+                # index entries, so this must run before the content changes.
+                triggers = (
+                    textwrap.dedent("""
+                    CREATE TRIGGER {table_ai} AFTER INSERT ON {table} BEGIN
+                      INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
+                    END;
+                    CREATE TRIGGER {table_ad} BEFORE DELETE ON {table} BEGIN
+                      DELETE FROM {table_fts} WHERE rowid = old.rowid;
+                    END;
+                    CREATE TRIGGER {table_bu} BEFORE UPDATE ON {table} BEGIN
+                      DELETE FROM {table_fts} WHERE rowid = old.rowid;
+                    END;
+                    CREATE TRIGGER {table_au} AFTER UPDATE ON {table} BEGIN
+                      INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
+                    END;
+                """)
+                    .strip()
+                    .format(
+                        table=table,
+                        table_fts=table_fts,
+                        table_ai=quote_identifier(self.name + "_ai"),
+                        table_ad=quote_identifier(self.name + "_ad"),
+                        table_bu=quote_identifier(self.name + "_bu"),
+                        table_au=quote_identifier(self.name + "_au"),
+                        columns=columns_quoted,
+                        new_cols=new_cols,
+                    )
                 )
-            )
+            else:
+                triggers = (
+                    textwrap.dedent("""
+                    CREATE TRIGGER {table_ai} AFTER INSERT ON {table} BEGIN
+                      INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
+                    END;
+                    CREATE TRIGGER {table_ad} AFTER DELETE ON {table} BEGIN
+                      INSERT INTO {table_fts} ({table_fts}, rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
+                    END;
+                    CREATE TRIGGER {table_au} AFTER UPDATE ON {table} BEGIN
+                      INSERT INTO {table_fts} ({table_fts}, rowid, {columns}) VALUES('delete', old.rowid, {old_cols});
+                      INSERT INTO {table_fts} (rowid, {columns}) VALUES (new.rowid, {new_cols});
+                    END;
+                """)
+                    .strip()
+                    .format(
+                        table=table,
+                        table_fts=table_fts,
+                        table_ai=quote_identifier(self.name + "_ai"),
+                        table_ad=quote_identifier(self.name + "_ad"),
+                        table_au=quote_identifier(self.name + "_au"),
+                        columns=columns_quoted,
+                        old_cols=old_cols,
+                        new_cols=new_cols,
+                    )
+                )
             self.db.executescript(triggers)
         return self
 
@@ -3869,16 +3908,30 @@ class Table(Queryable):
     def disable_fts(self) -> "Table":
         "Remove any full-text search index and related triggers configured for this table."
         fts_table = self.detect_fts()
-        if fts_table:
-            self.db[fts_table].drop()
+        if fts_table is None:
+            return self
+        self.db[fts_table].drop()
         # Now delete the triggers that related to that table
         sql = textwrap.dedent("""
             SELECT name FROM sqlite_master
                 WHERE type = 'trigger'
-                AND (sql LIKE '% INSERT INTO [{}]%' OR sql LIKE '% INSERT INTO "{}"%')
-        """).strip().format(fts_table, fts_table)
+                AND (
+                    instr(lower(sql), lower(:insert_quoted)) > 0
+                    OR instr(lower(sql), lower(:insert_bracket)) > 0
+                    OR instr(lower(sql), lower(:delete_quoted)) > 0
+                    OR instr(lower(sql), lower(:delete_bracket)) > 0
+                )
+        """).strip()
+        quoted = quote_identifier(fts_table)
+        bracketed = f"[{fts_table}]"
+        patterns = {
+            "insert_quoted": f" INSERT INTO {quoted}",
+            "insert_bracket": f" INSERT INTO {bracketed}",
+            "delete_quoted": f" DELETE FROM {quoted}",
+            "delete_bracket": f" DELETE FROM {bracketed}",
+        }
         trigger_names = []
-        for row in self.db.execute(sql).fetchall():
+        for row in self.db.execute(sql, patterns).fetchall():
             trigger_names.append(row[0])
         with self.db.atomic():
             for trigger_name in trigger_names:

@@ -235,7 +235,8 @@ def test_checks_nonexistent_and_virtual_tables(fresh_db):
     assert fresh_db.table("searchable_fts").checks == []
 
 
-def test_triggers_and_triggers_dict(fresh_db):
+@pytest.mark.parametrize("fts_version", ["FTS4", "FTS5"])
+def test_triggers_and_triggers_dict(fresh_db, fts_version):
     assert [] == fresh_db.triggers
     authors = fresh_db.table("authors")
     authors.insert_all(
@@ -250,13 +251,15 @@ def test_triggers_and_triggers_dict(fresh_db):
     assert fresh_db.table("other").triggers == []
     assert fresh_db.triggers_dict == {}
     authors.enable_fts(
-        ["name", "famous_works"], fts_version="FTS4", create_triggers=True
+        ["name", "famous_works"], fts_version=fts_version, create_triggers=True
     )
     expected_triggers = {
         ("authors_ai", "authors"),
         ("authors_ad", "authors"),
         ("authors_au", "authors"),
     }
+    if fts_version == "FTS4":
+        expected_triggers.add(("authors_bu", "authors"))
     assert expected_triggers == {(t.name, t.table) for t in fresh_db.triggers}
     assert expected_triggers == {
         (t.name, t.table) for t in fresh_db.table("authors").triggers
@@ -278,6 +281,26 @@ def test_triggers_and_triggers_dict(fresh_db):
             '  INSERT INTO "authors_fts" (rowid, "name", "famous_works") VALUES (new.rowid, new."name", new."famous_works");\nEND'
         ),
     }
+    if fts_version == "FTS4":
+        expected_triggers.update(
+            {
+                "authors_ad": (
+                    'CREATE TRIGGER "authors_ad" BEFORE DELETE ON "authors" BEGIN\n'
+                    '  DELETE FROM "authors_fts" WHERE rowid = old.rowid;\n'
+                    "END"
+                ),
+                "authors_bu": (
+                    'CREATE TRIGGER "authors_bu" BEFORE UPDATE ON "authors" BEGIN\n'
+                    '  DELETE FROM "authors_fts" WHERE rowid = old.rowid;\n'
+                    "END"
+                ),
+                "authors_au": (
+                    'CREATE TRIGGER "authors_au" AFTER UPDATE ON "authors" BEGIN\n'
+                    '  INSERT INTO "authors_fts" (rowid, "name", "famous_works") VALUES (new.rowid, new."name", new."famous_works");\n'
+                    "END"
+                ),
+            }
+        )
     assert authors.triggers_dict == expected_triggers
     assert fresh_db.table("other").triggers == []
     assert fresh_db.table("other").triggers_dict == {}
