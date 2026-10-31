@@ -340,7 +340,8 @@ def test_create_error_if_invalid_self_referential_foreign_keys(fresh_db):
             pk="id",
             foreign_keys=(("ref_id", "one", "bad_column"),),
         )
-        assert ex.value.args == ("No such column: one.bad_column",)
+
+    assert ex.value.args == ("No such column: one.bad_column",)
 
 
 @pytest.mark.parametrize(
