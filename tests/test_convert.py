@@ -80,7 +80,8 @@ def test_convert_output_multiple_column_error(fresh_db):
     table = fresh_db.table("table")
     with pytest.raises(ValueError) as excinfo:
         table.convert(["title", "other"], lambda v: v, output="out")
-        assert "output= can only be used with a single column" in str(excinfo.value)
+
+    assert "output= can only be used with a single column" in str(excinfo.value)
 
 
 @pytest.mark.parametrize(
