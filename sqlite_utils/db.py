@@ -546,8 +546,8 @@ class Database:
         # Create an in-memory database:
         dB = Database(memory=True)
 
-    :param filename_or_conn: String path to a file, or a ``pathlib.Path`` object, or a
-      ``sqlite3`` connection
+    :param filename_or_conn: String path to a file or SQLite URI, a ``pathlib.Path``
+      object, or a ``sqlite3`` connection
     :param memory: set to ``True`` to create an in-memory database
     :param memory_name: creates a named in-memory database that can be shared across multiple connections
     :param recreate: set to ``True`` to delete and recreate a file database (**dangerous**)
@@ -588,9 +588,9 @@ class Database:
         ):
             raise ValueError("Either specify a filename_or_conn or pass memory=True")
         if memory_name:
-            uri = f"file:{memory_name}?mode=memory&cache=shared"
+            connection_uri = f"file:{memory_name}?mode=memory&cache=shared"
             self.conn = sqlite3.connect(
-                uri,
+                connection_uri,
                 uri=True,
                 check_same_thread=False,
             )
@@ -600,6 +600,10 @@ class Database:
             self.conn = sqlite3.connect(":memory:")
             self.memory = True
         elif isinstance(filename_or_conn, (str, pathlib.Path)):
+            filename = str(filename_or_conn)
+            is_uri = filename.startswith("file:")
+            if recreate and is_uri:
+                raise ValueError("recreate cannot be used with SQLite URIs")
             if recreate and os.path.exists(filename_or_conn):
                 try:
                     os.remove(filename_or_conn)
@@ -608,7 +612,7 @@ class Database:
                     # https://github.com/simonw/sqlite-utils/issues/503
                     self.conn = sqlite3.connect(":memory:")
                     raise
-            self.conn = sqlite3.connect(str(filename_or_conn))
+            self.conn = sqlite3.connect(filename, uri=True)
         else:
             if recreate:
                 raise ValueError("recreate cannot be used with connections, only paths")
@@ -857,12 +861,16 @@ class Database:
             ATTACH DATABASE 'filepath.db' AS alias
 
         :param alias: Alias name to use
-        :param filepath: Path to SQLite database file on disk
+        :param filepath: Path or SQLite URI for a database file on disk
         """
-        attach_sql = f"""
-            ATTACH DATABASE '{pathlib.Path(filepath).resolve()!s}' AS {quote_identifier(alias)};
-        """.strip()
-        self.execute(attach_sql)
+        if isinstance(filepath, str) and filepath.startswith("file:"):
+            database = filepath
+        else:
+            database = str(pathlib.Path(filepath).resolve())
+        self.execute(
+            f"ATTACH DATABASE ? AS {quote_identifier(alias)}",
+            (database,),
+        )
 
     def query(
         self, sql: str, params: Sequence | dict[str, Any] | None = None

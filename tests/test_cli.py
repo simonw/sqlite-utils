@@ -61,6 +61,22 @@ def test_tables(db_path):
     assert '[{"table": "Gosh"},\n {"table": "Gosh2"}]' == result.output.strip()
 
 
+def test_tables_sqlite_uri(db_path):
+    uri = Path(db_path).as_uri() + "?mode=ro"
+    result = CliRunner().invoke(cli.cli, ["tables", uri])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == [{"table": "Gosh"}, {"table": "Gosh2"}]
+
+
+def test_create_table_sqlite_uri(db_path):
+    uri = Path(db_path).as_uri() + "?mode=rw"
+    result = CliRunner().invoke(
+        cli.cli, ["create-table", uri, "created_via_uri", "name", "text"]
+    )
+    assert result.exit_code == 0, result.output
+    assert Database(db_path).table("created_via_uri").exists()
+
+
 def test_views(db_path):
     Database(db_path).create_view("hello", "select sqlite_version()")
     result = CliRunner().invoke(cli.cli, ["views", db_path, "--table", "--schema"])
@@ -821,6 +837,23 @@ def test_query_sql_from_stdin(db_path):
     )
     assert result.exit_code == 0, result.output
     assert json.loads(result.output) == [{"name": "Cleo"}, {"name": "Pancakes"}]
+
+
+def test_query_sqlite_uri(db_path):
+    uri = Path(db_path).as_uri() + "?mode=ro&immutable=1"
+    result = CliRunner().invoke(
+        cli.cli,
+        ["query", uri, "select name from sqlite_master where name = 'Gosh'"],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == [{"name": "Gosh"}]
+
+    write_result = CliRunner().invoke(
+        cli.cli,
+        ["query", uri, "insert into Gosh values ('one', 'two', 'three')"],
+    )
+    assert write_result.exit_code != 0
+    assert "readonly" in write_result.output.lower()
 
 
 def test_query_json_empty(db_path):
@@ -2532,6 +2565,20 @@ def test_attach(tmpdir):
         {"id": 1, "text": "foo"},
         {"id": 1, "text": "bar"},
     ]
+
+
+def test_attach_sqlite_uri(tmpdir):
+    foo_path = str(tmpdir / "foo.db")
+    bar_path = str(tmpdir / "bar.db")
+    Database(foo_path).table("foo").insert({"text": "foo"})
+    Database(bar_path).table("bar").insert({"text": "bar"})
+    bar_uri = Path(bar_path).as_uri() + "?mode=ro"
+    result = CliRunner().invoke(
+        cli.cli,
+        [foo_path, "--attach", "bar", bar_uri, "select text from bar.bar"],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == [{"text": "bar"}]
 
 
 def test_csv_insert_bom(tmpdir):

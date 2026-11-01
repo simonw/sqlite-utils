@@ -1,3 +1,4 @@
+import pathlib
 import sys
 
 import pytest
@@ -114,3 +115,20 @@ def test_memory_attribute_for_file_path(tmpdir):
     db = Database(str(tmpdir / "file.db"))
     assert db.memory is False
     assert db.memory_name is None
+
+
+def test_sqlite_uri(tmpdir):
+    path = tmpdir / "file.db"
+    Database(str(path)).close()
+    uri = pathlib.Path(str(path)).as_uri() + "?mode=ro"
+    db = Database(uri)
+    assert db.execute("select 1").fetchone()[0] == 1
+    with pytest.raises(sqlite3.OperationalError, match="readonly"):
+        db.execute("create table test (id integer)")
+    db.close()
+
+
+def test_recreate_rejects_sqlite_uri(tmpdir):
+    uri = pathlib.Path(str(tmpdir / "file.db")).as_uri() + "?mode=rwc"
+    with pytest.raises(ValueError, match="SQLite URIs"):
+        Database(uri, recreate=True)

@@ -81,6 +81,12 @@ Database objects are constructed by passing in either a path to a file on disk o
 
 This will create ``my_database.db`` if it does not already exist.
 
+SQLite URI filenames can also be passed in place of a regular path. For example,
+``Database("file:my_database.db?mode=ro")`` opens a database read-only. See the
+`SQLite URI documentation <https://www.sqlite.org/uri.html>`__ for supported
+options. ``immutable=1`` should only be used when the database cannot change
+while the connection is open.
+
 If you want to recreate a database from scratch (first removing the existing file from disk if it already exists) you can use the ``recreate=True`` argument:
 
 .. code-block:: python

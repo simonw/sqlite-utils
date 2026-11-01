@@ -8,6 +8,18 @@ The ``sqlite-utils`` command-line tool can be used to manipulate SQLite database
 
 Once :ref:`installed <installation>` the tool should be available as ``sqlite-utils``. It can also be run using ``python -m sqlite_utils``.
 
+All CLI arguments that refer to a database accept `SQLite URI filenames
+<https://www.sqlite.org/uri.html>`__ as well as regular paths. For example, to
+query a database that will not change while it is open:
+
+.. code-block:: bash
+
+    sqlite-utils query 'file:foo.db?immutable=1' "select * from bar"
+
+SQLite URI options such as ``mode=ro`` are interpreted by SQLite. In particular,
+``immutable=1`` tells SQLite that the database file cannot change; do not use it
+for files that may be modified while the connection is open.
+
 .. contents:: :local:
    :class: this-will-duplicate-information-and-it-is-still-useful-here
 
