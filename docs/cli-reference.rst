@@ -597,6 +597,8 @@ See :ref:`cli_insert_files`.
       --text                 Store file content as TEXT, not BLOB
       --encoding TEXT        Character encoding for input, defaults to utf-8
       -s, --silent           Don't show a progress bar
+      --convert TEXT         Python code to convert each file row
+      --import TEXT          Python modules to import
       --load-extension TEXT  Path to SQLite extension, with optional :entrypoint
       -h, --help             Show this message and exit.
 

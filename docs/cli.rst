@@ -1803,6 +1803,34 @@ The ``-`` argument indicates data should be read from standard input. The string
 
 When inserting data from standard input only the following column definitions are supported: ``name``, ``path``, ``content``, ``content_text``, ``sha256``, ``md5`` and ``size``.
 
+.. _cli_insert_files_convert:
+
+Converting files during insertion
+-----------------------------------
+
+Use ``--convert`` to transform each file row before it is inserted. The Python code receives a ``row`` dictionary with the column names selected by ``-c``, or the default columns if ``-c`` is omitted. Conversion runs after ``--name``, text decoding and metadata extraction, and works for files, directories and standard input.
+
+For example, this compresses file contents before storing them in a ``data`` column:
+
+.. code-block:: bash
+
+    sqlite-utils insert-files files.db files example.txt \
+        -c name:name -c data:content -c size:size --pk name \
+        --import zlib --convert 'row["data"] = zlib.compress(row["data"])'
+
+The ``size`` column still contains the original file size. Other metadata and hashes are also calculated from the original file, unless your conversion changes them.
+
+Your code can modify ``row`` in place and return ``None``, or return a replacement dictionary. For example, to uppercase text content:
+
+.. code-block:: bash
+
+    sqlite-utils insert-files files.db files example.txt --text \
+        --convert '{**row, "content_text": row["content_text"].upper()}'
+
+You can also supply a function called ``convert(row)``. Use ``--import`` multiple times to make additional Python modules available. Each file row is converted once, before it is passed to the existing batched insertion mechanism; the primary key columns must still be present in the converted row.
+
+Invalid conversion code, import failures and exceptions raised by the conversion stop the command with an error. A conversion must return a dictionary or ``None``; the resulting row must be non-empty and have string column names. As with other batched imports, an error does not guarantee that previously inserted batches will be rolled back.
+
 .. _cli_convert:
 
 Converting data in columns
