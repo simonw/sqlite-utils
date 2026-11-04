@@ -953,6 +953,19 @@ _import_options = (
     ),
     click.option("--convert", help="Python code to convert each item"),
     click.option(
+        "--convert-file",
+        type=click.Path(exists=True, dir_okay=False, allow_dash=True),
+        help="Read conversion code from a UTF-8 file, or - for stdin",
+    ),
+    click.option(
+        "--var",
+        "variables",
+        nargs=2,
+        multiple=True,
+        metavar="NAME VALUE",
+        help="Set a string variable for the conversion script",
+    ),
+    click.option(
         "--import",
         "imports",
         type=str,
@@ -1071,6 +1084,8 @@ def insert_upsert_implementation(
     lines,
     text,
     convert,
+    convert_file,
+    variables,
     imports,
     delimiter,
     quotechar,
@@ -1096,6 +1111,19 @@ def insert_upsert_implementation(
     strict=False,
     code=None,
 ):
+    if convert_file is not None:
+        if convert is not None:
+            raise click.UsageError("Use only one of --convert and --convert-file")
+        if convert_file == "-" and getattr(file, "name", None) == "-":
+            raise click.UsageError(
+                "Cannot read both data and conversion code from stdin"
+            )
+        if code is not None:
+            raise click.UsageError("--code cannot be used with --convert-file")
+        with click.open_file(convert_file, encoding="utf-8") as script:
+            convert = script.read()
+    if variables and not convert:
+        raise click.UsageError("--var requires --convert or --convert-file")
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
     _load_extensions(db, load_extension)
@@ -1295,7 +1323,7 @@ def insert_upsert_implementation(
                 variable = "line"
             elif text:
                 variable = "text"
-            fn = _compile_code(convert, imports, variable=variable)
+            fn = _compile_code(convert, imports, variable=variable, variables=variables)
             if lines:
                 docs = (fn(doc["line"]) for doc in docs)
             elif text:
@@ -1366,6 +1394,8 @@ def insert(
     lines,
     text,
     convert,
+    convert_file,
+    variables,
     imports,
     delimiter,
     quotechar,
@@ -1459,6 +1489,8 @@ def insert(
             lines,
             text,
             convert,
+            convert_file,
+            variables,
             imports,
             delimiter,
             quotechar,
@@ -1502,6 +1534,8 @@ def upsert(
     lines,
     text,
     convert,
+    convert_file,
+    variables,
     imports,
     batch_size,
     stop_after,
@@ -1552,6 +1586,8 @@ def upsert(
             lines,
             text,
             convert,
+            convert_file,
+            variables,
             imports,
             delimiter,
             quotechar,
@@ -1602,6 +1638,8 @@ def bulk(
     lines,
     text,
     convert,
+    convert_file,
+    variables,
     imports,
     delimiter,
     quotechar,
@@ -1637,6 +1675,8 @@ def bulk(
             lines=lines,
             text=text,
             convert=convert,
+            convert_file=convert_file,
+            variables=variables,
             imports=imports,
             delimiter=delimiter,
             quotechar=quotechar,

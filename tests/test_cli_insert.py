@@ -892,3 +892,56 @@ def test_insert_code_file_not_found(tmpdir):
     )
     assert result.exit_code == 1
     assert "File not found: missing.py" in result.output
+
+
+@pytest.mark.parametrize("source", ["inline", "file", "stdin"])
+def test_convert_variables(db_path, tmp_path, source):
+    script = "def convert(text):\n    return dict(text=text, host=host, port=port)"
+    data = tmp_path / "data.txt"
+    data.write_text("entry")
+    options = ["--convert", script]
+    if source == "file":
+        path = tmp_path / "convert.py"
+        path.write_text(script)
+        options = ["--convert-file", str(path)]
+    elif source == "stdin":
+        options = ["--convert-file", "-"]
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert",
+            db_path,
+            "logs",
+            str(data),
+            "--text",
+            *options,
+            "--var",
+            "host",
+            "localhost",
+            "--var",
+            "port",
+            "0080",
+        ],
+        input=script if source == "stdin" else None,
+    )
+    assert result.exit_code == 0, result.output
+    assert list(Database(db_path)["logs"].rows) == [
+        {"text": "entry", "host": "localhost", "port": "0080"}
+    ]
+
+
+@pytest.mark.parametrize(
+    "options, message",
+    [
+        (["--var", "server", "local"], "--var requires --convert or --convert-file"),
+        (["--convert", "row", "--convert-file", "-"], "Use only one"),
+        (
+            ["--convert-file", "-"],
+            "Cannot read both data and conversion code from stdin",
+        ),
+    ],
+)
+def test_convert_option_errors(db_path, options, message):
+    result = CliRunner().invoke(cli.cli, ["insert", db_path, "logs", "-", *options])
+    assert result.exit_code == 2, result.output
+    assert message in result.output

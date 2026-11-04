@@ -1520,6 +1520,23 @@ The following command will insert that data and add an ``is_good`` column set to
 
     sqlite-utils insert dogs.db dogs dogs.json --convert 'row["is_good"] = 1'
 
+To reuse a conversion, save the Python code in a UTF-8 file and pass it with
+``--convert-file``. Use ``--var NAME VALUE`` for each string value you want to
+make available to the script. For example, if ``tag.py`` contains:
+
+.. code-block:: python
+
+    def convert(row):
+        row["server"] = server
+        return row
+
+you can label each imported row with its source::
+
+    sqlite-utils insert logs.db logs events.json --convert-file tag.py --var server localhost
+
+Variables also work with inline ``--convert`` code. To read the script from
+standard input, use ``--convert-file -`` and supply the data in a separate file.
+
 The ``--convert`` option also works with the ``--csv``, ``--tsv`` and ``--nl`` insert options.
 
 As with ``sqlite-utils convert`` you can use ``--import`` to import additional Python modules, see :ref:`cli_convert_import` for details.

@@ -526,9 +526,13 @@ def progressbar(*args: Iterable[T], **kwargs: Any) -> Generator[Any, None, None]
 
 
 def _compile_code(
-    code: str, imports: Iterable[str], variable: str = "value"
+    code: str,
+    imports: Iterable[str],
+    variable: str = "value",
+    variables: Iterable[tuple[str, str]] = (),
 ) -> Callable[..., Any]:
     globals_dict: dict[str, Any] = {"r": recipes, "recipes": recipes}
+    globals_dict.update(variables)
     # Handle imports first so they're available for all approaches
     for import_ in imports:
         globals_dict[import_.split(".")[0]] = __import__(import_)
@@ -536,7 +540,8 @@ def _compile_code(
     # If user defined a convert() function, return that
     try:
         exec(code, globals_dict)  # noqa: S102
-        return cast(Callable[..., object], globals_dict["convert"])
+        if callable(globals_dict.get("convert")):
+            return cast(Callable[..., object], globals_dict["convert"])
     except (AttributeError, SyntaxError, NameError, KeyError, TypeError):
         pass
 
