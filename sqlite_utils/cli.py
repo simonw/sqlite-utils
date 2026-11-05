@@ -1619,7 +1619,7 @@ def upsert(
     required=True,
 )
 @click.argument("sql")
-@click.argument("file", type=click.File("rb"), required=True)
+@click.argument("file", type=click.File("rb", lazy=True), required=True)
 @click.option("--batch-size", type=int, default=100, help="Commit every X records")
 @functions_option
 @import_options
