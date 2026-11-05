@@ -898,17 +898,22 @@ def test_convert_variable_named_fn(db_path):
     result = CliRunner().invoke(
         cli.cli,
         [
-            "insert", db_path, "logs", "-",
-            "--nl", "--silent",
-            "--convert", "dict(row, label=fn)",
-            "--var", "fn", "0080",
+            "insert",
+            db_path,
+            "logs",
+            "-",
+            "--nl",
+            "--silent",
+            "--convert",
+            "dict(row, label=fn)",
+            "--var",
+            "fn",
+            "0080",
         ],
         input='{"id": 1}\n',
     )
     assert result.exit_code == 0, result.output
-    assert list(Database(db_path)["logs"].rows) == [
-        {"id": 1, "label": "0080"}
-    ]
+    assert list(Database(db_path)["logs"].rows) == [{"id": 1, "label": "0080"}]
 
 
 @pytest.mark.parametrize("source", ["inline", "file", "stdin"])
