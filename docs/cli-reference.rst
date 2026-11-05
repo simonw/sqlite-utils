@@ -299,6 +299,9 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --lines                   Treat each line as a single value called 'line'
       --text                    Treat input as a single value called 'text'
       --convert TEXT            Python code to convert each item
+      --convert-file FILE       Read conversion code from a UTF-8 file, or - for
+                                stdin
+      --var NAME VALUE          Set a string variable for the conversion script
       --import TEXT             Python modules to import
       --delimiter TEXT          Delimiter to use for CSV files
       --quotechar TEXT          Quote character to use for CSV/TSV
@@ -363,6 +366,9 @@ See :ref:`cli_upsert`.
       --lines                   Treat each line as a single value called 'line'
       --text                    Treat input as a single value called 'text'
       --convert TEXT            Python code to convert each item
+      --convert-file FILE       Read conversion code from a UTF-8 file, or - for
+                                stdin
+      --var NAME VALUE          Set a string variable for the conversion script
       --import TEXT             Python modules to import
       --delimiter TEXT          Delimiter to use for CSV files
       --quotechar TEXT          Quote character to use for CSV/TSV
@@ -418,6 +424,8 @@ See :ref:`cli_bulk`.
       --lines                Treat each line as a single value called 'line'
       --text                 Treat input as a single value called 'text'
       --convert TEXT         Python code to convert each item
+      --convert-file FILE    Read conversion code from a UTF-8 file, or - for stdin
+      --var NAME VALUE       Set a string variable for the conversion script
       --import TEXT          Python modules to import
       --delimiter TEXT       Delimiter to use for CSV files
       --quotechar TEXT       Quote character to use for CSV/TSV
