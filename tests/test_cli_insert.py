@@ -894,6 +894,23 @@ def test_insert_code_file_not_found(tmpdir):
     assert "File not found: missing.py" in result.output
 
 
+def test_convert_variable_named_fn(db_path):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert", db_path, "logs", "-",
+            "--nl", "--silent",
+            "--convert", "dict(row, label=fn)",
+            "--var", "fn", "0080",
+        ],
+        input='{"id": 1}\n',
+    )
+    assert result.exit_code == 0, result.output
+    assert list(Database(db_path)["logs"].rows) == [
+        {"id": 1, "label": "0080"}
+    ]
+
+
 @pytest.mark.parametrize("source", ["inline", "file", "stdin"])
 def test_convert_variables(db_path, tmp_path, source):
     script = "def convert(text):\n    return dict(text=text, host=host, port=port)"
