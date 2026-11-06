@@ -46,9 +46,17 @@ def test_detect_fts(existing_db):
 
 
 @pytest.mark.parametrize("reverse_order", (True, False))
-def test_detect_fts_similar_tables(fresh_db, reverse_order):
+@pytest.mark.parametrize(
+    "table1,table2",
+    [
+        ("demo", "demo2"),
+        ("demo_1", "demoX1"),
+        ("demo%1", "demoXX1"),
+        (r"demo\_1", r"demo\X1"),
+    ],
+)
+def test_detect_fts_similar_tables(fresh_db, reverse_order, table1, table2):
     # https://github.com/simonw/sqlite-utils/issues/434
-    table1, table2 = ("demo", "demo2")
     if reverse_order:
         table1, table2 = table2, table1
 
@@ -60,6 +68,15 @@ def test_detect_fts_similar_tables(fresh_db, reverse_order):
     )
     assert fresh_db.table(table1).detect_fts() == f"{table1}_fts"
     assert fresh_db.table(table2).detect_fts() == f"{table2}_fts"
+
+
+def test_detect_fts_legacy_bracket_quoted_wildcard(fresh_db):
+    fresh_db["demoX1"].insert({"title": "Other"}).enable_fts(["title"])
+    fresh_db["demo_1"].insert({"title": "Hello"})
+    fresh_db.execute(
+        'CREATE VIRTUAL TABLE "demo_1_fts" USING FTS4(title, content=[demo_1])'
+    )
+    assert fresh_db["demo_1"].detect_fts() == "demo_1_fts"
 
 
 def test_tables(existing_db):
