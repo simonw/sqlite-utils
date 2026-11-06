@@ -3907,17 +3907,20 @@ class Table(Queryable):
             SELECT name FROM sqlite_master
                 WHERE rootpage = 0
                 AND (
-                    sql LIKE :like
-                    OR sql LIKE :like2
+                    sql LIKE :like ESCAPE '\\'
+                    OR sql LIKE :like2 ESCAPE '\\'
                     OR (
                         tbl_name = :table
                         AND sql LIKE '%VIRTUAL TABLE%USING FTS%'
                     )
                 )
         """).strip()
+        escaped_name = (
+            self.name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        )
         args = {
-            "like": f"%VIRTUAL TABLE%USING FTS%content=[{self.name}]%",
-            "like2": f'%VIRTUAL TABLE%USING FTS%content="{self.name}"%',
+            "like": f"%VIRTUAL TABLE%USING FTS%content=[{escaped_name}]%",
+            "like2": f'%VIRTUAL TABLE%USING FTS%content="{escaped_name}"%',
             "table": self.name,
         }
         rows = self.db.execute(sql, args).fetchall()
