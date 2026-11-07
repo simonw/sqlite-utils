@@ -99,6 +99,12 @@ def quote_identifier(identifier: str) -> str:
     return '"{}"'.format(identifier.replace('"', '""'))
 
 
+def _m2m_columns(table: str, other_table: str) -> tuple[str, str]:
+    if table == other_table:
+        return f"{table}_id_1", f"{table}_id_2"
+    return f"{table}_id", f"{other_table}_id"
+
+
 def _check_constraint_sql(check: Check) -> str:
     prefix = f"CONSTRAINT {quote_identifier(check.name)} " if check.name else ""
     newline = "\n" if sql_ends_in_line_comment(check.check) else ""
@@ -1876,17 +1882,26 @@ class Database:
         """
         Given two table names returns the name of tables that could define a
         many-to-many relationship between those two tables, based on having
-        foreign keys to both of the provided tables.
+        foreign keys to both of the provided tables. When both names are the
+        same, the foreign keys must use the two generated link column names.
 
         :param table: Table name
         :param other_table: Other table name
         """
         candidates = []
         tables = {table, other_table}
+        link_columns = (
+            set(_m2m_columns(table, other_table)) if table == other_table else None
+        )
         for table_obj in self.tables:
-            # Does it have foreign keys to both table and other_table?
-            has_fks_to = {fk.other_table for fk in table_obj.foreign_keys}
-            if has_fks_to.issuperset(tables):
+            foreign_keys = table_obj.foreign_keys
+            if link_columns is not None:
+                matches = link_columns.issubset(
+                    fk.column for fk in foreign_keys if fk.other_table == table
+                )
+            else:
+                matches = tables.issubset(fk.other_table for fk in foreign_keys)
+            if matches:
                 candidates.append(table_obj.name)
         return candidates
 
@@ -5240,6 +5255,9 @@ class Table(Queryable):
         """
         if isinstance(other_table, str):
             other_table = self.db.table(other_table, pk=pk)
+        elif other_table is self:
+            # Inserting a related row should not change the source of a chained call.
+            other_table = self.db.table(self.name, **self._defaults)
         our_id = self.last_pk
         if lookup is not None:
             if record_or_iterable is not None:
@@ -5247,7 +5265,11 @@ class Table(Queryable):
         elif record_or_iterable is None:
             raise ValueError("Provide lookup= or record, not both")
         tables = sorted([self.name, other_table.name])
-        columns = [f"{t}_id" for t in tables]
+        source_column, target_column = _m2m_columns(self.name, other_table.name)
+        columns = list(_m2m_columns(*tables))
+        foreign_keys: ForeignKeysType = columns
+        if self.name == other_table.name:
+            foreign_keys = [(column, self.name) for column in columns]
         if m2m_table is not None:
             m2m_table_name = m2m_table
         else:
@@ -5262,7 +5284,9 @@ class Table(Queryable):
             else:
                 # If not, create a new table
                 m2m_table_name = m2m_table or "{}_{}".format(*tables)
-        m2m_table_obj = self.db.table(m2m_table_name, pk=columns, foreign_keys=columns)
+        m2m_table_obj = self.db.table(
+            m2m_table_name, pk=columns, foreign_keys=foreign_keys
+        )
         if lookup is None:
             # if records is only one record, put the record in a list
             if isinstance(record_or_iterable, Mapping):
@@ -5275,20 +5299,12 @@ class Table(Queryable):
                     cast(dict, record), pk=pk, replace=True, alter=alter
                 ).last_pk
                 m2m_table_obj.insert(
-                    {
-                        f"{other_table.name}_id": id,
-                        f"{self.name}_id": our_id,
-                    },
-                    replace=True,
+                    {target_column: id, source_column: our_id}, replace=True
                 )
         else:
             id = other_table.lookup(lookup)
             m2m_table_obj.insert(
-                {
-                    f"{other_table.name}_id": id,
-                    f"{self.name}_id": our_id,
-                },
-                replace=True,
+                {target_column: id, source_column: our_id}, replace=True
             )
         return self
 
