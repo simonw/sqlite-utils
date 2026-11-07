@@ -1827,7 +1827,23 @@ Your code can modify ``row`` in place and return ``None``, or return a replaceme
     sqlite-utils insert-files files.db files example.txt --text \
         --convert '{**row, "content_text": row["content_text"].upper()}'
 
-You can also supply a function called ``convert(row)``. Use ``--import`` multiple times to make additional Python modules available. Each file row is converted once, before it is passed to the existing batched insertion mechanism; the primary key columns must still be present in the converted row.
+You can also supply a function called ``convert(row)``. Use ``--import`` multiple times to make additional Python modules available. Each file row is converted once, before it is passed to the existing batched insertion mechanism.
+
+Every converted row must contain all selected primary-key columns with non-``None`` values. This includes the default ``path`` key when using the default columns, or each column selected with ``--pk``. If a key column is missing or its value is ``None``, the command stops with an error identifying the input file and column. Modify ``row`` in place or use ``{**row, ...}`` to preserve existing fields in a replacement dictionary. A conversion function can still return ``None`` after modifying ``row`` in place; the selected primary-key values themselves must be non-``None``.
+
+To create a new table with automatically assigned integer row IDs, select custom columns with ``-c`` and omit ``--pk``. For example, this stores the file contents in uppercase and retains the original file size:
+
+.. code-block:: bash
+
+    sqlite-utils insert-files rowids.db files example.txt \
+        -c content:content -c size:size \
+        --convert 'row["content"] = row["content"].upper()'
+
+This creates ``content`` and ``size`` columns and uses SQLite's implicit ``rowid`` to identify each row. Repeating the import appends another row with an automatically assigned ID. Include ``rowid`` explicitly in a query to view those IDs:
+
+.. code-block:: bash
+
+    sqlite-utils rowids.db "select rowid, size from files"
 
 Invalid conversion code, import failures and exceptions raised by the conversion stop the command with an error. A conversion must return a dictionary or ``None``; the resulting row must be non-empty and have string column names. As with other batched imports, an error does not guarantee that previously inserted batches will be rolled back.
 

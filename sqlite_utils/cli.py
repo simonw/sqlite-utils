@@ -31,6 +31,7 @@ from sqlite_utils.db import (
     NoView,
     PrimaryKeyRequired,
     quote_identifier,
+    resolve_casing,
 )
 from sqlite_utils.plugins import ensure_plugins_loaded, get_plugins, pm
 from sqlite_utils.utils import maximize_csv_field_size_limit
@@ -3039,6 +3040,20 @@ def insert_files(
                             f"Error converting file '{file_path}': "
                             "--convert produced a row with non-string column names"
                         )
+                    for pk in pks:
+                        resolved_pk = resolve_casing(pk, row)
+                        if resolved_pk not in row:
+                            raise click.ClickException(
+                                f"Error converting file '{file_path}': "
+                                f"--convert produced a row missing primary key column {pk!r}. "
+                                "Include this column in the converted row."
+                            )
+                        if row[resolved_pk] is None:
+                            raise click.ClickException(
+                                f"Error converting file '{file_path}': "
+                                f"--convert produced None for primary key column {pk!r}. "
+                                "Provide a non-None value for this column."
+                            )
                 yield row
 
         db = sqlite_utils.Database(path)

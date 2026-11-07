@@ -415,3 +415,181 @@ def test_insert_files_convert_error(tmp_path, code, imports, message):
     assert result.exit_code == 1, result.output
     assert message in result.output
     assert "Traceback" not in result.output
+
+
+@pytest.mark.parametrize(
+    "stdin,code",
+    [
+        (True, '{"content": row["content"], "size": row["size"]}'),
+        (False, 'del row["path"]'),
+    ],
+    ids=["replacement-stdin", "in-place-file"],
+)
+def test_insert_files_convert_missing_default_pk(tmp_path, stdin, code):
+    source = tmp_path / "first.txt"
+    source.write_bytes(b"hello")
+    file_arg = "-" if stdin else str(source)
+    db_path = str(tmp_path / "files.db")
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.cli,
+        [
+            "insert-files",
+            db_path,
+            "files",
+            file_arg,
+            "--name",
+            "first.txt",
+            "--convert",
+            code,
+        ],
+        input=b"hello" if stdin else None,
+    )
+    assert result.exit_code == 1, result.output
+    assert (
+        f"Error converting file '{file_arg}': "
+        "--convert produced a row missing primary key column 'path'"
+    ) in result.output
+    assert "Include this column in the converted row" in result.output
+    assert "Traceback" not in result.output
+    with Database(db_path) as db:
+        assert not db.table("files").exists()
+
+    # A rejected first row must not leave an integer path column behind.
+    result = runner.invoke(
+        cli.cli,
+        ["insert-files", db_path, "files", "-", "--name", "second.txt"],
+        input=b"world",
+    )
+    assert result.exit_code == 0, result.output
+    with Database(db_path) as db:
+        assert list(db.table("files").rows) == [
+            {"path": "second.txt", "content": b"world", "size": 5}
+        ]
+        assert db.table("files").columns_dict["path"] is str
+
+
+@pytest.mark.parametrize(
+    "pks,code,missing",
+    [
+        (["name"], '{"content": row["content"], "size": row["size"]}', "name"),
+        (["name", "size"], '{"name": row["name"], "content": row["content"]}', "size"),
+    ],
+    ids=["custom", "composite"],
+)
+def test_insert_files_convert_missing_selected_pk(tmp_path, pks, code, missing):
+    db_path = str(tmp_path / "files.db")
+    pk_args = [arg for pk in pks for arg in ("--pk", pk)]
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            "insert-files",
+            db_path,
+            "files",
+            "-",
+            "-c",
+            "name:name",
+            "-c",
+            "content:content",
+            "-c",
+            "size:size",
+            *pk_args,
+            "--convert",
+            code,
+        ],
+        input=b"hello",
+    )
+    assert result.exit_code == 1, result.output
+    assert f"missing primary key column '{missing}'" in result.output
+    assert "Traceback" not in result.output
+    with Database(db_path) as db:
+        assert not db.table("files").exists()
+
+
+def test_insert_files_convert_preserves_pk_across_imports(tmp_path):
+    db_path = str(tmp_path / "files.db")
+    args = [
+        "insert-files",
+        db_path,
+        "files",
+        "-",
+        "-c",
+        "name:name",
+        "-c",
+        "content:content",
+        "-c",
+        "size:size",
+        "--pk",
+        "NAME",
+    ]
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.cli,
+        [
+            *args,
+            "--name",
+            "first.txt",
+            "--convert",
+            '{**row, "content": row["content"].upper()}',
+        ],
+        input=b"hello",
+    )
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(cli.cli, [*args, "--name", "second.txt"], input=b"world")
+    assert result.exit_code == 0, result.output
+    with Database(db_path) as db:
+        assert db.table("files").pks == ["name"]
+        assert db.table("files").columns_dict["name"] is str
+        assert list(db.table("files").rows) == [
+            {"name": "first.txt", "content": b"HELLO", "size": 5},
+            {"name": "second.txt", "content": b"world", "size": 5},
+        ]
+
+
+def test_insert_files_convert_without_selected_pk(tmp_path):
+    db_path = str(tmp_path / "files.db")
+    args = [
+        "insert-files",
+        db_path,
+        "files",
+        "-",
+        "-c",
+        "content:content",
+        "-c",
+        "size:size",
+    ]
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.cli,
+        [
+            *args,
+            "--convert",
+            '{"content": row["content"].upper(), "size": row["size"]}',
+        ],
+        input=b"hello",
+    )
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(cli.cli, args, input=b"world")
+    assert result.exit_code == 0, result.output
+    with Database(db_path) as db:
+        assert db.table("files").use_rowid
+        assert list(db.query("select rowid, content, size from files")) == [
+            {"rowid": 1, "content": b"HELLO", "size": 5},
+            {"rowid": 2, "content": b"world", "size": 5},
+        ]
+
+
+def test_insert_files_convert_missing_pk_leaves_existing_rows_unchanged(tmp_path):
+    db_path = str(tmp_path / "files.db")
+    original = {"path": "existing.txt", "content": b"keep", "size": 4}
+    with Database(db_path) as db:
+        db.table("files").insert(original, pk="path")
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert-files", db_path, "files", "-", "--convert", 'del row["path"]'],
+        input=b"hello",
+    )
+    assert result.exit_code == 1, result.output
+    assert "missing primary key column 'path'" in result.output
+    with Database(db_path) as db:
+        assert list(db.table("files").rows) == [original]
