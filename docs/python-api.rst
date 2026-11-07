@@ -1473,6 +1473,17 @@ It it finds multiple candidate tables with foreign keys to both of the specified
 
 The ``.m2m()`` method also takes an optional ``pk=`` argument to specify the primary key that should be used if the table is created, and an optional ``alter=True`` argument to specify that any missing columns of an existing table should be added if they are needed.
 
+To link records within the same table, pass that table as the first argument to ``.m2m()``:
+
+.. code-block:: python
+
+    db.table("people").insert({"name": "Mary"}, pk="name").m2m(
+        "people", [{"name": "Michael"}, {"name": "Suzy"}],
+        pk="name", m2m_table="parent_child",
+    )
+
+The link table uses ``people_id_1`` for the source record (Mary) and ``people_id_2`` for each related record (Michael or Suzy). Both columns are foreign keys to ``people`` and together form the primary key. An existing link table must use those column names.
+
 .. _python_api_m2m_lookup:
 
 Using m2m and lookup tables together

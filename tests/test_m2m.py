@@ -212,3 +212,48 @@ def test_requires_explicit_m2m_table_if_multiple_options(fresh_db):
     )
     with pytest.raises(NoObviousTable):
         people.insert({"name": "Wahyu"}).m2m("tags", lookup={"tag": "Coworker"})
+
+
+@pytest.mark.parametrize("m2m_table", [None, "parent_child"])
+def test_m2m_same_table_records(fresh_db, m2m_table):
+    fresh_db.execute("PRAGMA foreign_keys = ON")
+    people = fresh_db.table("people", pk="name")
+    people.insert({"name": "Mary"}).m2m(
+        "people",
+        [{"name": "Michael"}, {"name": "Suzy"}],
+        m2m_table=m2m_table,
+        pk="name",
+    )
+
+    links = fresh_db.table(m2m_table or "people_people")
+    assert links.pks == ["people_id_1", "people_id_2"]
+    assert list(links.rows_where(order_by="people_id_2")) == [
+        {"people_id_1": "Mary", "people_id_2": "Michael"},
+        {"people_id_1": "Mary", "people_id_2": "Suzy"},
+    ]
+    assert {
+        (fk.column, fk.other_table, fk.other_column) for fk in links.foreign_keys
+    } == {
+        ("people_id_1", "people", "name"),
+        ("people_id_2", "people", "name"),
+    }
+
+
+def test_m2m_same_table_reuses_existing_link_table(fresh_db):
+    people = fresh_db.table("people", pk="id")
+    people.insert({"name": "Mary"})
+    fresh_db.create_table("profiles", {"people_id": int}, foreign_keys=["people_id"])
+    links = fresh_db.create_table(
+        "parent_child",
+        {"people_id_1": int, "people_id_2": int},
+        pk=["people_id_1", "people_id_2"],
+        foreign_keys=[("people_id_1", "people"), ("people_id_2", "people")],
+    )
+
+    people.m2m(people, lookup={"name": "Michael"}).m2m(people, {"name": "Suzy"})
+
+    assert people.last_pk == 1
+    assert list(links.rows_where(order_by="people_id_2")) == [
+        {"people_id_1": 1, "people_id_2": 2},
+        {"people_id_1": 1, "people_id_2": 3},
+    ]
