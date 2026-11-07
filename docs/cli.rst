@@ -1803,6 +1803,50 @@ The ``-`` argument indicates data should be read from standard input. The string
 
 When inserting data from standard input only the following column definitions are supported: ``name``, ``path``, ``content``, ``content_text``, ``sha256``, ``md5`` and ``size``.
 
+.. _cli_insert_files_convert:
+
+Converting files during insertion
+-----------------------------------
+
+Use ``--convert`` to transform each file row before it is inserted. The Python code receives a ``row`` dictionary with the column names selected by ``-c``, or the default columns if ``-c`` is omitted. Conversion runs after ``--name``, text decoding and metadata extraction, and works for files, directories and standard input.
+
+For example, this compresses file contents before storing them in a ``data`` column:
+
+.. code-block:: bash
+
+    sqlite-utils insert-files files.db files example.txt \
+        -c name:name -c data:content -c size:size --pk name \
+        --import zlib --convert 'row["data"] = zlib.compress(row["data"])'
+
+The ``size`` column still contains the original file size. Other metadata and hashes are also calculated from the original file, unless your conversion changes them.
+
+Your code can modify ``row`` in place and return ``None``, or return a replacement dictionary. For example, to uppercase text content:
+
+.. code-block:: bash
+
+    sqlite-utils insert-files files.db files example.txt --text \
+        --convert '{**row, "content_text": row["content_text"].upper()}'
+
+You can also supply a function called ``convert(row)``. Use ``--import`` multiple times to make additional Python modules available. Each file row is converted once, before it is passed to the existing batched insertion mechanism.
+
+Every converted row must contain all selected primary-key columns with non-``None`` values. This includes the default ``path`` key when using the default columns, or each column selected with ``--pk``. If a key column is missing or its value is ``None``, the command stops with an error identifying the input file and column. Modify ``row`` in place or use ``{**row, ...}`` to preserve existing fields in a replacement dictionary. A conversion function can still return ``None`` after modifying ``row`` in place; the selected primary-key values themselves must be non-``None``.
+
+To create a new table with automatically assigned integer row IDs, select custom columns with ``-c`` and omit ``--pk``. For example, this stores the file contents in uppercase and retains the original file size:
+
+.. code-block:: bash
+
+    sqlite-utils insert-files rowids.db files example.txt \
+        -c content:content -c size:size \
+        --convert 'row["content"] = row["content"].upper()'
+
+This creates ``content`` and ``size`` columns and uses SQLite's implicit ``rowid`` to identify each row. Repeating the import appends another row with an automatically assigned ID. Include ``rowid`` explicitly in a query to view those IDs:
+
+.. code-block:: bash
+
+    sqlite-utils rowids.db "select rowid, size from files"
+
+Invalid conversion code, import failures and exceptions raised by the conversion stop the command with an error. A conversion must return a dictionary or ``None``; the resulting row must be non-empty and have string column names. As with other batched imports, an error does not guarantee that previously inserted batches will be rolled back.
+
 .. _cli_convert:
 
 Converting data in columns

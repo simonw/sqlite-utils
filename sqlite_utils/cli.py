@@ -31,6 +31,7 @@ from sqlite_utils.db import (
     NoView,
     PrimaryKeyRequired,
     quote_identifier,
+    resolve_casing,
 )
 from sqlite_utils.plugins import ensure_plugins_loaded, get_plugins, pm
 from sqlite_utils.utils import maximize_csv_field_size_limit
@@ -2902,6 +2903,8 @@ def extract(
     help="Character encoding for input, defaults to utf-8",
 )
 @click.option("-s", "--silent", is_flag=True, help="Don't show a progress bar")
+@click.option("--convert", help="Python code to convert each file row")
+@click.option("--import", "imports", multiple=True, help="Python modules to import")
 @load_extension_option
 def insert_files(
     path,
@@ -2916,6 +2919,8 @@ def insert_files(
     text,
     encoding,
     silent,
+    convert,
+    imports,
     load_extension,
 ):
     """
@@ -2933,6 +2938,13 @@ def insert_files(
             -c size:size \\
             --pk name
     """
+    fn = None
+    if convert:
+        try:
+            fn = _compile_code(convert, imports, variable="row")
+        except Exception as ex:
+            raise click.ClickException(str(ex)) from ex
+
     if not column:
         if text:
             column = ["path:path", "content_text:content_text", "size:size"]
@@ -3004,6 +3016,44 @@ def insert_files(
                     # Special case for --name
                     if coltype == "name" and name:
                         row[colname] = name
+                if fn is not None:
+                    try:
+                        converted = fn(row)
+                    except Exception as ex:
+                        raise click.ClickException(
+                            f"Error converting file '{file_path}': {ex}"
+                        ) from ex
+                    if converted is not None:
+                        if not isinstance(converted, dict):
+                            raise click.ClickException(
+                                f"Error converting file '{file_path}': "
+                                "--convert must return a dict or None"
+                            )
+                        row = converted
+                    if not row:
+                        raise click.ClickException(
+                            f"Error converting file '{file_path}': "
+                            "--convert produced an empty row"
+                        )
+                    if any(not isinstance(key, str) for key in row):
+                        raise click.ClickException(
+                            f"Error converting file '{file_path}': "
+                            "--convert produced a row with non-string column names"
+                        )
+                    for pk in pks:
+                        resolved_pk = resolve_casing(pk, row)
+                        if resolved_pk not in row:
+                            raise click.ClickException(
+                                f"Error converting file '{file_path}': "
+                                f"--convert produced a row missing primary key column {pk!r}. "
+                                "Include this column in the converted row."
+                            )
+                        if row[resolved_pk] is None:
+                            raise click.ClickException(
+                                f"Error converting file '{file_path}': "
+                                f"--convert produced None for primary key column {pk!r}. "
+                                "Provide a non-None value for this column."
+                            )
                 yield row
 
         db = sqlite_utils.Database(path)
