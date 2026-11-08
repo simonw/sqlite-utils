@@ -784,6 +784,20 @@ def test_create_index(fresh_db, columns, index_name, expected_index):
     assert expected_index == dogs.indexes[0]
 
 
+@pytest.mark.parametrize("index_name", [None, "custom_index"])
+def test_create_index_iterator(fresh_db, index_name):
+    table = fresh_db["dogs"].insert({"age": 3, "name": "Cleo"})
+    columns = iter([DescIndex("age"), "name"])
+    assert table.create_index(columns, index_name=index_name) is table
+    index = table.indexes[0]
+    assert index.name == (index_name or "idx_dogs_age_name")
+    assert index.columns == ["age", "name"]
+    sql = fresh_db.execute(
+        "select sql from sqlite_master where name = ?", [index.name]
+    ).fetchone()[0]
+    assert '("age" desc, "name")' in sql
+
+
 def test_create_index_unique(fresh_db):
     dogs = fresh_db.table("dogs")
     dogs.insert({"name": "Cleo", "twitter": "cleopaws", "age": 3, "is_good_dog": True})

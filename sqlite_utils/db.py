@@ -3400,6 +3400,7 @@ class Table(Queryable):
 
         :param columns: A single columns or list of columns to index. These can be strings or,
           to create an index using the column in descending order, ``db.DescIndex(column_name)`` objects.
+          One-shot iterators are supported, including with automatically generated index names.
         :param index_name: The name to use for the new index. Defaults to the column names joined on ``_``.
         :param unique: Should the index be marked as unique, forcing unique values?
         :param if_not_exists: Only create the index if one with that name does not already exist.
@@ -3409,6 +3410,7 @@ class Table(Queryable):
 
         See :ref:`python_api_create_index`.
         """
+        columns = list(columns)
         if index_name is None:
             index_name = "idx_{}_{}".format(
                 self.name.replace(" ", "_"), "_".join(columns)
