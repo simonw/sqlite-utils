@@ -13,10 +13,19 @@ All improvements to the software should start with an issue. Read `How I build a
 Obtaining the code
 ==================
 
-To work on this library locally, first checkout the code::
+To work on this library locally, first create a fork of the `sqlite-utils repository <https://github.com/simonw/sqlite-utils>`__ on GitHub.
 
-    git clone git@github.com:simonw/sqlite-utils
+Clone your fork to your local machine using HTTPS::
+
+    git clone https://github.com/YOUR-USERNAME/sqlite-utils
     cd sqlite-utils
+
+Or using SSH::
+
+    git clone git@github.com:YOUR-USERNAME/sqlite-utils
+    cd sqlite-utils
+
+``sqlite-utils`` uses `uv <https://docs.astral.sh/uv/>`__ for development environment management. If you don't already have ``uv`` installed, follow the `uv installation guide <https://docs.astral.sh/uv/getting-started/installation/>`__.
 
 Use ``uv run`` to run the development version of the tool::
 
@@ -30,6 +39,38 @@ Running the tests
 Use ``uv run`` to run the tests::
 
     uv run pytest
+
+Tests that skip locally
+-----------------------
+
+Some tests are skipped locally if optional extensions are not installed or compiled:
+
+* **SpatiaLite tests**: Tests in ``tests/test_gis.py`` require the SpatiaLite extension.
+  On Ubuntu/Debian:
+
+  .. code-block:: bash
+
+      sudo apt-get install -y libsqlite3-mod-spatialite
+
+  On macOS (using Homebrew):
+
+  .. code-block:: bash
+
+      brew install spatialite-tools
+
+* **Compiled extension test**: Tests in ``tests/test_cli.py`` testing ``--load-extension`` require a compiled SQLite extension. You can compile it locally:
+
+  On Linux:
+
+  .. code-block:: bash
+
+      (cd tests && gcc ext.c -fPIC -shared -o ext.so)
+
+  On macOS:
+
+  .. code-block:: bash
+
+      (cd tests && gcc ext.c -fPIC -dynamiclib -o ext.dylib)
 
 .. _contributing_docs:
 
