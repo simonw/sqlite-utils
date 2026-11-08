@@ -60,9 +60,17 @@ Some tests are skipped locally if optional extensions are not installed or compi
 
 * **Compiled extension test**: Tests in ``tests/test_cli.py`` testing ``--load-extension`` require a compiled SQLite extension. You can compile it locally:
 
+  On Linux:
+
   .. code-block:: bash
 
       (cd tests && gcc ext.c -fPIC -shared -o ext.so)
+
+  On macOS:
+
+  .. code-block:: bash
+
+      (cd tests && gcc ext.c -fPIC -dynamiclib -o ext.dylib)
 
 .. _contributing_docs:
 
