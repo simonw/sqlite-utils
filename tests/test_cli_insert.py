@@ -354,6 +354,28 @@ def test_insert_truncate(db_path):
     ] == list(db.query("select foo, n from from_json_nl"))
 
 
+@pytest.mark.parametrize(
+    "input, options",
+    (("[]", []), ("id,name\n", ["--csv"]), ("id\tname\n", ["--tsv"]), ("", ["--nl"])),
+)
+def test_insert_truncate_empty(tmp_path, input, options):
+    db_path = str(tmp_path / "items.db")
+    db = Database(db_path)
+    table = db["items"].insert({"id": 1, "name": "old"}, pk="id")
+    table.create_index(["name"])
+    schema, indexes = table.schema, table.indexes
+    db.close()
+
+    result = CliRunner().invoke(
+        cli.cli, ["insert", db_path, "items", "-", "--truncate"] + options, input=input
+    )
+    assert result.exit_code == 0, result.output
+    with Database(db_path) as reopened:
+        assert list(reopened["items"].rows) == []
+        assert reopened["items"].schema == schema
+        assert reopened["items"].indexes == indexes
+
+
 def test_insert_alter(db_path, tmpdir):
     result = CliRunner().invoke(
         cli.cli,

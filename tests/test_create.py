@@ -1303,6 +1303,50 @@ def test_insert_all_empty_list(fresh_db):
     assert fresh_db.table("t").count == 1
 
 
+@pytest.mark.parametrize("records", ([], iter(()), [["id", "name"]], [("id", "name")]))
+@pytest.mark.parametrize("truncate", (False, True))
+def test_insert_all_empty_truncate(tmp_path, records, truncate):
+    db_path = tmp_path / "items.db"
+    db = Database(db_path)
+    table = db["items"].insert({"id": 1, "name": "old"}, pk="id")
+    table.create_index(["name"])
+    schema, indexes = table.schema, table.indexes
+
+    assert table.insert_all(records, truncate=truncate) is table
+    assert table.schema == schema
+    assert table.indexes == indexes
+    db.close()
+    with Database(db_path) as reopened:
+        assert list(reopened["items"].rows) == (
+            [] if truncate else [{"id": 1, "name": "old"}]
+        )
+
+
+@pytest.mark.parametrize("records", ([], iter(()), [["id", "name"]]))
+def test_insert_all_empty_truncate_missing_table(tmp_path, records):
+    db = Database(tmp_path / "items.db")
+    table = db["items"]
+    assert table.insert_all(records, truncate=True) is table
+    assert not table.exists()
+
+
+@pytest.mark.parametrize(
+    "records, error",
+    (
+        (None, TypeError),
+        ([None], AttributeError),
+        ([[1]], ValueError),
+        ([["id"], None], ValueError),
+    ),
+)
+def test_insert_all_truncate_invalid_input(tmp_path, records, error):
+    db = Database(tmp_path / "items.db")
+    table = db["items"].insert({"id": 1, "name": "old"}, pk="id")
+    with pytest.raises(error):
+        table.insert_all(records, truncate=True)
+    assert list(table.rows) == [{"id": 1, "name": "old"}]
+
+
 def test_insert_all_single_column(fresh_db):
     table = fresh_db.table("table")
     table.insert_all([{"name": "Cleo"}], pk="name")
