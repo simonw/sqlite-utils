@@ -1195,6 +1195,8 @@ You can delete all the existing rows in the table before inserting the new recor
 
     sqlite-utils insert dogs.db dogs dogs.json --truncate
 
+Valid empty input, such as a JSON ``[]`` or a CSV file containing only a header row, will also delete all existing rows when ``--truncate`` is used. The table's schema and indexes are preserved. If the table does not exist, empty input does not create it.
+
 You can add the ``--analyze`` option to run ``ANALYZE`` against the table after the rows have been inserted.
 
 .. note::

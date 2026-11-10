@@ -1105,6 +1105,8 @@ You can skip inserting any records that have a primary key that already exists u
 
 You can delete all the existing rows in the table before inserting the new records using ``truncate=True``. This is useful if you want to replace the data in the table.
 
+An empty iterable, or a list or tuple iterator containing only column names, will also delete all existing rows when ``truncate=True``. The table's schema and indexes are preserved. If the table does not exist, empty input does not create it.
+
 Pass ``analyze=True`` to run ``ANALYZE`` against the table after inserting the new records.
 
 .. note::

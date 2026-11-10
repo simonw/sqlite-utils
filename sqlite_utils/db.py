@@ -4779,6 +4779,8 @@ class Table(Queryable):
         try:
             first_record = next(records_iter)
         except StopIteration:
+            if truncate:
+                return self.delete_where()
             return self  # It was an empty list
 
         # Check if this is list mode or dict mode
@@ -4796,6 +4798,8 @@ class Table(Queryable):
             try:
                 first_record = next(records_iter)
             except StopIteration:
+                if truncate:
+                    return self.delete_where()
                 return self  # Only headers, no data
             if not isinstance(first_record, (list, tuple)):
                 raise ValueError(  # noqa: TRY004
