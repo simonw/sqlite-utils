@@ -1303,6 +1303,30 @@ def test_insert_all_empty_list(fresh_db):
     assert fresh_db.table("t").count == 1
 
 
+def test_insert_all_empty_list_truncate(fresh_db):
+    table = fresh_db.table("t")
+    table.insert({"foo": 1})
+    table.insert_all([], truncate=True)
+    assert table.count == 0
+    assert table.columns_dict == {"foo": int}
+
+
+def test_insert_all_empty_generator_truncate(fresh_db):
+    table = fresh_db.table("t")
+    table.insert({"foo": 1})
+    table.insert_all(iter([]), truncate=True)
+    assert table.count == 0
+    assert table.columns_dict == {"foo": int}
+
+
+def test_insert_all_header_only_list_truncate(fresh_db):
+    table = fresh_db.table("t")
+    table.insert({"foo": 1})
+    table.insert_all([["foo"]], truncate=True)
+    assert table.count == 0
+    assert table.columns_dict == {"foo": int}
+
+
 def test_insert_all_single_column(fresh_db):
     table = fresh_db.table("table")
     table.insert_all([{"name": "Cleo"}], pk="name")

@@ -354,6 +354,30 @@ def test_insert_truncate(db_path):
     ] == list(db.query("select foo, n from from_json_nl"))
 
 
+def test_insert_truncate_empty_json(db_path):
+    db = Database(db_path)
+    db["from_json"].insert({"id": 1})
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "from_json", "-", "--truncate"],
+        input="[]",
+    )
+    assert result.exit_code == 0, result.output
+    assert db["from_json"].count == 0
+
+
+def test_insert_truncate_header_only_csv(db_path):
+    db = Database(db_path)
+    db["from_csv"].insert({"id": 1, "name": "Cleo"})
+    result = CliRunner().invoke(
+        cli.cli,
+        ["insert", db_path, "from_csv", "-", "--csv", "--truncate"],
+        input="id,name\n",
+    )
+    assert result.exit_code == 0, result.output
+    assert db["from_csv"].count == 0
+
+
 def test_insert_alter(db_path, tmpdir):
     result = CliRunner().invoke(
         cli.cli,
