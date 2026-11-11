@@ -4779,6 +4779,8 @@ class Table(Queryable):
         try:
             first_record = next(records_iter)
         except StopIteration:
+            if truncate:
+                self.delete_where()
             return self  # It was an empty list
 
         # Check if this is list mode or dict mode
@@ -4796,6 +4798,8 @@ class Table(Queryable):
             try:
                 first_record = next(records_iter)
             except StopIteration:
+                if truncate:
+                    self.delete_where()
                 return self  # Only headers, no data
             if not isinstance(first_record, (list, tuple)):
                 raise ValueError(  # noqa: TRY004
@@ -4807,6 +4811,8 @@ class Table(Queryable):
             try:
                 first_record = next(records_iter)
             except StopIteration:
+                if truncate:
+                    self.delete_where()
                 return self
             first_record = cast(dict[str, Any], first_record)
             num_columns = len(first_record.keys())
@@ -4820,9 +4826,8 @@ class Table(Queryable):
         )
         self.last_rowid = None
         self.last_pk = None
-        if truncate and self.exists():
-            with self.db.atomic():
-                self.db.execute(f"DELETE FROM {quote_identifier(self.name)};")
+        if truncate:
+            self.delete_where()
         result = None
         for chunk in chunks(itertools.chain([first_record], records_iter), batch_size):
             chunk = list(chunk)
