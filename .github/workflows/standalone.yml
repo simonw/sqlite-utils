@@ -1,0 +1,90 @@
+name: Standalone executables
+
+on:
+  push:
+  pull_request:
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform: linux-x86_64
+          - os: macos-14
+            platform: macos-arm64
+          - os: windows-latest
+            platform: windows-x86_64
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install build and test dependencies
+        run: pip install . --group executable --group dev
+      - name: Build standalone executable
+        run: python packaging/build.py
+      - name: Test standalone executable
+        shell: bash
+        run: |
+          executable="$(find dist -maxdepth 1 -type f -name 'sqlite-utils-*' -print -quit)"
+          test -n "$executable"
+          SQLITE_UTILS_EXECUTABLE="$executable" pytest -v tests/test_standalone.py
+      - name: Save executable for release upload
+        if: github.event_name == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-utils-${{ matrix.platform }}
+          path: dist/sqlite-utils-*
+          if-no-files-found: error
+
+  upload-release-assets:
+    if: github.event_name == 'release'
+    needs: [build-and-test, test-build-time-plugin]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download platform executables
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: sqlite-utils-*
+          merge-multiple: true
+      - name: Upload executables to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+
+  test-build-time-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install build and test dependencies
+        run: pip install . --group executable --group dev
+      - name: Install test plugin
+        run: pip install ./tests/standalone_plugin
+      - name: Build standalone executable with plugin
+        run: python packaging/build.py
+      - name: Test bundled plugin
+        shell: bash
+        run: |
+          executable="$(find dist -maxdepth 1 -type f -name 'sqlite-utils-*' -print -quit)"
+          SQLITE_UTILS_EXECUTABLE="$executable" \
+            SQLITE_UTILS_STANDALONE_TEST_PLUGIN=sqlite-utils-standalone-test-plugin \
+            pytest -v tests/test_standalone.py

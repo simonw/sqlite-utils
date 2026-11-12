@@ -3149,6 +3149,7 @@ def _analyze(db, tables, columns, save, common_limit=10, no_most=False, no_least
 )
 def install(packages, upgrade, editable):
     """Install packages from PyPI into the same environment as sqlite-utils"""
+    _ensure_not_frozen_for_package_management()
     args = ["pip", "install"]
     if upgrade:
         args += ["--upgrade"]
@@ -3164,8 +3165,17 @@ def install(packages, upgrade, editable):
 @click.option("-y", "--yes", is_flag=True, help="Don't ask for confirmation")
 def uninstall(packages, yes):
     """Uninstall Python packages from the sqlite-utils environment"""
+    _ensure_not_frozen_for_package_management()
     sys.argv = ["pip", "uninstall"] + list(packages) + (["-y"] if yes else [])
     run_module("pip", run_name="__main__")
+
+
+def _ensure_not_frozen_for_package_management():
+    if getattr(sys, "frozen", False):
+        raise click.ClickException(
+            "Package installation and removal are not supported by the standalone "
+            "executable. Install plugins before building the executable instead."
+        )
 
 
 def _generate_convert_help():

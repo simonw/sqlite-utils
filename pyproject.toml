@@ -60,6 +60,9 @@ docs = [
     "sphinx-autobuild",
     "sphinx-copybutton",
 ]
+executable = [
+    "pyinstaller==6.22.3",
+]
 
 [project.urls]
 Homepage = "https://github.com/simonw/sqlite-utils"
@@ -75,6 +78,9 @@ sqlite-utils = "sqlite_utils.cli:cli"
 # setuptools 77+ is needed for the PEP 639 license = "Apache-2.0" expression
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["sqlite_utils*"]
 
 [tool.flake8]
 max-line-length = 160

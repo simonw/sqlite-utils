@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sqlite-utils-standalone-test-plugin"
+version = "1.0"
+requires-python = ">=3.10"
+
+[project.entry-points.sqlite_utils]
+standalone_test_plugin = "sqlite_utils_standalone_test_plugin"
+
+[tool.setuptools]
+py-modules = ["sqlite_utils_standalone_test_plugin"]
