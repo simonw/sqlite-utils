@@ -225,3 +225,126 @@ def test_create_table_transform_keeps_generated_columns(db):
     )
     assert set(db["items"].generated_columns) == {"total", "total_s", "label"}
     assert "note" in db["items"].columns_dict
+
+
+def test_create_table_with_generated_columns():
+    db = Database(memory=True)
+    table = db["items"].create(
+        {"id": int, "price": float, "qty": int, "total": float, "label": str},
+        pk="id",
+        generated={
+            "total": "price * qty",
+            "label": GeneratedColumn("'#' || id", stored=True),
+        },
+        not_null={"label"},
+    )
+    assert table.schema == (
+        'CREATE TABLE "items" (\n'
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "price" REAL,\n'
+        '   "qty" INTEGER,\n'
+        '   "total" REAL GENERATED ALWAYS AS (price * qty) VIRTUAL,\n'
+        "   \"label\" TEXT GENERATED ALWAYS AS ('#' || id) STORED NOT NULL\n"
+        ")"
+    )
+    assert table.generated_columns == {
+        "total": GeneratedColumn("price * qty"),
+        "label": GeneratedColumn("'#' || id", stored=True),
+    }
+    table.insert({"price": 2.5, "qty": 4})
+    assert list(table.rows) == [
+        {"id": 1, "price": 2.5, "qty": 4, "total": 10.0, "label": "#1"}
+    ]
+
+
+def test_db_create_table_generated():
+    db = Database(memory=True)
+    db.create_table("t", {"a": int, "b": int}, generated={"b": "a + 1"})
+    db["t"].insert({"a": 1})
+    assert list(db["t"].rows) == [{"a": 1, "b": 2}]
+
+
+@pytest.mark.parametrize(
+    "kwargs,error",
+    (
+        ({"generated": {"nope": "a + 1"}}, ValueError),
+        ({"generated": {"b": "a + 1) stored, c as (1"}}, AlterError),
+        ({"generated": {"b": "a; drop table x"}}, AlterError),
+        ({"generated": {"b": ""}}, AlterError),
+        ({"generated": {"b": "a + 1"}, "pk": "b"}, AlterError),
+        ({"generated": {"b": "a + 1"}, "defaults": {"b": 1}}, AlterError),
+    ),
+)
+def test_create_table_generated_errors(kwargs, error):
+    db = Database(memory=True)
+    with pytest.raises(error):
+        db["t"].create({"a": int, "b": int}, **kwargs)
+    assert not db["t"].exists()
+
+
+@pytest.mark.parametrize("stored", (False, True))
+def test_add_generated_column(db, stored):
+    before = rows(db)
+    table = db["items"].add_column(
+        "double_qty", int, generated="qty * 2", stored=stored
+    )
+    assert table.generated_columns["double_qty"] == GeneratedColumn(
+        "qty * 2", stored=stored
+    )
+    assert table.columns_dict["double_qty"] is int
+    assert rows(db) == [dict(row, double_qty=row["qty"] * 2) for row in before]
+    # Existing generated columns and indexes survive the stored rebuild
+    assert set(table.generated_columns) == {
+        "total",
+        "total_s",
+        "label",
+        "double_qty",
+    }
+    assert [i.name for i in table.indexes] == ["idx_total"]
+
+
+def test_add_generated_column_using_generated_column_object(db):
+    db["items"].add_column("x", float, generated=GeneratedColumn("price", True))
+    assert db["items"].generated_columns["x"] == GeneratedColumn("price", True)
+
+
+@pytest.mark.parametrize("stored", (False, True))
+def test_add_generated_column_errors(db, stored):
+    with pytest.raises(AlterError):
+        db["items"].add_column(
+            "x", int, generated="1", stored=stored, not_null_default=1
+        )
+    with pytest.raises(AlterError):
+        db["items"].add_column("x", int, generated="1) --", stored=stored)
+    with pytest.raises((AlterError, sqlite3.OperationalError)):
+        db["items"].add_column("total", int, generated="1", stored=stored)
+    with pytest.raises(sqlite3.OperationalError):
+        db["items"].add_column("x", int, generated="no_such_col", stored=stored)
+    with pytest.raises(AlterError):
+        db["items"].add_column("x", int, stored=True)
+    assert "x" not in db["items"].columns_dict
+    assert rows(db)[0]["total"] == 10.0
+
+
+def test_create_table_transform_adds_generated_column(db):
+    db["items"].create(
+        {"id": int, "price": float, "qty": int, "name": str, "half": float},
+        pk="id",
+        generated={"half": "price / 2"},
+        transform=True,
+    )
+    assert set(db["items"].generated_columns) == {
+        "total",
+        "total_s",
+        "label",
+        "half",
+    }
+    assert rows(db)[0]["half"] == 1.25
+
+
+def test_expression_ending_in_line_comment_survives_transform():
+    db = Database(memory=True)
+    db.execute("create table t (a integer, b integer as (a + 1 -- one more\n))")
+    db["t"].insert({"a": 1})
+    db["t"].transform(rename={"a": "c"})
+    assert list(db["t"].rows) == [{"c": 1, "b": 2}]

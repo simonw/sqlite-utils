@@ -840,6 +840,27 @@ def parse_generated_columns(create_sql: str) -> dict[str, GeneratedColumn]:
     return generated
 
 
+def validate_generated_expression(expression: str) -> str:
+    """Return ``expression`` stripped, or raise ParseError if it could not be
+    safely placed inside ``GENERATED ALWAYS AS (...)``."""
+    expression = expression.strip()
+    if not expression:
+        raise ParseError("Generated column expression cannot be empty")
+    depth = 0
+    for token in _lex(expression):
+        if token.text == "(":
+            depth += 1
+        elif token.text == ")":
+            depth -= 1
+            if depth < 0:
+                raise ParseError("Unbalanced parentheses in generated expression")
+        elif token.text == ";":
+            raise ParseError("Generated column expression cannot contain ;")
+    if depth:
+        raise ParseError("Unbalanced parentheses in generated expression")
+    return expression
+
+
 def parse_column_comments(create_sql: str) -> dict[str, ColumnComments]:
     """Return comments immediately before and after each column definition."""
     body_info = _table_body(create_sql)

@@ -1905,6 +1905,39 @@ The ``table.generated_columns`` property returns a dictionary describing the gen
 
 Generated columns are also included in ``table.columns`` and ``table.columns_dict``.
 
+.. _python_api_generated_columns_create:
+
+Creating generated columns
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Pass ``generated=`` to ``table.create()`` or ``db.create_table()`` to create generated columns. This is a dictionary mapping column names to a SQL expression. The column must also be listed in the ``columns`` dictionary, which sets its type:
+
+.. code-block:: python
+
+    from sqlite_utils.db import GeneratedColumn
+
+    db["items"].create(
+        {"id": int, "price": float, "qty": int, "total": float, "label": str},
+        pk="id",
+        generated={
+            # A string creates a VIRTUAL column, calculated when it is read
+            "total": "price * qty",
+            # Use GeneratedColumn() for a STORED column
+            "label": GeneratedColumn("'#' || id", stored=True),
+        },
+    )
+
+To add a generated column to an existing table use ``table.add_column()``:
+
+.. code-block:: python
+
+    db["items"].add_column("total", float, generated="price * qty")
+    db["items"].add_column("tax", float, generated="price * 0.2", stored=True)
+
+SQLite's ``ALTER TABLE`` can only add ``VIRTUAL`` generated columns, so ``stored=True`` rebuilds the table using ``.transform()``.
+
+The expression is included in the SQL as-is, so it should never be constructed from untrusted input.
+
 .. _python_api_transform_change_primary_keys:
 
 Changing primary keys
