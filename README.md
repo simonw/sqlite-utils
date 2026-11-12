@@ -29,6 +29,10 @@ Read more on my blog, in this series of posts on [New features in sqlite-utils](
 
     pip install sqlite-utils
 
+Standalone executables that do not require Python are available from the
+[GitHub releases](https://github.com/simonw/sqlite-utils/releases). See the
+[standalone installation instructions](https://sqlite-utils.datasette.io/en/stable/installation.html#standalone-executables).
+
 Or if you use [Homebrew](https://brew.sh/) for macOS:
 
     brew install sqlite-utils

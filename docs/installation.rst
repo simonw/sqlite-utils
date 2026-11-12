@@ -39,6 +39,54 @@ Using pipx
 
     pipx install sqlite-utils
 
+.. _installation_standalone:
+
+Standalone executables
+======================
+
+Standalone executables for Linux, macOS and Windows are attached to each
+`GitHub release <https://github.com/simonw/sqlite-utils/releases>`__. They
+include Python and the required ``sqlite-utils`` dependencies, so Python does
+not need to be installed separately. Download the executable for your operating
+system and processor architecture, then run it directly. Release assets are
+named ``sqlite-utils-linux-x86_64``, ``sqlite-utils-macos-arm64`` and
+``sqlite-utils-windows-x86_64.exe``. On macOS or Linux you may need to make the
+downloaded file executable first::
+
+    chmod +x sqlite-utils-*
+
+The Linux executable is built on Ubuntu 22.04 and requires a compatible glibc
+runtime. Executables are specific to their operating system and CPU architecture.
+The SQLite library is the one bundled with the Python runtime used to build the
+executable; available SQLite features therefore depend on that build. SQLite
+extensions such as SpatiaLite are not included and must be supplied separately
+as compatible native libraries.
+
+The executable includes plugins installed in the build environment. Since it
+does not use a system Python installation, plugins installed after downloading
+the executable are not discovered. The ``install`` and ``uninstall`` commands
+are therefore unavailable in the executable. To use additional plugins, install
+them before building your own executable as described below. Other optional
+integrations such as ``numpy``, ``pandas``, ``sqlite_dump`` and ``pysqlite3`` are
+included when installed in the build environment. Modules imported dynamically
+by custom Python code may need an explicit PyInstaller hook.
+
+Building a standalone executable
+--------------------------------
+
+Builds must be performed on the operating system and architecture for which the
+executable is intended; PyInstaller does not cross-compile. From a checkout of
+the ``sqlite-utils`` source, install the executable build dependencies and run
+the build script::
+
+    pip install . --group executable
+    python packaging/build.py
+
+The platform-specific executable will be written to ``dist/``. To include
+plugins, install them into the same Python environment before running the build
+script. PyInstaller collects ``sqlite_utils`` entry points and their modules
+from that environment.
+
 .. _installation_sqlite3_alternatives:
 
 Alternatives to sqlite3
