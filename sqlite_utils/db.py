@@ -29,6 +29,7 @@ from sqlite_utils.plugins import ensure_plugins_loaded, pm
 from .create_table_parser import (
     Check,
     ColumnComments,
+    GeneratedColumn,
     ParseError,
     Unique,
     UniqueColumn,
@@ -36,6 +37,7 @@ from .create_table_parser import (
     parse_autoincrement,
     parse_checks,
     parse_column_comments,
+    parse_generated_columns,
     parse_uniques,
     rewrite_check_expression,
     sql_ends_in_line_comment,
@@ -1444,6 +1446,7 @@ class Database:
         _column_comments: Mapping[str, ColumnComments] | None = None,
         _autoincrement: str | None = None,
         _uniques: Iterable[Unique] | None = None,
+        _generated: Mapping[str, GeneratedColumn] | None = None,
     ) -> str:
         """
         Returns the SQL ``CREATE TABLE`` statement for creating the specified table.
@@ -1492,6 +1495,10 @@ class Database:
         column_comments = {
             resolve_casing(name, columns): comments
             for name, comments in (_column_comments or {}).items()
+        }
+        generated_columns = {
+            resolve_casing(name, columns): generated
+            for name, generated in (_generated or {}).items()
         }
         checks = list(_checks or ())
         checks_by_column: dict[str, list[Check]] = {}
@@ -1609,6 +1616,25 @@ class Database:
                 raise ValueError("AUTOINCREMENT requires a single-column primary key")
         for column_name, column_type in column_items:
             column_extras = []
+            generated = generated_columns.get(column_name)
+            if generated is not None:
+                if column_name == single_pk or (
+                    not isinstance(pk, str) and column_name in (pk or ())
+                ):
+                    raise AlterError(
+                        f"Generated column {column_name!r} cannot be part of "
+                        "the primary key"
+                    )
+                if defaults.get(column_name) is not None:
+                    raise AlterError(
+                        f"Generated column {column_name!r} cannot have a default"
+                    )
+                column_extras.append(
+                    "GENERATED ALWAYS AS ({}) {}".format(
+                        generated.expression,
+                        "STORED" if generated.stored else "VIRTUAL",
+                    )
+                )
             if column_name == single_pk:
                 column_extras.append("PRIMARY KEY")
                 if column_name == _autoincrement:
@@ -1757,13 +1783,27 @@ class Database:
                 for col_name, col_type in columns.items()
                 if col_name not in existing_columns
             }
+            # Generated columns cannot be described by the columns= dictionary,
+            # so they are preserved rather than treated as columns to drop
+            generated_columns = set(table.generated_columns)
             columns_to_drop = [
-                column for column in existing_columns if column not in columns
+                column
+                for column in existing_columns
+                if column not in columns and column not in generated_columns
             ]
             if missing_columns:
                 for col_name, col_type in missing_columns.items():
                     table.add_column(col_name, col_type)
-            if missing_columns or columns_to_drop or columns != existing_columns:
+            if (
+                missing_columns
+                or columns_to_drop
+                or columns
+                != {
+                    column: type_
+                    for column, type_ in existing_columns.items()
+                    if column in columns or column not in generated_columns
+                }
+            ):
                 should_transform = True
             # Do we need to change the column order?
             if (
@@ -2232,6 +2272,14 @@ class Queryable:
         "List of :ref:`Columns <reference_db_other_column>` representing the columns in this table or view."
         if not self.exists():
             return []
+        # table_xinfo (SQLite 3.26+) includes generated columns, which
+        # table_info leaves out. hidden=1 marks the hidden columns of a
+        # virtual table, which are not included here.
+        rows = self.db.execute(
+            f"PRAGMA table_xinfo({quote_identifier(self.name)})"
+        ).fetchall()
+        if rows:
+            return [Column(*row[:6]) for row in rows if row[6] != 1]
         rows = self.db.execute(
             f"PRAGMA table_info({quote_identifier(self.name)})"
         ).fetchall()
@@ -2372,6 +2420,41 @@ class Table(Queryable):
         if not self.exists() or self.virtual_table_using is not None:
             return []
         return parse_checks(self.schema)
+
+    @property
+    def generated_columns(self) -> dict[str, GeneratedColumn]:
+        """
+        ``{column_name: GeneratedColumn}`` for each generated column on this
+        table. Each value has an ``expression`` string and a ``stored``
+        boolean - ``False`` means the column is ``VIRTUAL``.
+        """
+        if not self.exists() or self.virtual_table_using is not None:
+            return {}
+        hidden = {
+            row[1]: row[6]
+            for row in self.db.execute(
+                f"PRAGMA table_xinfo({quote_identifier(self.name)})"
+            ).fetchall()
+            if row[6] in (2, 3)
+        }
+        if not hidden:
+            return {}
+        parsed = {
+            fold_identifier_case(name): generated
+            for name, generated in parse_generated_columns(self.schema).items()
+        }
+        generated_columns = {}
+        for name, hidden_value in hidden.items():
+            generated = parsed.get(fold_identifier_case(name))
+            if generated is None:
+                raise ParseError(
+                    f"Could not find expression for generated column {name!r}"
+                )
+            # table_xinfo is authoritative for stored vs. virtual
+            generated_columns[name] = GeneratedColumn(
+                generated.expression, stored=hidden_value == 3
+            )
+        return generated_columns
 
     @property
     def column_checks(self) -> dict[str, list[Check]]:
@@ -2845,6 +2928,7 @@ class Table(Queryable):
             existing_column_comments = parse_column_comments(self.schema)
             existing_autoincrement = parse_autoincrement(self.schema)
             existing_uniques = parse_uniques(self.schema)
+            existing_generated = self.generated_columns
         except ParseError as ex:
             raise TransformError(
                 f"Could not parse table schema for table {self.name!r}: {ex}"
@@ -2869,6 +2953,23 @@ class Table(Queryable):
                     name=check.name,
                     column=rename.get(owner) or owner,
                 )
+            )
+
+        # Generated columns are recreated from their expression rather than
+        # copied. Renamed columns are rewritten inside those expressions.
+        create_table_generated: dict[str, GeneratedColumn] = {}
+        for column, generated in existing_generated.items():
+            if column in drop:
+                continue
+            for dropped_column in drop:
+                if check_references_identifier(generated.expression, dropped_column):
+                    raise TransformError(
+                        f"Cannot drop column {dropped_column!r}: it is used by "
+                        f"generated column {column!r}"
+                    )
+            create_table_generated[rename.get(column) or column] = GeneratedColumn(
+                rewrite_check_expression(generated.expression, rename),
+                stored=generated.stored,
             )
 
         create_table_uniques: list[Unique] = []
@@ -2996,7 +3097,11 @@ class Table(Queryable):
                 continue
             new_name = rename.get(name) or name
             new_column_pairs.append((new_name, type_))
-            copy_from_to[name] = new_name
+            if name in existing_generated:
+                # Computed by SQLite, so there is nothing to copy
+                del copy_from_to[name]
+            else:
+                copy_from_to[name] = new_name
 
         if existing_autoincrement:
             existing_autoincrement = resolve_casing(
@@ -3088,6 +3193,7 @@ class Table(Queryable):
                 _column_comments=create_table_column_comments,
                 _autoincrement=create_table_autoincrement,
                 _uniques=create_table_uniques,
+                _generated=create_table_generated,
             ).strip()
         )
 

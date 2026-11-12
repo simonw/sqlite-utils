@@ -1879,6 +1879,32 @@ To drop columns, pass them in the ``drop=`` set:
     # Drop the 'age' column:
     table.transform(drop={"age"})
 
+.. _python_api_transform_generated_columns:
+
+Generated columns
+-----------------
+
+`Generated columns <https://www.sqlite.org/gencol.html>`__ are preserved by ``.transform()``. Their values are not copied to the new table - the column is recreated using its original expression, as either a ``VIRTUAL`` or ``STORED`` column.
+
+If you rename a column that is used by a generated column the expression will be rewritten to use the new name. Dropping a column that a generated column depends on raises a ``TransformError`` unless the generated column is dropped at the same time. Generated columns can be renamed, re-ordered and dropped like any other column, but cannot be used as a primary key.
+
+The ``table.generated_columns`` property returns a dictionary describing the generated columns for a table:
+
+.. code-block:: python
+
+    db.execute("""
+        create table items (
+            id integer primary key,
+            price real,
+            qty integer,
+            total real generated always as (price * qty) stored
+        )
+    """)
+    print(db["items"].generated_columns)
+    # {'total': GeneratedColumn(expression='price * qty', stored=True)}
+
+Generated columns are also included in ``table.columns`` and ``table.columns_dict``.
+
 .. _python_api_transform_change_primary_keys:
 
 Changing primary keys

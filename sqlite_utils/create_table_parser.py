@@ -50,6 +50,14 @@ class Unique:
     end: int = field(default=-1, compare=False, repr=False)
 
 
+@dataclass(frozen=True)
+class GeneratedColumn:
+    "A ``GENERATED ALWAYS AS (expression)`` column definition."
+
+    expression: str
+    stored: bool = False
+
+
 class ParseError(ValueError):
     pass
 
@@ -783,6 +791,53 @@ def parse_uniques(create_sql: str) -> list[Unique]:
             )
         )
     return uniques
+
+
+def parse_generated_columns(create_sql: str) -> dict[str, GeneratedColumn]:
+    """Return ``{column: GeneratedColumn}`` for each generated column.
+
+    SQLite reports which columns are generated through ``PRAGMA table_xinfo``
+    but the expression itself is only available in the CREATE TABLE SQL.
+    """
+    body_info = _table_body(create_sql)
+    if body_info is None:
+        return {}
+    body, _ = body_info
+    generated: dict[str, GeneratedColumn] = {}
+    for item, _, _ in _split_spans(body, _lex(body)):
+        item_tokens = _meaningful(_lex(item))
+        if not item_tokens:
+            continue
+        head = item_tokens[0]
+        if (
+            head.kind == "word" and head.text.upper() in _TABLE_CONSTRAINT_KEYWORDS
+        ) or head.is_keyword("CONSTRAINT"):
+            continue
+        column = _unquote(head.text)
+        index = 1
+        while index < len(item_tokens):
+            token = item_tokens[index]
+            if token.text == "(":
+                # Skips type arguments, DEFAULT (...), CHECK (...) and so on,
+                # so an AS inside CAST(x AS y) is never mistaken for this one
+                index = _matching_paren(item_tokens, index) + 1
+                continue
+            if (
+                token.is_keyword("AS")
+                and index + 1 < len(item_tokens)
+                and item_tokens[index + 1].text == "("
+            ):
+                close = _matching_paren(item_tokens, index + 1)
+                expression = item[
+                    item_tokens[index + 1].end : item_tokens[close].start
+                ].strip()
+                stored = close + 1 < len(item_tokens) and item_tokens[
+                    close + 1
+                ].is_keyword("STORED")
+                generated[column] = GeneratedColumn(expression, stored=stored)
+                break
+            index += 1
+    return generated
 
 
 def parse_column_comments(create_sql: str) -> dict[str, ColumnComments]:
