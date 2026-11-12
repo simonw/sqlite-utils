@@ -31,9 +31,11 @@ from .create_table_parser import (
     ColumnComments,
     GeneratedColumn,
     ParseError,
+    StoredColumn,
     Unique,
     UniqueColumn,
     check_references_identifier,
+    make_generated_column,
     parse_autoincrement,
     parse_checks,
     parse_column_comments,
@@ -105,16 +107,15 @@ def quote_identifier(identifier: str) -> str:
 GeneratedType = Mapping[str, "str | GeneratedColumn"]
 
 
-def _resolve_generated(
-    generated: "str | GeneratedColumn", stored: bool = False
-) -> GeneratedColumn:
+def _resolve_generated(generated: "str | GeneratedColumn") -> GeneratedColumn:
     "Accepts an expression string or a GeneratedColumn, returns a GeneratedColumn"
+    stored = False
     if isinstance(generated, GeneratedColumn):
-        expression, stored = generated.expression, generated.stored or stored
+        expression, stored = generated.expression, generated.stored
     else:
         expression = generated
     try:
-        return GeneratedColumn(validate_generated_expression(expression), stored)
+        return make_generated_column(validate_generated_expression(expression), stored)
     except ParseError as ex:
         raise AlterError(str(ex)) from ex
 
@@ -1482,7 +1483,7 @@ class Database:
         :param if_not_exists: Use ``CREATE TABLE IF NOT EXISTS``
         :param strict: Apply STRICT mode to table
         :param generated: Dictionary of generated columns, mapping column names to
-          a SQL expression string or a ``GeneratedColumn(expression, stored=True)``
+          a SQL expression string or a ``StoredColumn(expression)``
         """
         if hash_id_columns and (hash_id is None):
             hash_id = "id"
@@ -1793,7 +1794,7 @@ class Database:
         :param transform: If table already exists transform it to fit the specified schema
         :param strict: Apply STRICT mode to table
         :param generated: Dictionary of generated columns, mapping column names to
-          a SQL expression string or a ``GeneratedColumn(expression, stored=True)``
+          a SQL expression string or a ``StoredColumn(expression)``
         """
         # Transform table to match the new definition if table already exists:
         if self[name].exists():
@@ -2491,7 +2492,7 @@ class Table(Queryable):
                     f"Could not find expression for generated column {name!r}"
                 )
             # table_xinfo is authoritative for stored vs. virtual
-            generated_columns[name] = GeneratedColumn(
+            generated_columns[name] = make_generated_column(
                 generated.expression, stored=hidden_value == 3
             )
         return generated_columns
@@ -2698,7 +2699,7 @@ class Table(Queryable):
         :param transform: If table already exists transform it to fit the specified schema
         :param strict: Apply STRICT mode to table
         :param generated: Dictionary of generated columns, mapping column names to
-          a SQL expression string or a ``GeneratedColumn(expression, stored=True)``
+          a SQL expression string or a ``StoredColumn(expression)``
         """
         # Resolve defaults from _defaults (issue #655)
         pk = self.value_or_default("pk", pk)
@@ -3014,9 +3015,11 @@ class Table(Queryable):
                         f"Cannot drop column {dropped_column!r}: it is used by "
                         f"generated column {column!r}"
                     )
-            create_table_generated[rename.get(column) or column] = GeneratedColumn(
-                rewrite_check_expression(generated.expression, rename),
-                stored=generated.stored,
+            create_table_generated[rename.get(column) or column] = (
+                make_generated_column(
+                    rewrite_check_expression(generated.expression, rename),
+                    stored=generated.stored,
+                )
             )
 
         create_table_uniques: list[Unique] = []
@@ -3149,7 +3152,7 @@ class Table(Queryable):
                 del copy_from_to[name]
             else:
                 copy_from_to[name] = new_name
-        # New generated columns, used by add_column(generated=, stored=True)
+        # New generated columns, used by add_column(generated=StoredColumn(...))
         # since ALTER TABLE ADD COLUMN cannot add a STORED generated column
         for name, (type_, generated_column) in (_add_generated or {}).items():
             if name in dict(new_column_pairs):
@@ -3642,7 +3645,6 @@ class Table(Queryable):
         fk_col: str | None = None,
         not_null_default: Any | None = None,
         generated: "str | GeneratedColumn | None" = None,
-        stored: bool = False,
     ):
         """
         Add a column to this table. See :ref:`python_api_add_column`.
@@ -3652,19 +3654,16 @@ class Table(Queryable):
         :param fk: Name of a table that this column should be a foreign key reference to
         :param fk_col: Column in the foreign key table that this should reference
         :param not_null_default: Set this column to ``not null`` and give it this default value
-        :param generated: SQL expression to make this a generated column, or a
-          ``GeneratedColumn(expression, stored=True)``
-        :param stored: Make the generated column ``STORED`` rather than ``VIRTUAL``.
-          SQLite cannot add a stored column to an existing table, so this
-          rebuilds the table using ``.transform()``
+        :param generated: Make this a generated column. A SQL expression string
+          adds a ``VIRTUAL`` column. Pass ``StoredColumn(expression)`` for a
+          ``STORED`` column - SQLite cannot add one of those to an existing
+          table, so this rebuilds the table using ``.transform()``
         """
         generated_column = None
         if generated is not None:
             if not_null_default is not None:
                 raise AlterError("A generated column cannot have a default value")
-            generated_column = _resolve_generated(generated, stored)
-        elif stored:
-            raise AlterError("stored=True requires generated=")
+            generated_column = _resolve_generated(generated)
         fk_col_type = None
         if fk is not None:
             # fk must be a valid table

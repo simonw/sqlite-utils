@@ -1888,7 +1888,7 @@ Generated columns
 
 If you rename a column that is used by a generated column the expression will be rewritten to use the new name. Dropping a column that a generated column depends on raises a ``TransformError`` unless the generated column is dropped at the same time. Generated columns can be renamed, re-ordered and dropped like any other column, but cannot be used as a primary key.
 
-The ``table.generated_columns`` property returns a dictionary describing the generated columns for a table:
+The ``table.generated_columns`` property returns a dictionary describing the generated columns for a table. Values are ``GeneratedColumn`` objects for ``VIRTUAL`` columns and ``StoredColumn`` - a subclass of ``GeneratedColumn`` - for ``STORED`` ones. Both have ``.expression`` and ``.stored`` attributes:
 
 .. code-block:: python
 
@@ -1901,7 +1901,7 @@ The ``table.generated_columns`` property returns a dictionary describing the gen
         )
     """)
     print(db["items"].generated_columns)
-    # {'total': GeneratedColumn(expression='price * qty', stored=True)}
+    # {'total': StoredColumn(expression='price * qty')}
 
 Generated columns are also included in ``table.columns`` and ``table.columns_dict``.
 
@@ -1914,7 +1914,7 @@ Pass ``generated=`` to ``table.create()`` or ``db.create_table()`` to create gen
 
 .. code-block:: python
 
-    from sqlite_utils.db import GeneratedColumn
+    from sqlite_utils.db import StoredColumn
 
     db["items"].create(
         {"id": int, "price": float, "qty": int, "total": float, "label": str},
@@ -1922,8 +1922,8 @@ Pass ``generated=`` to ``table.create()`` or ``db.create_table()`` to create gen
         generated={
             # A string creates a VIRTUAL column, calculated when it is read
             "total": "price * qty",
-            # Use GeneratedColumn() for a STORED column
-            "label": GeneratedColumn("'#' || id", stored=True),
+            # Use StoredColumn() for a STORED column
+            "label": StoredColumn("'#' || id"),
         },
     )
 
@@ -1932,9 +1932,9 @@ To add a generated column to an existing table use ``table.add_column()``:
 .. code-block:: python
 
     db["items"].add_column("total", float, generated="price * qty")
-    db["items"].add_column("tax", float, generated="price * 0.2", stored=True)
+    db["items"].add_column("tax", float, generated=StoredColumn("price * 0.2"))
 
-SQLite's ``ALTER TABLE`` can only add ``VIRTUAL`` generated columns, so ``stored=True`` rebuilds the table using ``.transform()``.
+SQLite's ``ALTER TABLE`` can only add ``VIRTUAL`` generated columns, so adding a ``StoredColumn`` rebuilds the table using ``.transform()``.
 
 The expression is included in the SQL as-is, so it should never be constructed from untrusted input.
 

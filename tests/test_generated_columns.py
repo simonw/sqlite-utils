@@ -3,6 +3,7 @@ import pytest
 from sqlite_utils import Database
 from sqlite_utils.create_table_parser import (
     GeneratedColumn,
+    StoredColumn,
     parse_generated_columns,
 )
 from sqlite_utils.db import AlterError, TransformError
@@ -46,8 +47,8 @@ def rows(db):
             SCHEMA,
             {
                 "total": GeneratedColumn("price * qty"),
-                "total_s": GeneratedColumn("price * qty * 2", stored=True),
-                "label": GeneratedColumn("name || '!'", stored=True),
+                "total_s": StoredColumn("price * qty * 2"),
+                "label": StoredColumn("name || '!'"),
             },
         ),
         # No VIRTUAL/STORED keyword means virtual
@@ -58,7 +59,7 @@ def rows(db):
             "check (cast(a as integer) > 0), "
             "\"b c\" text generated always as (cast(a as text) || ')') stored, "
             "check (a as_of))",
-            {"b c": GeneratedColumn("cast(a as text) || ')'", stored=True)},
+            {"b c": StoredColumn("cast(a as text) || ')'")},
         ),
         (
             "create table t (a, -- as (nope)\n b /* as (x) */ as (a) virtual)",
@@ -85,8 +86,8 @@ def test_introspection(db):
     assert table.columns_dict["total"] is float
     assert table.generated_columns == {
         "total": GeneratedColumn("price * qty", stored=False),
-        "total_s": GeneratedColumn("price * qty * 2", stored=True),
-        "label": GeneratedColumn("name || '!'", stored=True),
+        "total_s": StoredColumn("price * qty * 2"),
+        "label": StoredColumn("name || '!'"),
     }
     assert db["nope"].generated_columns == {}
 
@@ -97,8 +98,8 @@ def test_transform_preserves_generated_columns(db):
     assert rows(db) == before
     assert db["items"].generated_columns == {
         "total": GeneratedColumn("price * qty", stored=False),
-        "total_s": GeneratedColumn("price * qty * 2", stored=True),
-        "label": GeneratedColumn("name || '!'", stored=True),
+        "total_s": StoredColumn("price * qty * 2"),
+        "label": StoredColumn("name || '!'"),
     }
     assert [c.name for c in db["items"].columns if c.notnull] == ["label"]
     # The index on the generated column survives
@@ -142,8 +143,8 @@ def test_transform_rename_rewrites_expressions(db):
     db["items"].transform(rename={"price": "unit price", "total": "grand"})
     assert db["items"].generated_columns == {
         "grand": GeneratedColumn('"unit price" * qty', stored=False),
-        "total_s": GeneratedColumn('"unit price" * qty * 2', stored=True),
-        "label": GeneratedColumn("name || '!'", stored=True),
+        "total_s": StoredColumn('"unit price" * qty * 2'),
+        "label": StoredColumn("name || '!'"),
     }
     assert rows(db)[0]["grand"] == 10.0
     assert db["items"].indexes[0].columns == ["grand"]
@@ -234,7 +235,7 @@ def test_create_table_with_generated_columns():
         pk="id",
         generated={
             "total": "price * qty",
-            "label": GeneratedColumn("'#' || id", stored=True),
+            "label": StoredColumn("'#' || id"),
         },
         not_null={"label"},
     )
@@ -249,7 +250,7 @@ def test_create_table_with_generated_columns():
     )
     assert table.generated_columns == {
         "total": GeneratedColumn("price * qty"),
-        "label": GeneratedColumn("'#' || id", stored=True),
+        "label": StoredColumn("'#' || id"),
     }
     table.insert({"price": 2.5, "qty": 4})
     assert list(table.rows) == [
@@ -282,15 +283,13 @@ def test_create_table_generated_errors(kwargs, error):
     assert not db["t"].exists()
 
 
-@pytest.mark.parametrize("stored", (False, True))
-def test_add_generated_column(db, stored):
+@pytest.mark.parametrize("cls", (GeneratedColumn, StoredColumn, str))
+def test_add_generated_column(db, cls):
     before = rows(db)
-    table = db["items"].add_column(
-        "double_qty", int, generated="qty * 2", stored=stored
-    )
-    assert table.generated_columns["double_qty"] == GeneratedColumn(
-        "qty * 2", stored=stored
-    )
+    table = db["items"].add_column("double_qty", int, generated=cls("qty * 2"))
+    expected = cls("qty * 2") if cls is not str else GeneratedColumn("qty * 2")
+    assert table.generated_columns["double_qty"] == expected
+    assert table.generated_columns["double_qty"].stored is (cls is StoredColumn)
     assert table.columns_dict["double_qty"] is int
     assert rows(db) == [dict(row, double_qty=row["qty"] * 2) for row in before]
     # Existing generated columns and indexes survive the stored rebuild
@@ -303,27 +302,33 @@ def test_add_generated_column(db, stored):
     assert [i.name for i in table.indexes] == ["idx_total"]
 
 
-def test_add_generated_column_using_generated_column_object(db):
-    db["items"].add_column("x", float, generated=GeneratedColumn("price", True))
-    assert db["items"].generated_columns["x"] == GeneratedColumn("price", True)
-
-
-@pytest.mark.parametrize("stored", (False, True))
-def test_add_generated_column_errors(db, stored):
+@pytest.mark.parametrize("cls", (GeneratedColumn, StoredColumn))
+def test_add_generated_column_errors(db, cls):
     with pytest.raises(AlterError):
-        db["items"].add_column(
-            "x", int, generated="1", stored=stored, not_null_default=1
-        )
+        db["items"].add_column("x", int, generated=cls("1"), not_null_default=1)
     with pytest.raises(AlterError):
-        db["items"].add_column("x", int, generated="1) --", stored=stored)
+        db["items"].add_column("x", int, generated=cls("1) --"))
     with pytest.raises((AlterError, sqlite3.OperationalError)):
-        db["items"].add_column("total", int, generated="1", stored=stored)
+        db["items"].add_column("total", int, generated=cls("1"))
     with pytest.raises(sqlite3.OperationalError):
-        db["items"].add_column("x", int, generated="no_such_col", stored=stored)
-    with pytest.raises(AlterError):
-        db["items"].add_column("x", int, stored=True)
+        db["items"].add_column("x", int, generated=cls("no_such_col"))
     assert "x" not in db["items"].columns_dict
     assert rows(db)[0]["total"] == 10.0
+
+
+def test_stored_column_class():
+    stored = StoredColumn("a + 1")
+    assert isinstance(stored, GeneratedColumn)
+    assert stored.stored is True
+    assert repr(stored) == "StoredColumn(expression='a + 1')"
+    # Equivalent however it was constructed
+    assert stored == GeneratedColumn("a + 1", stored=True)
+    assert hash(stored) == hash(GeneratedColumn("a + 1", stored=True))
+    assert stored != GeneratedColumn("a + 1")
+    db = Database(memory=True)
+    db["t"].create({"a": int, "b": int, "c": int}, generated={"b": stored, "c": "a"})
+    assert type(db["t"].generated_columns["b"]) is StoredColumn
+    assert type(db["t"].generated_columns["c"]) is GeneratedColumn
 
 
 def test_create_table_transform_adds_generated_column(db):

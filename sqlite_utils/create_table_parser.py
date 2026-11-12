@@ -50,12 +50,41 @@ class Unique:
     end: int = field(default=-1, compare=False, repr=False)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class GeneratedColumn:
-    "A ``GENERATED ALWAYS AS (expression)`` column definition."
+    """
+    A ``GENERATED ALWAYS AS (expression)`` column definition. These are
+    ``VIRTUAL`` - calculated when read - unless ``stored`` is true, see
+    :class:`StoredColumn`.
+    """
 
     expression: str
     stored: bool = False
+
+    # StoredColumn("x") and GeneratedColumn("x", stored=True) are the same
+    # thing, so equality ignores which of the two classes was used
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, GeneratedColumn):
+            return NotImplemented
+        return (self.expression, self.stored) == (other.expression, other.stored)
+
+    def __hash__(self) -> int:
+        return hash((self.expression, self.stored))
+
+
+class StoredColumn(GeneratedColumn):
+    "A ``GENERATED ALWAYS AS (expression) STORED`` column definition."
+
+    def __init__(self, expression: str):
+        super().__init__(expression, stored=True)
+
+    def __repr__(self) -> str:
+        return f"StoredColumn(expression={self.expression!r})"
+
+
+def make_generated_column(expression: str, stored: bool = False) -> GeneratedColumn:
+    "Returns a StoredColumn if stored, otherwise a GeneratedColumn"
+    return StoredColumn(expression) if stored else GeneratedColumn(expression)
 
 
 class ParseError(ValueError):
@@ -834,7 +863,7 @@ def parse_generated_columns(create_sql: str) -> dict[str, GeneratedColumn]:
                 stored = close + 1 < len(item_tokens) and item_tokens[
                     close + 1
                 ].is_keyword("STORED")
-                generated[column] = GeneratedColumn(expression, stored=stored)
+                generated[column] = make_generated_column(expression, stored)
                 break
             index += 1
     return generated
