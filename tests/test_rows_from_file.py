@@ -1,5 +1,6 @@
 import io
 import json
+from codecs import BOM_UTF8
 from io import BytesIO, StringIO
 
 import pytest
@@ -13,6 +14,9 @@ from sqlite_utils.utils import Format, RowError, rows_from_file
         (b"id,name\n1,Cleo", Format.CSV),
         (b"id\tname\n1\tCleo", Format.TSV),
         (b'[{"id": "1", "name": "Cleo"}]', Format.JSON),
+        (BOM_UTF8 + b'[{"id": "1", "name": "Cleo"}]', Format.JSON),
+        (BOM_UTF8 + b'\n{"id": "1", "name": "Cleo"}', Format.JSON),
+        (BOM_UTF8 + b"id,name\n1,Cleo", Format.CSV),
     ),
 )
 def test_rows_from_file_detect_format(input, expected_format):

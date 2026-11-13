@@ -9,6 +9,7 @@ import itertools
 import json
 import os
 import sys
+from codecs import BOM_UTF8
 from collections.abc import Callable, Generator, Iterable, Iterator
 from typing import (
     TYPE_CHECKING,
@@ -382,7 +383,7 @@ def rows_from_file(
         if not first_bytes:
             buffered.close()
             return (), Format.CSV
-        if first_bytes.startswith((b"[", b"{")):
+        if first_bytes.removeprefix(BOM_UTF8).lstrip().startswith((b"[", b"{")):
             # JSON is read eagerly, so the detection wrapper can close now,
             # including when parsing raises an error.
             # TODO: Detect newline-JSON
