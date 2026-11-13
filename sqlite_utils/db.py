@@ -3960,6 +3960,7 @@ class Table(Queryable):
         original_quoted = quote_identifier(original)
         columns_sql = "*"
         columns_with_prefix_sql = f"{original_quoted}.*"
+        columns = list(columns) if columns is not None else None
         if columns:
             columns_sql = ",\n        ".join(quote_identifier(c) for c in columns)
             columns_with_prefix_sql = ",\n    ".join(
