@@ -4449,12 +4449,7 @@ class Table(Queryable):
                 assignments = []
                 for c in non_pk_cols:
                     c_quoted = quote_identifier(c)
-                    if c in conversions:
-                        assignments.append(
-                            f"{c_quoted} = {conversions[c].replace('?', f'excluded.{c_quoted}')}"
-                        )
-                    else:
-                        assignments.append(f"{c_quoted} = excluded.{c_quoted}")
+                    assignments.append(f"{c_quoted} = excluded.{c_quoted}")
                 do_clause = "DO UPDATE SET " + ", ".join(assignments)
             else:
                 # All columns are in the PK – nothing to update.
