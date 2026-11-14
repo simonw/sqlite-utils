@@ -308,6 +308,16 @@ def test_transform_remove_a_not_null(fresh_db):
     )
 
 
+def test_transform_not_null_false_on_nullable_column(fresh_db):
+    dogs = fresh_db.table("dogs")
+    dogs.insert({"id": 1, "name": "Cleo", "age": None}, pk="id")
+    dogs.transform(not_null={"age": False})
+    assert (
+        dogs.schema
+        == 'CREATE TABLE "dogs" (\n   "id" INTEGER PRIMARY KEY,\n   "name" TEXT,\n   "age" TEXT\n)'
+    )
+
+
 @pytest.mark.parametrize("not_null", [{"age"}, {"age": True}])
 def test_transform_add_not_null_with_rename(fresh_db, not_null):
     dogs = fresh_db.table("dogs")

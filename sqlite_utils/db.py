@@ -3047,8 +3047,8 @@ class Table(Queryable):
             for key, value in not_null.items():
                 # Column may have been renamed
                 key = rename.get(key) or key
-                if value is False and key in create_table_not_null:
-                    create_table_not_null.remove(key)
+                if value is False:
+                    create_table_not_null.discard(key)
                 else:
                     create_table_not_null.add(key)
         elif isinstance(not_null, set):
