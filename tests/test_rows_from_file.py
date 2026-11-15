@@ -131,3 +131,22 @@ def test_detect_format_keeps_streaming_reader_open(
     assert not buffered_readers[0].closed
     assert len(list(rows)) == 2000
     assert buffered_readers[0].closed
+
+
+@pytest.mark.parametrize(
+    "content,expected_error",
+    [(b"name\nCleo,extra\n", RowError), (b"name\n\xff\n", UnicodeDecodeError)],
+)
+def test_csv_reader_closes_on_error(tmp_path, content, expected_error):
+    path = tmp_path / "input.csv"
+    path.write_bytes(content)
+    fp = path.open("rb")
+    try:
+        rows, detected = rows_from_file(fp, format=Format.CSV)
+        assert detected is Format.CSV
+        assert not fp.closed
+        with pytest.raises(expected_error):
+            next(iter(rows))
+        assert fp.closed
+    finally:
+        fp.close()
