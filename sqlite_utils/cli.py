@@ -2899,6 +2899,7 @@ def extract(
 @click.option("--text", is_flag=True, help="Store file content as TEXT, not BLOB")
 @click.option(
     "--encoding",
+    default="utf-8",
     help="Character encoding for input, defaults to utf-8",
 )
 @click.option("-s", "--silent", is_flag=True, help="Don't show a progress bar")

@@ -1,5 +1,6 @@
 import os
 import pathlib
+import subprocess
 import sys
 
 import pytest
@@ -149,6 +150,38 @@ def test_insert_files_stdin(use_text, encoding, input, expected):
         if use_text:
             key = "content_text"
         assert {"path": "stdin-name", key: expected}.items() <= row.items()
+
+
+@pytest.mark.skipif(
+    sys.platform.startswith("win"), reason="Requires the POSIX C locale"
+)
+def test_insert_files_uses_utf8_by_default_in_ascii_locale(tmp_path):
+    source = tmp_path / "input.txt"
+    source.write_text("São Paulo", encoding="utf-8")
+    db_path = tmp_path / "files.db"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "sqlite_utils",
+            "insert-files",
+            str(db_path),
+            "files",
+            str(source),
+            "--text",
+            "--silent",
+        ],
+        env={
+            **os.environ,
+            "LC_ALL": "C",
+            "PYTHONCOERCECLOCALE": "0",
+            "PYTHONUTF8": "0",
+        },
+        capture_output=True,
+    )
+    assert result.returncode == 0, result.stderr
+    with Database(db_path) as db:
+        assert next(db.table("files").rows)["content_text"] == "São Paulo"
 
 
 @pytest.mark.skipif(
