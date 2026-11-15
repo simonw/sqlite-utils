@@ -76,7 +76,7 @@ class _CloseableIterator(Iterator[Row]):
     def __next__(self) -> Row:
         try:
             return next(self._iterator)
-        except StopIteration:
+        except BaseException:
             self._closeable.close()
             raise
 
@@ -318,6 +318,8 @@ def rows_from_file(
             TSV = 2
             JSON = 3
             NL = 4
+
+    CSV/TSV streams are closed when iteration finishes or raises an exception.
 
     If a CSV or TSV file includes rows with more fields than are declared in the header a
     ``sqlite_utils.utils.RowError`` exception will be raised when you loop over the generator.
