@@ -1602,6 +1602,21 @@ def test_create_strict(fresh_db, strict):
     assert table.strict == strict or not fresh_db.supports_strict
 
 
+@pytest.mark.parametrize("strict", (False, True))
+def test_create_strict_override_persists(fresh_db, strict):
+    if not fresh_db.supports_strict:
+        pytest.skip("SQLite version does not support strict tables")
+    table = fresh_db.table("t")
+    table.create({"id": int}, strict=not strict)
+    assert table.strict is not strict
+
+    table.create({"id": int}, strict=strict, replace=True)
+    assert table.strict is strict
+
+    table.create({"id": int, "name": str}, replace=True)
+    assert table.strict is strict
+
+
 def test_create_strict_with_any(fresh_db):
     if not fresh_db.supports_strict:
         pytest.skip("SQLite version does not support strict tables")
