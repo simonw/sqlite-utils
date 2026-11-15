@@ -2346,6 +2346,8 @@ You can specify an upper case conversion for a specific column like so:
 
 The dictionary key is the column name to be converted. The value is the SQL fragment to use, with a ``?`` placeholder for the original value.
 
+With ``upsert()`` and ``upsert_all()``, conversions are applied once to each incoming non-primary-key value, whether a row is inserted or updated. The legacy upsert implementation (``use_old_upsert=True``) ignores conversions on primary-key columns.
+
 A more useful example: if you are working with `SpatiaLite <https://www.gaia-gis.it/fossil/libspatialite/index>`__ you may find yourself wanting to create geometry values from a WKT value. Code to do that could look like this:
 
 .. code-block:: python
