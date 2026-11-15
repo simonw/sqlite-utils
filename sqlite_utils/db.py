@@ -2603,7 +2603,7 @@ class Table(Queryable):
             self._defaults["hash_id_columns"] = hash_id_columns
         if extracts is not None:
             self._defaults["extracts"] = extracts
-        if strict:
+        if strict is not None:
             self._defaults["strict"] = strict
 
         columns = {name: value for (name, value) in columns.items()}
