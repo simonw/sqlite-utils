@@ -2008,6 +2008,18 @@ def test_transform_strict_option_with_invalid_data(db_path):
     assert not any(name.startswith("dogs_new_") for name in db.table_names())
 
 
+def test_transform_preserves_column_collation(db_path):
+    db = Database(db_path)
+    db.execute("CREATE TABLE dogs (id INTEGER PRIMARY KEY, name TEXT COLLATE NOCASE)")
+
+    result = CliRunner().invoke(
+        cli.cli, ["transform", db_path, "dogs", "--rename", "name", "dog_name"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert '"dog_name" TEXT COLLATE "NOCASE"' in db.table("dogs").schema
+
+
 def test_transform_column_to_any(db_path):
     db = Database(db_path)
     if not db.supports_strict:

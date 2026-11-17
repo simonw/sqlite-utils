@@ -661,10 +661,7 @@ def _unique_columns(
     return tuple(columns), close + 1
 
 
-def _column_uniques(
-    item: str, tokens: list[_Token], column: str, base_offset: int
-) -> list[Unique]:
-    uniques: list[Unique] = []
+def _column_collation(tokens: list[_Token]) -> str:
     collation = ""
     collation_index = 1
     while collation_index < len(tokens):
@@ -679,6 +676,14 @@ def _column_uniques(
             collation_index += 2
             continue
         collation_index += 1
+    return collation
+
+
+def _column_uniques(
+    item: str, tokens: list[_Token], column: str, base_offset: int
+) -> list[Unique]:
+    uniques: list[Unique] = []
+    collation = _column_collation(tokens)
     pending_name = ""
     pending_start: int | None = None
     index = 1
@@ -783,6 +788,28 @@ def parse_uniques(create_sql: str) -> list[Unique]:
             )
         )
     return uniques
+
+
+def parse_column_collations(create_sql: str) -> dict[str, str]:
+    """Return the COLLATE sequence declared on each column definition."""
+    body_info = _table_body(create_sql)
+    if body_info is None:
+        return {}
+    body, _ = body_info
+    collations: dict[str, str] = {}
+    for item, _, _ in _split_spans(body, _lex(body)):
+        item_tokens = _meaningful(_lex(item))
+        if not item_tokens:
+            continue
+        head = item_tokens[0]
+        if (
+            head.kind == "word" and head.text.upper() in _TABLE_CONSTRAINT_KEYWORDS
+        ) or head.is_keyword("CONSTRAINT"):
+            continue
+        collation = _column_collation(item_tokens)
+        if collation:
+            collations[_unquote(head.text)] = collation
+    return collations
 
 
 def parse_column_comments(create_sql: str) -> dict[str, ColumnComments]:
