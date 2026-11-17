@@ -12,6 +12,7 @@ from sqlite_utils.create_table_parser import (
     UniqueColumn,
     parse_autoincrement,
     parse_checks,
+    parse_column_collations,
     parse_column_comments,
     parse_uniques,
 )
@@ -149,6 +150,36 @@ def test_virtual_table_has_no_checks():
 def test_parse_autoincrement(sql, expected):
     sqlite3.connect(":memory:").execute(sql)
     assert parse_autoincrement(sql) == expected
+
+
+@pytest.mark.parametrize(
+    "sql,expected",
+    [
+        (
+            "CREATE TABLE t(id INTEGER, name TEXT COLLATE NOCASE)",
+            {"name": "NOCASE"},
+        ),
+        (
+            'CREATE TABLE t("quoted name" TEXT COLLATE "RTRIM" NOT NULL, other TEXT)',
+            {"quoted name": "RTRIM"},
+        ),
+        (
+            "CREATE TABLE t(code VARCHAR(10) PRIMARY KEY COLLATE BINARY)",
+            {"code": "BINARY"},
+        ),
+        (
+            "CREATE TABLE t(name TEXT CHECK (name = 'x' COLLATE NOCASE))",
+            {},
+        ),
+        (
+            "CREATE TABLE t(name TEXT /* COLLATE NOCASE */, UNIQUE (name COLLATE NOCASE))",
+            {},
+        ),
+    ],
+)
+def test_parse_column_collations(sql, expected):
+    sqlite3.connect(":memory:").execute(sql)
+    assert parse_column_collations(sql) == expected
 
 
 def test_parse_column_and_table_uniques():
