@@ -37,7 +37,10 @@ from .create_table_parser import (
     parse_checks,
     parse_column_comments,
     parse_uniques,
+    parse_without_rowid,
+    rename_create_statement,
     rewrite_check_expression,
+    rewrite_table_references,
     sql_ends_in_line_comment,
 )
 from .utils import (
@@ -2629,15 +2632,77 @@ class Table(Queryable):
 
     def duplicate(self, new_name: str) -> "Table":
         """
-        Create a duplicate of this table, copying across the schema and all row data.
+        Create a duplicate of this table, copying across the schema, indexes, rowids
+        and all row data. Triggers are not copied.
 
         :param new_name: Name of the new table
         """
         if not self.exists():
             raise NoTable(f"Table {self.name} does not exist")
         with self.db.atomic():
-            sql = f"CREATE TABLE {quote_identifier(new_name)} AS SELECT * FROM {quote_identifier(self.name)};"
-            self.db.execute(sql)
+            if self.virtual_table_using is not None:
+                sql = f"CREATE TABLE {quote_identifier(new_name)} AS SELECT * FROM {quote_identifier(self.name)};"
+                self.db.execute(sql)
+                return self.db.table(new_name)
+            self.db.execute(
+                rewrite_table_references(
+                    rename_create_statement(self.schema, new_name), self.name, new_name
+                )
+            )
+            columns = [column.name for column in self.columns]
+            if not parse_without_rowid(self.schema) and "rowid" not in {
+                c.lower() for c in columns
+            }:
+                columns.insert(0, "rowid")
+            columns_sql = ", ".join(quote_identifier(c) for c in columns)
+            self.db.execute(
+                f"INSERT INTO {quote_identifier(new_name)} ({columns_sql}) "
+                f"SELECT {columns_sql} FROM {quote_identifier(self.name)};"
+            )
+            if parse_autoincrement(self.schema):
+                sequence_row = self.db.execute(
+                    "SELECT seq FROM sqlite_sequence WHERE name = ?", [self.name]
+                ).fetchone()
+                if sequence_row is not None:
+                    self.db.execute(
+                        "UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = ?",
+                        [sequence_row[0], new_name],
+                    )
+                    self.db.execute(
+                        "INSERT INTO sqlite_sequence (name, seq) SELECT ?, ? "
+                        "WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = ?)",
+                        [new_name, sequence_row[0], new_name],
+                    )
+            # Index names must be unique across the database
+            existing_names = {
+                row[0].lower()
+                for row in self.db.execute("SELECT name FROM sqlite_master")
+            }
+            for index in self.indexes:
+                row = self.db.execute(
+                    "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
+                    [index.name],
+                ).fetchone()
+                if row is None or row[0] is None:
+                    # Automatic index for a PRIMARY KEY or UNIQUE constraint
+                    continue
+                if self.name in index.name:
+                    base_name = index.name.replace(self.name, new_name, 1)
+                else:
+                    base_name = f"{new_name}_{index.name}"
+                index_name = base_name
+                suffix = 2
+                while index_name.lower() in existing_names:
+                    index_name = f"{base_name}_{suffix}"
+                    suffix += 1
+                existing_names.add(index_name.lower())
+                self.db.execute(
+                    rewrite_table_references(
+                        rename_create_statement(row[0], index_name, table=new_name),
+                        self.name,
+                        new_name,
+                    )
+                )
         return self.db.table(new_name)
 
     def transform(

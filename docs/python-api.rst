@@ -1060,6 +1060,17 @@ The ``table.duplicate()`` method creates a copy of the table, copying both the t
 
 The new ``authors_copy`` table will now contain a duplicate copy of the data from ``authors``.
 
+The new table is created from the original table's ``CREATE TABLE`` statement with only the table name changed, so it keeps the same column types, primary key, ``NOT NULL``, ``UNIQUE``, ``CHECK`` and ``DEFAULT`` constraints, foreign keys, ``STRICT`` and ``WITHOUT ROWID`` options. Those constraints are enforced on the copy. Row ``rowid`` values and the ``AUTOINCREMENT`` counter are preserved too.
+
+A few parts of the schema are adjusted for the new table name:
+
+- References to the table itself, such as a self-referencing foreign key or an ``authors.name`` column reference in a ``CHECK`` constraint, are updated to point at the copy.
+- Indexes are recreated under new names, because index names must be unique within a database. If the index name contains the original table name that part is replaced, so ``idx_authors_name`` becomes ``idx_authors_copy_name``. Other index names are prefixed with the new table name, so ``by_name`` becomes ``authors_copy_by_name``. A numeric suffix is added if that name is already in use.
+
+Triggers are not copied.
+
+Duplicating a virtual table, such as a full-text search table, creates a regular table containing a copy of its rows.
+
 This method raises ``sqlite_utils.db.NoTable`` if the table does not exist.
 
 .. note::
