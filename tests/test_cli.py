@@ -2847,6 +2847,22 @@ def test_duplicate_table(tmpdir):
     assert list(db.table("one").rows) == list(db.table("two").rows)
 
 
+def test_duplicate_table_copies_schema_and_indexes(db_path):
+    db = Database(db_path)
+    db.execute("CREATE TABLE one (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+    db.execute("CREATE INDEX idx_one_name ON one (name)")
+    db.table("one").insert({"id": 1, "name": "Cleo"})
+
+    result = CliRunner().invoke(cli.cli, ["duplicate", db_path, "one", "two"])
+
+    assert result.exit_code == 0, result.output
+    assert db.table("two").schema == (
+        "CREATE TABLE two (id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
+    )
+    assert [index.name for index in db.table("two").indexes] == ["idx_two_name"]
+    assert list(db.table("two").rows) == [{"id": 1, "name": "Cleo"}]
+
+
 @pytest.mark.skipif(not _has_compiled_ext(), reason="Requires compiled ext.c")
 @pytest.mark.parametrize(
     "entrypoint,should_pass,should_fail",

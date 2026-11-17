@@ -2201,6 +2201,8 @@ The ``duplicate`` command duplicates a table - creating a new table with the sam
 
     sqlite-utils duplicate books.db authors authors_copy
 
+The copy keeps the original table's column types, constraints, foreign keys, ``STRICT`` and ``WITHOUT ROWID`` options, ``rowid`` values and indexes (recreated under new names). Triggers are not copied. See :ref:`table.duplicate() <python_api_duplicate>` for details.
+
 .. note::
     In Python: :ref:`table.duplicate() <python_api_duplicate>`  CLI reference: :ref:`sqlite-utils duplicate <cli_ref_duplicate>`
 

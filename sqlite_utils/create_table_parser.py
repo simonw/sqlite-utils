@@ -785,6 +785,90 @@ def parse_uniques(create_sql: str) -> list[Unique]:
     return uniques
 
 
+def parse_without_rowid(create_sql: str) -> bool:
+    """Return True if a CREATE TABLE statement ends with WITHOUT ROWID."""
+    if _table_body(create_sql) is None:
+        return False
+    tokens = _meaningful(_lex(create_sql))
+    close = max(i for i, token in enumerate(tokens) if token.text == ")")
+    return any(token.is_keyword("WITHOUT") for token in tokens[close + 1 :])
+
+
+def rename_create_statement(
+    create_sql: str, new_name: str, table: str | None = None
+) -> str:
+    """
+    Rename the table or index created by a CREATE TABLE or CREATE INDEX statement.
+
+    For CREATE INDEX, ``table`` replaces the name of the indexed table. Everything
+    else in the statement, including comments and whitespace, is left unchanged.
+    """
+    tokens = _meaningful(_lex(create_sql))
+    if not tokens or not tokens[0].is_keyword("CREATE"):
+        raise ParseError("Expected CREATE TABLE or CREATE INDEX")
+    index = 1
+    while index < len(tokens) and tokens[index].text.upper() in (
+        "TEMP",
+        "TEMPORARY",
+        "UNIQUE",
+    ):
+        index += 1
+    if index >= len(tokens) or not (
+        tokens[index].is_keyword("TABLE") or tokens[index].is_keyword("INDEX")
+    ):
+        raise ParseError("Expected CREATE TABLE or CREATE INDEX")
+    index += 1
+    if (
+        index + 2 < len(tokens)
+        and tokens[index].is_keyword("IF")
+        and tokens[index + 1].is_keyword("NOT")
+        and tokens[index + 2].is_keyword("EXISTS")
+    ):
+        index += 3
+    if index + 1 < len(tokens) and tokens[index + 1].text == ".":
+        index += 2
+    if index >= len(tokens):
+        raise ParseError("CREATE statement is missing its name")
+    replacements = [(tokens[index], new_name)]
+    if table is not None:
+        if index + 2 >= len(tokens) or not tokens[index + 1].is_keyword("ON"):
+            raise ParseError("CREATE INDEX is missing ON")
+        replacements.append((tokens[index + 2], table))
+    for token, replacement in reversed(replacements):
+        create_sql = (
+            create_sql[: token.start]
+            + _quote_replacement(token.text, replacement)
+            + create_sql[token.end :]
+        )
+    return create_sql
+
+
+def rewrite_table_references(sql: str, old_table: str, new_table: str) -> str:
+    """
+    Rename ``old_table`` where it qualifies a column (``table.column``) or is the
+    target of ``REFERENCES``. Strings and comments are left unchanged.
+    """
+    tokens = _meaningful(_lex(sql))
+    folded = _ascii_fold(old_table)
+    replacements = [
+        token
+        for i, token in enumerate(tokens)
+        if token.kind in ("word", "identifier")
+        and _ascii_fold(_unquote(token.text)) == folded
+        and (
+            (i + 1 < len(tokens) and tokens[i + 1].text == ".")
+            or (i > 0 and tokens[i - 1].is_keyword("REFERENCES"))
+        )
+    ]
+    for token in reversed(replacements):
+        sql = (
+            sql[: token.start]
+            + _quote_replacement(token.text, new_table)
+            + sql[token.end :]
+        )
+    return sql
+
+
 def parse_column_comments(create_sql: str) -> dict[str, ColumnComments]:
     """Return comments immediately before and after each column definition."""
     body_info = _table_body(create_sql)
