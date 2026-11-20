@@ -13,7 +13,13 @@ def test_tracer():
     assert collected == [
         ("PRAGMA recursive_triggers=on;", None),
         ("select name from sqlite_master where type = 'view'", None),
-        ("select name from sqlite_master where type = 'table'", None),
+        (
+            "select (select sql from sqlite_master where type = 'table' and name = :name), "
+            "exists(select 1 from sqlite_master where type = 'trigger' and tbl_name = :name collate nocase "
+            "union all select 1 from sqlite_temp_master where type = 'trigger' and tbl_name = :name collate nocase), "
+            "sqlite_version()",
+            {"name": "dogs"},
+        ),
         ("select name from sqlite_master where type = 'view'", None),
         ("select name from sqlite_master where type = 'view'", None),
         ("select name from sqlite_master where type = 'table'", None),

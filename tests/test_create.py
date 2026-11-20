@@ -1010,6 +1010,39 @@ def test_insert_all_invalid_pk_alter_empty_records_is_noop(fresh_db):
     assert fresh_db.table("t").count == 0
 
 
+@pytest.mark.skipif(sqlite3.sqlite_version_info < (3, 35), reason="requires RETURNING")
+@pytest.mark.parametrize("prior_insert", [False, True])
+@pytest.mark.parametrize("compound", [False, True])
+@pytest.mark.parametrize("specify_pk", [False, True])
+def test_insert_returns_pk_without_rowid(fresh_db, prior_insert, compound, specify_pk):
+    if prior_insert:
+        fresh_db.table("other").insert({"value": 1})
+    pk = ('item"id', "locale") if compound else 'item"id'
+    key_sql = '"item""id", locale' if compound else '"item""id"'
+    fresh_db.execute(
+        f'create table items ("item""id" text, locale text, primary key ({key_sql})) without rowid'
+    )
+    values = {'item"id': "item", "locale": "en"}
+    table = fresh_db.table("items")
+    for ignore in (False, True):
+        table.insert(values, pk=pk if specify_pk else None, ignore=ignore)
+        assert table.last_pk == (("item", "en") if compound else "item")
+        assert table.last_rowid is None
+    assert list(table.rows) == [values]
+
+
+@pytest.mark.parametrize("temporary", ["", "temp "])
+def test_insert_reports_pk_after_trigger(fresh_db, temporary):
+    fresh_db.execute("create table items (key text primary key)")
+    fresh_db.execute(
+        f"create {temporary}trigger fix_key after insert on ITEMS begin "
+        "update items set key = upper(new.key) where rowid = new.rowid; end"
+    )
+    table = fresh_db.table("items").insert({"key": "example"}, pk="key")
+    assert table.last_pk == "EXAMPLE"
+    assert table.last_rowid == 1
+
+
 def test_insert_ignore(fresh_db):
     fresh_db.table("test").insert({"id": 1, "bar": 2}, pk="id")
     # Should raise an error if we try this again

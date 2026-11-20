@@ -725,6 +725,8 @@ You can also specify a primary key by passing the ``pk=`` parameter to the ``.in
 After inserting a row like this, the ``dogs.last_rowid`` property will return the SQLite ``rowid`` assigned to the most recently inserted record.
 
 The ``dogs.last_pk`` property will return the last inserted primary key value, if you specified one. This can be very useful when writing code that creates foreign keys or many-to-many relationships.
+On SQLite 3.35 or later a single insert into a ``WITHOUT ROWID`` table returns its primary key in ``last_pk`` and leaves ``last_rowid`` set to ``None``.
+This key is the value inserted by the statement, before any ``AFTER`` trigger on the ``WITHOUT ROWID`` table runs.
 
 .. _python_api_custom_columns:
 
