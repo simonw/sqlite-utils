@@ -2250,6 +2250,13 @@ class Queryable:
         ).fetchone()[0]
 
 
+@dataclass
+class _InsertReturning:
+    columns: str
+    has_rowid: bool
+    row: tuple[Any, ...] | None = None
+
+
 class Table(Queryable):
     """
     Tables should usually be initialized using the ``db.table(table_name)`` or
@@ -4517,6 +4524,51 @@ class Table(Queryable):
                     self.last_pk = pk_values
         return queries_and_params
 
+    def _single_insert_info(
+        self, pk: PrimaryKey | None
+    ) -> tuple[bool, _InsertReturning | None]:
+        # The table-existence check also supplies the information needed to
+        # choose RETURNING, without a separate series of schema lookups.
+        schema, has_triggers, version = self.db.execute(
+            "select (select sql from sqlite_master where type = 'table' and name = :name), "
+            "exists(select 1 from sqlite_master where type = 'trigger' and tbl_name = :name collate nocase "
+            "union all select 1 from sqlite_temp_master where type = 'trigger' and tbl_name = :name collate nocase), "
+            "sqlite_version()",
+            {"name": self.name},
+        ).fetchone()
+        exists = schema is not None
+        if tuple(map(int, version.split("."))) < (3, 35):
+            return exists, None
+
+        # index_info(table) gives the primary key columns for a WITHOUT ROWID
+        # table. Confirm with SQLite if its schema contains the keyword.
+        without_rowid_pk = []
+        if schema and "without" in schema.lower():
+            without_rowid_pk = [
+                row[2]
+                for row in self.db.execute(
+                    f"PRAGMA index_info({quote_identifier(self.name)})"
+                )
+            ]
+        if not without_rowid_pk and (
+            has_triggers or (schema and _virtual_table_using_re.match(schema))
+        ):
+            # RETURNING precedes AFTER triggers and can report a placeholder
+            # rowid on virtual tables. Keep the post-insert lookup for these.
+            return exists, None
+        if pk:
+            columns = [pk] if isinstance(pk, str) else list(pk)
+        elif without_rowid_pk:
+            columns = without_rowid_pk
+        elif schema and "rowid" not in schema.lower():
+            columns = ["rowid"]
+        else:
+            # The schema could shadow rowid, or is still to be created.
+            return exists, None
+        return exists, _InsertReturning(
+            ", ".join(map(quote_identifier, columns)), not without_rowid_pk
+        )
+
     def insert_chunk(
         self,
         alter,
@@ -4533,6 +4585,7 @@ class Table(Queryable):
         replace,
         ignore,
         list_mode=False,
+        returning: _InsertReturning | None = None,
     ) -> sqlite3.Cursor | None:
         queries_and_params = self.build_insert_queries_and_params(
             extracts,
@@ -4552,6 +4605,8 @@ class Table(Queryable):
         result = None
         with self.db.atomic():
             for query, params in queries_and_params:
+                if returning is not None:
+                    query += " RETURNING " + returning.columns
                 try:
                     result = self.db.execute(query, params)
                 except OperationalError as e:
@@ -4599,6 +4654,11 @@ class Table(Queryable):
 
                     else:
                         raise
+                if returning is not None and result is not None:
+                    # SQLite cannot commit with a RETURNING statement in progress.
+                    row = result.fetchone()
+                    if row is not None:
+                        returning.row = tuple(row)
         return result
 
     def insert(
@@ -4824,11 +4884,16 @@ class Table(Queryable):
             with self.db.atomic():
                 self.db.execute(f"DELETE FROM {quote_identifier(self.name)};")
         result = None
+        returning = None
         for chunk in chunks(itertools.chain([first_record], records_iter), batch_size):
             chunk = list(chunk)
             num_records_processed += len(chunk)
             if first:
-                if not self.exists():
+                if num_records_processed == 1 and not upsert:
+                    exists, returning = self._single_insert_info(pk)
+                else:
+                    exists = self.exists()
+                if not exists:
                     # Use the first batch to derive the table names
                     if list_mode:
                         # Convert list records to dicts for type detection
@@ -4886,7 +4951,6 @@ class Table(Queryable):
                         ]
 
             first = False
-
             result = self.insert_chunk(
                 alter,
                 extracts,
@@ -4902,11 +4966,11 @@ class Table(Queryable):
                 replace,
                 ignore,
                 list_mode,
+                returning=returning if num_records_processed == 1 else None,
             )
 
         # If we only handled a single row populate self.last_pk
         if num_records_processed == 1:
-            # For an insert we need to use result.lastrowid
             if not upsert and result is not None:
                 ignored_insert = ignore and result.rowcount == 0
                 if ignored_insert:
@@ -4954,8 +5018,13 @@ class Table(Queryable):
                             where = " and ".join(
                                 f"{quote_identifier(c)} = ?" for c in key_cols
                             )
+                            rowid = (
+                                "NULL"
+                                if returning and not returning.has_rowid
+                                else "rowid"
+                            )
                             existing = self.db.execute(
-                                f"select rowid from {quote_identifier(self.name)} where {where} limit 1",
+                                f"select {rowid} from {quote_identifier(self.name)} where {where} limit 1",
                                 key_values,
                             ).fetchone()
                             if existing is not None:
@@ -4968,6 +5037,16 @@ class Table(Queryable):
                                         if len(key_cols) == 1
                                         else tuple(key_values)
                                     )
+                elif returning is not None:
+                    if returning.row is not None:
+                        self.last_pk = (
+                            returning.row[0]
+                            if len(returning.row) == 1
+                            else returning.row
+                        )
+                        self.last_rowid = (
+                            result.lastrowid if returning.has_rowid else None
+                        )
                 else:
                     self.last_rowid = result.lastrowid
                     # A rowid-alias pk resolves directly to the rowid, so there
