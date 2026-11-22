@@ -77,6 +77,20 @@ def test_autocommit_connections_are_rejected(tmpdir, autocommit):
     conn.close()
 
 
+def test_autocommit_connection_from_path_is_rejected(tmpdir, monkeypatch):
+    # A patched sqlite3.connect can hand back an autocommit connection even
+    # when the caller only supplied a path - that branch must reject it too
+    class AutocommitConnection:
+        autocommit = True
+
+    monkeypatch.setattr(
+        sqlite3, "connect", lambda *args, **kwargs: AutocommitConnection()
+    )
+    with pytest.raises(TransactionError) as excinfo:
+        Database(str(tmpdir / "test.db"))
+    assert "autocommit=True or autocommit=False are not supported" in str(excinfo.value)
+
+
 @pytest.mark.skipif(
     sys.version_info < (3, 12),
     reason="sqlite3.LEGACY_TRANSACTION_CONTROL requires Python 3.12",
