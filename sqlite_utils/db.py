@@ -594,10 +594,12 @@ class Database:
                 uri=True,
                 check_same_thread=False,
             )
+            self._validate_autocommit()
             self.memory = True
             self.memory_name = memory_name
         elif memory or filename_or_conn == ":memory:":
             self.conn = sqlite3.connect(":memory:")
+            self._validate_autocommit()
             self.memory = True
         elif isinstance(filename_or_conn, (str, pathlib.Path)):
             if recreate and os.path.exists(filename_or_conn):
@@ -609,22 +611,12 @@ class Database:
                     self.conn = sqlite3.connect(":memory:")
                     raise
             self.conn = sqlite3.connect(str(filename_or_conn))
+            self._validate_autocommit()
         else:
             if recreate:
                 raise ValueError("recreate cannot be used with connections, only paths")
             self.conn = cast(sqlite3.Connection, filename_or_conn)
-            # Python 3.12+ autocommit=True/False connections make commit()
-            # and rollback() behave differently, silently breaking the
-            # transaction handling used by every write method
-            autocommit = getattr(self.conn, "autocommit", None)
-            if autocommit is not None and autocommit != getattr(
-                sqlite3, "LEGACY_TRANSACTION_CONTROL", -1
-            ):
-                raise TransactionError(
-                    "sqlite-utils requires a connection that uses the default "
-                    "transaction handling - connections created with "
-                    "autocommit=True or autocommit=False are not supported"
-                )
+            self._validate_autocommit()
         self._tracer: Tracer | None = tracer
         if recursive_triggers:
             self.execute("PRAGMA recursive_triggers=on;")
@@ -634,6 +626,20 @@ class Database:
             ensure_plugins_loaded()
             pm.hook.prepare_connection(conn=self.conn)
         self.strict = strict
+
+    def _validate_autocommit(self) -> None:
+        # Python 3.12+ autocommit=True/False connections make commit()
+        # and rollback() behave differently, silently breaking the
+        # transaction handling used by every write method
+        autocommit = getattr(self.conn, "autocommit", None)
+        if autocommit is not None and autocommit != getattr(
+            sqlite3, "LEGACY_TRANSACTION_CONTROL", -1
+        ):
+            raise TransactionError(
+                "sqlite-utils requires a connection that uses the default "
+                "transaction handling - connections created with "
+                "autocommit=True or autocommit=False are not supported"
+            )
 
     def __enter__(self):
         return self
