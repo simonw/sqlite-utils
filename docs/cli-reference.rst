@@ -250,6 +250,8 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       Use --type column-name type to override the type automatically chosen when the
       table is created.
 
+      Use --atomic to roll back the entire import if any row fails.
+
       You can also use --convert to pass a fragment of Python code that will be used
       to convert each input.
 
@@ -306,6 +308,7 @@ See :ref:`cli_inserting_data`, :ref:`cli_insert_csv_tsv`, :ref:`cli_insert_unstr
       --no-headers              CSV file has no header row
       --encoding TEXT           Character encoding for input, defaults to utf-8
       --batch-size INTEGER      Commit every X records
+      --atomic                  Run the entire import in a single transaction
       --stop-after INTEGER      Stop after X records
       --alter                   Alter existing table to add any missing columns
       --not-null TEXT           Columns that should be created as NOT NULL
@@ -340,6 +343,8 @@ See :ref:`cli_upsert`.
 
       If the table already exists and has a primary key, --pk can be omitted.
 
+      Use --atomic to roll back the entire import if any row fails.
+
       Use --type column-name type to override the type automatically chosen when the
       table is created.
 
@@ -370,6 +375,7 @@ See :ref:`cli_upsert`.
       --no-headers              CSV file has no header row
       --encoding TEXT           Character encoding for input, defaults to utf-8
       --batch-size INTEGER      Commit every X records
+      --atomic                  Run the entire import in a single transaction
       --stop-after INTEGER      Stop after X records
       --alter                   Alter existing table to add any missing columns
       --not-null TEXT           Columns that should be created as NOT NULL

@@ -1005,6 +1005,11 @@ def insert_upsert_options(*, require_pk=False):
                 click.option(
                     "--batch-size", type=int, default=100, help="Commit every X records"
                 ),
+                click.option(
+                    "--atomic",
+                    is_flag=True,
+                    help="Run the entire import in a single transaction",
+                ),
                 click.option("--stop-after", type=int, help="Stop after X records"),
                 click.option(
                     "--alter",
@@ -1095,6 +1100,7 @@ def insert_upsert_implementation(
     functions=None,
     strict=False,
     code=None,
+    atomic=False,
 ):
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
@@ -1103,6 +1109,13 @@ def insert_upsert_implementation(
     column_type_overrides = {column: ctype.upper() for column, ctype in (types or [])}
 
     def _insert_docs(docs, tracker=None):
+        if atomic:
+            with db.atomic():
+                _insert_docs_inner(docs, tracker=tracker)
+        else:
+            _insert_docs_inner(docs, tracker=tracker)
+
+    def _insert_docs_inner(docs, tracker=None):
         extra_kwargs: dict[str, Any] = {
             "ignore": ignore,
             "replace": replace,
@@ -1373,6 +1386,7 @@ def insert(
     no_headers,
     encoding,
     batch_size,
+    atomic,
     stop_after,
     alter,
     no_detect_types,
@@ -1405,6 +1419,8 @@ def insert(
 
     Use --type column-name type to override the type automatically chosen
     when the table is created.
+
+    Use --atomic to roll back the entire import if any row fails.
 
     You can also use --convert to pass a fragment of Python code that will
     be used to convert each input.
@@ -1481,6 +1497,7 @@ def insert(
             types=types,
             strict=strict,
             code=code,
+            atomic=atomic,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
@@ -1511,6 +1528,7 @@ def upsert(
     no_headers,
     encoding,
     alter,
+    atomic,
     not_null,
     default,
     types,
@@ -1526,6 +1544,8 @@ def upsert(
     the existing record will be updated.
 
     If the table already exists and has a primary key, --pk can be omitted.
+
+    Use --atomic to roll back the entire import if any row fails.
 
     Use --type column-name type to override the type automatically chosen
     when the table is created.
@@ -1571,6 +1591,7 @@ def upsert(
             silent=silent,
             strict=strict,
             code=code,
+            atomic=atomic,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))

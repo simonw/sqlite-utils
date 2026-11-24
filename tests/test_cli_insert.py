@@ -385,6 +385,74 @@ def test_insert_alter(db_path, tmpdir):
     ] == list(db.query("select foo, n, baz from from_json_nl"))
 
 
+@pytest.mark.parametrize(
+    "command,rows",
+    (
+        ("insert", [{"id": 1}, {"id": 1}]),
+        ("upsert", [{"id": 1}, {"name": "Missing primary key"}]),
+    ),
+)
+def test_insert_upsert_atomic_rolls_back_new_table(db_path, command, rows):
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            command,
+            db_path,
+            "rows",
+            "-",
+            "--pk",
+            "id",
+            "--atomic",
+            "--batch-size",
+            "1",
+        ],
+        input=json.dumps(rows),
+    )
+    assert result.exit_code != 0
+    assert not Database(db_path).table("rows").exists()
+
+
+@pytest.mark.parametrize(
+    "command,rows",
+    (
+        ("insert", [{"id": 2, "name": "New", "extra": "value"}, {"id": 2}]),
+        (
+            "upsert",
+            [
+                {"id": 1, "name": "Updated", "extra": "value"},
+                {"name": "Missing primary key"},
+            ],
+        ),
+    ),
+)
+def test_insert_upsert_atomic_rolls_back_rows_and_altered_columns(
+    db_path, command, rows
+):
+    db = Database(db_path)
+    db.table("rows").insert({"id": 1, "name": "Original"}, pk="id")
+
+    result = CliRunner().invoke(
+        cli.cli,
+        [
+            command,
+            db_path,
+            "rows",
+            "-",
+            "--pk",
+            "id",
+            "--alter",
+            "--atomic",
+            "--batch-size",
+            "1",
+        ],
+        input=json.dumps(rows),
+    )
+
+    assert result.exit_code != 0
+    assert set(db.table("rows").columns_dict) == {"id", "name"}
+    assert list(db.table("rows").rows) == [{"id": 1, "name": "Original"}]
+
+
 def test_insert_analyze(db_path):
     db = Database(db_path)
     db.table("rows").insert({"foo": "x", "n": 3})

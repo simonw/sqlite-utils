@@ -1195,6 +1195,11 @@ You can delete all the existing rows in the table before inserting the new recor
 
     sqlite-utils insert dogs.db dogs dogs.json --truncate
 
+Use ``--atomic`` to run the entire import in one transaction. If a row fails,
+all rows and schema changes from that import will be rolled back. This also
+means ``--batch-size`` will no longer commit partial progress when ``--atomic``
+is used.
+
 You can add the ``--analyze`` option to run ``ANALYZE`` against the table after the rows have been inserted.
 
 .. note::
@@ -1655,6 +1660,10 @@ This will update the dog with an ID of 2 to have an age of 4, creating a new rec
 If the table already exists and has a primary key, you can omit the ``--pk`` option and ``sqlite-utils`` will use that existing primary key.
 
 The command will fail if you reference columns that do not exist on the table. To automatically create missing columns, use the ``--alter`` option.
+
+Use ``--atomic`` to run the entire import in one transaction. If a row fails,
+all rows and schema changes from that import will be rolled back, including when
+``--batch-size`` is specified.
 
 .. note::
     ``upsert`` in sqlite-utils 1.x worked like ``insert ... --replace`` does in 2.x. See `issue #66 <https://github.com/simonw/sqlite-utils/issues/66>`__ for details of this change.
