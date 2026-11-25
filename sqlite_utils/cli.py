@@ -1050,6 +1050,8 @@ def insert_upsert_options(*, require_pk=False):
                     default=False,
                     help="Apply STRICT mode to created table",
                 ),
+                click.option("--atomic", is_flag=True, default=False, help="Perform operation atomically in a single transaction",
+),
             )
         ):
             fn = decorator(fn)
@@ -1095,6 +1097,7 @@ def insert_upsert_implementation(
     functions=None,
     strict=False,
     code=None,
+    atomic=False,
 ):
     db = sqlite_utils.Database(path)
     _register_db_for_cleanup(db)
@@ -1140,9 +1143,15 @@ def insert_upsert_implementation(
         # views before the error handling below can deal with them
         table_existed_before_insert = table in db.table_names()
         try:
-            db.table(table).insert_all(
-                docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
-            )
+            if atomic:
+                with db.atomic():
+                    db.table(table).insert_all(
+                        docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
+                    )
+            else:
+                db.table(table).insert_all(
+                    docs, pk=pk, batch_size=batch_size, alter=alter, **extra_kwargs
+                )
         except (NoTable, InvalidColumns, PrimaryKeyRequired) as e:
             raise click.ClickException(str(e))
         except Exception as e:
@@ -1386,6 +1395,7 @@ def insert(
     default,
     types,
     strict,
+    atomic,
 ):
     """
     Insert records from FILE into a table, creating the table if it
@@ -1481,6 +1491,7 @@ def insert(
             types=types,
             strict=strict,
             code=code,
+            atomic=atomic,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
@@ -1519,6 +1530,7 @@ def upsert(
     load_extension,
     silent,
     strict,
+    atomic,
 ):
     """
     Upsert records based on their primary key. Works like 'insert' but if
@@ -1571,6 +1583,7 @@ def upsert(
             silent=silent,
             strict=strict,
             code=code,
+            atomic=atomic,
         )
     except UnicodeDecodeError as ex:
         raise click.ClickException(UNICODE_ERROR.format(ex))
