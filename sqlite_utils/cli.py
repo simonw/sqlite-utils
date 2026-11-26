@@ -2485,10 +2485,10 @@ def rows(
         sql += " where " + where
     if order:
         sql += " order by " + order
-    if limit:
+    if limit is not None:
         sql += f" limit {limit}"
     if offset:
-        if not limit:
+        if limit is None:
             sql += " limit -1"
         sql += f" offset {offset}"
     ctx.invoke(

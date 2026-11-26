@@ -1184,6 +1184,8 @@ def test_query_memory_does_not_create_file(tmpdir):
             ["-c", "name", "--limit", "1", "--offset", "1"],
             '[{"name": "Pancakes"}]',
         ),
+        (["--limit", "0"], "[]"),
+        (["--limit", "0", "--offset", "1"], "[]"),
         # --offset without --limit
         (
             ["-c", "name", "--offset", "1"],
