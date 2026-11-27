@@ -1090,6 +1090,35 @@ def test_transform_preserves_column_unique_collation(fresh_db):
         people.insert({"id": 2, "full_name": "cleo"})
 
 
+def test_transform_preserves_column_collation(fresh_db):
+    fresh_db.execute("""
+        CREATE TABLE people (
+            id INTEGER PRIMARY KEY,
+            name TEXT COLLATE NOCASE,
+            nick TEXT COLLATE RTRIM NOT NULL,
+            other TEXT COLLATE NOCASE
+        )
+    """)
+    people = fresh_db.table("people")
+    people.insert({"id": 1, "name": "Alice", "nick": "Al", "other": "x"})
+
+    people.transform(rename={"nick": "nickname"}, drop={"other"})
+
+    assert people.schema == (
+        'CREATE TABLE "people" (\n'
+        '   "id" INTEGER PRIMARY KEY,\n'
+        '   "name" TEXT COLLATE "NOCASE",\n'
+        '   "nickname" TEXT COLLATE "RTRIM" NOT NULL\n'
+        ")"
+    )
+    assert fresh_db.execute(
+        "select count(*) from people where name = 'alice'"
+    ).fetchone() == (1,)
+    assert fresh_db.execute(
+        "select count(*) from people where nickname = 'Al  '"
+    ).fetchone() == (1,)
+
+
 def test_transform_drops_entire_composite_unique_constraint(fresh_db):
     fresh_db.execute("""
         CREATE TABLE memberships (
