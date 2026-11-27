@@ -610,6 +610,39 @@ def parse_autoincrement(create_sql: str) -> str | None:
     return None
 
 
+def parse_column_collations(create_sql: str) -> dict[str, str]:
+    """Return the ``COLLATE`` name declared on each column of a CREATE TABLE statement."""
+    body_info = _table_body(create_sql)
+    if body_info is None:
+        return {}
+    body, _ = body_info
+    collations: dict[str, str] = {}
+    for item, _, _ in _split_spans(body, _lex(body)):
+        item_tokens = _meaningful(_lex(item))
+        if not item_tokens:
+            continue
+        head = item_tokens[0]
+        if (
+            head.kind == "word" and head.text.upper() in _TABLE_CONSTRAINT_KEYWORDS
+        ) or head.is_keyword("CONSTRAINT"):
+            continue
+        column = _unquote(head.text)
+        index = 1
+        while index < len(item_tokens):
+            token = item_tokens[index]
+            if token.text == "(":
+                index = _matching_paren(item_tokens, index) + 1
+                continue
+            if token.is_keyword("COLLATE"):
+                if index + 1 >= len(item_tokens):
+                    raise ParseError("COLLATE is missing its name")
+                collations[column] = _unquote(item_tokens[index + 1].text)
+                index += 2
+                continue
+            index += 1
+    return collations
+
+
 _CONFLICT_ACTIONS = frozenset(("ROLLBACK", "ABORT", "FAIL", "IGNORE", "REPLACE"))
 
 

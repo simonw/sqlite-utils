@@ -35,6 +35,7 @@ from .create_table_parser import (
     check_references_identifier,
     parse_autoincrement,
     parse_checks,
+    parse_column_collations,
     parse_column_comments,
     parse_uniques,
     rewrite_check_expression,
@@ -1444,6 +1445,7 @@ class Database:
         _column_comments: Mapping[str, ColumnComments] | None = None,
         _autoincrement: str | None = None,
         _uniques: Iterable[Unique] | None = None,
+        _collations: Mapping[str, str] | None = None,
     ) -> str:
         """
         Returns the SQL ``CREATE TABLE`` statement for creating the specified table.
@@ -1492,6 +1494,10 @@ class Database:
         column_comments = {
             resolve_casing(name, columns): comments
             for name, comments in (_column_comments or {}).items()
+        }
+        collations = {
+            resolve_casing(name, columns): collation
+            for name, collation in (_collations or {}).items()
         }
         checks = list(_checks or ())
         checks_by_column: dict[str, list[Check]] = {}
@@ -1609,6 +1615,10 @@ class Database:
                 raise ValueError("AUTOINCREMENT requires a single-column primary key")
         for column_name, column_type in column_items:
             column_extras = []
+            if column_name in collations:
+                column_extras.append(
+                    f"COLLATE {quote_identifier(collations[column_name])}"
+                )
             if column_name == single_pk:
                 column_extras.append("PRIMARY KEY")
                 if column_name == _autoincrement:
@@ -2845,6 +2855,7 @@ class Table(Queryable):
             existing_column_comments = parse_column_comments(self.schema)
             existing_autoincrement = parse_autoincrement(self.schema)
             existing_uniques = parse_uniques(self.schema)
+            existing_collations = parse_column_collations(self.schema)
         except ParseError as ex:
             raise TransformError(
                 f"Could not parse table schema for table {self.name!r}: {ex}"
@@ -2907,6 +2918,12 @@ class Table(Queryable):
             owner = resolve_casing(column, existing_columns)
             if owner not in drop:
                 create_table_column_comments[rename.get(owner) or owner] = comments
+
+        create_table_collations: dict[str, str] = {}
+        for column, collation in existing_collations.items():
+            owner = resolve_casing(column, existing_columns)
+            if owner not in drop:
+                create_table_collations[rename.get(owner) or owner] = collation
 
         create_table_foreign_keys: list[ForeignKeyIndicator] = []
 
@@ -3088,6 +3105,7 @@ class Table(Queryable):
                 _column_comments=create_table_column_comments,
                 _autoincrement=create_table_autoincrement,
                 _uniques=create_table_uniques,
+                _collations=create_table_collations,
             ).strip()
         )
 
