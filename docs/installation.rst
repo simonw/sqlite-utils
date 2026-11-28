@@ -39,6 +39,45 @@ Using pipx
 
     pipx install sqlite-utils
 
+.. _installation_standalone_linux:
+
+Building a standalone CLI on Linux
+==================================
+
+If the destination machine has no Python installation, you can build a
+single-file CLI on a compatible Linux machine using
+`PyInstaller <https://pyinstaller.org/>`__. Start in an empty directory::
+
+    python3 -m venv .venv
+    .venv/bin/python -m pip install sqlite-utils pyinstaller
+    .venv/bin/python -m PyInstaller --onefile --name sqlite-utils \
+        --copy-metadata sqlite-utils .venv/bin/sqlite-utils
+
+Copy ``dist/sqlite-utils`` to the destination. Build for the destination CPU
+architecture and a compatible system C library. Check that the copied
+executable can open SQLite and run a query::
+
+    ./sqlite-utils --version
+    ./sqlite-utils memory 'select 6 * 7 as answer'
+
+The query should return ``[{"answer": 42}]``.
+
+To include a plugin, install it in the build environment. Create a directory
+called ``hooks`` and save this file as ``hooks/hook-sqlite_utils.plugins.py``:
+
+.. code-block:: python
+
+    from PyInstaller.utils.hooks import collect_entry_point
+
+    datas, hiddenimports = collect_entry_point("sqlite_utils")
+
+Add ``--additional-hooks-dir hooks`` to the build command and run
+``./sqlite-utils plugins`` on the copied executable. The hook collects
+installed plugins registered in the ``sqlite_utils`` entry point group.
+Exercise the plugin command you need on the destination machine. A plugin
+that loads additional data or optional libraries may need its own hook.
+Rebuild the executable when changing its bundled plugins.
+
 .. _installation_sqlite3_alternatives:
 
 Alternatives to sqlite3
